@@ -79,8 +79,8 @@ export const FISH_DATA: Fish[] = [
     name: 'Carp',
     emoji: '✨',
     rarity: 'common',
-    chance: 40,
-    price: 10,
+    chance: 45,
+    price: 8,
     xp: 10,
     description: 'A common fish, but great for a stew!'
   },
@@ -89,8 +89,8 @@ export const FISH_DATA: Fish[] = [
     name: 'Perch',
     emoji: '🐠',
     rarity: 'uncommon',
-    chance: 25,
-    price: 25,
+    chance: 28,
+    price: 15,
     xp: 20,
     description: 'A striped predator with vivid colors'
   },
@@ -100,7 +100,7 @@ export const FISH_DATA: Fish[] = [
     emoji: '🐡',
     rarity: 'rare',
     chance: 15,
-    price: 50,
+    price: 35,
     xp: 35,
     description: 'A large fish with golden sides'
   },
@@ -109,8 +109,8 @@ export const FISH_DATA: Fish[] = [
     name: 'Pike',
     emoji: '🦈',
     rarity: 'epic',
-    chance: 10,
-    price: 100,
+    chance: 8,
+    price: 75,
     xp: 50,
     description: 'A toothy predator! Be careful!'
   },
@@ -119,8 +119,8 @@ export const FISH_DATA: Fish[] = [
     name: 'Catfish',
     emoji: '🐙',
     rarity: 'legendary',
-    chance: 6,
-    price: 250,
+    chance: 3,
+    price: 200,
     xp: 100,
     description: 'A giant of the deep with whiskers'
   },
@@ -129,8 +129,8 @@ export const FISH_DATA: Fish[] = [
     name: 'Goldfish',
     emoji: '✨',
     rarity: 'mythical',
-    chance: 3,
-    price: 500,
+    chance: 0.8,
+    price: 800,
     xp: 200,
     description: 'Grants wishes... well, almost!'
   },
@@ -139,8 +139,8 @@ export const FISH_DATA: Fish[] = [
     name: 'Mutant Fish',
     emoji: '👾',
     rarity: 'secret',
-    chance: 1,
-    price: 1000,
+    chance: 0.19,
+    price: 2500,
     xp: 500,
     description: 'Something strange from the depths... NFT-ready!'
   },
@@ -182,34 +182,34 @@ export const DAILY_TASKS: DailyTask[] = [
     title: 'Catch 10 fish',
     description: 'Land 10 fish today.',
     target: 10,
-    rewardCoins: 100,
+    rewardCoins: 500,
   },
   {
     id: 'rare_1',
     title: 'Catch 1 rare fish',
     description: 'Catch any rare, epic, legendary, mythical, or secret fish today.',
     target: 1,
-    rewardCoins: 250,
+    rewardCoins: 1000,
   },
   {
     id: 'grill_1',
     title: 'Cook 1 dish',
     description: 'Make any grilled dish today.',
     target: 1,
-    rewardCoins: 150,
+    rewardCoins: 750,
   },
 ];
 
 export const WHEEL_PRIZES: WheelPrize[] = [
-  { id: 'coin_1', label: '1 coin', coins: 1 },
-  { id: 'coin_25', label: '25 coins', coins: 25 },
-  { id: 'coin_75', label: '75 coins', coins: 75 },
-  { id: 'coin_150', label: '150 coins', coins: 150 },
-  { id: 'coin_300', label: '300 coins', coins: 300 },
-  { id: 'coin_750', label: '750 coins', coins: 750 },
-  { id: 'coin_1500', label: '1,500 coins', coins: 1500 },
-  { id: 'coin_10000', label: '10,000 coins', coins: 10000 },
-  { id: 'secret_meteor', label: 'Secret Meteor Prize', coins: 7777, secret: true },
+  { id: 'coin_1', label: '10 coins', coins: 10 },
+  { id: 'coin_25', label: '100 coins', coins: 100 },
+  { id: 'coin_75', label: '250 coins', coins: 250 },
+  { id: 'coin_150', label: '500 coins', coins: 500 },
+  { id: 'coin_300', label: '1,000 coins', coins: 1000 },
+  { id: 'coin_750', label: '2,500 coins', coins: 2500 },
+  { id: 'coin_1500', label: '5,000 coins', coins: 5000 },
+  { id: 'coin_10000', label: '15,000 coins', coins: 15000 },
+  { id: 'secret_meteor', label: 'Secret Meteor Prize', coins: 20000, secret: true },
 ];
 
 export const GRILL_RECIPES: GrillRecipe[] = [
@@ -252,7 +252,7 @@ export const GRILL_RECIPES: GrillRecipe[] = [
 
 export const ROD_BONUSES = [0, 5, 10, 15, 25]; // % bonus to rare fish chance per rod level
 export const XP_PER_LEVEL = 100;
-export const CATCH_CHANCE = 25; // Base 25% chance to catch something
+export const CATCH_CHANCE = 60; // Base 60% chance to catch something
 export const BAIT_COST = 5; // Cost per 1 bait
 
 export interface NftRod {
