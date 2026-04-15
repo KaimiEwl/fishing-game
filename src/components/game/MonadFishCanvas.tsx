@@ -32,6 +32,17 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
     const rodImgsRef = useRef<(HTMLImageElement | null)[]>(new Array(5).fill(null));
     const frameRef = useRef(0);
 
+    const getCanvasSize = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return { w: window.innerWidth, h: window.innerHeight };
+
+        const rect = canvas.getBoundingClientRect();
+        return {
+            w: Math.max(1, Math.round(rect.width || window.innerWidth)),
+            h: Math.max(1, Math.round(rect.height || window.innerHeight)),
+        };
+    };
+
     // Загрузка картинок
     useEffect(() => {
         const ts = Date.now();
@@ -204,12 +215,12 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
+        const initialSize = getCanvasSize();
         if (fishRef.current.length === 0) {
-            const w = window.innerWidth, h = window.innerHeight;
-            for (let i = 0; i < 8; i++) fishRef.current.push(new FishEntity(w, h, i));
+            for (let i = 0; i < 8; i++) fishRef.current.push(new FishEntity(initialSize.w, initialSize.h, i));
         }
         if (bubblesRef.current.length === 0) {
-            for (let i = 0; i < 20; i++) bubblesRef.current.push(new Bubble(window.innerWidth, window.innerHeight));
+            for (let i = 0; i < 20; i++) bubblesRef.current.push(new Bubble(initialSize.w, initialSize.h));
         }
 
         const render = () => {
@@ -512,32 +523,40 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
             animationFrameRef.current = requestAnimationFrame(render);
         };
 
-        const handleResize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+        const handleResize = () => {
+            const { w, h } = getCanvasSize();
+            if (canvas.width !== w) canvas.width = w;
+            if (canvas.height !== h) canvas.height = h;
+        };
         window.addEventListener('resize', handleResize);
+        const resizeObserver = new ResizeObserver(handleResize);
+        resizeObserver.observe(canvas);
         handleResize();
         render();
 
         return () => {
             if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
             window.removeEventListener('resize', handleResize);
+            resizeObserver.disconnect();
         };
     }, [gameState]);
 
     // === ФИЗИКА ЗАБРОСА ===
     useEffect(() => {
         if (gameState === 'casting') {
-            const wl = window.innerHeight * 0.32;
+            const { w, h } = getCanvasSize();
+            const wl = h * 0.32;
             const pepe = pepeImgRef.current;
-            const boatDrawH = Math.min(220, window.innerHeight * 0.3);
+            const boatDrawH = Math.min(220, h * 0.3);
             const aspect = pepe ? pepe.width / pepe.height : 1.5;
             const boatDrawW = boatDrawH * aspect;
             // Стартовая позиция = кончик удочки (пропорции из анализа спрайта)
-            const boatX = window.innerWidth * 0.04;
+            const boatX = w * 0.04;
             const cx = boatX + boatDrawW / 2;
             const cy = (wl - boatDrawH * 0.62) + boatDrawH / 2;
             const startX = cx + boatDrawW * 0.493;
             const startY = cy - boatDrawH * 0.323;
-            const targetX = window.innerWidth * 0.5 + Math.random() * (window.innerWidth * 0.3);
+            const targetX = w * 0.5 + Math.random() * (w * 0.3);
             const targetY = wl;
 
             let progress = 0;
