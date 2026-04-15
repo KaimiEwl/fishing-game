@@ -44,6 +44,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
       title="Shop"
       subtitle="Buy bait and rods without leaving the app menu."
       coins={coins}
+      backgroundImage={publicAsset('assets/bg_shop.jpg')}
     >
       <Tabs defaultValue="bait" className="flex h-full min-h-0 flex-col">
         <TabsList className="grid w-full grid-cols-2 rounded-lg bg-black/35">

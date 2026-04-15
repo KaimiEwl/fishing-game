@@ -5,6 +5,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { FISH_DATA, GRILL_RECIPES, type CaughtFish, type GrillRecipe } from '@/types/game';
 import GameScreenShell from './GameScreenShell';
 import FishIcon from './FishIcon';
+import { publicAsset } from '@/lib/assets';
 
 interface GrillScreenProps {
   coins: number;
@@ -23,6 +24,7 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
       title="Monad Grill"
       subtitle="Cook fish into dishes. Grill score becomes the leaderboard score."
       coins={coins}
+      backgroundImage={publicAsset('assets/bg_grill.jpg')}
     >
       <div className="grid h-full min-h-0 gap-3 lg:grid-cols-[0.8fr_1.2fr]">
         <aside className="rounded-lg border border-amber-300/20 bg-black/35 p-4 backdrop-blur-md">

@@ -54,12 +54,15 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({ inventory, rodLevel, 
       <DialogTrigger asChild>
         <button
           aria-label={`Open inventory, ${totalFish} fish`}
-          className="relative inline-flex h-12 min-w-12 items-center justify-center gap-2 rounded-lg border border-white/15 bg-black/55 px-3 text-white shadow-lg backdrop-blur-md transition hover:bg-black/70 hover:scale-105 active:scale-95 sm:h-14 sm:min-w-[8.25rem]"
+          className="group/inv relative inline-flex h-14 min-w-14 items-center justify-center gap-2.5 rounded-xl border border-violet-400/30 px-4 text-white shadow-[0_0_20px_rgba(139,92,246,0.25)] backdrop-blur-md transition-all hover:scale-105 hover:shadow-[0_0_28px_rgba(139,92,246,0.4)] active:scale-95 sm:h-14 sm:min-w-[8.25rem] sm:rounded-lg sm:border-white/15 sm:shadow-lg sm:hover:shadow-lg"
+          style={{
+            background: 'linear-gradient(135deg, rgba(139,92,246,0.55), rgba(59,7,100,0.65))',
+          }}
         >
-          <Backpack className="h-5 w-5 sm:h-6 sm:w-6" />
-          <span className="hidden text-sm font-bold sm:inline">Inventory</span>
+          <Backpack className="h-6 w-6 sm:h-6 sm:w-6 drop-shadow-md" />
+          <span className="text-sm font-bold sm:inline">Inventory</span>
           {totalFish > 0 && (
-            <span className="absolute -top-1 -right-1 px-1.5 py-0.5 bg-primary text-primary-foreground rounded-full text-[10px] font-bold min-w-[18px] text-center leading-tight">
+            <span className="absolute -top-2 -right-2 px-2 py-0.5 bg-primary text-primary-foreground rounded-full text-xs font-bold min-w-[22px] text-center leading-tight shadow-lg ring-2 ring-black/30">
               {totalFish}
             </span>
           )}

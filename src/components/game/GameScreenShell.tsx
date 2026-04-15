@@ -5,13 +5,22 @@ interface GameScreenShellProps {
   title: string;
   subtitle: string;
   coins?: number;
+  backgroundImage?: string;
   children: React.ReactNode;
 }
 
-const GameScreenShell: React.FC<GameScreenShellProps> = ({ title, subtitle, coins, children }) => {
+const GameScreenShell: React.FC<GameScreenShellProps> = ({ title, subtitle, coins, backgroundImage, children }) => {
   return (
     <section className="absolute inset-0 overflow-hidden bg-[#080914] text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(124,92,255,0.26),transparent_34%),linear-gradient(180deg,#10102c_0%,#080914_48%,#05070d_100%)]" />
+      {backgroundImage && (
+        <img
+          src={backgroundImage}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      )}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(124,92,255,0.26),transparent_34%),linear-gradient(180deg,rgba(16,16,44,0.82)_0%,rgba(8,9,20,0.78)_48%,rgba(5,7,13,0.85)_100%)]" />
       <div className="relative z-10 flex h-full flex-col px-3 pb-24 pt-3 sm:px-6 sm:pb-28 sm:pt-5">
         <header className="mx-auto flex w-full max-w-5xl items-start justify-between gap-3">
           <div className="min-w-0">

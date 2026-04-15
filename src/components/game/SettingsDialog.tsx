@@ -100,9 +100,10 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isConnected, nickname, 
     <Dialog>
       <DialogTrigger asChild>
         <button
-          className="w-5 h-5 rounded-full bg-muted flex items-center justify-center shadow-md hover:scale-110 transition-transform"
+          className="w-9 h-9 sm:w-5 sm:h-5 rounded-full bg-muted flex items-center justify-center shadow-md hover:scale-110 active:scale-95 transition-transform"
+          aria-label="Settings"
         >
-          <Settings className="w-3 h-3 text-muted-foreground" />
+          <Settings className="w-4 h-4 sm:w-3 sm:h-3 text-muted-foreground" />
         </button>
       </DialogTrigger>
       <DialogContent className="max-w-[95vw] sm:max-w-sm bg-card/95 backdrop-blur-md border-2 border-primary/30">

@@ -2,6 +2,7 @@ import React from 'react';
 import { Lock, Trophy, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import GameScreenShell from './GameScreenShell';
+import { publicAsset } from '@/lib/assets';
 
 interface LeaderboardScreenProps {
   coins: number;
@@ -25,6 +26,7 @@ const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
       title="Leaderboard"
       subtitle="Grill score board. Wallet connection is required for public ranking."
       coins={coins}
+      backgroundImage={publicAsset('assets/bg_leaderboard.jpg')}
     >
       <div className="grid h-full min-h-0 gap-3 lg:grid-cols-[0.8fr_1.2fr]">
         <aside className="rounded-lg border border-violet-300/20 bg-black/35 p-4 backdrop-blur-md">

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { WHEEL_PRIZES, type WheelPrize } from '@/types/game';
 import CoinIcon from './CoinIcon';
 import GameScreenShell from './GameScreenShell';
+import { publicAsset } from '@/lib/assets';
 
 interface WheelScreenProps {
   coins: number;
@@ -32,6 +33,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, spun, prize, on
       title="Daily Wheel"
       subtitle="Complete daily tasks, spin once, and chase the secret prize."
       coins={coins}
+      backgroundImage={publicAsset('assets/bg_wheel.jpg')}
     >
       <div className="flex h-full min-h-0 flex-col items-center justify-center gap-5">
         <div className="relative h-64 w-64 sm:h-80 sm:w-80">

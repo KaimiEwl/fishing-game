@@ -5,6 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import type { DailyTaskId, DailyTaskProgress } from '@/types/game';
 import CoinIcon from './CoinIcon';
 import GameScreenShell from './GameScreenShell';
+import { publicAsset } from '@/lib/assets';
 
 interface TasksScreenProps {
   coins: number;
@@ -30,6 +31,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
       title="Daily Tasks"
       subtitle="Finish today's list, claim coins, then unlock the wheel."
       coins={coins}
+      backgroundImage={publicAsset('assets/bg_tasks.jpg')}
     >
       <div className="grid h-full min-h-0 gap-3 lg:grid-cols-[1fr_0.72fr]">
         <div className="min-h-0 overflow-y-auto pr-1">
