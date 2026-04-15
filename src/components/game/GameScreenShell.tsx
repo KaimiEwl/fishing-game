@@ -20,7 +20,7 @@ const GameScreenShell: React.FC<GameScreenShellProps> = ({ title, subtitle, coin
           className="absolute inset-0 h-full w-full object-cover"
         />
       )}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(124,92,255,0.26),transparent_34%),linear-gradient(180deg,rgba(16,16,44,0.82)_0%,rgba(8,9,20,0.78)_48%,rgba(5,7,13,0.85)_100%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(124,92,255,0.26),transparent_34%),linear-gradient(180deg,rgba(16,16,44,0.45)_0%,rgba(8,9,20,0.50)_48%,rgba(5,7,13,0.65)_100%)] pointer-events-none" />
       <div className="relative z-10 flex h-full flex-col px-3 pb-24 pt-3 sm:px-6 sm:pb-28 sm:pt-5">
         <header className="mx-auto flex w-full max-w-5xl items-start justify-between gap-3">
           <div className="min-w-0">
