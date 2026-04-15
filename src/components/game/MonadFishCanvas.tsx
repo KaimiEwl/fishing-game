@@ -49,6 +49,7 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
     const bobberPosRef = useRef({ x: 0, y: 0 });
     const animationFrameRef = useRef<number>();
     const pepeImgRef = useRef<HTMLImageElement | null>(null);
+    const bgImgRef = useRef<HTMLImageElement | null>(null);
     const fishImgsRef = useRef<(HTMLImageElement | null)[]>(new Array(8).fill(null));
     const rodImgsRef = useRef<(HTMLImageElement | null)[]>(new Array(5).fill(null));
     const frameRef = useRef(0);
@@ -67,6 +68,11 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
     // Загрузка картинок
     useEffect(() => {
         const ts = Date.now();
+
+        const bg = new Image();
+        bg.src = publicAsset('assets/bg_main.jpg') + '?v=' + ts;
+        bg.onload = () => { bgImgRef.current = bg; };
+
         const p = new Image();
         p.src = publicAsset('assets/pepe_final.png') + '?v=' + ts;
         p.onload = () => { pepeImgRef.current = p; };
@@ -318,78 +324,19 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
             const t = Date.now() * 0.001;
             const waterLevel = h * 0.32;
 
-            // === НЕБО ===
-            const sky = ctx.createLinearGradient(0, 0, 0, waterLevel);
-            sky.addColorStop(0, '#0a0a2e');
-            sky.addColorStop(0.5, '#151545');
-            sky.addColorStop(1, '#1e2a5a');
-            ctx.fillStyle = sky;
-            ctx.fillRect(0, 0, w, waterLevel);
-
-            // Звёзды (мерцание)
-            for (let i = 0; i < 50; i++) {
-                const sx = (i * 137.5 + 50) % w, sy = (i * 73.3 + 10) % (waterLevel - 30);
-                ctx.globalAlpha = 0.2 + Math.sin(t * 2 + i * 0.7) * 0.3;
-                ctx.fillStyle = '#fff';
-                ctx.beginPath(); ctx.arc(sx, sy, 0.8 + (i % 3) * 0.4, 0, Math.PI * 2); ctx.fill();
+            // === ФОН (Заменяем небо и воду) ===
+            if (bgImgRef.current) {
+                ctx.drawImage(bgImgRef.current, 0, 0, w, h);
+            } else {
+                ctx.fillStyle = '#0a0a2e';
+                ctx.fillRect(0, 0, w, h);
             }
-            ctx.globalAlpha = 1;
 
             if (Math.random() < 0.004 && meteorsRef.current.length < 3) {
                 meteorsRef.current.push(new Meteor(w, waterLevel));
             }
             meteorsRef.current = meteorsRef.current.filter(meteor => meteor.life > 0 && meteor.y < waterLevel);
             meteorsRef.current.forEach(meteor => { meteor.update(); meteor.draw(ctx); });
-
-            // Луна
-            const moonX = w * 0.8, moonY = waterLevel * 0.3;
-            ctx.save(); ctx.globalAlpha = 0.9; ctx.fillStyle = '#f5e6c8';
-            ctx.shadowColor = '#f5e6c8'; ctx.shadowBlur = 40;
-            ctx.beginPath(); ctx.arc(moonX, moonY, 30, 0, Math.PI * 2); ctx.fill();
-            ctx.globalAlpha = 0.15; ctx.fillStyle = '#c9b896';
-            ctx.beginPath(); ctx.arc(moonX - 8, moonY - 5, 6, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.arc(moonX + 10, moonY + 8, 4, 0, Math.PI * 2); ctx.fill();
-            ctx.shadowBlur = 0; ctx.restore();
-
-            // === ВОДА ===
-            const water = ctx.createLinearGradient(0, waterLevel, 0, h);
-            water.addColorStop(0, '#006994');
-            water.addColorStop(0.15, '#005f87');
-            water.addColorStop(0.5, '#003d5c');
-            water.addColorStop(1, '#001520');
-            ctx.fillStyle = water;
-            ctx.fillRect(0, waterLevel, w, h - waterLevel);
-
-            // Лучи света
-            ctx.save(); ctx.globalAlpha = 0.04; ctx.fillStyle = '#88bbdd';
-            for (let i = 0; i < 8; i++) {
-                const lx = w * (0.08 + i * 0.12), sp = 30 + i * 5;
-                ctx.beginPath(); ctx.moveTo(lx, waterLevel); ctx.lineTo(lx - sp, h); ctx.lineTo(lx + sp, h); ctx.fill();
-            }
-            ctx.restore();
-
-            // Волны
-            for (let layer = 0; layer < 2; layer++) {
-                ctx.strokeStyle = layer === 0 ? 'rgba(255,255,255,0.25)' : 'rgba(200,230,255,0.12)';
-                ctx.lineWidth = layer === 0 ? 2 : 1.5;
-                ctx.beginPath(); ctx.moveTo(0, waterLevel + layer * 3);
-                for (let x = 0; x < w; x += 6) {
-                    ctx.lineTo(x, waterLevel + layer * 3 + Math.sin(x * 0.012 + t * (1 + layer * 0.3)) * 4 + Math.sin(x * 0.006 + t * 0.5) * 2);
-                }
-                ctx.stroke();
-            }
-
-            // Водоросли
-            ctx.save();
-            for (let i = 0; i < 12; i++) {
-                const wx = (i * 107 + 30) % w, wh = 30 + (i % 4) * 15;
-                const sway = Math.sin(t * 0.8 + i * 1.2) * 8;
-                ctx.strokeStyle = i % 2 === 0 ? '#1a6633' : '#0d4422'; ctx.lineWidth = 3;
-                ctx.beginPath(); ctx.moveTo(wx, h); ctx.quadraticCurveTo(wx + sway, h - wh * 0.6, wx + sway * 0.5, h - wh); ctx.stroke();
-                ctx.fillStyle = i % 2 === 0 ? '#228844' : '#115533';
-                ctx.beginPath(); ctx.ellipse(wx + sway * 0.5, h - wh, 4, 8, sway * 0.02, 0, Math.PI * 2); ctx.fill();
-            }
-            ctx.restore();
 
             // === ПЕПЕ В ЛОДКЕ ===
             const pepe = pepeImgRef.current;

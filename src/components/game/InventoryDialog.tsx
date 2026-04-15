@@ -119,41 +119,40 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({ inventory, rodLevel, 
                   return (
                     <div
                       key={level}
-                      className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+                      className={`flex items-center gap-4 p-3 rounded-xl border shadow-sm transition-all ${
                         isEquipped
-                          ? 'bg-primary/10 border-primary/40'
-                          : 'bg-muted/50 border-border hover:bg-muted/70'
+                          ? 'bg-primary/10 border-primary bg-gradient-to-r from-primary/10 to-transparent'
+                          : 'bg-card border-border/50 hover:bg-accent hover:border-accent'
                       }`}
                     >
-                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden relative ${hasNft ? 'ring-2 ring-yellow-500' : ''}`}>
-                        <img src={rod.image} alt={rod.name} className="h-10 object-contain" />
+                      <div className={`w-14 h-14 shrink-0 rounded-xl flex items-center justify-center overflow-visible bg-black/20 relative ${hasNft ? 'ring-2 ring-yellow-500' : ''}`}>
+                        <img src={rod.image} alt={rod.name} className="h-12 object-contain drop-shadow-md hover:scale-110 transition-transform" />
                         {hasNft && (
-                          <div className="absolute -top-1 -right-1 bg-yellow-500 text-black text-[7px] font-bold px-1 rounded">
+                          <div className="absolute -top-1.5 -right-1.5 bg-yellow-500 text-black text-[8px] font-bold px-1.5 rounded-sm shadow-sm border border-yellow-300">
                             NFT
                           </div>
                         )}
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-sm flex items-center gap-2">
+                        <div className="font-semibold text-base flex items-center gap-2">
                           {rod.name}
-                          {hasNft && <span className="text-yellow-500 text-xs">✨</span>}
+                          {hasNft && <span className="text-yellow-500 text-xs shadow-sm">✨</span>}
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          {rod.bonus > 0 ? `+${rod.bonus}% rare fish chance` : 'Standard chance'}
+                        <div className="text-sm font-medium text-muted-foreground mt-0.5">
+                          {rod.bonus > 0 ? `+${rod.bonus}% legendary chance` : 'Standard rod'}
                         </div>
                       </div>
 
                       {isEquipped ? (
-                        <span className="text-primary font-bold text-sm whitespace-nowrap inline-flex items-center gap-1">
+                        <span className="text-primary font-bold text-sm whitespace-nowrap inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10">
                           <Check className="h-4 w-4" /> Equipped
                         </span>
                       ) : (
                         <Button
                           size="sm"
-                          variant="outline"
                           onClick={() => onEquipRod(level)}
-                          className="border-primary/30 hover:border-primary/50"
+                          className="bg-primary/90 hover:bg-primary font-bold px-5 rounded-lg shadow-sm"
                         >
                           Equip
                         </Button>
@@ -181,22 +180,22 @@ const InventoryItem: React.FC<InventoryItemProps> = ({ fish, quantity, onSell })
   const totalValue = fish.price * quantity;
 
   return (
-    <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border border-border hover:bg-muted/70 transition-colors overflow-hidden">
+    <div className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border/50 shadow-sm hover:shadow-md transition-all overflow-hidden group">
       <div
-        className="w-10 h-10 shrink-0 rounded-lg flex items-center justify-center overflow-hidden"
+        className="w-14 h-14 shrink-0 rounded-xl flex items-center justify-center overflow-visible shadow-inner"
         style={{
-          background: `linear-gradient(135deg, ${RARITY_COLORS[fish.rarity]}20, ${RARITY_COLORS[fish.rarity]}40)`,
-          border: `2px solid ${RARITY_COLORS[fish.rarity]}50`
+          background: `linear-gradient(135deg, ${RARITY_COLORS[fish.rarity]}30, ${RARITY_COLORS[fish.rarity]}10)`,
+          border: `1px solid ${RARITY_COLORS[fish.rarity]}40`
         }}
       >
-        <FishIcon fish={fish} className="h-8 w-8" />
+        <FishIcon fish={fish} className="h-12 w-12 drop-shadow-md group-hover:scale-110 transition-transform" />
       </div>
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="font-semibold truncate">{fish.name}</span>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="font-bold text-sm truncate drop-shadow-sm" style={{ color: RARITY_COLORS[fish.rarity] }}>{fish.name}</span>
           <span
-            className="text-xs px-2 py-0.5 rounded-full"
+            className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider backdrop-blur-sm"
             style={{
               backgroundColor: `${RARITY_COLORS[fish.rarity]}20`,
               color: RARITY_COLORS[fish.rarity]
@@ -208,17 +207,17 @@ const InventoryItem: React.FC<InventoryItemProps> = ({ fish, quantity, onSell })
         <p className="text-xs text-muted-foreground truncate">{fish.description}</p>
       </div>
 
-      <div className="text-right flex items-center gap-2 shrink-0">
-        <div>
-          <p className="font-bold text-sm">x{quantity}</p>
-          <p className="text-xs text-muted-foreground flex items-center gap-0.5"><CoinIcon size={12} /> {totalValue}</p>
+      <div className="text-right flex flex-col sm:flex-row items-end sm:items-center gap-2 sm:gap-4 shrink-0">
+        <div className="flex flex-col items-end">
+          <span className="font-bold text-sm bg-muted/50 px-2 py-0.5 rounded-md mb-1">x{quantity}</span>
+          <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1 drop-shadow-sm">Total: {totalValue} <CoinIcon size={12} /></span>
         </div>
         <Button
           size="sm"
           onClick={onSell}
-          className="bg-green-600 hover:bg-green-700 text-white text-xs px-2"
+          className="bg-green-500 hover:bg-green-600 shadow text-white font-bold px-4 rounded-lg flex items-center gap-1.5"
         >
-          <CoinIcon size={12} /> +{fish.price}
+          Sell (+{fish.price})
         </Button>
       </div>
     </div>

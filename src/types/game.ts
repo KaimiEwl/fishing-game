@@ -79,7 +79,7 @@ export const FISH_DATA: Fish[] = [
     name: 'Carp',
     emoji: '✨',
     rarity: 'common',
-    chance: 45,
+    chance: 45.14,
     price: 8,
     xp: 10,
     description: 'A common fish, but great for a stew!'
@@ -105,44 +105,44 @@ export const FISH_DATA: Fish[] = [
     description: 'A large fish with golden sides'
   },
   {
-    id: 'pike',
-    name: 'Pike',
-    emoji: '🦈',
+    id: 'catfish',
+    name: 'Catfish',
+    emoji: '🐙',
     rarity: 'epic',
     chance: 8,
     price: 75,
     xp: 50,
-    description: 'A toothy predator! Be careful!'
-  },
-  {
-    id: 'catfish',
-    name: 'Catfish',
-    emoji: '🐙',
-    rarity: 'legendary',
-    chance: 3,
-    price: 200,
-    xp: 100,
     description: 'A giant of the deep with whiskers'
   },
   {
     id: 'goldfish',
     name: 'Goldfish',
     emoji: '✨',
-    rarity: 'mythical',
-    chance: 0.8,
-    price: 800,
-    xp: 200,
+    rarity: 'legendary',
+    chance: 3,
+    price: 200,
+    xp: 100,
     description: 'Grants wishes... well, almost!'
   },
   {
     id: 'mutant',
     name: 'Mutant Fish',
     emoji: '👾',
-    rarity: 'secret',
-    chance: 0.19,
-    price: 2500,
-    xp: 500,
+    rarity: 'mythical',
+    chance: 0.8,
+    price: 800,
+    xp: 200,
     description: 'Something strange from the depths... NFT-ready!'
+  },
+  {
+    id: 'pike',
+    name: 'Purple Fish',
+    emoji: '🦈',
+    rarity: 'secret',
+    chance: 0.05,
+    price: 10000,
+    xp: 1000,
+    description: 'A majestic purple predator! extremely rare!'
   },
   {
     id: 'leviathan',

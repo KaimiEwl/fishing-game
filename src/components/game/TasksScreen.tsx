@@ -41,14 +41,14 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
               const progress = Math.min(100, (task.progress / task.target) * 100);
 
               return (
-                <article key={task.id} className="rounded-lg border border-white/10 bg-black/35 p-4 backdrop-blur-md">
+                <article key={task.id} className="rounded-xl border border-white/10 bg-black/35 p-4 backdrop-blur-md shadow-lg shadow-black/20">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <h2 className="font-bold">{task.title}</h2>
-                      <p className="mt-1 text-sm text-white/60">{task.description}</p>
+                      <h2 className="text-lg font-bold text-white drop-shadow-sm">{task.title}</h2>
+                      <p className="mt-1 text-sm text-white/70">{task.description}</p>
                     </div>
-                    <div className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-amber-400/15 px-2 py-1 text-sm font-bold text-amber-100">
-                      <CoinIcon size={14} />
+                    <div className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-amber-400/20 border border-amber-400/30 px-3 py-1.5 text-sm font-bold text-amber-300 shadow-sm">
+                      <CoinIcon size={16} />
                       {task.rewardCoins}
                     </div>
                   </div>
@@ -65,7 +65,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                     type="button"
                     disabled={!complete || task.claimed}
                     onClick={() => onClaimTask(task.id)}
-                    className="mt-4 h-10 w-full rounded-lg bg-violet-500 text-white hover:bg-violet-400 disabled:bg-white/10 disabled:text-white/35"
+                    className="mt-4 h-12 w-full rounded-xl bg-violet-600 font-bold text-base text-white shadow-lg shadow-violet-500/20 hover:bg-violet-500 disabled:bg-white/10 disabled:text-white/35 disabled:shadow-none transition-all"
                   >
                     {task.claimed ? (
                       <>
@@ -85,14 +85,14 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
           </div>
         </div>
 
-        <aside className="rounded-lg border border-violet-300/20 bg-violet-500/10 p-4 backdrop-blur-md">
+        <aside className="rounded-xl border border-violet-400/30 bg-violet-500/10 p-5 backdrop-blur-md shadow-xl">
           <div className="flex h-full flex-col justify-between gap-5">
             <div>
-              <div className="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-violet-500 text-white">
-                <Trophy className="h-6 w-6" />
+              <div className="inline-flex h-14 w-14 items-center justify-center rounded-xl bg-violet-500 text-white shadow-lg shadow-violet-500/30">
+                <Trophy className="h-7 w-7" />
               </div>
-              <h2 className="mt-4 text-xl font-black">Daily wheel</h2>
-              <p className="mt-2 text-sm text-white/65">
+              <h2 className="mt-5 text-2xl font-black text-white drop-shadow-md">Daily wheel</h2>
+              <p className="mt-2 text-base text-white/70 leading-relaxed">
                 {completedCount}/{tasks.length} tasks complete. Claim every reward to unlock today's spin.
               </p>
             </div>
@@ -101,7 +101,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
               type="button"
               disabled={!wheelReady}
               onClick={onOpenWheel}
-              className="h-12 rounded-lg bg-amber-400 text-black hover:bg-amber-300 disabled:bg-white/10 disabled:text-white/35"
+              className="h-14 rounded-xl font-bold text-lg bg-gradient-to-r from-amber-400 to-amber-500 text-black shadow-lg shadow-amber-500/30 hover:shadow-xl hover:from-amber-300 hover:to-amber-400 disabled:opacity-50 disabled:from-white/10 disabled:to-white/10 disabled:text-white/40 disabled:shadow-none transition-all"
             >
               {allTasksClaimed ? (
                 <>

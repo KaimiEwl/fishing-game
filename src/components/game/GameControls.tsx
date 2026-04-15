@@ -96,9 +96,10 @@ const GameControls: React.FC<GameControlsProps> = ({
               </div>
               <Button
                 onClick={onReelIn}
-                  className="text-lg h-14 px-8 rounded-lg font-bold shadow-lg hover:shadow-xl transition-all hover:scale-110 active:scale-95 animate-bounce"
+                className="text-lg h-14 min-w-[8rem] px-8 rounded-xl font-bold shadow-lg shadow-orange-500/20 hover:shadow-xl hover:shadow-orange-500/40 transition-all hover:scale-110 active:scale-95 animate-bounce"
                 style={{
                   background: 'linear-gradient(135deg, #ffaa00, #ff6600)',
+                  color: 'white'
                 }}
               >
                 🎣 Reel!
@@ -122,16 +123,12 @@ const GameControls: React.FC<GameControlsProps> = ({
             <Tooltip>
               <TooltipTrigger asChild>
                 <div
-                  className={`flex h-12 w-12 sm:h-14 sm:w-14 flex-col items-center justify-center rounded-lg border shadow-lg cursor-pointer relative backdrop-blur-md ${hasNft ? 'ring-2 ring-yellow-500' : ''}`}
-                  style={{
-                    background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(270, 70%, 65%))',
-                    borderColor: 'hsl(var(--primary) / 0.3)'
-                  }}
+                  className={`flex h-12 w-12 sm:h-14 sm:w-14 flex-col items-center justify-center rounded-xl border border-primary/30 shadow-lg cursor-pointer relative backdrop-blur-md bg-card/80 hover:bg-card transition-all hover:scale-105 active:scale-95 ${hasNft ? 'ring-2 ring-yellow-500' : ''}`}
                 >
-                  <img src={rod.image} alt={rod.name} className="h-8 sm:h-9 object-contain" />
-                  {rod.bonus > 0 && <span className="text-[10px] font-bold text-white/90">+{rod.bonus}%</span>}
+                  <img src={rod.image} alt={rod.name} className="h-7 sm:h-8 object-contain drop-shadow-md" />
+                  {rod.bonus > 0 && <span className="text-[9px] font-bold text-primary leading-none mt-0.5">+{rod.bonus}%</span>}
                   {hasNft && (
-                    <div className="absolute -top-1 -right-1 bg-yellow-500 text-black text-[7px] font-bold px-1 rounded">
+                    <div className="absolute -top-1.5 -right-1.5 bg-yellow-500 text-black text-[8px] font-bold px-1.5 rounded-sm shadow-sm border border-yellow-300">
                       NFT
                     </div>
                   )}
@@ -174,10 +171,10 @@ const GameControls: React.FC<GameControlsProps> = ({
           <Button
             onClick={onCast}
             disabled={!hasBait}
-            className="h-12 min-w-[5.5rem] sm:h-14 sm:min-w-[8rem] px-3 sm:px-4 rounded-lg text-sm sm:text-base font-bold shadow-lg hover:shadow-xl transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
+            className="h-12 min-w-[6rem] sm:h-14 sm:min-w-[8rem] px-4 sm:px-6 rounded-xl text-base sm:text-lg font-bold shadow-lg hover:shadow-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
             style={{
               background: hasBait
-                ? 'linear-gradient(135deg, hsl(var(--primary)), hsl(270, 70%, 65%))'
+                ? 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.8))'
                 : undefined
             }}
           >
