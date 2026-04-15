@@ -113,10 +113,10 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
 
     class FishEntity {
         x: number; y: number; targetX: number; targetY: number;
-        speed: number; size: number; angle: number;
+        speed: number; size: number; angle: number; visualAngle: number;
         state: 'idle' | 'chasing' | 'booked';
         wobble: number; fishType: number; wobbleSpeed: number;
-        depthMin: number; depthMax: number;
+        depthMin: number; depthMax: number; facing: 1 | -1; targetCooldown: number;
 
         constructor(w: number, h: number, fishType: number) {
             const traits = FISH_TRAITS[fishType] || FISH_TRAITS[0];
@@ -129,20 +129,29 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
             this.x = Math.random() * w;
             this.y = h * this.depthMin + Math.random() * (h * (this.depthMax - this.depthMin));
             this.targetX = this.x; this.targetY = this.y;
-            this.angle = 0; this.state = 'idle';
+            this.angle = (Math.random() - 0.5) * Math.PI * 0.25;
+            this.visualAngle = this.angle;
+            this.state = 'idle';
             this.wobble = Math.random() * Math.PI * 2;
+            this.facing = Math.random() > 0.5 ? 1 : -1;
+            this.targetCooldown = 30 + Math.random() * 90;
             this.setRandomTarget(w, h);
         }
         setRandomTarget(w: number, h: number) {
-            this.targetX = 50 + Math.random() * (w - 100);
+            const safeW = Math.max(120, w);
+            this.targetX = 50 + Math.random() * (safeW - 100);
             this.targetY = h * this.depthMin + Math.random() * (h * (this.depthMax - this.depthMin));
+            this.targetCooldown = 90 + Math.random() * 180;
         }
         update(w: number, h: number, bobber: { x: number; y: number }, gs: string) {
             this.wobble += this.wobbleSpeed;
+            this.targetCooldown = Math.max(0, this.targetCooldown - 1);
             if (this.state === 'booked') {
                 this.x += (bobber.x - this.x) * 0.15;
                 this.y += (bobber.y + 12 - this.y) * 0.15;
-                this.angle = -Math.PI / 2 + Math.sin(this.wobble * 4) * 0.35;
+                const hookedAngle = -Math.PI / 2 + Math.sin(this.wobble * 4) * 0.2;
+                this.angle += (hookedAngle - this.angle) * 0.12;
+                this.visualAngle += (this.angle - this.visualAngle) * 0.18;
                 return;
             }
             if (gs === 'waiting' && Math.random() < 0.005) this.state = 'chasing';
@@ -154,25 +163,39 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
                 tx = bobber.x + Math.cos(this.wobble) * 60;
                 ty = Math.max(minY, bobber.y + 30 + Math.sin(this.wobble) * 20);
             } else if (this.state === 'idle') {
-                if (Math.hypot(tx - this.x, ty - this.y) < 15) this.setRandomTarget(w, h);
+                if (this.targetCooldown <= 0 || Math.hypot(tx - this.x, ty - this.y) < 45) this.setRandomTarget(w, h);
             }
             ty = Math.max(minY, ty);
             const ta = Math.atan2(ty - this.y, tx - this.x);
             let diff = ta - this.angle;
             while (diff < -Math.PI) diff += Math.PI * 2;
             while (diff > Math.PI) diff -= Math.PI * 2;
-            this.angle += diff * 0.06;
-            this.x += Math.cos(this.angle) * this.speed;
-            this.y += Math.sin(this.angle) * this.speed;
+            const turnEase = this.state === 'chasing' ? 0.045 : 0.026;
+            this.angle += diff * turnEase;
+            this.visualAngle += (this.angle - this.visualAngle) * 0.12;
+
+            const dx = Math.cos(this.angle);
+            const dy = Math.sin(this.angle);
+            if (dx > 0.08) this.facing = 1;
+            if (dx < -0.08) this.facing = -1;
+            this.x += dx * this.speed;
+            this.y += dy * this.speed;
             if (this.y < minY) this.y = minY + 10;
-            if (this.x < -50) this.x = w + 50;
-            if (this.x > w + 50) this.x = -50;
+            if (this.x < -50) {
+                this.x = w + 50;
+                this.setRandomTarget(w, h);
+            }
+            if (this.x > w + 50) {
+                this.x = -50;
+                this.setRandomTarget(w, h);
+            }
         }
         draw(ctx: CanvasRenderingContext2D, imgs: (HTMLImageElement | null)[]) {
             ctx.save();
             ctx.translate(this.x, this.y);
-            if (Math.abs(this.angle) > Math.PI / 2) ctx.scale(-1, 1);
-            ctx.rotate(Math.sin(this.wobble * 2.5) * 0.04);
+            if (this.facing < 0) ctx.scale(-1, 1);
+            const swimTilt = Math.max(-0.18, Math.min(0.18, Math.sin(this.visualAngle) * 0.22));
+            ctx.rotate(swimTilt + Math.sin(this.wobble * 1.8) * 0.018);
             const img = imgs[this.fishType];
             if (img) {
                 const aspect = img.width / img.height;

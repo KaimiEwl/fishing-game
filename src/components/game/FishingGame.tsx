@@ -1,21 +1,24 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import MonadFishCanvas from './MonadFishCanvas';
 import PlayerPanel from './PlayerPanel';
 import GameControls from './GameControls';
 import InventoryDialog from './InventoryDialog';
 import ShopDialog from './ShopDialog';
 import BuyCoinsDialog from './BuyCoinsDialog';
+import BarbecueScreen from './BarbecueScreen';
 import LevelUpCelebration from './LevelUpCelebration';
+import { Button } from '@/components/ui/button';
 import { useGameState } from '@/hooks/useGameState';
 import { useWalletAuth } from '@/hooks/useWalletAuth';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
-import { Mail } from 'lucide-react';
+import { Flame, Mail } from 'lucide-react';
 
 const FishingGame: React.FC = () => {
   const { isConnected, isVerified, savedPlayer, saveProgress, address } = useWalletAuth();
   const isMobile = useIsMobile();
+  const [screen, setScreen] = useState<'fishing' | 'barbecue'>('fishing');
 
   const { player, gameState, lastResult, levelUpInfo, biteTimeLeft, biteTimeTotal, castRod, reelIn, sellFish, buyBait, buyRod, equipRod, addCoins, dismissLevelUp, mintNftRod, setNickname, setAvatarUrl } = useGameState({
     savedPlayer: isConnected ? savedPlayer : undefined,
@@ -73,6 +76,8 @@ const FishingGame: React.FC = () => {
     sounds.playSellSound();
   };
 
+  const isFishingScreen = screen === 'fishing';
+
   return (
     <main className="fixed inset-0 bg-black overflow-hidden">
     <div
@@ -85,22 +90,36 @@ const FishingGame: React.FC = () => {
         minHeight: '100vh',
       }}
     >
-      <MonadFishCanvas onCast={castRod} gameState={gameState} lastResult={lastResult} rodLevel={player.equippedRod} />
+      {isFishingScreen ? (
+        <MonadFishCanvas onCast={castRod} gameState={gameState} lastResult={lastResult} rodLevel={player.equippedRod} />
+      ) : (
+        <BarbecueScreen
+          inventory={player.inventory}
+          coins={player.coins}
+          onBack={() => setScreen('fishing')}
+          onGrillFish={handleSellFish}
+        />
+      )}
 
-      <PlayerPanel player={player} onSetNickname={isConnected ? setNickname : undefined} isConnected={isConnected} walletAddress={address} onAvatarUploaded={setAvatarUrl} />
+      {isFishingScreen && (
+        <PlayerPanel player={player} onSetNickname={isConnected ? setNickname : undefined} isConnected={isConnected} walletAddress={address} onAvatarUploaded={setAvatarUrl} />
+      )}
 
-      <GameControls
-        gameState={gameState}
-        lastResult={lastResult}
-        hasBait={player.bait > 0}
-        onCast={castRod}
-        onReelIn={reelIn}
-        rodLevel={player.equippedRod}
-        nftRods={player.nftRods}
-        biteTimeLeft={biteTimeLeft}
-        biteTimeTotal={biteTimeTotal}
-      />
+      {isFishingScreen && (
+        <GameControls
+          gameState={gameState}
+          lastResult={lastResult}
+          hasBait={player.bait > 0}
+          onCast={castRod}
+          onReelIn={reelIn}
+          rodLevel={player.equippedRod}
+          nftRods={player.nftRods}
+          biteTimeLeft={biteTimeLeft}
+          biteTimeTotal={biteTimeTotal}
+        />
+      )}
 
+      {isFishingScreen && (
       <div className="fixed bottom-3 left-3 sm:bottom-5 sm:left-5 z-20 flex flex-col items-start gap-2">
         <InventoryDialog
           inventory={player.inventory}
@@ -118,6 +137,16 @@ const FishingGame: React.FC = () => {
           onBuyBait={handleBuyBait}
           onBuyRod={handleBuyRod}
         />
+        <Button
+          type="button"
+          onClick={() => setScreen('barbecue')}
+          className="relative inline-flex h-12 min-w-12 items-center justify-center gap-2 rounded-lg border border-amber-300/30 bg-black/55 px-3 text-amber-100 shadow-lg backdrop-blur-md transition hover:bg-black/70 hover:scale-105 active:scale-95 sm:h-14 sm:min-w-[8.25rem]"
+          aria-label="Open barbecue"
+          disabled={gameState !== 'idle'}
+        >
+          <Flame className="h-5 w-5 sm:h-6 sm:w-6" />
+          <span className="hidden text-sm font-bold sm:inline">BBQ</span>
+        </Button>
         {isConnected && (
           <BuyCoinsDialog
             walletAddress={address}
@@ -128,6 +157,7 @@ const FishingGame: React.FC = () => {
           />
         )}
       </div>
+      )}
 
 
       <a
