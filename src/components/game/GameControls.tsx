@@ -3,13 +3,14 @@ import { GameState, GameResult } from '@/types/game';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import FishDisplay from './FishDisplay';
+import { publicAsset } from '@/lib/assets';
 
 const ROD_INFO = [
-  { name: 'Starter', image: '/assets/rod_basic.png', color: '#aaa', bonus: 0 },
-  { name: 'Bamboo', image: '/assets/rod_bamboo.png', color: '#22aa44', bonus: 5 },
-  { name: 'Carbon', image: '/assets/rod_carbon.png', color: '#2255cc', bonus: 10 },
-  { name: 'Pro', image: '/assets/rod_pro.png', color: '#9944ff', bonus: 15 },
-  { name: 'Legendary', image: '/assets/rod_legendary.png', color: '#ffcc00', bonus: 25 },
+  { name: 'Starter', image: publicAsset('assets/rod_basic.png'), color: '#aaa', bonus: 0 },
+  { name: 'Bamboo', image: publicAsset('assets/rod_bamboo.png'), color: '#22aa44', bonus: 5 },
+  { name: 'Carbon', image: publicAsset('assets/rod_carbon.png'), color: '#2255cc', bonus: 10 },
+  { name: 'Pro', image: publicAsset('assets/rod_pro.png'), color: '#9944ff', bonus: 15 },
+  { name: 'Legendary', image: publicAsset('assets/rod_legendary.png'), color: '#ffcc00', bonus: 25 },
 ];
 
 interface GameControlsProps {

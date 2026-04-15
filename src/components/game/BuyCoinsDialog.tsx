@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { NFT_ROD_DATA } from '@/types/game';
 import CoinIcon from './CoinIcon';
+import { publicAsset } from '@/lib/assets';
 
 const RECEIVER_ADDRESS = '0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D' as const;
 
@@ -27,11 +28,11 @@ const COIN_PACKAGES = [
 ];
 
 const ROD_IMAGES = [
-  '/assets/rod_basic.png',
-  '/assets/rod_bamboo.png',
-  '/assets/rod_carbon.png',
-  '/assets/rod_pro.png',
-  '/assets/rod_legendary.png',
+  publicAsset('assets/rod_basic.png'),
+  publicAsset('assets/rod_bamboo.png'),
+  publicAsset('assets/rod_carbon.png'),
+  publicAsset('assets/rod_pro.png'),
+  publicAsset('assets/rod_legendary.png'),
 ];
 
 const ROD_NAMES = ['Starter', 'Bamboo', 'Carbon', 'Pro', 'Legendary'];

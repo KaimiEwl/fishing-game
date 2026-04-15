@@ -159,7 +159,7 @@
     content: '';
     position: absolute;
     inset: 0;
-    background-image: url('/assets/pattern-bg.png');
+    background-image: var(--pattern-bg-image, url('/assets/pattern-bg.png'));
     background-size: 400px auto;
     background-repeat: repeat;
     background-position: center;
@@ -173,7 +173,7 @@
     content: '';
     position: absolute;
     inset: 0;
-    background-image: url('/assets/pattern-bg.png');
+    background-image: var(--pattern-bg-image, url('/assets/pattern-bg.png'));
     background-size: 400px auto;
     background-repeat: repeat;
     background-position: center;

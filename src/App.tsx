@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { WagmiProvider } from 'wagmi';
 import { RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit';
 import { wagmiConfig } from '@/lib/wagmi';
+import { publicAsset } from '@/lib/assets';
 import '@rainbow-me/rainbowkit/styles.css';
 import Index from "./pages/Index";
 import Admin from "./pages/Admin";
@@ -14,6 +15,11 @@ import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+
+document.documentElement.style.setProperty(
+  '--pattern-bg-image',
+  `url("${publicAsset('assets/pattern-bg.png')}")`
+);
 
 const App = () => (
   <WagmiProvider config={wagmiConfig}>

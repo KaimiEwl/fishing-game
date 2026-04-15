@@ -1,4 +1,5 @@
 import React from 'react';
+import { publicAsset } from '@/lib/assets';
 
 interface CoinIconProps {
   size?: number;
@@ -7,7 +8,7 @@ interface CoinIconProps {
 
 const CoinIcon: React.FC<CoinIconProps> = ({ size = 16, className = '' }) => (
   <img
-    src="/assets/coin.png"
+    src={publicAsset('assets/coin.png')}
     alt="coin"
     width={size}
     height={size}

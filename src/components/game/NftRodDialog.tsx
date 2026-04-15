@@ -13,13 +13,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
 import { parseEther } from 'viem';
 import { toast } from 'sonner';
+import { publicAsset } from '@/lib/assets';
 
 const ROD_IMAGES = [
-  '/assets/rod_basic.png',
-  '/assets/rod_bamboo.png',
-  '/assets/rod_carbon.png',
-  '/assets/rod_pro.png',
-  '/assets/rod_legendary.png',
+  publicAsset('assets/rod_basic.png'),
+  publicAsset('assets/rod_bamboo.png'),
+  publicAsset('assets/rod_carbon.png'),
+  publicAsset('assets/rod_pro.png'),
+  publicAsset('assets/rod_legendary.png'),
 ];
 
 const ROD_NAMES = ['Starter', 'Bamboo', 'Carbon', 'Pro', 'Legendary'];

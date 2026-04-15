@@ -1,17 +1,18 @@
 import React from 'react';
 import { Fish, RARITY_COLORS, RARITY_NAMES } from '@/types/game';
 import CoinIcon from './CoinIcon';
+import { publicAsset } from '@/lib/assets';
 
 // Маппинг id рыбы на файл спрайта
 const FISH_IMAGES: Record<string, string> = {
-  'carp': '/assets/fish_carp.png',
-  'perch': '/assets/fish_perch.png',
-  'bream': '/assets/fish_bream.png',
-  'pike': '/assets/fish_pike.png',
-  'catfish': '/assets/fish_catfish.png',
-  'goldfish': '/assets/fish_goldfish.png',
-  'mutant': '/assets/fish_mutant.png',
-  'leviathan': '/assets/fish_leviathan.png',
+  'carp': publicAsset('assets/fish_carp.png'),
+  'perch': publicAsset('assets/fish_perch.png'),
+  'bream': publicAsset('assets/fish_bream.png'),
+  'pike': publicAsset('assets/fish_pike.png'),
+  'catfish': publicAsset('assets/fish_catfish.png'),
+  'goldfish': publicAsset('assets/fish_goldfish.png'),
+  'mutant': publicAsset('assets/fish_mutant.png'),
+  'leviathan': publicAsset('assets/fish_leviathan.png'),
 };
 
 interface FishDisplayProps {
@@ -89,4 +90,3 @@ const FishDisplay: React.FC<FishDisplayProps> = ({
 };
 
 export default FishDisplay;
-

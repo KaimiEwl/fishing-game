@@ -11,13 +11,14 @@ import { CaughtFish, FISH_DATA, RARITY_COLORS, RARITY_NAMES, ROD_BONUSES } from 
 import CoinIcon from './CoinIcon';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { publicAsset } from '@/lib/assets';
 
 const ROD_INFO = [
-  { name: 'Starter', image: '/assets/rod_basic.png', color: '#aaa', bonus: 0 },
-  { name: 'Bamboo', image: '/assets/rod_bamboo.png', color: '#22aa44', bonus: 5 },
-  { name: 'Carbon', image: '/assets/rod_carbon.png', color: '#2255cc', bonus: 10 },
-  { name: 'Pro', image: '/assets/rod_pro.png', color: '#9944ff', bonus: 15 },
-  { name: 'Legendary', image: '/assets/rod_legendary.png', color: '#ffcc00', bonus: 25 },
+  { name: 'Starter', image: publicAsset('assets/rod_basic.png'), color: '#aaa', bonus: 0 },
+  { name: 'Bamboo', image: publicAsset('assets/rod_bamboo.png'), color: '#22aa44', bonus: 5 },
+  { name: 'Carbon', image: publicAsset('assets/rod_carbon.png'), color: '#2255cc', bonus: 10 },
+  { name: 'Pro', image: publicAsset('assets/rod_pro.png'), color: '#9944ff', bonus: 15 },
+  { name: 'Legendary', image: publicAsset('assets/rod_legendary.png'), color: '#ffcc00', bonus: 25 },
 ];
 
 interface InventoryDialogProps {
@@ -50,7 +51,7 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({ inventory, rodLevel, 
     <Dialog>
       <DialogTrigger asChild>
         <button className="relative cursor-pointer bg-transparent border-none p-0 transition-transform hover:scale-110 active:scale-95">
-          <img src="/assets/inventory_icon.png" alt="Inventory" className="h-10 sm:h-12 w-auto drop-shadow-lg" />
+          <img src={publicAsset('assets/inventory_icon.png')} alt="Inventory" className="h-10 sm:h-12 w-auto drop-shadow-lg" />
           {totalFish > 0 && (
             <span className="absolute -top-1 -right-1 px-1.5 py-0.5 bg-primary text-primary-foreground rounded-full text-[10px] font-bold min-w-[18px] text-center leading-tight">
               {totalFish}
@@ -177,7 +178,7 @@ const InventoryItem: React.FC<InventoryItemProps> = ({ fish, quantity, onSell })
           border: `2px solid ${RARITY_COLORS[fish.rarity]}50`
         }}
       >
-        <img src={`/assets/fish_${fish.id}.png`} alt={fish.name} className="w-8 h-8 object-contain" />
+        <img src={publicAsset(`assets/fish_${fish.id}.png`)} alt={fish.name} className="w-8 h-8 object-contain" />
       </div>
 
       <div className="flex-1 min-w-0">

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import type { GameResult } from '@/types/game';
+import { publicAsset } from '@/lib/assets';
 
 // Маппинг id рыб из FISH_DATA на индекс спрайта (0-6)
 const FISH_SPRITE_MAP: Record<string, number> = {
@@ -35,20 +36,20 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
     useEffect(() => {
         const ts = Date.now();
         const p = new Image();
-        p.src = '/assets/pepe_final.png?v=' + ts;
+        p.src = publicAsset('assets/pepe_final.png') + '?v=' + ts;
         p.onload = () => { pepeImgRef.current = p; };
 
         const fishFiles = ['fish_carp.png', 'fish_perch.png', 'fish_bream.png', 'fish_pike.png', 'fish_catfish.png', 'fish_goldfish.png', 'fish_mutant.png', 'fish_leviathan.png'];
         fishFiles.forEach((file, i) => {
             const img = new Image();
-            img.src = '/assets/' + file + '?v=' + ts + '&fix=nobelly+catfish';
+            img.src = publicAsset('assets/' + file) + '?v=' + ts + '&fix=nobelly+catfish';
             img.onload = () => { fishImgsRef.current[i] = img; };
         });
 
         const rodFiles = ['rod_basic.png', 'rod_bamboo.png', 'rod_carbon.png', 'rod_pro.png', 'rod_legendary.png'];
         rodFiles.forEach((file, i) => {
             const img = new Image();
-            img.src = '/assets/' + file + '?v=' + ts;
+            img.src = publicAsset('assets/' + file) + '?v=' + ts;
             img.onload = () => { rodImgsRef.current[i] = img; };
         });
     }, []);

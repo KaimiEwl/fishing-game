@@ -11,6 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CaughtFish, FISH_DATA, RARITY_COLORS, RARITY_NAMES, BAIT_COST, ROD_BONUSES } from '@/types/game';
 import CoinIcon from './CoinIcon';
+import { publicAsset } from '@/lib/assets';
 
 interface ShopDialogProps {
   coins: number;
@@ -29,10 +30,10 @@ const BAIT_PACKAGES = [
 ];
 
 const ROD_UPGRADES = [
-  { level: 1, cost: 200, name: 'Bamboo Rod', bonus: 5, image: '/assets/rod_bamboo.png', bobber: '🟢 Green bobber', bobberColor: '#22aa44' },
-  { level: 2, cost: 500, name: 'Carbon Rod', bonus: 10, image: '/assets/rod_carbon.png', bobber: '🔵 Blue bobber', bobberColor: '#2255cc' },
-  { level: 3, cost: 1000, name: 'Pro Rod', bonus: 15, image: '/assets/rod_pro.png', bobber: '🟣 Purple bobber', bobberColor: '#9944ff' },
-  { level: 4, cost: 2500, name: 'Legendary Rod', bonus: 25, image: '/assets/rod_legendary.png', bobber: '🌟 Golden glowing bobber', bobberColor: '#ffcc00' },
+  { level: 1, cost: 200, name: 'Bamboo Rod', bonus: 5, image: publicAsset('assets/rod_bamboo.png'), bobber: '🟢 Green bobber', bobberColor: '#22aa44' },
+  { level: 2, cost: 500, name: 'Carbon Rod', bonus: 10, image: publicAsset('assets/rod_carbon.png'), bobber: '🔵 Blue bobber', bobberColor: '#2255cc' },
+  { level: 3, cost: 1000, name: 'Pro Rod', bonus: 15, image: publicAsset('assets/rod_pro.png'), bobber: '🟣 Purple bobber', bobberColor: '#9944ff' },
+  { level: 4, cost: 2500, name: 'Legendary Rod', bonus: 25, image: publicAsset('assets/rod_legendary.png'), bobber: '🌟 Golden glowing bobber', bobberColor: '#ffcc00' },
 ];
 
 const ShopDialog: React.FC<ShopDialogProps> = ({
@@ -47,7 +48,7 @@ const ShopDialog: React.FC<ShopDialogProps> = ({
     <Dialog>
       <DialogTrigger asChild>
         <button className="relative cursor-pointer bg-transparent border-none p-0 transition-transform hover:scale-110 active:scale-95">
-          <img src="/assets/shop_icon.png" alt="Shop" className="h-10 sm:h-12 w-auto drop-shadow-lg" />
+          <img src={publicAsset('assets/shop_icon.png')} alt="Shop" className="h-10 sm:h-12 w-auto drop-shadow-lg" />
         </button>
       </DialogTrigger>
       <DialogContent className="max-w-[95vw] sm:max-w-lg bg-card/95 backdrop-blur-md border-2 border-amber-500/30">
