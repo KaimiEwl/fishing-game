@@ -1,0 +1,1 @@
+ALTER TABLE public.players ADD COLUMN equipped_rod integer NOT NULL DEFAULT 0;
