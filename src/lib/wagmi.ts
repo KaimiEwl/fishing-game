@@ -61,8 +61,8 @@ const metaMaskExtensionWallet = (
 
   return {
     ...wallet,
-    id: 'metaMaskExtension',
-    name: 'MetaMask Extension',
+    id: 'metaMask',
+    name: 'MetaMask',
     installed: typeof window !== 'undefined' && Boolean(getMetaMaskProvider(window)) ? true : undefined,
     mobile: undefined,
     qrCode: undefined,
