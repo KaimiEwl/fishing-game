@@ -7,11 +7,12 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { CaughtFish, FISH_DATA, RARITY_COLORS, RARITY_NAMES, ROD_BONUSES } from '@/types/game';
+import { CaughtFish, FISH_DATA, RARITY_COLORS, RARITY_NAMES } from '@/types/game';
 import CoinIcon from './CoinIcon';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { publicAsset } from '@/lib/assets';
+import { Backpack, Check, Fish, ShipWheel } from 'lucide-react';
 
 const ROD_INFO = [
   { name: 'Starter', image: publicAsset('assets/rod_basic.png'), color: '#aaa', bonus: 0 },
@@ -50,8 +51,12 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({ inventory, rodLevel, 
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <button className="relative cursor-pointer bg-transparent border-none p-0 transition-transform hover:scale-110 active:scale-95">
-          <img src={publicAsset('assets/inventory_icon.png')} alt="Inventory" className="h-10 sm:h-12 w-auto drop-shadow-lg" />
+        <button
+          aria-label={`Open inventory, ${totalFish} fish`}
+          className="relative inline-flex h-12 min-w-12 items-center justify-center gap-2 rounded-lg border border-white/15 bg-black/55 px-3 text-white shadow-lg backdrop-blur-md transition hover:bg-black/70 hover:scale-105 active:scale-95 sm:h-14 sm:min-w-[8.25rem]"
+        >
+          <Backpack className="h-5 w-5 sm:h-6 sm:w-6" />
+          <span className="hidden text-sm font-bold sm:inline">Inventory</span>
           {totalFish > 0 && (
             <span className="absolute -top-1 -right-1 px-1.5 py-0.5 bg-primary text-primary-foreground rounded-full text-[10px] font-bold min-w-[18px] text-center leading-tight">
               {totalFish}
@@ -59,25 +64,25 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({ inventory, rodLevel, 
           )}
         </button>
       </DialogTrigger>
-      <DialogContent className="max-w-[95vw] sm:max-w-md bg-card/95 backdrop-blur-md border-2 border-primary/30">
+      <DialogContent className="max-w-[calc(100vw-1rem)] sm:max-w-md max-h-[calc(100svh-1rem)] bg-card/95 backdrop-blur-md border-2 border-primary/30">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
-            <span>🎒</span>
+            <Backpack className="h-5 w-5 text-primary" />
             Inventory
           </DialogTitle>
         </DialogHeader>
 
         <Tabs defaultValue="fish" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="fish">🐟 Fish ({totalFish})</TabsTrigger>
-            <TabsTrigger value="rods">🎣 Rods ({ownedRods.length})</TabsTrigger>
+            <TabsTrigger value="fish" className="gap-1.5"><Fish className="h-4 w-4" /> Fish ({totalFish})</TabsTrigger>
+            <TabsTrigger value="rods" className="gap-1.5"><ShipWheel className="h-4 w-4" /> Rods ({ownedRods.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="fish" className="mt-4">
             <ScrollArea className="h-[min(250px,35vh)] pr-4">
               {inventoryItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center py-12">
-                  <span className="text-5xl mb-4">🐟</span>
+                  <Fish className="mb-4 h-12 w-12 text-muted-foreground/70" />
                   <p className="text-muted-foreground">Inventory is empty</p>
                   <p className="text-sm text-muted-foreground mt-1">
                     Cast your rod to catch some fish!
@@ -136,7 +141,9 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({ inventory, rodLevel, 
                       </div>
 
                       {isEquipped ? (
-                        <span className="text-primary font-bold text-sm whitespace-nowrap">✓ Equipped</span>
+                        <span className="text-primary font-bold text-sm whitespace-nowrap inline-flex items-center gap-1">
+                          <Check className="h-4 w-4" /> Equipped
+                        </span>
                       ) : (
                         <Button
                           size="sm"
@@ -199,7 +206,7 @@ const InventoryItem: React.FC<InventoryItemProps> = ({ fish, quantity, onSell })
 
       <div className="text-right flex items-center gap-2 shrink-0">
         <div>
-          <p className="font-bold text-sm">×{quantity}</p>
+          <p className="font-bold text-sm">x{quantity}</p>
           <p className="text-xs text-muted-foreground flex items-center gap-0.5"><CoinIcon size={12} /> {totalValue}</p>
         </div>
         <Button

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { GameState, GameResult } from '@/types/game';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -43,9 +43,9 @@ const GameControls: React.FC<GameControlsProps> = ({
   return (
     <>
       {gameState !== 'idle' && (
-        <div className="absolute top-[35%] sm:top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
+        <div className="fixed top-[36%] sm:top-[40%] left-1/2 z-20 w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 -translate-y-1/2">
           {gameState === 'result' && lastResult && (
-            <div className="bg-card/95 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border-2 border-primary/30 shadow-2xl animate-scale-in max-w-[90vw]">
+            <div className="bg-card/95 backdrop-blur-sm rounded-lg p-4 sm:p-6 border-2 border-primary/30 shadow-2xl animate-scale-in">
               {lastResult.success && lastResult.fish ? (
                 <div className="flex flex-col items-center">
                   <p className="text-lg font-bold text-primary mb-2">🎉 Caught!</p>
@@ -62,19 +62,19 @@ const GameControls: React.FC<GameControlsProps> = ({
           )}
 
           {gameState === 'casting' && (
-            <div className="bg-card/90 backdrop-blur-sm rounded-xl px-6 py-3 border border-primary/30">
+            <div className="bg-card/90 backdrop-blur-sm rounded-lg px-6 py-3 border border-primary/30 text-center">
               <p className="text-lg font-medium text-primary animate-pulse">Casting... 🎣</p>
             </div>
           )}
 
           {gameState === 'waiting' && (
-            <div className="bg-card/90 backdrop-blur-sm rounded-xl px-6 py-3 border border-primary/30">
+            <div className="bg-card/90 backdrop-blur-sm rounded-lg px-6 py-3 border border-primary/30 text-center">
               <p className="text-lg font-medium text-secondary animate-pulse">Waiting for a bite... 🎯</p>
             </div>
           )}
 
           {gameState === 'biting' && (
-            <div className="bg-card/95 backdrop-blur-sm rounded-2xl p-4 sm:p-5 border-2 border-yellow-500/60 shadow-2xl animate-scale-in max-w-[90vw] flex flex-col items-center gap-3">
+            <div className="bg-card/95 backdrop-blur-sm rounded-lg p-4 sm:p-5 border-2 border-yellow-500/60 shadow-2xl animate-scale-in flex flex-col items-center gap-3">
               <p className="text-xl font-bold text-yellow-400 animate-pulse">🐟 A bite! Reel it in!</p>
               {/* Timer bar */}
               <div className="w-48 h-3 bg-muted/40 rounded-full overflow-hidden border border-yellow-500/30">
@@ -92,7 +92,7 @@ const GameControls: React.FC<GameControlsProps> = ({
               </div>
               <Button
                 onClick={onReelIn}
-                className="text-lg h-14 px-8 rounded-2xl font-bold shadow-lg hover:shadow-xl transition-all hover:scale-110 active:scale-95 animate-bounce"
+                  className="text-lg h-14 px-8 rounded-lg font-bold shadow-lg hover:shadow-xl transition-all hover:scale-110 active:scale-95 animate-bounce"
                 style={{
                   background: 'linear-gradient(135deg, #ffaa00, #ff6600)',
                 }}
@@ -103,14 +103,14 @@ const GameControls: React.FC<GameControlsProps> = ({
           )}
 
           {gameState === 'catching' && (
-            <div className="bg-card/90 backdrop-blur-sm rounded-xl px-6 py-3 border border-primary/30">
+            <div className="bg-card/90 backdrop-blur-sm rounded-lg px-6 py-3 border border-primary/30 text-center">
               <p className="text-lg font-medium text-accent animate-pulse">Reeling in! 🎣</p>
             </div>
           )}
         </div>
       )}
 
-    <div className="absolute bottom-12 right-2 sm:bottom-4 sm:right-4 z-20 flex flex-col items-end gap-2 sm:gap-4">
+    <div className="fixed bottom-3 left-1/2 z-20 flex -translate-x-1/2 flex-col items-end gap-3 sm:bottom-5 sm:left-auto sm:right-5 sm:translate-x-0">
 
       {gameState === 'idle' && (
         <div className="flex items-center gap-2">
@@ -118,13 +118,13 @@ const GameControls: React.FC<GameControlsProps> = ({
             <Tooltip>
               <TooltipTrigger asChild>
                 <div
-                  className={`flex flex-col items-center justify-center w-11 h-11 sm:w-14 sm:h-14 backdrop-blur-sm rounded-2xl border shadow-lg cursor-pointer relative ${hasNft ? 'ring-2 ring-yellow-500' : ''}`}
+                  className={`flex h-12 w-12 sm:h-14 sm:w-14 flex-col items-center justify-center rounded-lg border shadow-lg cursor-pointer relative backdrop-blur-md ${hasNft ? 'ring-2 ring-yellow-500' : ''}`}
                   style={{
                     background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(270, 70%, 65%))',
                     borderColor: 'hsl(var(--primary) / 0.3)'
                   }}
                 >
-                  <img src={rod.image} alt={rod.name} className="h-8 object-contain" />
+                  <img src={rod.image} alt={rod.name} className="h-8 sm:h-9 object-contain" />
                   {rod.bonus > 0 && <span className="text-[10px] font-bold text-white/90">+{rod.bonus}%</span>}
                   {hasNft && (
                     <div className="absolute -top-1 -right-1 bg-yellow-500 text-black text-[7px] font-bold px-1 rounded">
@@ -170,7 +170,7 @@ const GameControls: React.FC<GameControlsProps> = ({
           <Button
             onClick={onCast}
             disabled={!hasBait}
-            className="text-xs sm:text-sm h-11 sm:h-14 px-3 sm:px-4 rounded-2xl font-bold shadow-lg hover:shadow-xl transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
+            className="h-12 min-w-[5.5rem] sm:h-14 sm:min-w-[8rem] px-3 sm:px-4 rounded-lg text-sm sm:text-base font-bold shadow-lg hover:shadow-xl transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
             style={{
               background: hasBait
                 ? 'linear-gradient(135deg, hsl(var(--primary)), hsl(270, 70%, 65%))'

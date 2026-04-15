@@ -4,7 +4,7 @@ import CoinIcon from './CoinIcon';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Info } from 'lucide-react';
+import { Fish, Info, Trophy, Worm } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import SettingsDialog from './SettingsDialog';
@@ -24,7 +24,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({ player, onSetNickname, isConn
   const totalFishCount = player.inventory.reduce((sum, f) => sum + f.quantity, 0);
 
   return (
-    <div className="absolute top-2 left-2 sm:top-4 sm:left-4 z-20 group">
+    <div className="fixed top-3 left-3 sm:top-5 sm:left-5 z-20 group max-w-[calc(100vw-4.75rem)]">
       <Card className="relative p-2 sm:p-3 bg-card/80 backdrop-blur-md border border-primary/20 shadow-lg cursor-pointer">
         <div className="absolute -top-2 -left-2 flex gap-1 z-10">
           <Popover>
@@ -104,9 +104,9 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({ player, onSetNickname, isConn
         <div className="flex flex-col gap-2">
           <div className="grid grid-cols-2 gap-2 text-sm">
             <StatItem icon={<CoinIcon size={16} />} label="Coins" value={player.coins} />
-            <StatItem icon="🪱" label="Bait" value={player.bait} />
-            <StatItem icon="🎣" label="Catches" value={player.totalCatches} />
-            <StatItem icon="🐟" label="In inventory" value={totalFishCount} />
+            <StatItem icon={<Worm className="h-4 w-4" />} label="Bait" value={player.bait} />
+            <StatItem icon={<Trophy className="h-4 w-4" />} label="Catches" value={player.totalCatches} />
+            <StatItem icon={<Fish className="h-4 w-4" />} label="In inventory" value={totalFishCount} />
           </div>
         </div>
       </Card>

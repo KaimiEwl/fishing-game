@@ -16,15 +16,16 @@ import { toast } from 'sonner';
 import { NFT_ROD_DATA } from '@/types/game';
 import CoinIcon from './CoinIcon';
 import { publicAsset } from '@/lib/assets';
+import { Check, Gem } from 'lucide-react';
 
 const RECEIVER_ADDRESS = '0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D' as const;
 
 const COIN_PACKAGES = [
-  { monAmount: '0.01', coins: 10, emoji: '🪙' },
-  { monAmount: '0.05', coins: 50, emoji: '🪙🪙' },
-  { monAmount: '0.1', coins: 100, emoji: 'coin' },
-  { monAmount: '0.5', coins: 500, emoji: 'coin2' },
-  { monAmount: '1', coins: 1000, emoji: '💎' },
+  { monAmount: '0.01', coins: 10, premium: false },
+  { monAmount: '0.05', coins: 50, premium: false },
+  { monAmount: '0.1', coins: 100, premium: false },
+  { monAmount: '0.5', coins: 500, premium: false },
+  { monAmount: '1', coins: 1000, premium: true },
 ];
 
 const ROD_IMAGES = [
@@ -140,16 +141,17 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({ walletAddress, onCoinsA
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          className="gap-1.5 sm:gap-2 bg-card/90 backdrop-blur-sm border-2 border-primary/30 hover:border-primary/50 hover:bg-card text-xs sm:text-sm h-9 sm:h-10 px-2.5 sm:px-4"
+          className="h-12 min-w-12 gap-2 rounded-lg border border-primary/40 bg-black/55 px-3 text-white shadow-lg backdrop-blur-md hover:border-primary/60 hover:bg-black/70 sm:h-14 sm:min-w-[8.25rem]"
+          aria-label="Buy with MON"
         >
-          <span className="text-base sm:text-lg">💎</span>
-          <span className="hidden sm:inline">Buy with MON</span>
+          <Gem className="h-5 w-5 sm:h-6 sm:w-6" />
+          <span className="hidden text-sm font-bold sm:inline">Buy MON</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-[95vw] sm:max-w-md bg-card/95 backdrop-blur-md border-2 border-primary/30">
+      <DialogContent className="max-w-[calc(100vw-1rem)] sm:max-w-md max-h-[calc(100svh-1rem)] bg-card/95 backdrop-blur-md border-2 border-primary/30">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
-            <span>💎</span>
+            <Gem className="h-5 w-5 text-primary" />
             Buy with MON
           </DialogTitle>
         </DialogHeader>
@@ -157,7 +159,7 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({ walletAddress, onCoinsA
         <Tabs defaultValue="coins" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="coins" className="flex items-center gap-1"><CoinIcon size={14} /> Coins</TabsTrigger>
-            <TabsTrigger value="nft">✨ NFT Rods</TabsTrigger>
+            <TabsTrigger value="nft" className="gap-1.5"><Gem className="h-4 w-4" /> NFT Rods</TabsTrigger>
           </TabsList>
 
           <TabsContent value="coins" className="mt-4">
@@ -176,9 +178,7 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({ walletAddress, onCoinsA
                     onClick={() => handlePurchase(pkg)}
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl">
-                        {pkg.emoji === 'coin' ? <CoinIcon size={28} /> : pkg.emoji === 'coin2' ? <><CoinIcon size={28} /><CoinIcon size={28} /></> : pkg.emoji}
-                      </span>
+                      {pkg.premium ? <Gem className="h-7 w-7 text-primary" /> : <CoinIcon size={28} />}
                       <span className="font-bold text-lg">{pkg.coins} coins</span>
                     </div>
                     <span className="text-primary font-mono font-bold">
@@ -227,7 +227,7 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({ walletAddress, onCoinsA
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-sm flex items-center gap-2">
                           {nft.name}
-                          {isOwned && <span className="text-yellow-500 text-xs">✓ NFT</span>}
+                          {isOwned && <span className="text-yellow-500 text-xs inline-flex items-center gap-1"><Check className="h-3 w-3" /> NFT</span>}
                         </div>
                         <div className="text-xs text-muted-foreground space-y-0.5">
                           <div>+{nft.rarityBonus}% rare fish chance</div>
@@ -237,7 +237,9 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({ walletAddress, onCoinsA
                       </div>
 
                       {isOwned ? (
-                        <span className="text-yellow-500 font-bold text-sm whitespace-nowrap">✓ Minted</span>
+                        <span className="text-yellow-500 font-bold text-sm whitespace-nowrap inline-flex items-center gap-1">
+                          <Check className="h-4 w-4" /> Minted
+                        </span>
                       ) : (
                         <Button
                           size="sm"

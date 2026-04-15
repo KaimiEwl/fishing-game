@@ -5,15 +5,17 @@ import GameControls from './GameControls';
 import InventoryDialog from './InventoryDialog';
 import ShopDialog from './ShopDialog';
 import BuyCoinsDialog from './BuyCoinsDialog';
-import WalletButton from './WalletButton';
 import LevelUpCelebration from './LevelUpCelebration';
 import { useGameState } from '@/hooks/useGameState';
 import { useWalletAuth } from '@/hooks/useWalletAuth';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
-import { Link } from 'react-router-dom';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
+import { Mail } from 'lucide-react';
 
 const FishingGame: React.FC = () => {
-  const { isConnected, isVerified, isVerifying, savedPlayer, saveProgress, address } = useWalletAuth();
+  const { isConnected, isVerified, savedPlayer, saveProgress, address } = useWalletAuth();
+  const isMobile = useIsMobile();
 
   const { player, gameState, lastResult, levelUpInfo, biteTimeLeft, biteTimeTotal, castRod, reelIn, sellFish, buyBait, buyRod, equipRod, addCoins, dismissLevelUp, mintNftRod, setNickname, setAvatarUrl } = useGameState({
     savedPlayer: isConnected ? savedPlayer : undefined,
@@ -72,10 +74,16 @@ const FishingGame: React.FC = () => {
   };
 
   return (
-    <div className="bg-black w-full h-screen flex justify-center items-stretch">
-    <div 
-      className="relative h-screen overflow-hidden bg-black"
-      style={{ width: 'min(100vw, calc(100vh * 4 / 5))' }}
+    <main className="fixed inset-0 bg-black overflow-hidden">
+    <div
+      data-device={isMobile ? 'mobile' : 'desktop'}
+      className="relative mx-auto overflow-hidden bg-black"
+      style={{
+        width: '100vw',
+        maxWidth: isMobile ? '100vw' : '1920px',
+        height: '100vh',
+        minHeight: '100vh',
+      }}
     >
       <MonadFishCanvas onCast={castRod} gameState={gameState} lastResult={lastResult} rodLevel={player.equippedRod} />
 
@@ -93,7 +101,7 @@ const FishingGame: React.FC = () => {
         biteTimeTotal={biteTimeTotal}
       />
 
-      <div className="absolute bottom-2 left-2 sm:bottom-4 sm:left-4 z-20 flex flex-col gap-1.5 sm:gap-2">
+      <div className="fixed bottom-3 left-3 sm:bottom-5 sm:left-5 z-20 flex flex-col items-start gap-2">
         <InventoryDialog
           inventory={player.inventory}
           rodLevel={player.rodLevel}
@@ -122,9 +130,14 @@ const FishingGame: React.FC = () => {
       </div>
 
 
-      <div className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 z-20 flex items-center gap-3 text-[10px] sm:text-xs text-muted-foreground/50">
-        <a href="mailto:support@monadfish.xyz" className="hover:text-muted-foreground transition-colors">Contact</a>
-      </div>
+      <a
+        href="mailto:support@monadfish.xyz"
+        className="fixed top-3 right-3 sm:top-5 sm:right-5 z-20 inline-flex h-10 items-center gap-2 rounded-lg border border-white/15 bg-black/45 px-3 text-xs font-semibold text-white/75 shadow-lg backdrop-blur-md transition-colors hover:bg-black/60 hover:text-white"
+        aria-label="Contact support"
+      >
+        <Mail className="h-4 w-4" />
+        <span className={cn(isMobile && 'sr-only')}>Contact</span>
+      </a>
 
       {levelUpInfo && (
         <LevelUpCelebration
@@ -134,7 +147,7 @@ const FishingGame: React.FC = () => {
         />
       )}
     </div>
-    </div>
+    </main>
   );
 };
 
