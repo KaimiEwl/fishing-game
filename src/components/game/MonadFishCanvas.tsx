@@ -13,6 +13,26 @@ const FISH_SPRITE_MAP: Record<string, number> = {
     'mutant': 6,
 };
 
+const drawAnimatedSprite = (
+    ctx: CanvasRenderingContext2D,
+    img: HTMLImageElement,
+    width: number,
+    height: number,
+    phase: number,
+    intensity = 1
+) => {
+    const swim = Math.sin(phase * 2.2);
+    const glide = Math.sin(phase * 1.15);
+    const skew = Math.sin(phase * 2.8) * 0.018 * intensity;
+    const squash = swim * 0.018 * intensity;
+
+    ctx.save();
+    ctx.translate(glide * 0.8 * intensity, Math.cos(phase * 1.35) * 0.75 * intensity);
+    ctx.transform(1 + squash, skew, 0, 1 - squash * 0.35, 0, 0);
+    ctx.drawImage(img, -width / 2, -height / 2, width, height);
+    ctx.restore();
+};
+
 interface MonadFishCanvasProps {
     onCast: () => void;
     gameState: string;
@@ -54,7 +74,7 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
         const fishFiles = ['fish_carp.png', 'fish_perch.png', 'fish_bream.png', 'fish_pike.png', 'fish_catfish.png', 'fish_goldfish.png', 'fish_mutant.png', 'fish_leviathan.png'];
         fishFiles.forEach((file, i) => {
             const img = new Image();
-            img.src = publicAsset('assets/' + file) + '?v=' + ts + '&fix=nobelly+catfish';
+            img.src = publicAsset('assets/' + file) + '?v=' + ts + '&fix=clean-cutout-swim';
             img.onload = () => { fishImgsRef.current[i] = img; };
         });
 
@@ -245,7 +265,7 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
             if (img) {
                 const aspect = img.width / img.height;
                 const dw = this.size * 2, dh = dw / aspect;
-                ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
+                drawAnimatedSprite(ctx, img, dw, dh, this.wobble, this.state === 'chasing' ? 1.35 : 1);
             } else {
                 const colors = ['#4488ff', '#ff8844', '#44aa44', '#8844cc'];
                 ctx.fillStyle = colors[this.fishType] || '#4488ff';
@@ -515,7 +535,7 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
                     ctx.save();
                     ctx.translate(bx, hookY + 10);
                     ctx.rotate(Math.sin(t * 3) * 0.2);
-                    ctx.drawImage(fImg, -fW / 2, -fH / 2, fW, fH);
+                    drawAnimatedSprite(ctx, fImg, fW, fH, t * 2.2, 1.4);
                     ctx.restore();
                 }
             }
