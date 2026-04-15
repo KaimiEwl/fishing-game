@@ -8,8 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Coins, Fish, TrendingUp, Activity, Search, ArrowUpDown, Pencil, Trash2, Shield, ArrowLeft } from 'lucide-react';
+import { Users, Coins, TrendingUp, Activity, Search, ArrowUpDown, Pencil, Trash2, Shield, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import FishIcon from '@/components/game/FishIcon';
 
 const ROD_NAMES = ['Начальная', 'Бамбуковая', 'Карбоновая', 'Проф.', 'Легендарная'];
 
@@ -146,7 +147,7 @@ export default function Admin() {
                   <StatCard icon={<TrendingUp className="w-5 h-5" />} label="Ср. уровень" value={stats.avgLevel} />
                   <StatCard icon={<TrendingUp className="w-5 h-5" />} label="Макс. уровень" value={stats.maxLevel} />
                   <StatCard icon={<Coins className="w-5 h-5" />} label="Всего монет" value={stats.totalCoins.toLocaleString()} />
-                  <StatCard icon={<Fish className="w-5 h-5" />} label="Всего уловов" value={stats.totalCatches.toLocaleString()} />
+                  <StatCard icon={<FishIcon fishId="carp" className="w-5 h-5" />} label="Всего уловов" value={stats.totalCatches.toLocaleString()} />
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4">

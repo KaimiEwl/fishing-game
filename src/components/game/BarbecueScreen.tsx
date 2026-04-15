@@ -1,10 +1,10 @@
 import React from 'react';
-import { ArrowLeft, ChefHat, Flame, Fish as FishIcon, Utensils } from 'lucide-react';
+import { ArrowLeft, ChefHat, Flame, Utensils } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { CaughtFish, FISH_DATA, RARITY_COLORS, RARITY_NAMES } from '@/types/game';
-import { publicAsset } from '@/lib/assets';
 import CoinIcon from './CoinIcon';
+import FishIcon from './FishIcon';
 
 interface BarbecueScreenProps {
   inventory: CaughtFish[];
@@ -64,7 +64,7 @@ const BarbecueScreen: React.FC<BarbecueScreenProps> = ({ inventory, coins, onBac
 
             {grillItems.length === 0 ? (
               <div className="flex min-h-[220px] flex-col items-center justify-center rounded-lg border border-dashed border-white/15 bg-white/5 px-4 text-center">
-                <FishIcon className="mb-3 h-12 w-12 text-white/45" />
+                <FishIcon fishId="carp" className="mb-3 h-12 w-12 opacity-60" />
                 <p className="font-semibold">No fish on the grill yet</p>
                 <p className="mt-1 text-sm text-white/60">Catch something first, then come back here.</p>
               </div>
@@ -83,11 +83,7 @@ const BarbecueScreen: React.FC<BarbecueScreenProps> = ({ inventory, coins, onBac
                           className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-black/30"
                           style={{ boxShadow: `inset 0 0 0 1px ${RARITY_COLORS[fish.rarity]}` }}
                         >
-                          <img
-                            src={publicAsset(`assets/fish_${fish.id}.png`)}
-                            alt={fish.name}
-                            className="h-11 w-11 object-contain"
-                          />
+                          <FishIcon fish={fish} className="h-11 w-11" />
                         </div>
 
                         <div className="min-w-0 flex-1">

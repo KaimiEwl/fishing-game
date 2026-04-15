@@ -4,10 +4,11 @@ import CoinIcon from './CoinIcon';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Fish, Info, Trophy, Worm } from 'lucide-react';
+import { Info, Trophy, Worm } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import SettingsDialog from './SettingsDialog';
+import FishIcon from './FishIcon';
 
 interface PlayerPanelProps {
   player: PlayerState;
@@ -49,7 +50,10 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({ player, onSetNickname, isConn
                   {FISH_DATA.map((fish) => (
                     <tr key={fish.id} className="border-b border-border/50 last:border-0">
                       <td className="py-1" style={{ color: RARITY_COLORS[fish.rarity] }}>
-                        {fish.emoji} {fish.name}
+                        <span className="inline-flex items-center gap-1.5">
+                          <FishIcon fish={fish} size="xs" />
+                          <span>{fish.name}</span>
+                        </span>
                       </td>
                       <td className="text-right py-1 text-muted-foreground">{fish.chance}%</td>
                       <td className="text-right py-1 text-muted-foreground flex items-center justify-end gap-1">{fish.price}<CoinIcon size={12} /></td>
@@ -106,7 +110,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({ player, onSetNickname, isConn
             <StatItem icon={<CoinIcon size={16} />} label="Coins" value={player.coins} />
             <StatItem icon={<Worm className="h-4 w-4" />} label="Bait" value={player.bait} />
             <StatItem icon={<Trophy className="h-4 w-4" />} label="Catches" value={player.totalCatches} />
-            <StatItem icon={<Fish className="h-4 w-4" />} label="In inventory" value={totalFishCount} />
+            <StatItem icon={<FishIcon fishId="carp" className="h-4 w-4" />} label="In inventory" value={totalFishCount} />
           </div>
         </div>
       </Card>

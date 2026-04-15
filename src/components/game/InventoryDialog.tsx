@@ -12,7 +12,8 @@ import CoinIcon from './CoinIcon';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { publicAsset } from '@/lib/assets';
-import { Backpack, Check, Fish, ShipWheel } from 'lucide-react';
+import { Backpack, Check, ShipWheel } from 'lucide-react';
+import FishIcon from './FishIcon';
 
 const ROD_INFO = [
   { name: 'Starter', image: publicAsset('assets/rod_basic.png'), color: '#aaa', bonus: 0 },
@@ -74,7 +75,7 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({ inventory, rodLevel, 
 
         <Tabs defaultValue="fish" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="fish" className="gap-1.5"><Fish className="h-4 w-4" /> Fish ({totalFish})</TabsTrigger>
+            <TabsTrigger value="fish" className="gap-1.5"><FishIcon fishId="carp" className="h-4 w-4" /> Fish ({totalFish})</TabsTrigger>
             <TabsTrigger value="rods" className="gap-1.5"><ShipWheel className="h-4 w-4" /> Rods ({ownedRods.length})</TabsTrigger>
           </TabsList>
 
@@ -82,7 +83,7 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({ inventory, rodLevel, 
             <ScrollArea className="h-[min(250px,35vh)] pr-4">
               {inventoryItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center py-12">
-                  <Fish className="mb-4 h-12 w-12 text-muted-foreground/70" />
+                  <FishIcon fishId="carp" className="mb-4 h-12 w-12 opacity-70" />
                   <p className="text-muted-foreground">Inventory is empty</p>
                   <p className="text-sm text-muted-foreground mt-1">
                     Cast your rod to catch some fish!
@@ -185,7 +186,7 @@ const InventoryItem: React.FC<InventoryItemProps> = ({ fish, quantity, onSell })
           border: `2px solid ${RARITY_COLORS[fish.rarity]}50`
         }}
       >
-        <img src={publicAsset(`assets/fish_${fish.id}.png`)} alt={fish.name} className="w-8 h-8 object-contain" />
+        <FishIcon fish={fish} className="h-8 w-8" />
       </div>
 
       <div className="flex-1 min-w-0">

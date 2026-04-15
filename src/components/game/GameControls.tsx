@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import FishDisplay from './FishDisplay';
 import { publicAsset } from '@/lib/assets';
+import FishIcon from './FishIcon';
 
 const ROD_INFO = [
   { name: 'Starter', image: publicAsset('assets/rod_basic.png'), color: '#aaa', bonus: 0 },
@@ -75,7 +76,10 @@ const GameControls: React.FC<GameControlsProps> = ({
 
           {gameState === 'biting' && (
             <div className="bg-card/95 backdrop-blur-sm rounded-lg p-4 sm:p-5 border-2 border-yellow-500/60 shadow-2xl animate-scale-in flex flex-col items-center gap-3">
-              <p className="text-xl font-bold text-yellow-400 animate-pulse">🐟 A bite! Reel it in!</p>
+              <p className="inline-flex items-center gap-2 text-xl font-bold text-yellow-400 animate-pulse">
+                <FishIcon fishId="carp" className="h-7 w-7" />
+                A bite! Reel it in!
+              </p>
               {/* Timer bar */}
               <div className="w-48 h-3 bg-muted/40 rounded-full overflow-hidden border border-yellow-500/30">
                 <div

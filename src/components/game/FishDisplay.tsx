@@ -1,19 +1,7 @@
 import React from 'react';
 import { Fish, RARITY_COLORS, RARITY_NAMES } from '@/types/game';
 import CoinIcon from './CoinIcon';
-import { publicAsset } from '@/lib/assets';
-
-// Маппинг id рыбы на файл спрайта
-const FISH_IMAGES: Record<string, string> = {
-  'carp': publicAsset('assets/fish_carp.png'),
-  'perch': publicAsset('assets/fish_perch.png'),
-  'bream': publicAsset('assets/fish_bream.png'),
-  'pike': publicAsset('assets/fish_pike.png'),
-  'catfish': publicAsset('assets/fish_catfish.png'),
-  'goldfish': publicAsset('assets/fish_goldfish.png'),
-  'mutant': publicAsset('assets/fish_mutant.png'),
-  'leviathan': publicAsset('assets/fish_leviathan.png'),
-};
+import FishIcon from './FishIcon';
 
 interface FishDisplayProps {
   fish: Fish;
@@ -26,21 +14,19 @@ const FishDisplay: React.FC<FishDisplayProps> = ({
   fish,
   showDetails = false,
   size = 'md',
-  onClick
+  onClick,
 }) => {
   const containerSizes = {
     sm: 'w-12 h-12',
     md: 'w-20 h-20',
-    lg: 'w-32 h-32'
+    lg: 'w-32 h-32',
   };
 
   const imageSizes = {
     sm: 'w-10 h-10',
     md: 'w-16 h-16',
-    lg: 'w-28 h-28'
+    lg: 'w-28 h-28',
   };
-
-  const imgSrc = FISH_IMAGES[fish.id];
 
   return (
     <div
@@ -52,18 +38,10 @@ const FishDisplay: React.FC<FishDisplayProps> = ({
         style={{
           background: `linear-gradient(135deg, ${RARITY_COLORS[fish.rarity]}40, ${RARITY_COLORS[fish.rarity]}20)`,
           border: `3px solid ${RARITY_COLORS[fish.rarity]}`,
-          boxShadow: `0 0 20px ${RARITY_COLORS[fish.rarity]}50`
+          boxShadow: `0 0 20px ${RARITY_COLORS[fish.rarity]}50`,
         }}
       >
-        {imgSrc ? (
-          <img
-            src={imgSrc}
-            alt={fish.name}
-            className={`${imageSizes[size]} object-contain`}
-          />
-        ) : (
-          <span className="text-4xl">{fish.emoji}</span>
-        )}
+        <FishIcon fish={fish} className={imageSizes[size]} />
       </div>
 
       {showDetails && (
@@ -81,7 +59,7 @@ const FishDisplay: React.FC<FishDisplayProps> = ({
             {RARITY_NAMES[fish.rarity]}
           </p>
           <p className="text-muted-foreground text-sm mt-1">
-            +{fish.xp} XP • <CoinIcon size={14} /> {fish.price}
+            +{fish.xp} XP <CoinIcon size={14} /> {fish.price}
           </p>
         </div>
       )}

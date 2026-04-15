@@ -3,8 +3,8 @@ import { ChefHat, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { FISH_DATA, GRILL_RECIPES, type CaughtFish, type GrillRecipe } from '@/types/game';
-import { publicAsset } from '@/lib/assets';
 import GameScreenShell from './GameScreenShell';
+import FishIcon from './FishIcon';
 
 interface GrillScreenProps {
   coins: number;
@@ -74,11 +74,7 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
                           key={fishId}
                           className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs"
                         >
-                          <img
-                            src={publicAsset(`assets/fish_${fish.id}.png`)}
-                            alt={fish.name}
-                            className="h-7 w-7 object-contain"
-                          />
+                          <FishIcon fish={fish} size="sm" />
                           <span>{fish.name}</span>
                           <span className={owned >= amount ? 'text-emerald-300' : 'text-red-300'}>
                             {owned}/{amount}

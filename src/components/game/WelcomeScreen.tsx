@@ -1,6 +1,7 @@
 import React from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import CoinIcon from './CoinIcon';
+import FishIcon from './FishIcon';
 
 const WelcomeScreen: React.FC = () => {
   return (
@@ -61,7 +62,7 @@ const WelcomeScreen: React.FC = () => {
         >
           <div className="grid grid-cols-3 gap-4 mb-6">
             <div className="flex flex-col items-center gap-1">
-              <span className="text-2xl">🐟</span>
+              <FishIcon fishId="goldfish" className="h-8 w-8" />
               <span className="text-xs text-muted-foreground">7 fish species</span>
             </div>
             <div className="flex flex-col items-center gap-1">
