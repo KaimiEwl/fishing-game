@@ -35,6 +35,7 @@ const BITE_WINDOW_MAX = 2500; // ms
 interface UseGameStateOptions {
   savedPlayer?: PlayerState | null;
   onSave?: (player: PlayerState) => void;
+  onFishCaught?: (fish: Fish) => void;
 }
 
 export function useGameState(options?: UseGameStateOptions) {
@@ -166,7 +167,8 @@ export function useGameState(options?: UseGameStateOptions) {
         totalCatches: prev.totalCatches + 1
       };
     });
-  }, [getNftBonus]);
+    options?.onFishCaught?.(caughtFish);
+  }, [getNftBonus, options]);
 
   const applyMissXp = useCallback(() => {
     setPlayer(prev => {
@@ -300,6 +302,25 @@ export function useGameState(options?: UseGameStateOptions) {
     }));
   }, [player.inventory, player.equippedRod, player.nftRods, getNftBonus]);
 
+  const consumeFish = useCallback((ingredients: Record<string, number>) => {
+    const canCook = Object.entries(ingredients).every(([fishId, quantity]) => {
+      const inventoryItem = player.inventory.find(f => f.fishId === fishId);
+      return inventoryItem && inventoryItem.quantity >= quantity;
+    });
+
+    if (!canCook) return false;
+
+    setPlayer(prev => ({
+      ...prev,
+      inventory: prev.inventory.map(item => ({
+        ...item,
+        quantity: item.quantity - (ingredients[item.fishId] || 0),
+      })).filter(item => item.quantity > 0),
+    }));
+
+    return true;
+  }, [player.inventory]);
+
   const buyBait = useCallback((amount: number, cost: number) => {
     if (player.coins < cost) return;
     
@@ -386,6 +407,7 @@ export function useGameState(options?: UseGameStateOptions) {
     castRod,
     reelIn,
     sellFish,
+    consumeFish,
     buyBait,
     buyRod,
     equipRod,

@@ -24,6 +24,7 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const particlesRef = useRef<any[]>([]);
     const bubblesRef = useRef<any[]>([]);
+    const meteorsRef = useRef<any[]>([]);
     const fishRef = useRef<any[]>([]);
     const bobberPosRef = useRef({ x: 0, y: 0 });
     const animationFrameRef = useRef<number>();
@@ -111,17 +112,53 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
         7: { speed: 0.2, size: 70, depthMin: 0.70, depthMax: 0.95, wobbleSpeed: 0.02 },  // Левиафан - огромный, у дна, медленный
     };
 
+    class Meteor {
+        x: number; y: number; vx: number; vy: number; life: number; maxLife: number; length: number;
+        constructor(w: number, waterLevel: number) {
+            this.x = Math.random() * w * 0.75 + w * 0.2;
+            this.y = Math.random() * waterLevel * 0.35 + 10;
+            this.vx = -5 - Math.random() * 3;
+            this.vy = 2.2 + Math.random() * 1.4;
+            this.maxLife = 50 + Math.random() * 30;
+            this.life = this.maxLife;
+            this.length = 70 + Math.random() * 55;
+        }
+        update() {
+            this.x += this.vx;
+            this.y += this.vy;
+            this.life -= 1;
+        }
+        draw(ctx: CanvasRenderingContext2D) {
+            const alpha = Math.max(0, this.life / this.maxLife);
+            const gradient = ctx.createLinearGradient(this.x, this.y, this.x - this.vx * this.length * 0.08, this.y - this.vy * this.length * 0.08);
+            gradient.addColorStop(0, `rgba(255,255,255,${alpha})`);
+            gradient.addColorStop(0.25, `rgba(180,140,255,${alpha * 0.8})`);
+            gradient.addColorStop(1, 'rgba(180,140,255,0)');
+            ctx.save();
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.shadowColor = 'rgba(180,140,255,0.8)';
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            ctx.moveTo(this.x, this.y);
+            ctx.lineTo(this.x - this.vx * this.length * 0.08, this.y - this.vy * this.length * 0.08);
+            ctx.stroke();
+            ctx.restore();
+        }
+    }
+
     class FishEntity {
         x: number; y: number; targetX: number; targetY: number;
         speed: number; size: number; angle: number; visualAngle: number;
         state: 'idle' | 'chasing' | 'booked';
         wobble: number; fishType: number; wobbleSpeed: number;
-        depthMin: number; depthMax: number; facing: 1 | -1; targetCooldown: number;
+        depthMin: number; depthMax: number; facing: 1 | -1; targetCooldown: number; turnLock: number;
 
         constructor(w: number, h: number, fishType: number) {
             const traits = FISH_TRAITS[fishType] || FISH_TRAITS[0];
             this.fishType = fishType;
-            this.speed = traits.speed + Math.random() * 0.3;
+            this.speed = traits.speed + Math.random() * 0.18;
             this.size = traits.size + Math.random() * 10;
             this.wobbleSpeed = traits.wobbleSpeed;
             this.depthMin = traits.depthMin;
@@ -135,17 +172,19 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
             this.wobble = Math.random() * Math.PI * 2;
             this.facing = Math.random() > 0.5 ? 1 : -1;
             this.targetCooldown = 30 + Math.random() * 90;
+            this.turnLock = 0;
             this.setRandomTarget(w, h);
         }
         setRandomTarget(w: number, h: number) {
             const safeW = Math.max(120, w);
             this.targetX = 50 + Math.random() * (safeW - 100);
             this.targetY = h * this.depthMin + Math.random() * (h * (this.depthMax - this.depthMin));
-            this.targetCooldown = 90 + Math.random() * 180;
+            this.targetCooldown = 160 + Math.random() * 240;
         }
         update(w: number, h: number, bobber: { x: number; y: number }, gs: string) {
             this.wobble += this.wobbleSpeed;
             this.targetCooldown = Math.max(0, this.targetCooldown - 1);
+            this.turnLock = Math.max(0, this.turnLock - 1);
             if (this.state === 'booked') {
                 this.x += (bobber.x - this.x) * 0.15;
                 this.y += (bobber.y + 12 - this.y) * 0.15;
@@ -176,8 +215,14 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
 
             const dx = Math.cos(this.angle);
             const dy = Math.sin(this.angle);
-            if (dx > 0.08) this.facing = 1;
-            if (dx < -0.08) this.facing = -1;
+            if (this.turnLock <= 0 && dx > 0.28 && this.facing !== 1) {
+                this.facing = 1;
+                this.turnLock = 60;
+            }
+            if (this.turnLock <= 0 && dx < -0.28 && this.facing !== -1) {
+                this.facing = -1;
+                this.turnLock = 60;
+            }
             this.x += dx * this.speed;
             this.y += dy * this.speed;
             if (this.y < minY) this.y = minY + 10;
@@ -269,6 +314,12 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
                 ctx.beginPath(); ctx.arc(sx, sy, 0.8 + (i % 3) * 0.4, 0, Math.PI * 2); ctx.fill();
             }
             ctx.globalAlpha = 1;
+
+            if (Math.random() < 0.004 && meteorsRef.current.length < 3) {
+                meteorsRef.current.push(new Meteor(w, waterLevel));
+            }
+            meteorsRef.current = meteorsRef.current.filter(meteor => meteor.life > 0 && meteor.y < waterLevel);
+            meteorsRef.current.forEach(meteor => { meteor.update(); meteor.draw(ctx); });
 
             // Луна
             const moonX = w * 0.8, moonY = waterLevel * 0.3;

@@ -110,7 +110,7 @@ const GameControls: React.FC<GameControlsProps> = ({
         </div>
       )}
 
-    <div className="fixed bottom-3 left-1/2 z-20 flex -translate-x-1/2 flex-col items-end gap-3 sm:bottom-5 sm:left-auto sm:right-5 sm:translate-x-0">
+      <div className="fixed bottom-32 left-1/2 z-20 flex -translate-x-1/2 flex-col items-end gap-3 sm:bottom-24 sm:left-auto sm:right-5 sm:translate-x-0">
 
       {gameState === 'idle' && (
         <div className="flex items-center gap-2">
