@@ -24,54 +24,36 @@ const locations = [
     id: 'vault',
     title: 'Treasure Vault',
     hint: 'Locked',
-    x: '15%',
-    y: '34%',
-    w: '18%',
     image: mapTreasureVaultSrc,
   },
   {
     id: 'skull',
     title: 'Skull Cove',
     hint: 'Locked',
-    x: '42%',
-    y: '22%',
-    w: '19%',
     image: mapSkullCoveSrc,
   },
   {
     id: 'castle',
     title: 'Coral Castle',
     hint: 'Locked',
-    x: '72%',
-    y: '27%',
-    w: '19%',
     image: mapCoralCastleSrc,
   },
   {
     id: 'barbecue',
     title: 'Volcano Grill',
     hint: 'Locked',
-    x: '16%',
-    y: '61%',
-    w: '18%',
     image: mapVolcanoGrillSrc,
   },
   {
     id: 'market',
     title: 'Island Market',
     hint: 'Locked',
-    x: '45%',
-    y: '54%',
-    w: '18%',
     image: mapIslandMarketSrc,
   },
   {
     id: 'carnival',
     title: 'Wheel Pier',
     hint: 'Locked',
-    x: '72%',
-    y: '64%',
-    w: '20%',
     image: mapWheelPierSrc,
   },
 ] as const;
@@ -113,49 +95,45 @@ const MapScreen: React.FC<MapScreenProps> = ({ coins, onBack }) => {
             <span className="h-0 w-0 border-l-[16px] border-r-[16px] border-t-[28px] border-l-transparent border-r-transparent border-t-sky-300" />
           </div>
 
-          {locations.map((location) => {
-            const isActive = activeLocation === location.id;
+          <div className="relative z-10 mx-auto grid w-full max-w-5xl grid-cols-2 gap-4 px-4 pb-24 pt-28 sm:grid-cols-3 sm:gap-6 sm:px-8 sm:pt-32">
+            {locations.map((location) => {
+              const isActive = activeLocation === location.id;
 
-            return (
-              <button
-                key={location.id}
-                type="button"
-                className={cn(
-                  'group absolute overflow-hidden rounded-lg border border-yellow-300/55 bg-black/35 text-left outline-none transition-all duration-200',
-                  'shadow-[0_12px_32px_rgba(0,0,0,0.45)] hover:scale-[1.03] hover:border-yellow-200 focus-visible:scale-[1.03] focus-visible:border-yellow-200',
-                  isActive ? 'scale-[1.03] shadow-[0_0_38px_rgba(250,204,21,0.38)]' : '',
-                )}
-                style={{
-                  left: location.x,
-                  top: location.y,
-                  width: `clamp(6.5rem, ${location.w}, 15rem)`,
-                  aspectRatio: '535 / 420',
-                }}
-                onMouseEnter={() => setActiveLocation(location.id)}
-                onMouseLeave={() => setActiveLocation(null)}
-                onFocus={() => setActiveLocation(location.id)}
-                onBlur={() => setActiveLocation(null)}
-                onTouchStart={() => setActiveLocation(location.id)}
-                onTouchEnd={() => window.setTimeout(() => setActiveLocation(null), 500)}
-                aria-label={`${location.title}, locked`}
-              >
-                <img
-                  src={location.image}
-                  alt=""
+              return (
+                <button
+                  key={location.id}
+                  type="button"
                   className={cn(
-                    'h-full w-full object-cover transition-all duration-200',
-                    isActive ? 'grayscale-0 saturate-125' : 'grayscale saturate-50 brightness-75 group-hover:grayscale-0 group-hover:saturate-125 group-hover:brightness-100 group-focus-visible:grayscale-0 group-focus-visible:saturate-125 group-focus-visible:brightness-100 group-active:grayscale-0 group-active:saturate-125 group-active:brightness-100',
+                    'group relative aspect-[535/420] w-full min-w-0 overflow-hidden rounded-lg border border-yellow-300/55 bg-black/35 text-left outline-none transition-all duration-200',
+                    'shadow-[0_12px_32px_rgba(0,0,0,0.45)] hover:scale-[1.03] hover:border-yellow-200 focus-visible:scale-[1.03] focus-visible:border-yellow-200',
+                    isActive ? 'scale-[1.03] shadow-[0_0_38px_rgba(250,204,21,0.38)]' : '',
                   )}
-                />
-                <span className="absolute inset-0 rounded-lg bg-black/25 transition-colors duration-200 group-hover:bg-black/5 group-focus-visible:bg-black/5 group-active:bg-black/5" />
-                <span className="absolute left-1/2 top-1/2 inline-flex h-10 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-lg border border-black/35 bg-zinc-200/95 shadow-[0_8px_18px_rgba(0,0,0,0.5)] transition-transform duration-200 group-hover:scale-105 group-active:scale-95 sm:h-12 sm:w-14">
-                  <Lock className="h-5 w-5 text-zinc-900 sm:h-6 sm:w-6" />
-                </span>
-              </button>
-            );
-          })}
+                  onMouseEnter={() => setActiveLocation(location.id)}
+                  onMouseLeave={() => setActiveLocation(null)}
+                  onFocus={() => setActiveLocation(location.id)}
+                  onBlur={() => setActiveLocation(null)}
+                  onTouchStart={() => setActiveLocation(location.id)}
+                  onTouchEnd={() => window.setTimeout(() => setActiveLocation(null), 500)}
+                  aria-label={`${location.title}, locked`}
+                >
+                  <img
+                    src={location.image}
+                    alt=""
+                    className={cn(
+                      'h-full w-full object-cover transition-all duration-200',
+                      isActive ? 'grayscale-0 saturate-125' : 'grayscale saturate-50 brightness-75 group-hover:grayscale-0 group-hover:saturate-125 group-hover:brightness-100 group-focus-visible:grayscale-0 group-focus-visible:saturate-125 group-focus-visible:brightness-100 group-active:grayscale-0 group-active:saturate-125 group-active:brightness-100',
+                    )}
+                  />
+                  <span className="absolute inset-0 rounded-lg bg-black/25 transition-colors duration-200 group-hover:bg-black/5 group-focus-visible:bg-black/5 group-active:bg-black/5" />
+                  <span className="absolute left-1/2 top-1/2 inline-flex h-10 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-lg border border-black/35 bg-zinc-200/95 shadow-[0_8px_18px_rgba(0,0,0,0.5)] transition-transform duration-200 group-hover:scale-105 group-active:scale-95 sm:h-12 sm:w-14">
+                    <Lock className="h-5 w-5 text-zinc-900 sm:h-6 sm:w-6" />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
 
-          <div className="absolute bottom-5 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-white/20 bg-black/70 px-3 py-2 text-xs font-bold text-cyan-50 shadow-xl backdrop-blur-md">
+          <div className="absolute bottom-5 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-white/20 bg-black/70 px-3 py-2 text-xs font-bold text-cyan-50 shadow-xl backdrop-blur-md">
             <MapPin className="h-4 w-4 text-cyan-200" />
             More islands unlock later
           </div>
