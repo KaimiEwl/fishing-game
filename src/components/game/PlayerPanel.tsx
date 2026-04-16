@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import SettingsDialog from './SettingsDialog';
 import FishIcon from './FishIcon';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
 
 interface PlayerPanelProps {
   player: PlayerState;
