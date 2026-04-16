@@ -10,6 +10,7 @@ import ShopScreen from './ShopScreen';
 import GrillScreen from './GrillScreen';
 import WheelScreen from './WheelScreen';
 import LeaderboardScreen from './LeaderboardScreen';
+import MapScreen from './MapScreen';
 import LeaderboardNameDialog from './LeaderboardNameDialog';
 import LevelUpCelebration from './LevelUpCelebration';
 import GameLoadingScreen from './GameLoadingScreen';
@@ -28,7 +29,7 @@ import {
   upsertLeaderboardEntry,
 } from '@/lib/leaderboard';
 import type { DailyTaskId, GameTab, GrillLeaderboardEntry, GrillRecipe, WheelPrize } from '@/types/game';
-import { Mail } from 'lucide-react';
+import { Compass, Mail } from 'lucide-react';
 
 const PRELOAD_ASSETS = [
   publicAsset('assets/bg_main.jpg'),
@@ -304,6 +305,11 @@ const FishingGame: React.FC = () => {
               onSpin={handleSpinWheel}
               onOpenTasks={() => setActiveTab('tasks')}
             />
+          ) : activeTab === 'map' ? (
+            <MapScreen
+              coins={player.coins}
+              onBack={() => setActiveTab('fish')}
+            />
           ) : (
             <LeaderboardScreen
               coins={player.coins}
@@ -314,6 +320,18 @@ const FishingGame: React.FC = () => {
               walletAddress={address}
               nickname={player.nickname}
             />
+          )}
+
+          {isFishingScreen && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('map')}
+              className="absolute right-[8%] top-[17%] z-20 inline-flex min-h-12 items-center gap-2 rounded-lg border border-cyan-300/25 bg-black/75 px-3 text-sm font-black uppercase tracking-normal text-cyan-100 shadow-[0_14px_34px_rgba(0,0,0,0.5)] backdrop-blur-md transition-all hover:scale-105 hover:border-cyan-300/50 hover:bg-zinc-950 active:scale-95 sm:right-[14%] sm:top-[20%] sm:px-4 sm:text-base"
+              aria-label="Open travel map"
+            >
+              <Compass className="h-5 w-5" />
+              Travel
+            </button>
           )}
 
           {isFishingScreen && (

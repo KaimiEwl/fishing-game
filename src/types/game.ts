@@ -41,7 +41,7 @@ export interface GameResult {
   fish?: Fish;
 }
 
-export type GameTab = 'fish' | 'tasks' | 'shop' | 'grill' | 'wheel' | 'leaderboard';
+export type GameTab = 'fish' | 'tasks' | 'shop' | 'grill' | 'wheel' | 'leaderboard' | 'map';
 
 export type DailyTaskId = 'catch_10' | 'rare_1' | 'grill_1';
 
