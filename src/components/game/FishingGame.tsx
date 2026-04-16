@@ -22,6 +22,13 @@ import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { publicAsset } from '@/lib/assets';
+import travelIconSrc from '@/assets/map_travel_icon.png';
+import mapTreasureVaultSrc from '@/assets/map_treasure_vault.jpg';
+import mapSkullCoveSrc from '@/assets/map_skull_cove.jpg';
+import mapCoralCastleSrc from '@/assets/map_coral_castle.jpg';
+import mapVolcanoGrillSrc from '@/assets/map_volcano_grill.jpg';
+import mapIslandMarketSrc from '@/assets/map_island_market.jpg';
+import mapWheelPierSrc from '@/assets/map_wheel_pier.jpg';
 import {
   getLeaderboardPlayerId,
   loadLeaderboardEntries,
@@ -31,15 +38,15 @@ import {
 import type { DailyTaskId, GameTab, GrillLeaderboardEntry, GrillRecipe, WheelPrize } from '@/types/game';
 import { Mail } from 'lucide-react';
 
-const TRAVEL_ICON_SRC = publicAsset('assets/map_travel_icon.png');
+const TRAVEL_ICON_SRC = travelIconSrc;
 
 const MAP_LOCATION_ASSETS = [
-  publicAsset('assets/map_treasure_vault.jpg'),
-  publicAsset('assets/map_skull_cove.jpg'),
-  publicAsset('assets/map_coral_castle.jpg'),
-  publicAsset('assets/map_volcano_grill.jpg'),
-  publicAsset('assets/map_island_market.jpg'),
-  publicAsset('assets/map_wheel_pier.jpg'),
+  mapTreasureVaultSrc,
+  mapSkullCoveSrc,
+  mapCoralCastleSrc,
+  mapVolcanoGrillSrc,
+  mapIslandMarketSrc,
+  mapWheelPierSrc,
 ];
 
 const PRELOAD_ASSETS = [

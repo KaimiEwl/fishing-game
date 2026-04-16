@@ -6,7 +6,12 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { publicAsset } from '@/lib/assets';
+import mapTreasureVaultSrc from '@/assets/map_treasure_vault.jpg';
+import mapSkullCoveSrc from '@/assets/map_skull_cove.jpg';
+import mapCoralCastleSrc from '@/assets/map_coral_castle.jpg';
+import mapVolcanoGrillSrc from '@/assets/map_volcano_grill.jpg';
+import mapIslandMarketSrc from '@/assets/map_island_market.jpg';
+import mapWheelPierSrc from '@/assets/map_wheel_pier.jpg';
 import GameScreenShell from './GameScreenShell';
 
 interface MapScreenProps {
@@ -22,7 +27,7 @@ const locations = [
     x: '15%',
     y: '34%',
     w: '18%',
-    image: publicAsset('assets/map_treasure_vault.jpg'),
+    image: mapTreasureVaultSrc,
   },
   {
     id: 'skull',
@@ -31,7 +36,7 @@ const locations = [
     x: '42%',
     y: '22%',
     w: '19%',
-    image: publicAsset('assets/map_skull_cove.jpg'),
+    image: mapSkullCoveSrc,
   },
   {
     id: 'castle',
@@ -40,7 +45,7 @@ const locations = [
     x: '72%',
     y: '27%',
     w: '19%',
-    image: publicAsset('assets/map_coral_castle.jpg'),
+    image: mapCoralCastleSrc,
   },
   {
     id: 'barbecue',
@@ -49,7 +54,7 @@ const locations = [
     x: '16%',
     y: '61%',
     w: '18%',
-    image: publicAsset('assets/map_volcano_grill.jpg'),
+    image: mapVolcanoGrillSrc,
   },
   {
     id: 'market',
@@ -58,7 +63,7 @@ const locations = [
     x: '45%',
     y: '54%',
     w: '18%',
-    image: publicAsset('assets/map_island_market.jpg'),
+    image: mapIslandMarketSrc,
   },
   {
     id: 'carnival',
@@ -67,7 +72,7 @@ const locations = [
     x: '72%',
     y: '64%',
     w: '20%',
-    image: publicAsset('assets/map_wheel_pier.jpg'),
+    image: mapWheelPierSrc,
   },
 ] as const;
 
