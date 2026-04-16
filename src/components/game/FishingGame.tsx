@@ -136,7 +136,7 @@ const FishingGame: React.FC = () => {
           <TasksScreen
             coins={player.coins}
             tasks={gameProgress.dailyTasks}
-            allTasksClaimed={gameProgress.allTasksClaimed}
+            allTasksComplete={gameProgress.allTasksComplete}
             wheelReady={gameProgress.wheelReady}
             onClaimTask={handleClaimTask}
             onOpenWheel={() => setActiveTab('wheel')}
