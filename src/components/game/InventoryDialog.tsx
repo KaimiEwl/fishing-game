@@ -180,7 +180,7 @@ const InventoryItem: React.FC<InventoryItemProps> = ({ fish, quantity, onSell })
   const totalValue = fish.price * quantity;
 
   return (
-    <div className="group flex items-center gap-3 overflow-hidden rounded-xl border border-zinc-800 bg-black p-3 shadow-sm transition-all hover:border-cyan-300/20 hover:bg-zinc-950 hover:shadow-md">
+    <div className="group flex flex-wrap items-center gap-3 overflow-hidden rounded-xl border border-zinc-800 bg-black p-3 shadow-sm transition-all hover:border-cyan-300/20 hover:bg-zinc-950 hover:shadow-md sm:flex-nowrap">
       <div
         className="w-14 h-14 shrink-0 rounded-xl flex items-center justify-center overflow-visible shadow-inner"
         style={{
@@ -207,7 +207,7 @@ const InventoryItem: React.FC<InventoryItemProps> = ({ fish, quantity, onSell })
         <p className="truncate text-xs text-zinc-500">{fish.description}</p>
       </div>
 
-      <div className="text-right flex flex-col sm:flex-row items-end sm:items-center gap-2 sm:gap-4 shrink-0">
+      <div className="flex w-full shrink-0 items-end justify-between gap-2 text-right sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:gap-4">
         <div className="flex flex-col items-end">
           <span className="mb-1 rounded-md border border-zinc-800 bg-zinc-950 px-2 py-0.5 text-sm font-bold text-zinc-100">x{quantity}</span>
           <span className="flex items-center gap-1 text-xs font-semibold text-zinc-500 drop-shadow-sm">Total: {totalValue} <CoinIcon size={12} /></span>
@@ -215,7 +215,7 @@ const InventoryItem: React.FC<InventoryItemProps> = ({ fish, quantity, onSell })
         <Button
           size="sm"
           onClick={onSell}
-          className="flex items-center gap-1.5 rounded-lg border border-emerald-300/25 bg-zinc-950 px-4 font-bold text-emerald-100 shadow hover:bg-black"
+          className="flex min-h-10 items-center gap-1.5 rounded-lg border border-emerald-300/25 bg-zinc-950 px-4 font-bold text-emerald-100 shadow hover:bg-black"
         >
           Sell (+{fish.price})
         </Button>

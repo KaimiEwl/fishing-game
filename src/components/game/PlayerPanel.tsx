@@ -36,7 +36,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({ player, onSetNickname, isConn
               <Button
                 variant="outline"
                 size="icon"
-                className="h-11 w-11 rounded-full border border-cyan-300/20 bg-black/85 text-zinc-100 shadow-md outline-none backdrop-blur-md transition-all hover:scale-105 hover:border-cyan-300/40 hover:bg-zinc-950 active:scale-95 sm:h-8 sm:w-8"
+                className="hidden h-11 w-11 rounded-full border border-cyan-300/20 bg-black/85 text-zinc-100 shadow-md outline-none backdrop-blur-md transition-all hover:scale-105 hover:border-cyan-300/40 hover:bg-zinc-950 active:scale-95 sm:inline-flex sm:h-8 sm:w-8"
                 onClick={(e) => e.stopPropagation()}
                 aria-label="Fish info"
               >

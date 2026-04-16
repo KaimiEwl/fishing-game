@@ -244,7 +244,7 @@ const FishingGame: React.FC = () => {
   };
 
   const isFishingScreen = activeTab === 'fish';
-  const bottomNavClearance = isMobile ? 164 : 128;
+  const bottomNavClearance = isMobile ? 92 : 128;
 
   return (
     <main className="fixed inset-0 overflow-hidden bg-black">
@@ -255,8 +255,8 @@ const FishingGame: React.FC = () => {
           '--bottom-nav-clearance': `${bottomNavClearance}px`,
           width: '100vw',
           maxWidth: isMobile ? '100vw' : '1920px',
-          height: '100vh',
-          minHeight: '100vh',
+          height: '100dvh',
+          minHeight: '100svh',
         } as React.CSSProperties}
       >
         <div className={cn('absolute inset-0 transition-opacity duration-300', assetsReady ? 'opacity-100' : 'opacity-0')}>
@@ -359,7 +359,7 @@ const FishingGame: React.FC = () => {
           )}
 
           {isFishingScreen && (
-            <div className="fixed bottom-[calc(var(--bottom-nav-clearance,0px)+0.75rem)] left-3 z-20 flex flex-col items-start gap-2 sm:bottom-28 sm:left-5 sm:flex-row">
+            <div className="fixed bottom-[calc(var(--bottom-nav-clearance,0px)+0.75rem)] left-3 z-20 flex max-w-[calc(100vw-1.5rem)] flex-col items-start gap-2 sm:bottom-28 sm:left-5 sm:flex-row">
               <InventoryDialog
                 inventory={player.inventory}
                 rodLevel={player.rodLevel}
@@ -388,11 +388,11 @@ const FishingGame: React.FC = () => {
 
           <a
             href="mailto:support@monadfish.xyz"
-            className="fixed right-3 top-3 z-20 inline-flex h-10 items-center gap-2 rounded-lg border border-cyan-300/15 bg-black/75 px-3 text-xs font-semibold text-zinc-300 shadow-lg backdrop-blur-md transition-colors hover:bg-zinc-950 hover:text-cyan-100 sm:right-5 sm:top-5"
+            className="fixed right-3 top-3 z-20 hidden h-10 items-center gap-2 rounded-lg border border-cyan-300/15 bg-black/75 px-3 text-xs font-semibold text-zinc-300 shadow-lg backdrop-blur-md transition-colors hover:bg-zinc-950 hover:text-cyan-100 sm:right-5 sm:top-5 sm:inline-flex"
             aria-label="Contact support"
           >
             <Mail className="h-4 w-4" />
-            <span className={cn(isMobile && 'sr-only')}>Contact</span>
+            <span>Contact</span>
           </a>
 
           {levelUpInfo && (

@@ -93,7 +93,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                 return (
                   <article
                     key={rod.level}
-                    className={`flex items-center gap-3 rounded-lg border p-3 transition-colors ${isOwned
+                    className={`flex flex-col items-stretch gap-3 rounded-lg border p-3 transition-colors sm:flex-row sm:items-center ${isOwned
                       ? 'border-cyan-300/30 bg-zinc-950'
                       : canBuy
                         ? 'border-cyan-300/20 bg-black/60 hover:border-cyan-300/35'
@@ -119,7 +119,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                         size="sm"
                         disabled={!canBuy}
                         onClick={() => onBuyRod(rod.level, rod.cost)}
-                        className="shrink-0 rounded-lg border border-cyan-300/25 bg-zinc-950 text-cyan-100 hover:bg-black disabled:border-zinc-800 disabled:text-zinc-600"
+                        className="min-h-10 w-full shrink-0 rounded-lg border border-cyan-300/25 bg-zinc-950 text-cyan-100 hover:bg-black disabled:border-zinc-800 disabled:text-zinc-600 sm:w-auto"
                       >
                         <CoinIcon size={14} /> {rod.cost}
                       </Button>
