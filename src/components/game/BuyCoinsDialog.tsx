@@ -141,29 +141,29 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({ walletAddress, onCoinsA
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          className="h-12 min-w-12 gap-2 rounded-lg border border-primary/40 bg-black/55 px-3 text-white shadow-lg backdrop-blur-md hover:border-primary/60 hover:bg-black/70 sm:h-14 sm:min-w-[8.25rem]"
+          className="h-12 min-w-12 gap-2 rounded-lg border border-cyan-300/20 bg-black/85 px-3 text-cyan-100 shadow-lg backdrop-blur-md hover:border-cyan-300/40 hover:bg-zinc-950 sm:h-14 sm:min-w-[8.25rem]"
           aria-label="Buy with MON"
         >
           <Gem className="h-5 w-5 sm:h-6 sm:w-6" />
           <span className="hidden text-sm font-bold sm:inline">Buy MON</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-[calc(100vw-1rem)] sm:max-w-md max-h-[calc(100svh-1rem)] bg-card/95 backdrop-blur-md border-2 border-primary/30">
+      <DialogContent className="max-h-[calc(100svh-1rem)] max-w-[calc(100vw-1rem)] border border-cyan-300/15 bg-black/95 text-zinc-100 shadow-2xl backdrop-blur-md sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl">
-            <Gem className="h-5 w-5 text-primary" />
+          <DialogTitle className="flex items-center gap-2 text-xl text-zinc-100">
+            <Gem className="h-5 w-5 text-cyan-100" />
             Buy with MON
           </DialogTitle>
         </DialogHeader>
 
         <Tabs defaultValue="coins" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="coins" className="flex items-center gap-1"><CoinIcon size={14} /> Coins</TabsTrigger>
-            <TabsTrigger value="nft" className="gap-1.5"><Gem className="h-4 w-4" /> NFT Rods</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 bg-zinc-950">
+            <TabsTrigger value="coins" className="flex items-center gap-1 data-[state=active]:bg-black data-[state=active]:text-cyan-100"><CoinIcon size={14} /> Coins</TabsTrigger>
+            <TabsTrigger value="nft" className="gap-1.5 data-[state=active]:bg-black data-[state=active]:text-cyan-100"><Gem className="h-4 w-4" /> NFT Rods</TabsTrigger>
           </TabsList>
 
           <TabsContent value="coins" className="mt-4">
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="mb-4 text-sm text-zinc-500">
               Send MON and receive game coins. Rate: 0.1 MON = 100 coins.
             </p>
             <div className="grid gap-3">
@@ -173,28 +173,28 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({ walletAddress, onCoinsA
                   <Button
                     key={pkg.monAmount}
                     variant="outline"
-                    className="h-auto flex-row justify-between py-4 px-5 hover:border-primary/50"
+                    className="h-auto flex-row justify-between border-zinc-800 bg-zinc-950 px-5 py-4 text-zinc-100 hover:border-cyan-300/30 hover:bg-black"
                     disabled={isPurchasing}
                     onClick={() => handlePurchase(pkg)}
                   >
                     <div className="flex items-center gap-3">
-                      {pkg.premium ? <Gem className="h-7 w-7 text-primary" /> : <CoinIcon size={28} />}
+                      {pkg.premium ? <Gem className="h-7 w-7 text-cyan-100" /> : <CoinIcon size={28} />}
                       <span className="font-bold text-lg">{pkg.coins} coins</span>
                     </div>
-                    <span className="text-primary font-mono font-bold">
+                    <span className="font-mono font-bold text-cyan-100">
                       {isLoading ? '⏳...' : `${pkg.monAmount} MON`}
                     </span>
                   </Button>
                 );
               })}
             </div>
-            <p className="text-xs text-muted-foreground mt-3 text-center">
+            <p className="mt-3 text-center text-xs text-zinc-500">
               Monad Mainnet • Transaction confirmed automatically
             </p>
           </TabsContent>
 
           <TabsContent value="nft" className="mt-4">
-            <p className="text-sm text-muted-foreground mb-3">
+            <p className="mb-3 text-sm text-zinc-500">
               Mint NFT versions of rods for MON and get bonuses!
             </p>
             <ScrollArea className="h-[min(220px,35vh)] pr-2">
@@ -209,16 +209,16 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({ walletAddress, onCoinsA
                       key={nft.rodLevel}
                       className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
                         isOwned
-                          ? 'bg-yellow-500/10 border-yellow-500/40'
+                          ? 'border-cyan-300/35 bg-zinc-950'
                           : hasRod
-                            ? 'bg-muted/50 border-yellow-500/20 hover:border-yellow-500/40'
-                            : 'bg-muted/30 border-border opacity-50'
+                            ? 'border-zinc-800 bg-zinc-950 hover:border-cyan-300/25'
+                            : 'border-zinc-800 bg-black opacity-50'
                       }`}
                     >
-                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden relative ${isOwned ? 'ring-2 ring-yellow-500' : ''}`}>
+                      <div className={`relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg bg-black/70 ${isOwned ? 'ring-2 ring-cyan-300/40' : ''}`}>
                         <img src={ROD_IMAGES[nft.rodLevel]} alt={nft.name} className="h-10 object-contain" />
                         {isOwned && (
-                          <div className="absolute -top-1 -right-1 bg-yellow-500 text-black text-[8px] font-bold px-1 rounded">
+                          <div className="absolute -right-1 -top-1 rounded bg-cyan-300 px-1 text-[8px] font-bold text-black">
                             NFT
                           </div>
                         )}
@@ -227,9 +227,9 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({ walletAddress, onCoinsA
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-sm flex items-center gap-2">
                           {nft.name}
-                          {isOwned && <span className="text-yellow-500 text-xs inline-flex items-center gap-1"><Check className="h-3 w-3" /> NFT</span>}
+                          {isOwned && <span className="inline-flex items-center gap-1 text-xs text-cyan-100"><Check className="h-3 w-3" /> NFT</span>}
                         </div>
-                        <div className="text-xs text-muted-foreground space-y-0.5">
+                        <div className="space-y-0.5 text-xs text-zinc-500">
                           <div>+{nft.rarityBonus}% rare fish chance</div>
                           <div>+{nft.xpBonus}% XP</div>
                           {nft.sellBonus > 0 && <div>+{nft.sellBonus}% sell price</div>}
@@ -237,7 +237,7 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({ walletAddress, onCoinsA
                       </div>
 
                       {isOwned ? (
-                        <span className="text-yellow-500 font-bold text-sm whitespace-nowrap inline-flex items-center gap-1">
+                        <span className="inline-flex whitespace-nowrap text-sm font-bold text-cyan-100">
                           <Check className="h-4 w-4" /> Minted
                         </span>
                       ) : (
@@ -245,7 +245,7 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({ walletAddress, onCoinsA
                           size="sm"
                           disabled={!hasRod || isMinting}
                           onClick={() => handleMint(nft)}
-                          className="bg-yellow-500 hover:bg-yellow-600 text-black whitespace-nowrap"
+                          className="whitespace-nowrap border border-cyan-300/25 bg-zinc-950 text-cyan-100 hover:bg-black"
                         >
                           {isMinting ? '...' : `${nft.mintCost} MON`}
                         </Button>

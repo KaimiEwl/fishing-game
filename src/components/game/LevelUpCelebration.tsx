@@ -96,36 +96,36 @@ const LevelUpCelebration: React.FC<LevelUpCelebrationProps> = ({ newLevel, coins
       <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none" />
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleDismiss} />
 
-      <div className="relative bg-card/95 backdrop-blur-md border-2 border-primary/40 rounded-3xl p-8 max-w-sm w-full mx-4 shadow-2xl animate-scale-in text-center">
+      <div className="animate-scale-in relative mx-4 w-full max-w-sm rounded-3xl border border-cyan-300/20 bg-black/95 p-8 text-center text-zinc-100 shadow-2xl backdrop-blur-md">
         <div
-          className="w-20 h-20 rounded-full flex items-center justify-center text-3xl font-bold mx-auto -mt-14 mb-4 shadow-lg border-4 border-background"
+          className="mx-auto -mt-14 mb-4 flex h-20 w-20 items-center justify-center rounded-full border-4 border-black text-3xl font-bold shadow-lg"
           style={{
-            background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(270, 70%, 65%))',
-            color: 'white'
+            background: 'linear-gradient(135deg, #020617, #083344)',
+            color: '#cffafe'
           }}
         >
           {newLevel}
         </div>
 
-        <h2 className="text-2xl font-bold text-foreground mb-1">🎉 Level Up!</h2>
-        <p className="text-muted-foreground mb-5">You reached level {newLevel}</p>
+        <h2 className="mb-1 text-2xl font-bold text-zinc-100">Level Up!</h2>
+        <p className="mb-5 text-zinc-500">You reached level {newLevel}</p>
 
-        <div className="space-y-2 mb-6 text-left bg-muted/50 rounded-xl p-4">
+        <div className="mb-6 space-y-2 rounded-xl border border-zinc-800 bg-zinc-950 p-4 text-left">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Reward</span>
-            <span className="font-bold text-foreground flex items-center gap-1"><CoinIcon size={16} /> {coinsReward} coins</span>
+            <span className="text-sm text-zinc-500">Reward</span>
+            <span className="flex items-center gap-1 font-bold text-zinc-100"><CoinIcon size={16} /> {coinsReward} coins</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Catch bonus</span>
-            <span className="font-bold text-foreground">🎣 +{bonusChance.toFixed(1)}%</span>
+            <span className="text-sm text-zinc-500">Catch bonus</span>
+            <span className="font-bold text-zinc-100">+{bonusChance.toFixed(1)}%</span>
           </div>
         </div>
 
         <Button
           onClick={handleDismiss}
-          className="w-full rounded-xl font-bold text-base py-5"
+          className="w-full rounded-xl border border-cyan-300/25 bg-zinc-950 py-5 text-base font-bold text-cyan-100 hover:bg-black"
           style={{
-            background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(270, 70%, 65%))'
+            background: 'linear-gradient(135deg, #020617, #083344)'
           }}
         >
           Awesome!

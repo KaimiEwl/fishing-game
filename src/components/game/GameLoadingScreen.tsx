@@ -32,8 +32,8 @@ const GameLoadingScreen: React.FC<GameLoadingScreenProps> = ({ visible }) => {
         <h1 className="mt-5 text-3xl font-black tracking-tight">MonadFish</h1>
         <p className="mt-2 text-sm font-medium text-white/65">Loading the lake...</p>
 
-        <div className="mt-6 h-2 w-full overflow-hidden rounded-full bg-white/10">
-          <div className="h-full w-1/2 animate-[shimmer_1.2s_ease-in-out_infinite] rounded-full bg-gradient-to-r from-violet-500 via-amber-300 to-cyan-300" />
+        <div className="mt-6 h-2 w-full overflow-hidden rounded-full bg-zinc-900">
+          <div className="h-full w-1/2 animate-[shimmer_1.2s_ease-in-out_infinite] rounded-full bg-gradient-to-r from-zinc-800 via-cyan-300 to-zinc-700" />
         </div>
       </div>
     </div>

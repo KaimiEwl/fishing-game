@@ -27,16 +27,16 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
       backgroundImage={publicAsset('assets/bg_grill.jpg')}
     >
       <div className="grid h-full min-h-0 gap-3 lg:grid-cols-[0.8fr_1.2fr]">
-        <aside className="rounded-lg border border-amber-300/20 bg-black/35 p-4 backdrop-blur-md">
+        <aside className="rounded-lg border border-cyan-300/15 bg-black/60 p-4 backdrop-blur-md">
           <div className="flex h-full flex-col justify-between gap-4">
             <div>
-              <div className="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-amber-400 text-black">
+              <div className="inline-flex h-12 w-12 items-center justify-center rounded-lg border border-cyan-300/20 bg-zinc-950 text-cyan-100">
                 <Trophy className="h-6 w-6" />
               </div>
               <h2 className="mt-4 text-2xl font-black">{grillScore.toLocaleString()}</h2>
               <p className="mt-1 text-sm text-white/60">total grill score</p>
             </div>
-            <div className="rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-white/65">
+            <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-sm text-zinc-400">
               Stronger fish make stronger dishes. Wallet leaderboard sync comes next with Supabase.
             </div>
           </div>
@@ -52,14 +52,14 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
               return (
                 <article
                   key={recipe.id}
-                  className="rounded-lg border border-white/10 bg-black/35 p-4 backdrop-blur-md"
+                  className="rounded-lg border border-cyan-300/15 bg-black/60 p-4 backdrop-blur-md"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h2 className="text-lg font-black">{recipe.name}</h2>
                       <p className="mt-1 text-sm text-white/60">{recipe.description}</p>
                     </div>
-                    <div className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-violet-500/20 px-2 py-1 text-sm font-black text-violet-100">
+                    <div className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-cyan-300/20 bg-zinc-950 px-2 py-1 text-sm font-black text-cyan-100">
                       <Trophy className="h-4 w-4" />
                       {recipe.score}
                     </div>
@@ -74,7 +74,7 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
                       return (
                         <div
                           key={fishId}
-                          className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs"
+                          className="inline-flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-xs"
                         >
                           <FishIcon fish={fish} size="sm" />
                           <span>{fish.name}</span>
@@ -90,7 +90,7 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
                     type="button"
                     disabled={!canCook}
                     onClick={() => onCook(recipe)}
-                    className="mt-4 h-10 w-full rounded-lg bg-amber-400 text-black hover:bg-amber-300 disabled:bg-white/10 disabled:text-white/35"
+                    className="mt-4 h-10 w-full rounded-lg border border-cyan-300/25 bg-zinc-950 text-cyan-100 hover:bg-black disabled:border-zinc-800 disabled:bg-zinc-950 disabled:text-zinc-600"
                   >
                     <ChefHat className="mr-2 h-4 w-4" />
                     Cook dish

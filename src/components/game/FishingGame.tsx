@@ -47,7 +47,6 @@ const FishingGame: React.FC = () => {
   const { isConnected, isVerified, savedPlayer, saveProgress, address } = useWalletAuth();
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<GameTab>('fish');
-  const [navCollapsed, setNavCollapsed] = useState(false);
   const [assetsReady, setAssetsReady] = useState(false);
   const gameProgress = useGameProgress();
 
@@ -157,7 +156,7 @@ const FishingGame: React.FC = () => {
   };
 
   const isFishingScreen = activeTab === 'fish';
-  const bottomNavClearance = isMobile ? (navCollapsed ? 64 : 132) : 0;
+  const bottomNavClearance = isMobile ? 148 : 112;
 
   return (
     <main className="fixed inset-0 overflow-hidden bg-black">
@@ -278,13 +277,11 @@ const FishingGame: React.FC = () => {
             activeTab={activeTab}
             onTabChange={setActiveTab}
             wheelReady={gameProgress.wheelReady}
-            collapsed={isMobile ? navCollapsed : false}
-            onCollapsedChange={setNavCollapsed}
           />
 
           <a
             href="mailto:support@monadfish.xyz"
-            className="fixed right-3 top-3 z-20 inline-flex h-10 items-center gap-2 rounded-lg border border-white/15 bg-black/45 px-3 text-xs font-semibold text-white/75 shadow-lg backdrop-blur-md transition-colors hover:bg-black/60 hover:text-white sm:right-5 sm:top-5"
+            className="fixed right-3 top-3 z-20 inline-flex h-10 items-center gap-2 rounded-lg border border-cyan-300/15 bg-black/75 px-3 text-xs font-semibold text-zinc-300 shadow-lg backdrop-blur-md transition-colors hover:bg-zinc-950 hover:text-cyan-100 sm:right-5 sm:top-5"
             aria-label="Contact support"
           >
             <Mail className="h-4 w-4" />

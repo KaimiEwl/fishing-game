@@ -46,42 +46,42 @@ const GameControls: React.FC<GameControlsProps> = ({
       {gameState !== 'idle' && (
         <div className="fixed top-[36%] sm:top-[40%] left-1/2 z-20 w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 -translate-y-1/2">
           {gameState === 'result' && lastResult && (
-            <div className="bg-card/95 backdrop-blur-sm rounded-lg p-4 sm:p-6 border-2 border-primary/30 shadow-2xl animate-scale-in">
+            <div className="animate-scale-in rounded-lg border border-cyan-300/20 bg-black/90 p-4 text-zinc-100 shadow-2xl backdrop-blur-sm sm:p-6">
               {lastResult.success && lastResult.fish ? (
                 <div className="flex flex-col items-center">
-                  <p className="text-lg font-bold text-primary mb-2">🎉 Caught!</p>
+                  <p className="mb-2 text-lg font-bold text-cyan-100">Caught!</p>
                   <FishDisplay fish={lastResult.fish} showDetails size="lg" />
                 </div>
               ) : (
                 <div className="text-center py-4">
                   <p className="text-4xl mb-2">🌊</p>
-                  <p className="text-lg font-medium text-muted-foreground">The fish got away...</p>
-                  <p className="text-sm text-muted-foreground">+5 XP for trying</p>
+                  <p className="text-lg font-medium text-zinc-300">The fish got away...</p>
+                  <p className="text-sm text-zinc-500">+5 XP for trying</p>
                 </div>
               )}
             </div>
           )}
 
           {gameState === 'casting' && (
-            <div className="bg-card/90 backdrop-blur-sm rounded-lg px-6 py-3 border border-primary/30 text-center">
-              <p className="text-lg font-medium text-primary animate-pulse">Casting... 🎣</p>
+            <div className="rounded-lg border border-cyan-300/20 bg-black/85 px-6 py-3 text-center shadow-xl backdrop-blur-sm">
+              <p className="animate-pulse text-lg font-medium text-cyan-100">Casting...</p>
             </div>
           )}
 
           {gameState === 'waiting' && (
-            <div className="bg-card/90 backdrop-blur-sm rounded-lg px-6 py-3 border border-primary/30 text-center">
-              <p className="text-lg font-medium text-secondary animate-pulse">Waiting for a bite... 🎯</p>
+            <div className="rounded-lg border border-cyan-300/20 bg-black/85 px-6 py-3 text-center shadow-xl backdrop-blur-sm">
+              <p className="animate-pulse text-lg font-medium text-zinc-100">Waiting for a bite...</p>
             </div>
           )}
 
           {gameState === 'biting' && (
-            <div className="bg-card/95 backdrop-blur-sm rounded-lg p-4 sm:p-5 border-2 border-yellow-500/60 shadow-2xl animate-scale-in flex flex-col items-center gap-3">
-              <p className="inline-flex items-center gap-2 text-xl font-bold text-yellow-400 animate-pulse">
+            <div className="animate-scale-in flex flex-col items-center gap-3 rounded-lg border border-cyan-300/25 bg-black/90 p-4 shadow-2xl backdrop-blur-sm sm:p-5">
+              <p className="inline-flex animate-pulse items-center gap-2 text-xl font-bold text-cyan-100">
                 <FishIcon fishId="carp" className="h-7 w-7" />
                 A bite! Reel it in!
               </p>
               {/* Timer bar */}
-              <div className="w-48 h-3 bg-muted/40 rounded-full overflow-hidden border border-yellow-500/30">
+              <div className="h-3 w-48 overflow-hidden rounded-full border border-zinc-800 bg-zinc-950">
                 <div
                   className="h-full rounded-full transition-all duration-75"
                   style={{
@@ -96,10 +96,9 @@ const GameControls: React.FC<GameControlsProps> = ({
               </div>
               <Button
                 onClick={onReelIn}
-                className="text-lg h-14 min-w-[8rem] px-8 rounded-xl font-bold shadow-lg shadow-orange-500/20 hover:shadow-xl hover:shadow-orange-500/40 transition-all hover:scale-110 active:scale-95 animate-bounce"
+                className="h-14 min-w-[8rem] animate-bounce rounded-xl border border-cyan-300/25 bg-zinc-950 px-8 text-lg font-bold text-cyan-100 shadow-lg shadow-cyan-500/10 transition-all hover:scale-110 hover:bg-black hover:shadow-xl hover:shadow-cyan-500/20 active:scale-95"
                 style={{
-                  background: 'linear-gradient(135deg, #ffaa00, #ff6600)',
-                  color: 'white'
+                  background: 'linear-gradient(135deg, #020617, #083344)',
                 }}
               >
                 🎣 Reel!
@@ -108,14 +107,14 @@ const GameControls: React.FC<GameControlsProps> = ({
           )}
 
           {gameState === 'catching' && (
-            <div className="bg-card/90 backdrop-blur-sm rounded-lg px-6 py-3 border border-primary/30 text-center">
-              <p className="text-lg font-medium text-accent animate-pulse">Reeling in! 🎣</p>
+            <div className="rounded-lg border border-cyan-300/20 bg-black/85 px-6 py-3 text-center shadow-xl backdrop-blur-sm">
+              <p className="animate-pulse text-lg font-medium text-cyan-100">Reeling in!</p>
             </div>
           )}
         </div>
       )}
 
-      <div className="fixed bottom-[calc(var(--bottom-nav-clearance,0px)+0.75rem)] left-1/2 z-20 flex -translate-x-1/2 flex-col items-end gap-3 sm:bottom-24 sm:left-auto sm:right-5 sm:translate-x-0">
+      <div className="fixed bottom-[calc(var(--bottom-nav-clearance,0px)+1rem)] left-1/2 z-20 flex -translate-x-1/2 flex-col items-end gap-3 sm:bottom-24 sm:left-auto sm:right-5 sm:translate-x-0">
 
       {gameState === 'idle' && (
         <div className="flex items-center gap-2">
@@ -123,27 +122,27 @@ const GameControls: React.FC<GameControlsProps> = ({
             <Tooltip>
               <TooltipTrigger asChild>
                 <div
-                  className={`flex h-12 w-12 sm:h-14 sm:w-14 flex-col items-center justify-center rounded-xl border border-primary/30 shadow-lg cursor-pointer relative backdrop-blur-md bg-card/80 hover:bg-card transition-all hover:scale-105 active:scale-95 ${hasNft ? 'ring-2 ring-yellow-500' : ''}`}
+                  className={`relative flex h-12 w-12 cursor-pointer flex-col items-center justify-center rounded-xl border border-cyan-300/20 bg-black/85 shadow-lg backdrop-blur-md transition-all hover:scale-105 hover:bg-zinc-950 active:scale-95 sm:h-14 sm:w-14 ${hasNft ? 'ring-2 ring-cyan-300/40' : ''}`}
                 >
                   <img src={rod.image} alt={rod.name} className="h-7 sm:h-8 object-contain drop-shadow-md" />
-                  {rod.bonus > 0 && <span className="text-[9px] font-bold text-primary leading-none mt-0.5">+{rod.bonus}%</span>}
+                  {rod.bonus > 0 && <span className="mt-0.5 text-[9px] font-bold leading-none text-cyan-100">+{rod.bonus}%</span>}
                   {hasNft && (
-                    <div className="absolute -top-1.5 -right-1.5 bg-yellow-500 text-black text-[8px] font-bold px-1.5 rounded-sm shadow-sm border border-yellow-300">
+                    <div className="absolute -top-1.5 -right-1.5 rounded-sm border border-cyan-300/40 bg-cyan-300 px-1.5 text-[8px] font-bold text-black shadow-sm">
                       NFT
                     </div>
                   )}
                 </div>
               </TooltipTrigger>
-              <TooltipContent side="top" className="bg-card/90 backdrop-blur-md border-primary/20 p-3 max-w-[200px]">
+              <TooltipContent side="top" className="max-w-[200px] border-cyan-300/15 bg-black/95 p-3 text-zinc-100 backdrop-blur-md">
                 <div className="flex flex-col gap-1">
                   <p className="font-bold text-sm" style={{ color: rod.color }}>{rod.name}</p>
-                  <p className="text-xs text-muted-foreground">Level {rodLevel + 1}</p>
+                  <p className="text-xs text-zinc-500">Level {rodLevel + 1}</p>
                   {rod.bonus > 0
-                    ? <p className="text-xs text-foreground">+{rod.bonus}% rare fish chance</p>
-                    : <p className="text-xs text-foreground">Standard catch chance</p>
+                    ? <p className="text-xs text-zinc-200">+{rod.bonus}% rare fish chance</p>
+                    : <p className="text-xs text-zinc-200">Standard catch chance</p>
                   }
                   {hasNft && (
-                    <div className="text-xs text-yellow-500 mt-1 border-t border-yellow-500/20 pt-1">
+                    <div className="mt-1 border-t border-cyan-300/15 pt-1 text-xs text-cyan-100">
                       <p className="font-bold">✨ NFT bonuses:</p>
                       {(() => {
                         const nftData = [
@@ -171,10 +170,10 @@ const GameControls: React.FC<GameControlsProps> = ({
           <Button
             onClick={onCast}
             disabled={!hasBait}
-            className="h-12 min-w-[6rem] sm:h-14 sm:min-w-[8rem] px-4 sm:px-6 rounded-xl text-base sm:text-lg font-bold shadow-lg hover:shadow-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
+            className="h-12 min-w-[6rem] rounded-xl border border-cyan-300/25 bg-zinc-950 px-4 text-base font-bold text-cyan-100 shadow-lg shadow-black/40 transition-all hover:scale-105 hover:bg-black hover:shadow-xl active:scale-95 disabled:border-zinc-800 disabled:bg-zinc-950 disabled:text-zinc-600 disabled:opacity-100 disabled:hover:scale-100 sm:h-14 sm:min-w-[8rem] sm:px-6 sm:text-lg"
             style={{
               background: hasBait
-                ? 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.8))'
+                ? 'linear-gradient(135deg, #020617, #083344)'
                 : undefined
             }}
           >

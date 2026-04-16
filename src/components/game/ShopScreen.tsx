@@ -47,14 +47,14 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
       backgroundImage={publicAsset('assets/bg_shop.jpg')}
     >
       <Tabs defaultValue="bait" className="flex h-full min-h-0 flex-col">
-        <TabsList className="grid w-full grid-cols-2 rounded-lg bg-black/35">
-          <TabsTrigger value="bait" className="gap-1.5 rounded-lg"><Worm className="h-4 w-4" /> Bait</TabsTrigger>
-          <TabsTrigger value="rods" className="gap-1.5 rounded-lg"><ShipWheel className="h-4 w-4" /> Rods</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 rounded-lg bg-zinc-950">
+          <TabsTrigger value="bait" className="gap-1.5 rounded-lg data-[state=active]:bg-black data-[state=active]:text-cyan-100"><Worm className="h-4 w-4" /> Bait</TabsTrigger>
+          <TabsTrigger value="rods" className="gap-1.5 rounded-lg data-[state=active]:bg-black data-[state=active]:text-cyan-100"><ShipWheel className="h-4 w-4" /> Rods</TabsTrigger>
         </TabsList>
 
         <TabsContent value="bait" className="mt-4 min-h-0 flex-1 overflow-y-auto">
-          <div className="mb-3 rounded-lg border border-white/10 bg-black/35 p-3 text-sm text-white/70">
-            Current bait supply: <span className="font-bold text-violet-200">{bait}</span>
+          <div className="mb-3 rounded-lg border border-cyan-300/15 bg-black/60 p-3 text-sm text-zinc-400">
+            Current bait supply: <span className="font-bold text-cyan-100">{bait}</span>
           </div>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {BAIT_PACKAGES.map((pkg) => {
@@ -63,12 +63,12 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                 <Button
                   key={pkg.amount}
                   variant="outline"
-                  className="h-36 flex-col gap-2 rounded-lg border-white/10 bg-black/35 text-white hover:border-violet-300/50 hover:bg-white/10"
+                  className="h-36 flex-col gap-2 rounded-lg border-zinc-800 bg-black/70 text-zinc-100 hover:border-cyan-300/25 hover:bg-zinc-950 disabled:text-zinc-600"
                   disabled={coins < pkg.cost}
                   onClick={() => onBuyBait(pkg.amount, pkg.cost)}
                   aria-label={pkg.label}
                 >
-                  <BaitIcon className="h-7 w-7 text-violet-200" />
+                  <BaitIcon className="h-7 w-7 text-cyan-100" />
                   <span className="font-bold">{pkg.amount} bait</span>
                   <span className="flex items-center gap-1 text-amber-200"><CoinIcon size={14} /> {pkg.cost}</span>
                 </Button>
@@ -78,8 +78,8 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
         </TabsContent>
 
         <TabsContent value="rods" className="mt-4 min-h-0 flex-1">
-          <div className="mb-3 rounded-lg border border-white/10 bg-black/35 p-3 text-sm text-white/70">
-            Current rod: <span className="font-bold text-violet-200">
+          <div className="mb-3 rounded-lg border border-cyan-300/15 bg-black/60 p-3 text-sm text-zinc-400">
+            Current rod: <span className="font-bold text-cyan-100">
               {rodLevel === 0 ? 'Starter' : ROD_UPGRADES[rodLevel - 1]?.name}
             </span>
             <span className="ml-2 text-xs">(+{ROD_BONUSES[rodLevel]}% rare chance)</span>
@@ -94,32 +94,32 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                   <article
                     key={rod.level}
                     className={`flex items-center gap-3 rounded-lg border p-3 transition-colors ${isOwned
-                      ? 'border-violet-300/30 bg-violet-500/10'
+                      ? 'border-cyan-300/30 bg-zinc-950'
                       : canBuy
-                        ? 'border-amber-300/30 bg-black/35 hover:border-amber-300/50'
-                        : 'border-white/10 bg-black/25 opacity-60'
+                        ? 'border-cyan-300/20 bg-black/60 hover:border-cyan-300/35'
+                        : 'border-zinc-800 bg-black/30 opacity-60'
                     }`}
                   >
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white/10">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-zinc-950">
                       <img src={rod.image} alt={rod.name} className="h-12 object-contain" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="font-bold">{rod.name}</div>
-                      <div className="text-xs text-white/55">+{rod.bonus}% rare fish chance</div>
+                      <div className="text-xs text-zinc-500">+{rod.bonus}% rare fish chance</div>
                       <div className="mt-1 text-xs" style={{ color: rod.bobberColor }}>{rod.bobber}</div>
                     </div>
                     {isOwned ? (
-                      <span className="shrink-0 text-sm font-bold text-violet-200">
+                      <span className="shrink-0 text-sm font-bold text-cyan-100">
                         <Check className="mr-1 inline h-4 w-4" />
                         Owned
-                        {nftRods.includes(rod.level) && <span className="ml-1 text-amber-200">NFT</span>}
+                        {nftRods.includes(rod.level) && <span className="ml-1 text-cyan-100">NFT</span>}
                       </span>
                     ) : (
                       <Button
                         size="sm"
                         disabled={!canBuy}
                         onClick={() => onBuyRod(rod.level, rod.cost)}
-                        className="shrink-0 rounded-lg bg-amber-400 text-black hover:bg-amber-300"
+                        className="shrink-0 rounded-lg border border-cyan-300/25 bg-zinc-950 text-cyan-100 hover:bg-black disabled:border-zinc-800 disabled:text-zinc-600"
                       >
                         <CoinIcon size={14} /> {rod.cost}
                       </Button>

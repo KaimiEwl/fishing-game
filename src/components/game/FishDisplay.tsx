@@ -58,7 +58,7 @@ const FishDisplay: React.FC<FishDisplayProps> = ({
           >
             {RARITY_NAMES[fish.rarity]}
           </p>
-          <p className="text-muted-foreground text-sm mt-1">
+          <p className="mt-1 text-sm text-zinc-500">
             +{fish.xp} XP <CoinIcon size={14} /> {fish.price}
           </p>
         </div>

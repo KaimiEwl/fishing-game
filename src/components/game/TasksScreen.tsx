@@ -1,7 +1,6 @@
 import React from 'react';
 import { Check, Coins, Flame, Lock, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import type { DailyTaskId, DailyTaskProgress } from '@/types/game';
 import CoinIcon from './CoinIcon';
 import GameScreenShell from './GameScreenShell';
@@ -45,7 +44,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
               const progress = Math.min(100, (task.progress / task.target) * 100);
 
               return (
-                <article key={task.id} className="rounded-xl border border-white/10 bg-black/35 p-4 backdrop-blur-md shadow-lg shadow-black/20">
+                <article key={task.id} className="rounded-xl border border-cyan-300/15 bg-black/60 p-4 shadow-lg shadow-black/20 backdrop-blur-md">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h2 className="text-lg font-bold text-white drop-shadow-sm">{task.title}</h2>
@@ -62,14 +61,19 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                       <span>{task.progress}/{task.target}</span>
                       <span>{complete ? 'Ready' : 'In progress'}</span>
                     </div>
-                    <Progress value={progress} className="h-2" />
+                  <div className="h-2 overflow-hidden rounded-full bg-zinc-900 ring-1 ring-zinc-800">
+                    <div
+                      className="h-full rounded-full bg-cyan-300 shadow-[0_0_10px_rgba(34,211,238,0.35)]"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
                   </div>
 
                   <Button
                     type="button"
                     disabled={!complete || task.claimed}
                     onClick={() => onClaimTask(task.id)}
-                    className="mt-4 h-12 w-full rounded-xl bg-violet-600 font-bold text-base text-white shadow-lg shadow-violet-500/20 hover:bg-violet-500 disabled:bg-white/10 disabled:text-white/35 disabled:shadow-none transition-all"
+                    className="mt-4 h-12 w-full rounded-xl border border-cyan-300/25 bg-zinc-950 text-base font-bold text-cyan-100 shadow-lg shadow-black/30 transition-all hover:bg-black disabled:border-zinc-800 disabled:bg-zinc-950 disabled:text-zinc-600 disabled:shadow-none"
                   >
                     {task.claimed ? (
                       <>
@@ -89,10 +93,10 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
           </div>
         </div>
 
-        <aside className="rounded-xl border border-violet-400/30 bg-violet-500/10 p-5 backdrop-blur-md shadow-xl">
+        <aside className="rounded-xl border border-cyan-300/15 bg-black/60 p-5 shadow-xl backdrop-blur-md">
           <div className="flex h-full flex-col justify-between gap-5">
             <div>
-              <div className="inline-flex h-14 w-14 items-center justify-center rounded-xl bg-violet-500 text-white shadow-lg shadow-violet-500/30">
+              <div className="inline-flex h-14 w-14 items-center justify-center rounded-xl border border-cyan-300/20 bg-zinc-950 text-cyan-100 shadow-lg shadow-black/30">
                 <Trophy className="h-7 w-7" />
               </div>
               <h2 className="mt-5 text-2xl font-black text-white drop-shadow-md">Daily wheel</h2>
@@ -105,7 +109,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
               type="button"
               disabled={!wheelUnlocked}
               onClick={onOpenWheel}
-              className="h-14 rounded-xl font-bold text-lg bg-gradient-to-r from-amber-400 to-amber-500 text-black shadow-lg shadow-amber-500/30 hover:shadow-xl hover:from-amber-300 hover:to-amber-400 disabled:opacity-50 disabled:from-white/10 disabled:to-white/10 disabled:text-white/40 disabled:shadow-none transition-all"
+              className="h-14 rounded-xl border border-cyan-300/25 bg-zinc-950 text-lg font-bold text-cyan-100 shadow-lg shadow-black/30 transition-all hover:bg-black hover:shadow-xl disabled:border-zinc-800 disabled:bg-zinc-950 disabled:text-zinc-600 disabled:shadow-none"
             >
               {wheelReady ? (
                 <>
