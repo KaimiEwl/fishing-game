@@ -209,7 +209,7 @@ const FishingGame: React.FC = () => {
   };
 
   const isFishingScreen = activeTab === 'fish';
-  const bottomNavClearance = isMobile ? 148 : 112;
+  const bottomNavClearance = isMobile ? 164 : 128;
 
   return (
     <main className="fixed inset-0 overflow-hidden bg-black">

@@ -1,6 +1,5 @@
 import React from 'react';
 import { ChefHat, Lock, Trophy, Wallet } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import GameScreenShell from './GameScreenShell';
 import { publicAsset } from '@/lib/assets';
 import type { GrillLeaderboardEntry } from '@/types/game';
@@ -34,8 +33,9 @@ const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
       subtitle="Grill score board. Cook a dish, enter a name, and climb the local table."
       coins={coins}
       backgroundImage={publicAsset('assets/bg_leaderboard.jpg')}
+      contentScrollable
     >
-      <div className="grid h-full min-h-0 gap-3 lg:grid-cols-[0.8fr_1.2fr]">
+      <div className="grid gap-3 pb-3 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
         <aside className="rounded-lg border border-cyan-300/15 bg-black/60 p-4 backdrop-blur-md">
           <div className="inline-flex h-12 w-12 items-center justify-center rounded-lg border border-cyan-300/20 bg-zinc-950 text-cyan-100">
             <Trophy className="h-6 w-6" />
@@ -63,7 +63,7 @@ const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
           </div>
         </aside>
 
-        <section className="min-h-0 rounded-lg border border-cyan-300/15 bg-black/60 p-4 backdrop-blur-md">
+        <section className="rounded-lg border border-cyan-300/15 bg-black/60 p-4 backdrop-blur-md">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <h2 className="text-xl font-black text-white">Top grillers</h2>
@@ -76,7 +76,7 @@ const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
           </div>
 
           {entries.length === 0 ? (
-            <div className="flex h-[calc(100%-4rem)] min-h-[260px] flex-col items-center justify-center rounded-lg border border-zinc-800 bg-zinc-950/80 p-5 text-center">
+            <div className="flex min-h-[260px] flex-col items-center justify-center rounded-lg border border-zinc-800 bg-zinc-950/80 p-5 text-center">
               <Trophy className="h-12 w-12 text-cyan-100" />
               <h2 className="mt-4 text-xl font-black text-white">No grillers yet</h2>
               <p className="mt-2 max-w-md text-sm text-white/60">
@@ -84,43 +84,41 @@ const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
               </p>
             </div>
           ) : (
-            <ScrollArea className="h-[calc(100%-4rem)] pr-2">
-              <div className="grid gap-2">
-                {entries.slice(0, 25).map((entry, index) => {
-                  const isCurrent = entry.id === currentPlayerId;
-                  const wallet = entry.walletAddress
-                    ? `${entry.walletAddress.slice(0, 6)}...${entry.walletAddress.slice(-4)}`
-                    : 'local player';
+            <div className="grid gap-2">
+              {entries.slice(0, 25).map((entry, index) => {
+                const isCurrent = entry.id === currentPlayerId;
+                const wallet = entry.walletAddress
+                  ? `${entry.walletAddress.slice(0, 6)}...${entry.walletAddress.slice(-4)}`
+                  : 'local player';
 
-                  return (
-                    <article
-                      key={entry.id}
-                      className={`grid grid-cols-[2.5rem_1fr_auto] items-center gap-3 rounded-lg border p-3 ${isCurrent
-                        ? 'border-cyan-300/35 bg-zinc-950 shadow-[0_0_20px_rgba(34,211,238,0.12)]'
-                        : 'border-zinc-800 bg-black/55'
-                      }`}
-                    >
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-cyan-300/15 bg-black text-sm font-black text-cyan-100">
-                        #{index + 1}
+                return (
+                  <article
+                    key={entry.id}
+                    className={`grid grid-cols-[2.5rem_1fr_auto] items-center gap-3 rounded-lg border p-3 ${isCurrent
+                      ? 'border-cyan-300/35 bg-zinc-950 shadow-[0_0_20px_rgba(34,211,238,0.12)]'
+                      : 'border-zinc-800 bg-black/55'
+                    }`}
+                  >
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-cyan-300/15 bg-black text-sm font-black text-cyan-100">
+                      #{index + 1}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="truncate text-base font-black text-white">
+                        {entry.name}
+                        {isCurrent && <span className="ml-2 text-xs font-bold text-cyan-100">YOU</span>}
                       </div>
-                      <div className="min-w-0">
-                        <div className="truncate text-base font-black text-white">
-                          {entry.name}
-                          {isCurrent && <span className="ml-2 text-xs font-bold text-cyan-100">YOU</span>}
-                        </div>
-                        <div className="mt-0.5 truncate text-xs text-zinc-500">
-                          {entry.dishes} dishes · {wallet}
-                        </div>
+                      <div className="mt-0.5 truncate text-xs text-zinc-500">
+                        {entry.dishes} dishes - {wallet}
                       </div>
-                      <div className="text-right">
-                        <div className="text-lg font-black text-cyan-100">{entry.score.toLocaleString()}</div>
-                        <div className="text-xs text-zinc-500">score</div>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            </ScrollArea>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-lg font-black text-cyan-100">{entry.score.toLocaleString()}</div>
+                      <div className="text-xs text-zinc-500">score</div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
           )}
         </section>
       </div>

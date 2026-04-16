@@ -25,7 +25,7 @@ const BottomNav: React.FC<BottomNavProps> = ({
   wheelReady,
 }) => {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-5">
+    <nav className="absolute inset-x-0 bottom-0 z-30 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-5">
       <div className="mx-auto w-full max-w-3xl">
       <div className="mx-auto grid w-full max-w-3xl grid-cols-3 gap-1 rounded-lg border border-cyan-300/15 bg-black/90 p-1.5 shadow-[0_-12px_36px_rgba(0,0,0,0.65)] backdrop-blur-xl sm:grid-cols-6">
         {navItems.map((item) => {
