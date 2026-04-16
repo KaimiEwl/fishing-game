@@ -250,8 +250,15 @@ const FishingGame: React.FC = () => {
 
   const handleSpinWheel = (selectedPrize: WheelPrize): WheelPrize | null => {
     const prize = gameProgress.spinWheel(addCoins, selectedPrize);
-    if (prize) sounds.playLevelUpSound();
-    return prize;
+    if (prize) {
+      sounds.playLevelUpSound();
+      return prize;
+    }
+
+    // Temporary cube test mode: let the prize flow work before daily gates are re-enabled.
+    addCoins(selectedPrize.coins);
+    sounds.playLevelUpSound();
+    return selectedPrize;
   };
 
   const handleCookRecipe = (recipe: GrillRecipe) => {
