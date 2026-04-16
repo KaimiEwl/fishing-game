@@ -21,7 +21,7 @@ const GameScreenShell: React.FC<GameScreenShellProps> = ({ title, subtitle, coin
         />
       )}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(124,92,255,0.26),transparent_34%),linear-gradient(180deg,rgba(16,16,44,0.45)_0%,rgba(8,9,20,0.50)_48%,rgba(5,7,13,0.65)_100%)] pointer-events-none" />
-      <div className="relative z-10 flex h-full flex-col px-3 pb-24 pt-3 sm:px-6 sm:pb-28 sm:pt-5">
+      <div className="relative z-10 flex h-full flex-col px-3 pb-[calc(var(--bottom-nav-clearance,6rem)+1rem)] pt-3 sm:px-6 sm:pb-28 sm:pt-5">
         <header className="mx-auto flex w-full max-w-5xl items-start justify-between gap-3">
           <div className="min-w-0">
             <h1 className="truncate text-2xl font-black tracking-normal sm:text-4xl">{title}</h1>

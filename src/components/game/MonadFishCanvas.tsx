@@ -44,9 +44,10 @@ interface MonadFishCanvasProps {
     gameState: string;
     lastResult?: GameResult | null;
     rodLevel?: number;
+    bottomClearance?: number;
 }
 
-const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, lastResult, rodLevel = 0 }) => {
+const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, lastResult, rodLevel = 0, bottomClearance = 0 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const particlesRef = useRef<any[]>([]);
     const bubblesRef = useRef<any[]>([]);
@@ -669,7 +670,13 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
         }
     }, [gameState]);
 
-    return <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full" />;
+    return (
+        <canvas
+            ref={canvasRef}
+            className="absolute left-0 top-0 w-full"
+            style={{ height: bottomClearance > 0 ? `calc(100% - ${bottomClearance}px)` : '100%' }}
+        />
+    );
 };
 
 export default MonadFishCanvas;

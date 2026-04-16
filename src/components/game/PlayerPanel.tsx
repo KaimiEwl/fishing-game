@@ -29,8 +29,8 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({ player, onSetNickname, isConn
   const [statsOpen, setStatsOpen] = useState(false);
 
   return (
-    <div className="fixed top-3 left-3 sm:top-5 sm:left-5 z-20 group max-w-[calc(100vw-4.75rem)]">
-      <Card className="relative p-3 sm:p-3 bg-card/80 backdrop-blur-md border border-primary/20 shadow-lg cursor-pointer">
+    <div className="fixed top-3 left-3 sm:top-5 sm:left-5 z-20 group max-w-[min(22rem,calc(100vw-4.5rem))]">
+      <Card className="relative p-3.5 sm:p-3 bg-card/85 backdrop-blur-md border border-primary/20 shadow-lg cursor-pointer">
         {/* --- Action buttons: info + settings --- */}
         <div className="absolute -top-3 -left-3 sm:-top-3 sm:-left-3 flex gap-1.5 z-10">
           <Popover>
@@ -38,14 +38,14 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({ player, onSetNickname, isConn
               <Button
                 variant="outline"
                 size="icon"
-                className="w-9 h-9 sm:w-8 sm:h-8 rounded-full bg-background/50 backdrop-blur-md shadow-md hover:scale-110 hover:bg-background/80 active:scale-95 transition-all outline-none border-primary/20"
+                className="h-11 w-11 rounded-full border-primary/25 bg-background/65 shadow-md outline-none backdrop-blur-md transition-all hover:scale-105 hover:bg-background/85 active:scale-95 sm:h-8 sm:w-8"
                 onClick={(e) => e.stopPropagation()}
                 aria-label="Fish info"
               >
-                <Info className="w-5 h-5 sm:w-4 sm:h-4 text-foreground/80" />
+                <Info className="h-5 w-5 text-foreground/85 sm:h-4 sm:w-4" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent side="bottom" align="start" className="w-80 sm:w-72 p-3 text-sm">
+            <PopoverContent side="bottom" align="start" className="w-[min(21rem,calc(100vw-1.5rem))] sm:w-72 p-3 text-sm">
               <div className="flex flex-col gap-2">
                 <div className="flex justify-between px-1 text-xs font-semibold text-muted-foreground mb-1">
                   <span>Fish</span>
@@ -82,8 +82,8 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({ player, onSetNickname, isConn
         </div>
 
         {/* --- Player identity row --- */}
-        <div className="flex items-center gap-2.5 sm:gap-2">
-          <Avatar className="w-11 h-11 sm:w-10 sm:h-10">
+        <div className="flex items-center gap-3 sm:gap-2">
+          <Avatar className="h-12 w-12 sm:h-10 sm:w-10">
             {player.avatarUrl ? (
               <AvatarImage src={player.avatarUrl} alt="Avatar" />
             ) : null}
@@ -97,14 +97,14 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({ player, onSetNickname, isConn
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm sm:text-sm font-semibold text-foreground truncate">
+            <p className="truncate text-base font-bold leading-tight text-foreground sm:text-sm sm:font-semibold">
               {player.nickname || `Level ${player.level}`}
             </p>
             {player.nickname && (
-              <p className="text-xs text-muted-foreground">Lv. {player.level}</p>
+              <p className="text-sm text-muted-foreground sm:text-xs">Lv. {player.level}</p>
             )}
-            <Progress value={xpPercentage} className="h-2 sm:h-2 w-24 sm:w-24 mt-0.5" />
-            <p className="text-xs sm:text-xs text-muted-foreground mt-0.5">{player.xp}/{player.xpToNextLevel} XP</p>
+            <Progress value={xpPercentage} className="mt-1 h-2.5 w-28 sm:h-2 sm:w-24" />
+            <p className="mt-1 text-xs font-medium text-muted-foreground">{player.xp}/{player.xpToNextLevel} XP</p>
           </div>
         </div>
 
@@ -112,7 +112,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({ player, onSetNickname, isConn
         {isMobile && (
           <button
             type="button"
-            className="mt-2 w-full flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
+            className="mt-3 flex min-h-9 w-full items-center justify-center gap-1 rounded-lg bg-muted/45 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground active:scale-[0.99]"
             onClick={(e) => { e.stopPropagation(); setStatsOpen(v => !v); }}
             aria-label="Toggle stats"
           >

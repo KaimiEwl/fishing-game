@@ -25,7 +25,7 @@ interface SettingsDialogProps {
   onAvatarUploaded?: (url: string) => void;
 }
 
-const NICKNAME_REGEX = /^[a-zA-Z0-9а-яА-ЯёЁ_\-]{2,20}$/;
+const NICKNAME_REGEX = /^[a-zA-Z0-9а-яА-ЯёЁ_-]{2,20}$/;
 
 const SettingsDialog: React.FC<SettingsDialogProps> = ({ isConnected, nickname, onSetNickname, walletAddress, avatarUrl, onAvatarUploaded }) => {
   const [nickInput, setNickInput] = useState(nickname);
@@ -102,13 +102,13 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isConnected, nickname, 
         <Button
           variant="outline"
           size="icon"
-          className="w-9 h-9 sm:w-8 sm:h-8 rounded-full bg-background/50 backdrop-blur-md shadow-md hover:scale-110 hover:bg-background/80 active:scale-95 transition-all outline-none border-primary/20"
+          className="h-11 w-11 rounded-full border-primary/25 bg-background/65 shadow-md outline-none backdrop-blur-md transition-all hover:scale-105 hover:bg-background/85 active:scale-95 sm:h-8 sm:w-8"
           aria-label="Settings"
         >
-          <Settings className="w-5 h-5 sm:w-4 sm:h-4 text-foreground/80" />
+          <Settings className="h-5 w-5 text-foreground/85 sm:h-4 sm:w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-[95vw] sm:max-w-sm bg-card/95 backdrop-blur-md border-2 border-primary/30">
+      <DialogContent className="max-w-[calc(100vw-1rem)] sm:max-w-sm bg-card/95 backdrop-blur-md border-2 border-primary/30">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Settings className="w-5 h-5" />
@@ -116,19 +116,19 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isConnected, nickname, 
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-5">
+        <div className="space-y-5 text-base sm:text-sm">
           {/* Wallet Connection */}
           <div className="space-y-2">
-            <p className="text-sm font-medium text-foreground">Wallet</p>
+            <p className="text-base font-bold text-foreground sm:text-sm sm:font-medium">Wallet</p>
             {isConnected ? (
               <ConnectButton.Custom>
                 {({ account, openAccountModal }) => (
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <div className="flex-1 px-3 py-2 rounded-lg bg-primary/10 border border-primary/30 text-sm text-foreground truncate">
+                      <div className="min-h-11 flex-1 truncate rounded-lg border border-primary/30 bg-primary/10 px-3 py-2.5 text-sm text-foreground">
                         {account?.displayName || account?.address}
                       </div>
-                      <Button size="sm" variant="outline" onClick={openAccountModal} className="gap-1">
+                      <Button size="sm" variant="outline" onClick={openAccountModal} className="h-11 gap-1 px-3">
                         <LogOut className="w-3 h-3" />
                       </Button>
                     </div>
@@ -149,7 +149,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isConnected, nickname, 
                   <div className="flex gap-2">
                     <Button
                       onClick={openConnectModal}
-                      className="flex-1 gap-2"
+                    className="h-11 flex-1 gap-2"
                       style={{
                         background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(270, 80%, 55%))',
                       }}
@@ -159,7 +159,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isConnected, nickname, 
                     <Button
                       onClick={openConnectModal}
                       variant="outline"
-                      className="flex-1 gap-2 border-primary/30"
+                      className="h-11 flex-1 gap-2 border-primary/30"
                     >
                       📝 Sign Up
                     </Button>
@@ -172,8 +172,8 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isConnected, nickname, 
           {/* Avatar */}
           {isConnected && (
             <div className="space-y-2">
-              <p className="text-sm font-medium text-foreground">Avatar</p>
-              <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-muted/50 border border-border">
+              <p className="text-base font-bold text-foreground sm:text-sm sm:font-medium">Avatar</p>
+              <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/50 px-3 py-3">
                 <Avatar className="w-12 h-12">
                   {avatarUrl ? (
                     <AvatarImage src={avatarUrl} alt="Avatar" />
@@ -195,7 +195,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isConnected, nickname, 
                     variant="outline"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploading}
-                    className="gap-1"
+                    className="h-11 gap-1 px-4"
                   >
                     <Camera className="w-3 h-3" />
                     {uploading ? 'Uploading...' : avatarUrl ? 'Change photo' : 'Upload photo'}
@@ -207,9 +207,9 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isConnected, nickname, 
 
           {/* Sound */}
           <div className="space-y-2">
-            <p className="text-sm font-medium text-foreground">Sound</p>
-            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/50 border border-border">
-              <div className="flex items-center gap-2 text-sm text-foreground">
+            <p className="text-base font-bold text-foreground sm:text-sm sm:font-medium">Sound</p>
+            <div className="flex min-h-12 items-center justify-between rounded-lg border border-border bg-muted/50 px-3 py-2.5">
+              <div className="flex items-center gap-2 text-base text-foreground sm:text-sm">
                 {muted ? <VolumeX className="w-4 h-4 text-muted-foreground" /> : <Volume2 className="w-4 h-4 text-primary" />}
                 {muted ? 'Sound off' : 'Sound on'}
               </div>
@@ -219,9 +219,9 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isConnected, nickname, 
 
           {/* Nickname */}
           <div className="space-y-2">
-            <p className="text-sm font-medium text-foreground">Nickname</p>
+            <p className="text-base font-bold text-foreground sm:text-sm sm:font-medium">Nickname</p>
             {nicknameAlreadySet ? (
-              <div className="px-3 py-2 rounded-lg bg-muted/50 border border-border text-sm text-foreground">
+              <div className="min-h-11 rounded-lg border border-border bg-muted/50 px-3 py-2.5 text-base text-foreground sm:text-sm">
                 {nickname}
               </div>
             ) : (
@@ -231,7 +231,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isConnected, nickname, 
                     value={nickInput}
                     onChange={e => { setNickInput(e.target.value); setSaved(false); }}
                     placeholder="Enter nickname (one-time only)"
-                    className="flex-1"
+                    className="h-11 flex-1"
                     maxLength={20}
                     disabled={!onSetNickname}
                     onKeyDown={e => { if (e.key === 'Enter') handleSaveNick(); }}
@@ -240,7 +240,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isConnected, nickname, 
                     onClick={handleSaveNick}
                     disabled={!onSetNickname || saved}
                     size="sm"
-                    className="gap-1"
+                    className="h-11 gap-1 px-4"
                   >
                     {saved ? <><Check className="w-3 h-3" /> Saved</> : 'Save'}
                   </Button>

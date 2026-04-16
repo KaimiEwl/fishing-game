@@ -11,7 +11,9 @@ interface TasksScreenProps {
   coins: number;
   tasks: DailyTaskProgress[];
   allTasksComplete: boolean;
+  wheelUnlocked: boolean;
   wheelReady: boolean;
+  wheelSpun: boolean;
   onClaimTask: (id: DailyTaskId) => void;
   onOpenWheel: () => void;
 }
@@ -20,7 +22,9 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   coins,
   tasks,
   allTasksComplete,
+  wheelUnlocked,
   wheelReady,
+  wheelSpun,
   onClaimTask,
   onOpenWheel,
 }) => {
@@ -93,20 +97,25 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
               </div>
               <h2 className="mt-5 text-2xl font-black text-white drop-shadow-md">Daily wheel</h2>
               <p className="mt-2 text-base text-white/70 leading-relaxed">
-                {completedCount}/{tasks.length} tasks complete. Complete all tasks to unlock today's spin.
+                {completedCount}/{tasks.length} tasks complete. {wheelSpun ? 'Today spin is complete.' : 'Complete all tasks to unlock today spin.'}
               </p>
             </div>
 
             <Button
               type="button"
-              disabled={!wheelReady}
+              disabled={!wheelUnlocked}
               onClick={onOpenWheel}
               className="h-14 rounded-xl font-bold text-lg bg-gradient-to-r from-amber-400 to-amber-500 text-black shadow-lg shadow-amber-500/30 hover:shadow-xl hover:from-amber-300 hover:to-amber-400 disabled:opacity-50 disabled:from-white/10 disabled:to-white/10 disabled:text-white/40 disabled:shadow-none transition-all"
             >
-              {allTasksComplete ? (
+              {wheelReady ? (
                 <>
                   <Flame className="mr-2 h-5 w-5" />
                   Open wheel
+                </>
+              ) : wheelSpun ? (
+                <>
+                  <Check className="mr-2 h-5 w-5" />
+                  Wheel complete
                 </>
               ) : (
                 <>

@@ -133,7 +133,8 @@ export function useGameProgress() {
 
   const allTasksComplete = dailyTasks.every((task) => task.progress >= task.target);
   const allTasksClaimed = dailyTasks.every((task) => task.claimed);
-  const wheelReady = allTasksComplete && !state.wheelSpun;
+  const wheelUnlocked = allTasksComplete;
+  const wheelReady = wheelUnlocked && !state.wheelSpun;
 
   const claimTask = useCallback((id: DailyTaskId, onReward: (coins: number) => void) => {
     const task = DAILY_TASKS.find((item) => item.id === id);
@@ -176,6 +177,7 @@ export function useGameProgress() {
     dailyTasks,
     allTasksComplete,
     allTasksClaimed,
+    wheelUnlocked,
     wheelReady,
     wheelSpun: state.wheelSpun,
     wheelPrize: state.wheelPrize,
