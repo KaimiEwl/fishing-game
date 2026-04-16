@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Flame, Lock, Sparkles } from 'lucide-react';
+import { Lock, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { WHEEL_PRIZES, type WheelPrize } from '@/types/game';
 import { pickWheelPrize } from '@/hooks/useGameProgress';
@@ -17,7 +17,7 @@ interface WheelScreenProps {
   onOpenTasks: () => void;
 }
 
-const WHEEL_SECTOR_COLORS = [
+const CUBE_TILE_COLORS = [
   '#22d3ee',
   '#a78bfa',
   '#facc15',
@@ -29,26 +29,46 @@ const WHEEL_SECTOR_COLORS = [
   '#f8fafc',
 ];
 
-const SEGMENT_DEGREES = 360 / WHEEL_PRIZES.length;
-const SPIN_DURATION_MS = 1800;
+const CUBE_SIDES = ['front', 'back', 'right', 'left', 'top', 'bottom'] as const;
+const FACE_TRANSFORMS: Record<(typeof CUBE_SIDES)[number], string> = {
+  front: 'rotateY(0deg) translateZ(var(--cube-half))',
+  back: 'rotateY(180deg) translateZ(var(--cube-half))',
+  right: 'rotateY(90deg) translateZ(var(--cube-half))',
+  left: 'rotateY(-90deg) translateZ(var(--cube-half))',
+  top: 'rotateX(90deg) translateZ(var(--cube-half))',
+  bottom: 'rotateX(-90deg) translateZ(var(--cube-half))',
+};
+
+const WINNING_TILE_INDEX = 12;
+const SPIN_DURATION_MS = 2100;
+
+const getTilePrize = (sideIndex: number, tileIndex: number, winningPrize: WheelPrize | null) => {
+  if (sideIndex === 0 && tileIndex === WINNING_TILE_INDEX && winningPrize) {
+    return winningPrize;
+  }
+  return WHEEL_PRIZES[(sideIndex * 25 + tileIndex) % WHEEL_PRIZES.length];
+};
+
+const getPrizeText = (item: WheelPrize) => (item.secret ? 'SECRET' : item.coins.toLocaleString());
 
 const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, spun, prize, onSpin, onOpenTasks }) => {
   const [spinning, setSpinning] = useState(false);
   const [displayPrize, setDisplayPrize] = useState<WheelPrize | null>(prize);
-  const [rotation, setRotation] = useState(0);
+  const [plannedPrize, setPlannedPrize] = useState<WheelPrize | null>(prize);
+  const [rotation, setRotation] = useState({ x: -18, y: -24, z: 0 });
 
   useEffect(() => {
-    if (!spinning) setDisplayPrize(prize);
+    if (!spinning) {
+      setDisplayPrize(prize);
+      setPlannedPrize(prize);
+    }
   }, [prize, spinning]);
 
-  const wheelGradient = useMemo(() => {
-    const stops = WHEEL_PRIZES.map((_, index) => {
-      const start = index * SEGMENT_DEGREES;
-      const end = (index + 1) * SEGMENT_DEGREES;
-      return `${WHEEL_SECTOR_COLORS[index]} ${start}deg ${end}deg`;
-    }).join(', ');
-    return `conic-gradient(from 0deg, ${stops})`;
-  }, []);
+  const shownPrize = plannedPrize || displayPrize || prize;
+  const cubeTransform = useMemo(
+    () => `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg) rotateZ(${rotation.z}deg)`,
+    [rotation],
+  );
 
   const handleSpin = () => {
     if (!tasksComplete) {
@@ -56,57 +76,107 @@ const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, 
       return;
     }
     if (!ready || spinning || spun) return;
-    const plannedPrize = pickWheelPrize();
-    const prizeIndex = WHEEL_PRIZES.findIndex((item) => item.id === plannedPrize.id);
-    const segmentCenter = (prizeIndex * SEGMENT_DEGREES) + (SEGMENT_DEGREES / 2);
-    const nextRotation = Math.ceil(rotation / 360) * 360 + (360 * 5) - segmentCenter;
+
+    const nextPrize = pickWheelPrize();
+    const nextY = Math.ceil(rotation.y / 360) * 360 + 360 * 5;
+    const nextZ = rotation.z + 360;
 
     setSpinning(true);
     setDisplayPrize(null);
-    setRotation(nextRotation);
+    setPlannedPrize(nextPrize);
+    setRotation({ x: -18, y: nextY, z: nextZ });
 
     window.setTimeout(() => {
-      const result = onSpin(plannedPrize);
+      const result = onSpin(nextPrize);
       setDisplayPrize(result);
+      setPlannedPrize(result);
       setSpinning(false);
     }, SPIN_DURATION_MS);
   };
 
   return (
     <GameScreenShell
-      title="Daily Wheel"
-      subtitle="Complete daily tasks, spin once, and chase the secret prize."
+      title="Daily Prize Cube"
+      subtitle="Complete daily tasks, roll the cube once, and chase the secret prize."
       coins={coins}
       backgroundImage={publicAsset('assets/bg_wheel.jpg')}
     >
-      <div className="flex h-full min-h-0 flex-col items-center justify-center gap-5">
-        <div className="relative h-64 w-64 sm:h-80 sm:w-80">
+      <div className="flex h-full min-h-0 flex-col items-center justify-center gap-4 sm:gap-5">
+        <div className="relative h-64 w-64 sm:h-80 sm:w-80" style={{ perspective: '900px' }}>
+          <div className="absolute left-1/2 top-1 z-20 flex -translate-x-1/2 flex-col items-center gap-1">
+            <span className="rounded-lg border border-cyan-300/25 bg-black/85 px-3 py-1 text-[11px] font-black uppercase tracking-normal text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.35)]">
+              Winning tile
+            </span>
+            <span className="h-0 w-0 border-x-[14px] border-t-[24px] border-x-transparent border-t-cyan-100 drop-shadow-[0_0_12px_rgba(34,211,238,0.85)]" />
+          </div>
+
           <div
-            className={`absolute inset-0 rounded-full transition-[filter,box-shadow,transform] ease-out ${ready ? 'shadow-[0_0_80px_rgba(34,211,238,0.38)] brightness-110' : 'shadow-[0_0_45px_rgba(0,0,0,0.65)] grayscale-[0.35]'}`}
+            className={`absolute left-1/2 top-[55%] h-[var(--cube-size)] w-[var(--cube-size)] -translate-x-1/2 -translate-y-1/2 transition-[filter] ${ready ? 'brightness-110 drop-shadow-[0_0_60px_rgba(34,211,238,0.32)]' : 'grayscale-[0.45] brightness-75'}`}
             style={{
-              background: wheelGradient,
-              transform: `rotate(${rotation}deg)`,
-              transitionDuration: `${SPIN_DURATION_MS}ms`,
-            }}
+              '--cube-size': 'min(max(42vmin, 11rem), 18rem)',
+              '--cube-half': 'calc(var(--cube-size) / 2)',
+              transformStyle: 'preserve-3d',
+              transform: cubeTransform,
+              transition: `transform ${SPIN_DURATION_MS}ms cubic-bezier(0.16, 0.92, 0.18, 1)`,
+            } as React.CSSProperties}
           >
-            <div className="absolute inset-0 rounded-full border-[10px] border-black/55 ring-1 ring-cyan-100/20" />
-            <div className="absolute inset-5 rounded-full border-4 border-black/35 bg-black/35 backdrop-blur-[1px]" />
-            <div className="absolute inset-10 rounded-full">
-              {WHEEL_PRIZES.map((item, index) => (
-                <div
-                  key={item.id}
-                  className="absolute left-1/2 top-1/2 origin-left text-[10px] font-black text-black drop-shadow-[0_1px_1px_rgba(255,255,255,0.55)] sm:text-xs"
-                  style={{ transform: `rotate(${index * SEGMENT_DEGREES + SEGMENT_DEGREES / 2}deg) translateX(52px) rotate(90deg)` }}
-                >
-                  {item.secret ? 'SECRET' : item.coins.toLocaleString()}
-                </div>
-              ))}
-            </div>
+            {CUBE_SIDES.map((side, sideIndex) => (
+              <div
+                key={side}
+                className="absolute inset-0 grid grid-cols-5 gap-1 rounded-lg border border-cyan-100/25 bg-black/35 p-1 shadow-[inset_0_0_26px_rgba(255,255,255,0.08)] backdrop-blur-[1px]"
+                style={{
+                  transform: FACE_TRANSFORMS[side],
+                  backfaceVisibility: 'hidden',
+                }}
+              >
+                {Array.from({ length: 25 }, (_, tileIndex) => {
+                  const item = getTilePrize(sideIndex, tileIndex, shownPrize);
+                  const isWinningTile = sideIndex === 0 && tileIndex === WINNING_TILE_INDEX;
+                  const colorIndex = Math.max(WHEEL_PRIZES.findIndex((prizeItem) => prizeItem.id === item.id), 0);
+                  const color = item.secret ? '#f8fafc' : CUBE_TILE_COLORS[colorIndex % CUBE_TILE_COLORS.length];
+
+                  return (
+                    <div
+                      key={`${side}-${tileIndex}`}
+                      className={`relative flex min-w-0 items-center justify-center overflow-hidden rounded-[4px] border text-[8px] font-black leading-none text-black shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] transition-all duration-200 sm:text-[10px] ${isWinningTile ? 'z-10 scale-110 border-white ring-2 ring-cyan-100' : 'border-black/25'}`}
+                      style={{
+                        background: item.secret
+                          ? 'linear-gradient(135deg, #f8fafc, #fde68a 45%, #f472b6)'
+                          : `linear-gradient(135deg, ${color}, ${color}bb)`,
+                        opacity: spinning && !isWinningTile ? 0.86 : 1,
+                        animation: spinning ? `prize-tile-pulse 900ms ease-in-out ${tileIndex * 22}ms infinite alternate` : undefined,
+                      }}
+                      title={item.label}
+                    >
+                      <span className="truncate px-0.5 drop-shadow-[0_1px_0_rgba(255,255,255,0.45)]">
+                        {getPrizeText(item)}
+                      </span>
+                      {item.secret && (
+                        <Sparkles className="absolute right-0.5 top-0.5 h-2.5 w-2.5 text-black/70" />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
           </div>
-          <div className="absolute left-1/2 top-0 z-10 h-9 w-6 -translate-x-1/2 rounded-b bg-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.65)]" />
-          <div className="absolute left-1/2 top-1/2 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-cyan-300/20 bg-black text-cyan-100 shadow-xl">
-            {spun ? <Sparkles className="h-9 w-9" /> : ready ? <Sparkles className="h-9 w-9 text-cyan-100" /> : <Flame className="h-9 w-9" />}
-          </div>
+
+          <style>
+            {`
+              @keyframes prize-tile-pulse {
+                50% { opacity: 0.62; filter: saturate(1.4); }
+                100% { opacity: 1; filter: saturate(1.8) brightness(1.15); }
+              }
+            `}
+          </style>
+        </div>
+
+        <div className="rounded-lg border border-cyan-300/20 bg-black/70 px-4 py-2 text-center backdrop-blur-md">
+          <p className="text-xs font-bold uppercase tracking-normal text-zinc-300">Arrow target</p>
+          <p className="mt-1 flex items-center justify-center gap-2 text-base font-black text-cyan-100">
+            {shownPrize?.secret ? <Sparkles className="h-4 w-4" /> : <CoinIcon size={16} />}
+            {shownPrize ? shownPrize.label : ready ? 'Roll to reveal' : 'Locked'}
+          </p>
         </div>
 
         <Button
@@ -123,24 +193,24 @@ const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, 
           ) : ready ? (
             <>
               <Sparkles className="mr-2 h-5 w-5" />
-              {spinning ? 'Spinning...' : 'Spin'}
+              {spinning ? 'Rolling...' : 'Roll cube'}
             </>
           ) : spun ? (
             <>
               <Sparkles className="mr-2 h-5 w-5" />
-              Today spin complete
+              Today roll complete
             </>
           ) : (
             <>
               <Lock className="mr-2 h-5 w-5" />
-              Wheel locked
+              Cube locked
             </>
           )}
         </Button>
 
         {(displayPrize || prize) && (
           <div className="rounded-lg border border-cyan-300/20 bg-black/70 px-5 py-3 text-center backdrop-blur-md">
-            <p className="text-sm text-zinc-500">Today prize</p>
+            <p className="text-sm text-zinc-400">Today prize</p>
             <p className="mt-1 flex items-center justify-center gap-2 text-xl font-black text-cyan-100">
               {(displayPrize || prize)?.secret ? <Sparkles className="h-5 w-5" /> : <CoinIcon size={18} />}
               {(displayPrize || prize)?.label}

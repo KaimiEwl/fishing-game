@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChefHat, Flame, ListChecks, ShoppingBag, Trophy } from 'lucide-react';
+import { Box, ChefHat, ListChecks, ShoppingBag, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { GameTab } from '@/types/game';
 import FishIcon from './FishIcon';
@@ -15,7 +15,7 @@ const navItems: Array<{ id: GameTab; label: string; icon: React.ComponentType<{ 
   { id: 'tasks', label: 'Tasks', icon: ListChecks },
   { id: 'shop', label: 'Shop', icon: ShoppingBag },
   { id: 'grill', label: 'Grill', icon: ChefHat },
-  { id: 'wheel', label: 'Wheel', icon: Flame },
+  { id: 'wheel', label: 'Cube', icon: Box },
   { id: 'leaderboard', label: 'Board', icon: Trophy },
 ];
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Coins, Flame, Lock, Trophy } from 'lucide-react';
+import { Box, Check, Coins, Lock, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { DailyTaskId, DailyTaskProgress } from '@/types/game';
 import CoinIcon from './CoinIcon';
@@ -32,7 +32,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   return (
     <GameScreenShell
       title="Daily Tasks"
-      subtitle="Finish today's list, claim coins, then unlock the wheel."
+      subtitle="Finish today's list, claim coins, then unlock the prize cube."
       coins={coins}
       backgroundImage={publicAsset('assets/bg_tasks.jpg')}
       contentScrollable
@@ -98,9 +98,9 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
               <div className="inline-flex h-14 w-14 items-center justify-center rounded-xl border border-cyan-300/20 bg-zinc-950 text-cyan-100 shadow-lg shadow-black/30">
                 <Trophy className="h-7 w-7" />
               </div>
-              <h2 className="mt-5 text-2xl font-black text-white drop-shadow-md">Daily wheel</h2>
+              <h2 className="mt-5 text-2xl font-black text-white drop-shadow-md">Daily prize cube</h2>
               <p className="mt-2 text-base text-white/70 leading-relaxed">
-                {completedCount}/{tasks.length} tasks complete. {wheelSpun ? 'Today spin is complete.' : 'Complete all tasks to unlock today spin.'}
+                {completedCount}/{tasks.length} tasks complete. {wheelSpun ? 'Today roll is complete.' : 'Complete all tasks to unlock today roll.'}
               </p>
             </div>
 
@@ -112,13 +112,13 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
             >
               {wheelReady ? (
                 <>
-                  <Flame className="mr-2 h-5 w-5" />
-                  Open wheel
+                  <Box className="mr-2 h-5 w-5" />
+                  Open cube
                 </>
               ) : wheelSpun ? (
                 <>
                   <Check className="mr-2 h-5 w-5" />
-                  Wheel complete
+                  Cube complete
                 </>
               ) : (
                 <>
