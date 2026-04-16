@@ -3,7 +3,7 @@ import { PlayerState, FISH_DATA, RARITY_COLORS } from '@/types/game';
 import CoinIcon from './CoinIcon';
 import { Card } from '@/components/ui/card';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Info, Trophy, Worm } from 'lucide-react';
+import { Info, Package, Trophy, Worm } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -27,8 +27,8 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({ player, onSetNickname, isConn
   const isMobile = useIsMobile();
 
   return (
-    <div className="fixed top-3 left-3 sm:top-5 sm:left-5 z-20 group max-w-[min(22rem,calc(100vw-4.5rem))]">
-      <Card className="relative cursor-pointer border border-cyan-300/15 bg-black/85 p-3.5 text-zinc-100 shadow-[0_14px_34px_rgba(0,0,0,0.55)] backdrop-blur-md sm:p-3">
+    <div className="fixed left-3 top-3 z-20 max-w-[min(16.75rem,calc(100vw-5.5rem))] group sm:left-5 sm:top-5 sm:max-w-[min(22rem,calc(100vw-4.5rem))]">
+      <Card className="relative cursor-pointer border border-cyan-300/15 bg-black/85 p-2.5 text-zinc-100 shadow-[0_14px_34px_rgba(0,0,0,0.55)] backdrop-blur-md sm:p-3">
         {/* --- Action buttons: info + settings --- */}
         <div className="absolute -top-3 -left-3 sm:-top-3 sm:-left-3 flex gap-1.5 z-10">
           <Popover>
@@ -80,8 +80,8 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({ player, onSetNickname, isConn
         </div>
 
         {/* --- Player identity row --- */}
-        <div className="flex items-center gap-3 sm:gap-2">
-          <Avatar className="h-12 w-12 sm:h-10 sm:w-10">
+        <div className="flex items-center gap-2 sm:gap-2">
+          <Avatar className="h-10 w-10 sm:h-10 sm:w-10">
             {player.avatarUrl ? (
               <AvatarImage src={player.avatarUrl} alt="Avatar" />
             ) : null}
@@ -95,29 +95,29 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({ player, onSetNickname, isConn
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="truncate text-base font-bold leading-tight text-zinc-100 sm:text-sm sm:font-semibold">
+            <p className="truncate text-sm font-bold leading-tight text-zinc-100 sm:text-sm sm:font-semibold">
               {player.nickname || `Level ${player.level}`}
             </p>
             {player.nickname && (
               <p className="text-sm text-zinc-500 sm:text-xs">Lv. {player.level}</p>
             )}
-            <div className="mt-1 h-2.5 w-28 overflow-hidden rounded-full bg-zinc-900 ring-1 ring-zinc-800 sm:h-2 sm:w-24">
+            <div className="mt-1 h-2 w-24 overflow-hidden rounded-full bg-zinc-900 ring-1 ring-zinc-800 sm:h-2 sm:w-24">
               <div
                 className="h-full rounded-full bg-cyan-300 shadow-[0_0_10px_rgba(34,211,238,0.45)]"
                 style={{ width: `${Math.min(100, Math.max(0, xpPercentage))}%` }}
               />
             </div>
-            <p className="mt-1 text-xs font-medium text-zinc-500">{player.xp}/{player.xpToNextLevel} XP</p>
+            <p className="mt-0.5 text-[11px] font-medium leading-tight text-zinc-400 sm:mt-1 sm:text-xs sm:text-zinc-500">{player.xp}/{player.xpToNextLevel} XP</p>
           </div>
         </div>
 
         {/* --- Quick-stats row (always visible on mobile, inline) --- */}
         {isMobile && (
           <div className="mt-3 grid grid-cols-2 gap-1.5">
-            <StatItem icon={<CoinIcon size={18} />} label="Coins" value={player.coins} />
-            <StatItem icon={<Worm className="h-4.5 w-4.5" />} label="Bait" value={player.bait} />
-            <StatItem icon={<Trophy className="h-4.5 w-4.5" />} label="Catches" value={player.totalCatches} />
-            <StatItem icon={<FishIcon fishId="carp" className="h-4.5 w-4.5" />} label="In inventory" value={totalFishCount} />
+            <StatItem compact icon={<CoinIcon size={14} />} label="Coins" value={player.coins} />
+            <StatItem compact icon={<Worm className="h-4 w-4 text-zinc-200" />} label="Bait" value={player.bait} />
+            <StatItem compact icon={<Trophy className="h-4 w-4 text-zinc-200" />} label="Catches" value={player.totalCatches} />
+            <StatItem compact icon={<Package className="h-4 w-4 text-zinc-200" />} label="Inventory" value={totalFishCount} />
           </div>
         )}
       </Card>
@@ -139,12 +139,15 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({ player, onSetNickname, isConn
   );
 };
 
-const StatItem: React.FC<{ icon: React.ReactNode; label: string; value: number }> = ({ icon, label, value }) => (
-  <div className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-950/85 px-2.5 py-1.5">
+const StatItem: React.FC<{ icon: React.ReactNode; label: string; value: number; compact?: boolean }> = ({ icon, label, value, compact = false }) => (
+  <div className={cn(
+    'flex min-w-0 items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-950/85',
+    compact ? 'min-h-10 px-2 py-1' : 'px-2.5 py-1.5',
+  )}>
     <span className="shrink-0">{icon}</span>
     <div className="min-w-0">
-      <p className="text-xs leading-tight text-zinc-500">{label}</p>
-      <p className="text-sm font-bold leading-tight text-zinc-100">{value}</p>
+      <p className={cn('truncate leading-tight text-zinc-400', compact ? 'text-[10px]' : 'text-xs')}>{label}</p>
+      <p className={cn('font-bold leading-tight text-zinc-100', compact ? 'text-xs' : 'text-sm')}>{value}</p>
     </div>
   </div>
 );

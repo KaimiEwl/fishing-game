@@ -412,14 +412,16 @@ const FishingGame: React.FC = () => {
             wheelReady={gameProgress.wheelReady}
           />
 
-          <a
-            href="mailto:support@monadfish.xyz"
-            className="fixed right-3 top-3 z-20 hidden h-10 items-center gap-2 rounded-lg border border-cyan-300/15 bg-black/75 px-3 text-xs font-semibold text-zinc-300 shadow-lg backdrop-blur-md transition-colors hover:bg-zinc-950 hover:text-cyan-100 sm:right-5 sm:top-5 sm:inline-flex"
-            aria-label="Contact support"
-          >
-            <Mail className="h-4 w-4" />
-            <span>Contact</span>
-          </a>
+          {!isMobile && (
+            <a
+              href="mailto:support@monadfish.xyz"
+              className="fixed right-5 top-5 z-20 inline-flex h-10 items-center gap-2 rounded-lg border border-cyan-300/15 bg-black/75 px-3 text-xs font-semibold text-zinc-300 shadow-lg backdrop-blur-md transition-colors hover:bg-zinc-950 hover:text-cyan-100"
+              aria-label="Contact support"
+            >
+              <Mail className="h-4 w-4" />
+              <span>Contact</span>
+            </a>
+          )}
 
           {levelUpInfo && (
             <LevelUpCelebration
