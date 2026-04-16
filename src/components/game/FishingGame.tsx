@@ -67,11 +67,26 @@ const PRELOAD_ASSETS = [
 const preloadImage = (src: string) => new Promise<void>((resolve) => {
   const img = new Image();
   let settled = false;
+  const decodeTimeoutMs = 1200;
+  const loadTimeoutMs = 8000;
+  const loadTimeout = window.setTimeout(() => {
+    void finish();
+  }, loadTimeoutMs);
+
+  const waitForDecode = async () => {
+    if (!img.decode) return;
+    await Promise.race([
+      img.decode(),
+      new Promise<void>((done) => window.setTimeout(done, decodeTimeoutMs)),
+    ]);
+  };
+
   const finish = async () => {
     if (settled) return;
     settled = true;
+    window.clearTimeout(loadTimeout);
     try {
-      await img.decode?.();
+      await waitForDecode();
     } catch {
       // onload already confirmed the browser has the image; decode can fail on older engines.
     }
