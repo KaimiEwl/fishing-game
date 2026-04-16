@@ -6,6 +6,7 @@ import { FISH_DATA, GRILL_RECIPES, type CaughtFish, type GrillRecipe } from '@/t
 import GameScreenShell from './GameScreenShell';
 import FishIcon from './FishIcon';
 import { publicAsset } from '@/lib/assets';
+import grillForegroundSrc from '@/assets/grill-foreground.png';
 
 interface GrillScreenProps {
   coins: number;
@@ -35,6 +36,15 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
               </div>
               <h2 className="mt-4 text-2xl font-black">{grillScore.toLocaleString()}</h2>
               <p className="mt-1 text-sm text-white/60">total grill score</p>
+            </div>
+            <div className="pointer-events-none relative -mx-3 flex justify-center overflow-hidden py-1">
+              <div className="absolute inset-x-8 bottom-3 h-10 rounded-full bg-orange-500/20 blur-2xl" />
+              <img
+                src={grillForegroundSrc}
+                alt=""
+                className="relative max-h-40 w-full max-w-md object-contain drop-shadow-[0_18px_28px_rgba(0,0,0,0.65)] lg:max-h-52"
+                draggable={false}
+              />
             </div>
             <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-sm text-zinc-400">
               Stronger fish make stronger dishes. Cook once, save a name, and your score stays on the local leaderboard.

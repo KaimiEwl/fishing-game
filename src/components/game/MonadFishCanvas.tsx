@@ -39,6 +39,98 @@ const drawAnimatedSprite = (
     ctx.restore();
 };
 
+const drawWaterSurface = (
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    h: number,
+    waterLevel: number,
+    t: number
+) => {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, waterLevel - 8, w, h - waterLevel + 8);
+    ctx.clip();
+
+    const surfaceGlow = ctx.createLinearGradient(0, waterLevel - 10, 0, waterLevel + h * 0.24);
+    surfaceGlow.addColorStop(0, 'rgba(125, 235, 255, 0.18)');
+    surfaceGlow.addColorStop(0.28, 'rgba(34, 211, 238, 0.08)');
+    surfaceGlow.addColorStop(1, 'rgba(2, 8, 23, 0)');
+    ctx.fillStyle = surfaceGlow;
+    ctx.fillRect(0, waterLevel - 8, w, h - waterLevel + 8);
+
+    ctx.globalCompositeOperation = 'screen';
+    for (let i = 0; i < 8; i++) {
+        const y = waterLevel + i * 18 + Math.sin(t * 1.6 + i) * 3;
+        const amp = 3 + i * 0.25;
+        ctx.beginPath();
+        for (let x = -24; x <= w + 24; x += 18) {
+            const waveY = y
+                + Math.sin(x * 0.012 + t * 1.9 + i * 0.8) * amp
+                + Math.sin(x * 0.028 - t * 1.15) * 1.4;
+            if (x === -24) ctx.moveTo(x, waveY);
+            else ctx.lineTo(x, waveY);
+        }
+        ctx.strokeStyle = `rgba(180, 245, 255, ${0.16 - i * 0.012})`;
+        ctx.lineWidth = i === 0 ? 2.2 : 1;
+        ctx.stroke();
+    }
+
+    for (let i = 0; i < 16; i++) {
+        const x = ((i * 173 + t * 24) % (w + 160)) - 80;
+        const y = waterLevel + 28 + ((i * 47 + Math.sin(t + i) * 22) % Math.max(80, h - waterLevel - 70));
+        ctx.globalAlpha = 0.05 + (i % 3) * 0.025;
+        ctx.fillStyle = '#dffbff';
+        ctx.beginPath();
+        ctx.ellipse(x, y, 18 + (i % 4) * 9, 1.2, Math.sin(i) * 0.2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    ctx.restore();
+};
+
+const drawBoatReflection = (
+    ctx: CanvasRenderingContext2D,
+    img: HTMLImageElement,
+    boatX: number,
+    boatY: number,
+    boatDrawW: number,
+    boatDrawH: number,
+    waterLevel: number,
+    t: number
+) => {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, waterLevel - 2, ctx.canvas.width, Math.min(ctx.canvas.height - waterLevel + 2, boatDrawH * 0.55));
+    ctx.clip();
+    ctx.globalCompositeOperation = 'screen';
+
+    const strip = 5;
+    for (let y = 0; y < boatDrawH; y += strip) {
+        const originalY = boatY + y;
+        if (originalY > waterLevel + boatDrawH * 0.18) continue;
+
+        const distance = Math.max(0, waterLevel - originalY);
+        const destY = waterLevel + distance * 0.34 + 8;
+        const fade = Math.max(0, 1 - (destY - waterLevel) / (boatDrawH * 0.52));
+        const wave = Math.sin(t * 2.2 + y * 0.11) * 5 + Math.sin(t * 1.1 + y * 0.037) * 3;
+
+        ctx.globalAlpha = 0.2 * fade;
+        ctx.drawImage(
+            img,
+            0,
+            (y / boatDrawH) * img.height,
+            img.width,
+            Math.max(1, (strip / boatDrawH) * img.height),
+            boatX + wave,
+            destY,
+            boatDrawW,
+            strip * 0.72
+        );
+    }
+
+    ctx.restore();
+};
+
 interface MonadFishCanvasProps {
     onCast: () => void;
     gameState: string;
@@ -354,6 +446,8 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
                 ctx.fillRect(0, 0, w, h);
             }
 
+            drawWaterSurface(ctx, w, h, waterLevel, t);
+
             if (Math.random() < 0.004 && meteorsRef.current.length < 3) {
                 meteorsRef.current.push(new Meteor(w, waterLevel));
             }
@@ -381,6 +475,8 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
                 const cosR = Math.cos(rockAngle), sinR = Math.sin(rockAngle);
                 rodTipX = cx + localRodX * cosR - localRodY * sinR;
                 rodTipY = cy + localRodX * sinR + localRodY * cosR;
+
+                drawBoatReflection(ctx, pepe, boatX, boatY, boatDrawW, boatDrawH, waterLevel, t);
 
                 ctx.save();
                 ctx.translate(cx, cy);
