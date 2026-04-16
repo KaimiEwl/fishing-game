@@ -6,10 +6,11 @@ interface GameScreenShellProps {
   subtitle: string;
   coins?: number;
   backgroundImage?: string;
+  contentScrollable?: boolean;
   children: React.ReactNode;
 }
 
-const GameScreenShell: React.FC<GameScreenShellProps> = ({ title, subtitle, coins, backgroundImage, children }) => {
+const GameScreenShell: React.FC<GameScreenShellProps> = ({ title, subtitle, coins, backgroundImage, contentScrollable = false, children }) => {
   return (
     <section className="absolute inset-0 overflow-hidden bg-[#080914] text-white">
       {backgroundImage && (
@@ -35,7 +36,7 @@ const GameScreenShell: React.FC<GameScreenShellProps> = ({ title, subtitle, coin
           )}
         </header>
 
-        <div className="mx-auto mt-4 min-h-0 w-full max-w-5xl flex-1 overflow-hidden sm:mt-6">
+        <div className={`mx-auto mt-4 min-h-0 w-full max-w-5xl flex-1 sm:mt-6 ${contentScrollable ? 'overflow-y-auto overscroll-contain pr-1' : 'overflow-hidden'}`}>
           {children}
         </div>
       </div>
