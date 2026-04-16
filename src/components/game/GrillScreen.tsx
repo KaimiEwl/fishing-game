@@ -37,7 +37,7 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
               <p className="mt-1 text-sm text-white/60">total grill score</p>
             </div>
             <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-sm text-zinc-400">
-              Stronger fish make stronger dishes. Wallet leaderboard sync comes next with Supabase.
+              Stronger fish make stronger dishes. Cook once, save a name, and your score stays on the local leaderboard.
             </div>
           </div>
         </aside>

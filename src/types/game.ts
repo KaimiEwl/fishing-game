@@ -73,6 +73,15 @@ export interface GrillRecipe {
   score: number;
 }
 
+export interface GrillLeaderboardEntry {
+  id: string;
+  name: string;
+  score: number;
+  dishes: number;
+  walletAddress?: string;
+  updatedAt: string;
+}
+
 export const FISH_DATA: Fish[] = [
   {
     id: 'carp',

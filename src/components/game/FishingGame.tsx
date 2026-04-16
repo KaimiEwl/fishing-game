@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MonadFishCanvas from './MonadFishCanvas';
 import PlayerPanel from './PlayerPanel';
 import GameControls from './GameControls';
@@ -10,6 +10,7 @@ import ShopScreen from './ShopScreen';
 import GrillScreen from './GrillScreen';
 import WheelScreen from './WheelScreen';
 import LeaderboardScreen from './LeaderboardScreen';
+import LeaderboardNameDialog from './LeaderboardNameDialog';
 import LevelUpCelebration from './LevelUpCelebration';
 import GameLoadingScreen from './GameLoadingScreen';
 import { FISH_IMAGE_SRC } from './FishIcon';
@@ -20,7 +21,12 @@ import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { publicAsset } from '@/lib/assets';
-import type { DailyTaskId, GameTab, GrillRecipe, WheelPrize } from '@/types/game';
+import {
+  getLeaderboardPlayerId,
+  loadLeaderboardEntries,
+  upsertLeaderboardEntry,
+} from '@/lib/leaderboard';
+import type { DailyTaskId, GameTab, GrillLeaderboardEntry, GrillRecipe, WheelPrize } from '@/types/game';
 import { Mail } from 'lucide-react';
 
 const PRELOAD_ASSETS = [
@@ -48,6 +54,11 @@ const FishingGame: React.FC = () => {
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<GameTab>('fish');
   const [assetsReady, setAssetsReady] = useState(false);
+  const [leaderboardEntries, setLeaderboardEntries] = useState<GrillLeaderboardEntry[]>(() => loadLeaderboardEntries());
+  const [leaderboardPlayerId, setLeaderboardPlayerId] = useState(() => getLeaderboardPlayerId(address));
+  const [leaderboardNameOpen, setLeaderboardNameOpen] = useState(false);
+  const [pendingLeaderboardScore, setPendingLeaderboardScore] = useState(0);
+  const [pendingLeaderboardDishes, setPendingLeaderboardDishes] = useState(0);
   const gameProgress = useGameProgress();
 
   const {
@@ -78,6 +89,20 @@ const FishingGame: React.FC = () => {
   const sounds = useSoundEffects();
   const prevGameState = useRef(gameState);
   const prevLevel = useRef(player.level);
+  const currentLeaderboardEntry = useMemo(() => (
+    leaderboardEntries.find((entry) => entry.id === leaderboardPlayerId)
+  ), [leaderboardEntries, leaderboardPlayerId]);
+
+  const saveCurrentLeaderboardEntry = useCallback((name: string, score: number, dishesDelta = 0) => {
+    setLeaderboardEntries((entries) => upsertLeaderboardEntry({
+      entries,
+      id: leaderboardPlayerId,
+      name,
+      score,
+      dishesDelta,
+      walletAddress: address,
+    }));
+  }, [address, leaderboardPlayerId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -93,6 +118,10 @@ const FishingGame: React.FC = () => {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    setLeaderboardPlayerId(getLeaderboardPlayerId(address));
+  }, [address]);
 
   useEffect(() => {
     const prev = prevGameState.current;
@@ -121,6 +150,14 @@ const FishingGame: React.FC = () => {
     }
     prevLevel.current = player.level;
   }, [player.level, sounds]);
+
+  useEffect(() => {
+    if (gameProgress.grillScore > 0 && !currentLeaderboardEntry?.name && !leaderboardNameOpen) {
+      setPendingLeaderboardScore(gameProgress.grillScore);
+      setPendingLeaderboardDishes(0);
+      setLeaderboardNameOpen(true);
+    }
+  }, [currentLeaderboardEntry?.name, gameProgress.grillScore, leaderboardNameOpen]);
 
   const handleBuyBait = (amount: number, cost: number) => {
     buyBait(amount, cost);
@@ -151,8 +188,24 @@ const FishingGame: React.FC = () => {
 
   const handleCookRecipe = (recipe: GrillRecipe) => {
     if (!consumeFish(recipe.ingredients)) return;
+    const nextGrillScore = gameProgress.grillScore + recipe.score;
     gameProgress.recordGrillDish(recipe.score);
+    if (currentLeaderboardEntry?.name) {
+      saveCurrentLeaderboardEntry(currentLeaderboardEntry.name, nextGrillScore, 1);
+    } else {
+      setPendingLeaderboardScore(nextGrillScore);
+      setPendingLeaderboardDishes(1);
+      setLeaderboardNameOpen(true);
+    }
     sounds.playSellSound();
+  };
+
+  const handleSaveLeaderboardName = (name: string) => {
+    const score = Math.max(pendingLeaderboardScore, gameProgress.grillScore);
+    saveCurrentLeaderboardEntry(name, score, pendingLeaderboardDishes);
+    setLeaderboardNameOpen(false);
+    setPendingLeaderboardDishes(0);
+    setPendingLeaderboardScore(0);
   };
 
   const isFishingScreen = activeTab === 'fish';
@@ -221,6 +274,8 @@ const FishingGame: React.FC = () => {
             <LeaderboardScreen
               coins={player.coins}
               grillScore={gameProgress.grillScore}
+              entries={leaderboardEntries}
+              currentPlayerId={leaderboardPlayerId}
               isConnected={isConnected}
               walletAddress={address}
               nickname={player.nickname}
@@ -295,6 +350,13 @@ const FishingGame: React.FC = () => {
               onDismiss={dismissLevelUp}
             />
           )}
+
+          <LeaderboardNameDialog
+            open={leaderboardNameOpen}
+            defaultName={player.nickname}
+            score={Math.max(pendingLeaderboardScore, gameProgress.grillScore)}
+            onSave={handleSaveLeaderboardName}
+          />
         </div>
 
         <GameLoadingScreen visible={!assetsReady} />
