@@ -6,12 +6,12 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import mapTreasureVaultSrc from '@/assets/map_treasure_vault.jpg';
-import mapSkullCoveSrc from '@/assets/map_skull_cove.jpg';
-import mapCoralCastleSrc from '@/assets/map_coral_castle.jpg';
-import mapVolcanoGrillSrc from '@/assets/map_volcano_grill.jpg';
-import mapIslandMarketSrc from '@/assets/map_island_market.jpg';
-import mapWheelPierSrc from '@/assets/map_wheel_pier.jpg';
+import mapTreasureVaultSrc from '@/assets/map_treasure_vault_cutout.png';
+import mapSkullCoveSrc from '@/assets/map_skull_cove_cutout.png';
+import mapCoralCastleSrc from '@/assets/map_coral_castle_cutout.png';
+import mapVolcanoGrillSrc from '@/assets/map_volcano_grill_cutout.png';
+import mapIslandMarketSrc from '@/assets/map_island_market_cutout.png';
+import mapWheelPierSrc from '@/assets/map_wheel_pier_cutout.png';
 import GameScreenShell from './GameScreenShell';
 
 interface MapScreenProps {
@@ -104,8 +104,8 @@ const MapScreen: React.FC<MapScreenProps> = ({ coins, onBack }) => {
                   key={location.id}
                   type="button"
                   className={cn(
-                    'group relative aspect-[535/420] w-full min-w-0 overflow-hidden rounded-lg border border-yellow-300/55 bg-black/35 text-left outline-none transition-all duration-200',
-                    'shadow-[0_12px_32px_rgba(0,0,0,0.45)] hover:scale-[1.03] hover:border-yellow-200 focus-visible:scale-[1.03] focus-visible:border-yellow-200',
+                    'group relative aspect-[535/420] w-full min-w-0 overflow-visible bg-transparent text-left outline-none transition-all duration-200',
+                    'drop-shadow-[0_12px_24px_rgba(0,0,0,0.38)] hover:scale-[1.03] focus-visible:scale-[1.03]',
                     isActive ? 'scale-[1.03] shadow-[0_0_38px_rgba(250,204,21,0.38)]' : '',
                   )}
                   onMouseEnter={() => setActiveLocation(location.id)}
@@ -120,11 +120,10 @@ const MapScreen: React.FC<MapScreenProps> = ({ coins, onBack }) => {
                     src={location.image}
                     alt=""
                     className={cn(
-                      'h-full w-full object-cover transition-all duration-200',
+                      'h-full w-full object-contain transition-all duration-200',
                       isActive ? 'grayscale-0 saturate-125' : 'grayscale saturate-50 brightness-75 group-hover:grayscale-0 group-hover:saturate-125 group-hover:brightness-100 group-focus-visible:grayscale-0 group-focus-visible:saturate-125 group-focus-visible:brightness-100 group-active:grayscale-0 group-active:saturate-125 group-active:brightness-100',
                     )}
                   />
-                  <span className="absolute inset-0 rounded-lg bg-black/25 transition-colors duration-200 group-hover:bg-black/5 group-focus-visible:bg-black/5 group-active:bg-black/5" />
                   <span className="absolute left-1/2 top-1/2 inline-flex h-10 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-lg border border-black/35 bg-zinc-200/95 shadow-[0_8px_18px_rgba(0,0,0,0.5)] transition-transform duration-200 group-hover:scale-105 group-active:scale-95 sm:h-12 sm:w-14">
                     <Lock className="h-5 w-5 text-zinc-900 sm:h-6 sm:w-6" />
                   </span>

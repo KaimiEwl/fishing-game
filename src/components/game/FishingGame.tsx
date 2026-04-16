@@ -22,13 +22,13 @@ import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { publicAsset } from '@/lib/assets';
-import travelIconSrc from '@/assets/map_travel_icon.png';
-import mapTreasureVaultSrc from '@/assets/map_treasure_vault.jpg';
-import mapSkullCoveSrc from '@/assets/map_skull_cove.jpg';
-import mapCoralCastleSrc from '@/assets/map_coral_castle.jpg';
-import mapVolcanoGrillSrc from '@/assets/map_volcano_grill.jpg';
-import mapIslandMarketSrc from '@/assets/map_island_market.jpg';
-import mapWheelPierSrc from '@/assets/map_wheel_pier.jpg';
+import travelIconSrc from '@/assets/map_travel_icon_cutout.png';
+import mapTreasureVaultSrc from '@/assets/map_treasure_vault_cutout.png';
+import mapSkullCoveSrc from '@/assets/map_skull_cove_cutout.png';
+import mapCoralCastleSrc from '@/assets/map_coral_castle_cutout.png';
+import mapVolcanoGrillSrc from '@/assets/map_volcano_grill_cutout.png';
+import mapIslandMarketSrc from '@/assets/map_island_market_cutout.png';
+import mapWheelPierSrc from '@/assets/map_wheel_pier_cutout.png';
 import {
   getLeaderboardPlayerId,
   loadLeaderboardEntries,
@@ -346,15 +346,15 @@ const FishingGame: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab('map')}
-              className="group absolute right-[7%] top-[15%] z-20 w-28 overflow-hidden rounded-lg border border-yellow-300/70 bg-black shadow-[0_16px_36px_rgba(0,0,0,0.5)] outline-none transition-all duration-200 hover:scale-105 hover:border-yellow-200 focus-visible:scale-105 focus-visible:border-yellow-200 active:scale-95 sm:right-[13%] sm:top-[18%] sm:w-44 md:w-52"
+              className="group absolute right-[7%] top-[15%] z-20 w-28 overflow-visible bg-transparent outline-none transition-all duration-200 hover:scale-105 focus-visible:scale-105 active:scale-95 sm:right-[13%] sm:top-[18%] sm:w-44 md:w-52"
               aria-label="Open travel map"
             >
               <img
                 src={TRAVEL_ICON_SRC}
                 alt=""
-                className="block aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                className="block w-full object-contain drop-shadow-[0_16px_30px_rgba(0,0,0,0.42)] transition-transform duration-300 group-hover:scale-[1.03]"
               />
-              <span className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-lg border border-yellow-200/45 bg-black/80 px-2 py-1 text-[10px] font-black uppercase tracking-normal text-yellow-100 shadow-lg sm:text-xs">
+              <span className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-lg border border-yellow-200/70 bg-yellow-300 px-2 py-1 text-[10px] font-black uppercase tracking-normal text-black shadow-lg sm:text-xs">
                 Travel
               </span>
             </button>
