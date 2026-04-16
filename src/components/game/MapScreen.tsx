@@ -95,7 +95,7 @@ const MapScreen: React.FC<MapScreenProps> = ({ coins, onBack }) => {
             <span className="h-0 w-0 border-l-[16px] border-r-[16px] border-t-[28px] border-l-transparent border-r-transparent border-t-sky-300" />
           </div>
 
-          <div className="relative z-10 mx-auto grid w-full max-w-5xl grid-cols-2 gap-4 px-4 pb-24 pt-28 sm:grid-cols-3 sm:gap-6 sm:px-8 sm:pt-32">
+          <div className="relative z-10 mx-auto grid w-full max-w-6xl grid-cols-2 gap-x-4 gap-y-6 px-4 pb-24 pt-24 sm:grid-cols-3 sm:gap-x-8 sm:gap-y-8 sm:px-8 sm:pt-28 lg:gap-x-10">
             {locations.map((location) => {
               const isActive = activeLocation === location.id;
 
@@ -104,7 +104,7 @@ const MapScreen: React.FC<MapScreenProps> = ({ coins, onBack }) => {
                   key={location.id}
                   type="button"
                   className={cn(
-                    'group relative aspect-[535/420] w-full min-w-0 overflow-visible bg-transparent text-left outline-none transition-all duration-200',
+                    'group relative aspect-[4/3] w-full min-w-0 overflow-visible bg-transparent text-left outline-none transition-all duration-200',
                     'drop-shadow-[0_12px_24px_rgba(0,0,0,0.38)] hover:scale-[1.03] focus-visible:scale-[1.03]',
                     isActive ? 'scale-[1.03] shadow-[0_0_38px_rgba(250,204,21,0.38)]' : '',
                   )}
