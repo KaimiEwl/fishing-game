@@ -75,6 +75,13 @@ const capProgress = (id: DailyTaskId, progress: number) => {
   return Math.min(task?.target ?? progress, progress);
 };
 
+export const pickWheelPrize = () => {
+  const roll = Math.random();
+  return roll > 0.985
+    ? WHEEL_PRIZES.find((item) => item.secret)!
+    : WHEEL_PRIZES[Math.floor(Math.random() * (WHEEL_PRIZES.length - 1))];
+};
+
 export function useGameProgress() {
   const [state, setState] = useState<GameProgressState>(() => loadState());
 
@@ -156,13 +163,10 @@ export function useGameProgress() {
     return true;
   }, [state.tasks]);
 
-  const spinWheel = useCallback((onReward: (coins: number) => void) => {
+  const spinWheel = useCallback((onReward: (coins: number) => void, selectedPrize?: WheelPrize) => {
     if (!wheelReady) return null;
 
-    const roll = Math.random();
-    const prize = roll > 0.985
-      ? WHEEL_PRIZES.find((item) => item.secret)!
-      : WHEEL_PRIZES[Math.floor(Math.random() * (WHEEL_PRIZES.length - 1))];
+    const prize = selectedPrize ?? pickWheelPrize();
 
     setState((prev) => ({
       ...prev,

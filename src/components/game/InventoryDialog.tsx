@@ -78,8 +78,8 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({ inventory, rodLevel, 
 
         <Tabs defaultValue="fish" className="w-full">
           <TabsList className="grid w-full grid-cols-2 bg-zinc-950">
-            <TabsTrigger value="fish" className="gap-1.5 data-[state=active]:bg-black data-[state=active]:text-cyan-100"><FishIcon fishId="carp" className="h-4 w-4" /> Fish ({totalFish})</TabsTrigger>
-            <TabsTrigger value="rods" className="gap-1.5 data-[state=active]:bg-black data-[state=active]:text-cyan-100"><ShipWheel className="h-4 w-4" /> Rods ({ownedRods.length})</TabsTrigger>
+            <TabsTrigger value="fish" className="gap-1.5 text-zinc-200 data-[state=active]:bg-black data-[state=active]:text-cyan-100"><FishIcon fishId="carp" className="h-4 w-4" /> Fish ({totalFish})</TabsTrigger>
+            <TabsTrigger value="rods" className="gap-1.5 text-zinc-200 data-[state=active]:bg-black data-[state=active]:text-cyan-100"><ShipWheel className="h-4 w-4" /> Rods ({ownedRods.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="fish" className="mt-4">

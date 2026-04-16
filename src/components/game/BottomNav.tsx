@@ -41,7 +41,7 @@ const BottomNav: React.FC<BottomNavProps> = ({
               className={cn(
                 'relative flex h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-lg border px-0.5 text-[9px] font-bold transition sm:h-16 sm:px-1 sm:text-xs',
                 isActive && 'border-cyan-300/35 bg-zinc-900 text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.18)]',
-                !isActive && 'border-transparent bg-black text-zinc-500 hover:border-zinc-700 hover:bg-zinc-950 hover:text-zinc-200',
+                !isActive && 'border-transparent bg-black text-zinc-300 hover:border-zinc-700 hover:bg-zinc-950 hover:text-zinc-100',
               )}
               aria-current={isActive ? 'page' : undefined}
             >

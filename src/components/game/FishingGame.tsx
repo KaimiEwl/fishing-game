@@ -24,12 +24,14 @@ import { publicAsset } from '@/lib/assets';
 import {
   getLeaderboardPlayerId,
   loadLeaderboardEntries,
+  mergeLeaderboardEntries,
   upsertLeaderboardEntry,
 } from '@/lib/leaderboard';
 import type { DailyTaskId, GameTab, GrillLeaderboardEntry, GrillRecipe, WheelPrize } from '@/types/game';
 import { Mail } from 'lucide-react';
 
 const PRELOAD_ASSETS = [
+  publicAsset('assets/bg_main.jpg'),
   publicAsset('assets/pepe_final.png'),
   publicAsset('assets/rod_basic.png'),
   publicAsset('assets/rod_bamboo.png'),
@@ -43,10 +45,23 @@ const PRELOAD_ASSETS = [
 
 const preloadImage = (src: string) => new Promise<void>((resolve) => {
   const img = new Image();
-  img.onload = () => resolve();
+  let settled = false;
+  const finish = async () => {
+    if (settled) return;
+    settled = true;
+    try {
+      await img.decode?.();
+    } catch {
+      // onload already confirmed the browser has the image; decode can fail on older engines.
+    }
+    resolve();
+  };
+  img.onload = () => { void finish(); };
   img.onerror = () => resolve();
   img.src = src;
-  if (img.complete) resolve();
+  if (img.complete && img.naturalWidth > 0) {
+    void finish();
+  }
 });
 
 const FishingGame: React.FC = () => {
@@ -89,6 +104,7 @@ const FishingGame: React.FC = () => {
   const sounds = useSoundEffects();
   const prevGameState = useRef(gameState);
   const prevLevel = useRef(player.level);
+  const prevLeaderboardPlayerId = useRef(leaderboardPlayerId);
   const currentLeaderboardEntry = useMemo(() => (
     leaderboardEntries.find((entry) => entry.id === leaderboardPlayerId)
   ), [leaderboardEntries, leaderboardPlayerId]);
@@ -107,11 +123,13 @@ const FishingGame: React.FC = () => {
   useEffect(() => {
     let cancelled = false;
     const uniqueAssets = Array.from(new Set(PRELOAD_ASSETS));
-    const loadAll = Promise.all(uniqueAssets.map(preloadImage));
-    const maxWait = new Promise<void>((resolve) => window.setTimeout(resolve, 2400));
 
-    Promise.race([loadAll.then(() => undefined), maxWait]).then(() => {
-      if (!cancelled) setAssetsReady(true);
+    Promise.all(uniqueAssets.map(preloadImage)).then(() => {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          if (!cancelled) setAssetsReady(true);
+        });
+      });
     });
 
     return () => {
@@ -120,8 +138,22 @@ const FishingGame: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    setLeaderboardPlayerId(getLeaderboardPlayerId(address));
-  }, [address]);
+    const nextId = getLeaderboardPlayerId(address);
+    const previousId = prevLeaderboardPlayerId.current;
+
+    if (address && previousId !== nextId && previousId.startsWith('guest:')) {
+      setLeaderboardEntries((entries) => mergeLeaderboardEntries({
+        entries,
+        fromId: previousId,
+        toId: nextId,
+        fallbackName: player.nickname || 'Guest griller',
+        walletAddress: address,
+      }));
+    }
+
+    prevLeaderboardPlayerId.current = nextId;
+    setLeaderboardPlayerId(nextId);
+  }, [address, player.nickname]);
 
   useEffect(() => {
     const prev = prevGameState.current;
@@ -180,8 +212,8 @@ const FishingGame: React.FC = () => {
     }
   };
 
-  const handleSpinWheel = (): WheelPrize | null => {
-    const prize = gameProgress.spinWheel(addCoins);
+  const handleSpinWheel = (selectedPrize: WheelPrize): WheelPrize | null => {
+    const prize = gameProgress.spinWheel(addCoins, selectedPrize);
     if (prize) sounds.playLevelUpSound();
     return prize;
   };
@@ -189,12 +221,14 @@ const FishingGame: React.FC = () => {
   const handleCookRecipe = (recipe: GrillRecipe) => {
     if (!consumeFish(recipe.ingredients)) return;
     const nextGrillScore = gameProgress.grillScore + recipe.score;
+    const fallbackLeaderboardName = player.nickname || 'Guest griller';
     gameProgress.recordGrillDish(recipe.score);
     if (currentLeaderboardEntry?.name) {
       saveCurrentLeaderboardEntry(currentLeaderboardEntry.name, nextGrillScore, 1);
     } else {
+      saveCurrentLeaderboardEntry(fallbackLeaderboardName, nextGrillScore, 1);
       setPendingLeaderboardScore(nextGrillScore);
-      setPendingLeaderboardDishes(1);
+      setPendingLeaderboardDishes(0);
       setLeaderboardNameOpen(true);
     }
     sounds.playSellSound();
@@ -353,7 +387,7 @@ const FishingGame: React.FC = () => {
 
           <LeaderboardNameDialog
             open={leaderboardNameOpen}
-            defaultName={player.nickname}
+            defaultName={currentLeaderboardEntry?.name || player.nickname}
             score={Math.max(pendingLeaderboardScore, gameProgress.grillScore)}
             onSave={handleSaveLeaderboardName}
           />

@@ -74,28 +74,24 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
 
     // Загрузка картинок
     useEffect(() => {
-        const ts = Date.now();
+        const loadSceneImage = (src: string, onReady: (img: HTMLImageElement) => void) => {
+            const img = new Image();
+            img.onload = () => onReady(img);
+            img.src = src;
+            if (img.complete && img.naturalWidth > 0) onReady(img);
+        };
 
-        const bg = new Image();
-        bg.src = publicAsset('assets/bg_main.jpg') + '?v=' + ts;
-        bg.onload = () => { bgImgRef.current = bg; };
-
-        const p = new Image();
-        p.src = publicAsset('assets/pepe_final.png') + '?v=' + ts;
-        p.onload = () => { pepeImgRef.current = p; };
+        loadSceneImage(publicAsset('assets/bg_main.jpg'), (img) => { bgImgRef.current = img; });
+        loadSceneImage(publicAsset('assets/pepe_final.png'), (img) => { pepeImgRef.current = img; });
 
         const fishFiles = ['fish_carp.png', 'fish_perch.png', 'fish_bream.png', 'fish_pike.png', 'fish_catfish.png', 'fish_goldfish.png', 'fish_mutant.png', 'fish_leviathan.png'];
         fishFiles.forEach((file, i) => {
-            const img = new Image();
-            img.src = publicAsset('assets/' + file) + '?v=' + ts + '&fix=clean-cutout-swim';
-            img.onload = () => { fishImgsRef.current[i] = img; };
+            loadSceneImage(publicAsset('assets/' + file), (img) => { fishImgsRef.current[i] = img; });
         });
 
         const rodFiles = ['rod_basic.png', 'rod_bamboo.png', 'rod_carbon.png', 'rod_pro.png', 'rod_legendary.png'];
         rodFiles.forEach((file, i) => {
-            const img = new Image();
-            img.src = publicAsset('assets/' + file) + '?v=' + ts;
-            img.onload = () => { rodImgsRef.current[i] = img; };
+            loadSceneImage(publicAsset('assets/' + file), (img) => { rodImgsRef.current[i] = img; });
         });
     }, []);
 

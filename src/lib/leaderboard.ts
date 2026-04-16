@@ -60,6 +60,44 @@ export const getLeaderboardPlayerId = (walletAddress?: string) => {
   }
 };
 
+interface MergeLeaderboardEntriesOptions {
+  entries: GrillLeaderboardEntry[];
+  fromId: string;
+  toId: string;
+  fallbackName: string;
+  walletAddress?: string;
+}
+
+export const mergeLeaderboardEntries = ({
+  entries,
+  fromId,
+  toId,
+  fallbackName,
+  walletAddress,
+}: MergeLeaderboardEntriesOptions) => {
+  if (!fromId || !toId || fromId === toId) return entries;
+
+  const fromEntry = entries.find((entry) => entry.id === fromId);
+  if (!fromEntry) return entries;
+
+  const toEntry = entries.find((entry) => entry.id === toId);
+  const mergedEntry: GrillLeaderboardEntry = {
+    id: toId,
+    name: sanitizeLeaderboardName(toEntry?.name || fromEntry.name || fallbackName),
+    score: Math.max(toEntry?.score ?? 0, fromEntry.score),
+    dishes: Math.max(toEntry?.dishes ?? 0, fromEntry.dishes),
+    walletAddress: walletAddress || toEntry?.walletAddress || fromEntry.walletAddress,
+    updatedAt: new Date().toISOString(),
+  };
+
+  const nextEntries = sortEntries([
+    ...entries.filter((entry) => entry.id !== fromId && entry.id !== toId),
+    mergedEntry,
+  ]);
+  saveLeaderboardEntries(nextEntries);
+  return nextEntries;
+};
+
 interface UpsertLeaderboardEntryOptions {
   entries: GrillLeaderboardEntry[];
   id: string;

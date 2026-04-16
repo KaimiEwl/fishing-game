@@ -45,7 +45,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({ player, onSetNickname, isConn
             </PopoverTrigger>
             <PopoverContent side="bottom" align="start" className="w-[min(21rem,calc(100vw-1.5rem))] border-cyan-300/15 bg-black/95 p-3 text-sm text-zinc-100 shadow-2xl backdrop-blur-md sm:w-72">
               <div className="flex flex-col gap-2">
-                <div className="mb-1 flex justify-between px-1 text-xs font-semibold text-zinc-500">
+                <div className="mb-1 flex justify-between px-1 text-xs font-bold text-zinc-200">
                   <span>Fish</span>
                   <span className="text-right">Chance & Price</span>
                 </div>
@@ -62,9 +62,9 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({ player, onSetNickname, isConn
                   </div>
                 ))}
               </div>
-              <div className="mt-4 flex justify-center gap-4 border-t border-zinc-800 pt-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
+              <div className="mt-4 flex justify-center gap-4 border-t border-zinc-800 pt-3 text-xs font-bold uppercase tracking-wider text-zinc-300">
                 <Link to="/terms" className="transition-colors hover:text-cyan-100">Terms</Link>
-                <span>|</span>
+                <span className="text-zinc-500">|</span>
                 <Link to="/privacy" className="transition-colors hover:text-cyan-100">Privacy</Link>
               </div>
             </PopoverContent>

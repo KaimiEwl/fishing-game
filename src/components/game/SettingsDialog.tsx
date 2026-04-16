@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -9,12 +9,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Settings, Check, LogOut, Volume2, VolumeX, Camera } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Camera, Check, ChevronDown, LogOut, Settings, Volume2, VolumeX } from 'lucide-react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useBalance } from 'wagmi';
 import { isSoundMuted, setSoundMuted } from '@/hooks/useSoundEffects';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 
 interface SettingsDialogProps {
   isConnected: boolean;
@@ -25,14 +27,22 @@ interface SettingsDialogProps {
   onAvatarUploaded?: (url: string) => void;
 }
 
-const NICKNAME_REGEX = /^[a-zA-Z0-9а-яА-ЯёЁ_-]{2,20}$/;
+const NICKNAME_REGEX = /^[\p{L}0-9_-]{2,20}$/u;
 
-const SettingsDialog: React.FC<SettingsDialogProps> = ({ isConnected, nickname, onSetNickname, walletAddress, avatarUrl, onAvatarUploaded }) => {
+const SettingsDialog: React.FC<SettingsDialogProps> = ({
+  isConnected,
+  nickname,
+  onSetNickname,
+  walletAddress,
+  avatarUrl,
+  onAvatarUploaded,
+}) => {
   const [nickInput, setNickInput] = useState(nickname);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
   const [muted, setMuted] = useState(isSoundMuted());
   const [uploading, setUploading] = useState(false);
+  const [nicknameOpen, setNicknameOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const nicknameAlreadySet = !!nickname && nickname.length > 0;
@@ -46,13 +56,13 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isConnected, nickname, 
     if (nicknameAlreadySet) return;
     const trimmed = nickInput.trim();
     if (!NICKNAME_REGEX.test(trimmed)) {
-      setError('2-20 chars, letters/digits/_/-');
+      setError('Use 2-20 letters, digits, _ or -.');
       return;
     }
     setError('');
     onSetNickname?.(trimmed);
     setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    window.setTimeout(() => setSaved(false), 2000);
   };
 
   const handleToggleSound = (checked: boolean) => {
@@ -61,8 +71,8 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isConnected, nickname, 
     setSoundMuted(newMuted);
   };
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file || !walletAddress) return;
 
     setUploading(true);
@@ -81,8 +91,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isConnected, nickname, 
         .getPublicUrl(filePath);
 
       const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
-      
-      // Save to players table
+
       await supabase
         .from('players')
         .update({ avatar_url: publicUrl } as any)
@@ -108,16 +117,16 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isConnected, nickname, 
           <Settings className="h-5 w-5 sm:h-4 sm:w-4" />
         </Button>
       </DialogTrigger>
+
       <DialogContent className="max-w-[calc(100vw-1rem)] border border-cyan-300/15 bg-black/95 text-zinc-100 shadow-2xl backdrop-blur-md sm:max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl text-zinc-100">
-            <Settings className="w-5 h-5" />
+            <Settings className="h-5 w-5" />
             Settings
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-5 text-base sm:text-sm">
-          {/* Wallet Connection */}
           <div className="space-y-2">
             <p className="text-base font-bold text-zinc-100 sm:text-sm sm:font-medium">Wallet</p>
             {isConnected ? (
@@ -128,13 +137,18 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isConnected, nickname, 
                       <div className="min-h-11 flex-1 truncate rounded-lg border border-cyan-300/15 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100">
                         {account?.displayName || account?.address}
                       </div>
-                      <Button size="sm" variant="outline" onClick={openAccountModal} className="h-11 gap-1 border-zinc-800 bg-black px-3 text-zinc-100 hover:bg-zinc-950">
-                        <LogOut className="w-3 h-3" />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={openAccountModal}
+                        className="h-11 gap-1 border-zinc-800 bg-black px-3 text-zinc-100 hover:bg-zinc-950"
+                      >
+                        <LogOut className="h-3 w-3" />
                       </Button>
                     </div>
                     {balanceData && (
                       <div className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm">
-                        <span className="text-zinc-500">Balance:</span>
+                        <span className="text-zinc-300">Balance:</span>
                         <span className="font-bold text-zinc-100">
                           {parseFloat(balanceData.formatted).toFixed(4)} {balanceData.symbol}
                         </span>
@@ -149,19 +163,17 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isConnected, nickname, 
                   <div className="flex gap-2">
                     <Button
                       onClick={openConnectModal}
-                    className="h-11 flex-1 gap-2 border border-cyan-300/25 bg-zinc-950 text-cyan-100 hover:bg-black"
-                      style={{
-                        background: 'linear-gradient(135deg, #020617, #083344)',
-                      }}
+                      className="h-11 flex-1 gap-2 border border-cyan-300/25 bg-zinc-950 text-cyan-100 hover:bg-black"
+                      style={{ background: 'linear-gradient(135deg, #020617, #083344)' }}
                     >
-                      🔗 Sign In
+                      Sign In
                     </Button>
                     <Button
                       onClick={openConnectModal}
                       variant="outline"
                       className="h-11 flex-1 gap-2 border-zinc-800 bg-black text-zinc-100 hover:bg-zinc-950"
                     >
-                      📝 Sign Up
+                      Sign Up
                     </Button>
                   </div>
                 )}
@@ -169,18 +181,13 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isConnected, nickname, 
             )}
           </div>
 
-          {/* Avatar */}
           {isConnected && (
             <div className="space-y-2">
               <p className="text-base font-bold text-zinc-100 sm:text-sm sm:font-medium">Avatar</p>
               <div className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-3">
-                <Avatar className="w-12 h-12">
-                  {avatarUrl ? (
-                    <AvatarImage src={avatarUrl} alt="Avatar" />
-                  ) : null}
-                  <AvatarFallback className="bg-zinc-900 text-cyan-100 text-lg">
-                    🎣
-                  </AvatarFallback>
+                <Avatar className="h-12 w-12">
+                  {avatarUrl ? <AvatarImage src={avatarUrl} alt="Avatar" /> : null}
+                  <AvatarFallback className="bg-zinc-900 text-lg text-cyan-100">MF</AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
                   <input
@@ -197,7 +204,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isConnected, nickname, 
                     disabled={uploading}
                     className="h-11 gap-1 border-zinc-800 bg-black px-4 text-zinc-100 hover:bg-zinc-950"
                   >
-                    <Camera className="w-3 h-3" />
+                    <Camera className="h-3 w-3" />
                     {uploading ? 'Uploading...' : avatarUrl ? 'Change photo' : 'Upload photo'}
                   </Button>
                 </div>
@@ -205,54 +212,81 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ isConnected, nickname, 
             </div>
           )}
 
-          {/* Sound */}
           <div className="space-y-2">
             <p className="text-base font-bold text-zinc-100 sm:text-sm sm:font-medium">Sound</p>
             <div className="flex min-h-12 items-center justify-between rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2.5">
               <div className="flex items-center gap-2 text-base text-zinc-100 sm:text-sm">
-                {muted ? <VolumeX className="w-4 h-4 text-zinc-500" /> : <Volume2 className="w-4 h-4 text-cyan-100" />}
+                {muted ? <VolumeX className="h-4 w-4 text-zinc-300" /> : <Volume2 className="h-4 w-4 text-cyan-100" />}
                 {muted ? 'Sound off' : 'Sound on'}
               </div>
               <Switch checked={!muted} onCheckedChange={handleToggleSound} />
             </div>
           </div>
 
-          {/* Nickname */}
-          <div className="space-y-2">
-            <p className="text-base font-bold text-zinc-100 sm:text-sm sm:font-medium">Nickname</p>
-            {nicknameAlreadySet ? (
-              <div className="min-h-11 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-base text-zinc-100 sm:text-sm">
-                {nickname}
-              </div>
-            ) : (
-              <>
-                <div className="flex gap-2">
-                  <Input
-                    value={nickInput}
-                    onChange={e => { setNickInput(e.target.value); setSaved(false); }}
-                    placeholder="Enter nickname (one-time only)"
-                    className="h-11 flex-1 border-zinc-800 bg-zinc-950 text-zinc-100 placeholder:text-zinc-600"
-                    maxLength={20}
-                    disabled={!onSetNickname}
-                    onKeyDown={e => { if (e.key === 'Enter') handleSaveNick(); }}
-                  />
-                  <Button
-                    onClick={handleSaveNick}
-                    disabled={!onSetNickname || saved}
-                    size="sm"
-                    className="h-11 gap-1 border border-cyan-300/25 bg-zinc-950 px-4 text-cyan-100 hover:bg-black disabled:bg-zinc-900 disabled:text-zinc-600"
-                  >
-                    {saved ? <><Check className="w-3 h-3" /> Saved</> : 'Save'}
-                  </Button>
+          <Collapsible open={nicknameOpen} onOpenChange={setNicknameOpen} className="rounded-lg border border-zinc-800 bg-zinc-950">
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="flex min-h-12 w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-zinc-100 transition-colors hover:bg-black/60"
+              >
+                <span>
+                  <span className="block text-base font-bold sm:text-sm sm:font-medium">Nickname settings</span>
+                  <span className="mt-0.5 block text-xs font-medium text-zinc-300">
+                    {nicknameAlreadySet ? nickname : 'Save your public name one time.'}
+                  </span>
+                </span>
+                <ChevronDown className={cn('h-4 w-4 shrink-0 text-cyan-100 transition-transform', nicknameOpen && 'rotate-180')} />
+              </button>
+            </CollapsibleTrigger>
+
+            <CollapsibleContent className="border-t border-zinc-800 px-3 pb-3 pt-3">
+              {nicknameAlreadySet ? (
+                <div className="min-h-11 rounded-lg border border-cyan-300/15 bg-black px-3 py-2.5 text-base font-bold text-zinc-100 sm:text-sm">
+                  {nickname}
                 </div>
-                {error && <p className="text-xs text-destructive">{error}</p>}
-                {!onSetNickname && (
-                  <p className="text-xs text-zinc-500">Connect wallet to set nickname</p>
-                )}
-                <p className="text-xs text-zinc-500">⚠️ Nickname can only be set once</p>
-              </>
-            )}
-          </div>
+              ) : (
+                <>
+                  <div className="flex gap-2">
+                    <Input
+                      value={nickInput}
+                      onChange={(event) => {
+                        setNickInput(event.target.value);
+                        setSaved(false);
+                      }}
+                      placeholder="Enter nickname"
+                      className="h-11 flex-1 border-zinc-800 bg-black text-zinc-100 placeholder:text-zinc-400"
+                      maxLength={20}
+                      disabled={!onSetNickname}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') handleSaveNick();
+                      }}
+                    />
+                    <Button
+                      onClick={handleSaveNick}
+                      disabled={!onSetNickname || saved}
+                      size="sm"
+                      className="h-11 gap-1 border border-cyan-300/25 bg-black px-4 text-cyan-100 hover:bg-zinc-950 disabled:border-zinc-800 disabled:bg-zinc-900 disabled:text-zinc-500"
+                    >
+                      {saved ? (
+                        <>
+                          <Check className="h-3 w-3" />
+                          Saved
+                        </>
+                      ) : (
+                        'Save'
+                      )}
+                    </Button>
+                  </div>
+                  {error && <p className="mt-2 text-xs font-semibold text-red-300">{error}</p>}
+                  {!onSetNickname && (
+                    <p className="mt-2 text-xs font-medium text-zinc-300">Connect wallet to set nickname.</p>
+                  )}
+                  <p className="mt-2 text-xs font-medium text-zinc-300">You can save your nickname once.</p>
+                  <p className="text-xs font-medium text-zinc-400">Nickname can only be set one time.</p>
+                </>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
         </div>
       </DialogContent>
     </Dialog>
