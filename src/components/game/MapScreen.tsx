@@ -1,18 +1,12 @@
 import React, { useState } from 'react';
 import {
   ArrowLeft,
-  Castle,
-  Flame,
-  FerrisWheel,
-  Landmark,
   Lock,
   MapPin,
-  Ship,
-  Skull,
-  Store,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { publicAsset } from '@/lib/assets';
 import GameScreenShell from './GameScreenShell';
 
 interface MapScreenProps {
@@ -28,9 +22,7 @@ const locations = [
     x: '15%',
     y: '34%',
     w: '18%',
-    h: '22%',
-    icon: Landmark,
-    color: 'from-cyan-300 via-emerald-300 to-lime-200',
+    image: publicAsset('assets/map_treasure_vault.jpg'),
   },
   {
     id: 'skull',
@@ -39,9 +31,7 @@ const locations = [
     x: '42%',
     y: '22%',
     w: '19%',
-    h: '24%',
-    icon: Skull,
-    color: 'from-amber-200 via-orange-300 to-red-300',
+    image: publicAsset('assets/map_skull_cove.jpg'),
   },
   {
     id: 'castle',
@@ -50,9 +40,7 @@ const locations = [
     x: '72%',
     y: '27%',
     w: '19%',
-    h: '24%',
-    icon: Castle,
-    color: 'from-pink-300 via-fuchsia-300 to-cyan-200',
+    image: publicAsset('assets/map_coral_castle.jpg'),
   },
   {
     id: 'barbecue',
@@ -61,9 +49,7 @@ const locations = [
     x: '16%',
     y: '61%',
     w: '18%',
-    h: '22%',
-    icon: Flame,
-    color: 'from-yellow-200 via-orange-400 to-red-500',
+    image: publicAsset('assets/map_volcano_grill.jpg'),
   },
   {
     id: 'market',
@@ -72,9 +58,7 @@ const locations = [
     x: '45%',
     y: '54%',
     w: '18%',
-    h: '22%',
-    icon: Store,
-    color: 'from-teal-200 via-cyan-300 to-blue-300',
+    image: publicAsset('assets/map_island_market.jpg'),
   },
   {
     id: 'carnival',
@@ -83,20 +67,7 @@ const locations = [
     x: '72%',
     y: '64%',
     w: '20%',
-    h: '22%',
-    icon: FerrisWheel,
-    color: 'from-rose-300 via-yellow-200 to-sky-300',
-  },
-  {
-    id: 'ship',
-    title: 'Ghost Ship',
-    hint: 'Locked',
-    x: '53%',
-    y: '37%',
-    w: '14%',
-    h: '16%',
-    icon: Ship,
-    color: 'from-slate-100 via-cyan-200 to-indigo-300',
+    image: publicAsset('assets/map_wheel_pier.jpg'),
   },
 ] as const;
 
@@ -138,7 +109,6 @@ const MapScreen: React.FC<MapScreenProps> = ({ coins, onBack }) => {
           </div>
 
           {locations.map((location) => {
-            const Icon = location.icon;
             const isActive = activeLocation === location.id;
 
             return (
@@ -146,38 +116,35 @@ const MapScreen: React.FC<MapScreenProps> = ({ coins, onBack }) => {
                 key={location.id}
                 type="button"
                 className={cn(
-                  'group absolute rounded-lg border border-white/25 bg-black/10 p-2 text-left outline-none transition-all duration-200',
-                  isActive ? 'scale-[1.03] shadow-[0_0_38px_rgba(34,211,238,0.38)]' : 'grayscale hover:grayscale-0 focus-visible:grayscale-0 active:grayscale-0',
+                  'group absolute overflow-hidden rounded-lg border border-yellow-300/55 bg-black/35 text-left outline-none transition-all duration-200',
+                  'shadow-[0_12px_32px_rgba(0,0,0,0.45)] hover:scale-[1.03] hover:border-yellow-200 focus-visible:scale-[1.03] focus-visible:border-yellow-200',
+                  isActive ? 'scale-[1.03] shadow-[0_0_38px_rgba(250,204,21,0.38)]' : '',
                 )}
                 style={{
                   left: location.x,
                   top: location.y,
-                  width: location.w,
-                  height: location.h,
+                  width: `clamp(6.5rem, ${location.w}, 15rem)`,
+                  aspectRatio: '535 / 420',
                 }}
                 onMouseEnter={() => setActiveLocation(location.id)}
                 onMouseLeave={() => setActiveLocation(null)}
                 onFocus={() => setActiveLocation(location.id)}
                 onBlur={() => setActiveLocation(null)}
                 onTouchStart={() => setActiveLocation(location.id)}
+                onTouchEnd={() => window.setTimeout(() => setActiveLocation(null), 500)}
                 aria-label={`${location.title}, locked`}
               >
-                <span
+                <img
+                  src={location.image}
+                  alt=""
                   className={cn(
-                    'absolute inset-0 rounded-lg bg-gradient-to-br opacity-55 transition-opacity duration-200',
-                    location.color,
-                    isActive ? 'opacity-90' : 'opacity-35 group-hover:opacity-90 group-focus-visible:opacity-90 group-active:opacity-90',
+                    'h-full w-full object-cover transition-all duration-200',
+                    isActive ? 'grayscale-0 saturate-125' : 'grayscale saturate-50 brightness-75 group-hover:grayscale-0 group-hover:saturate-125 group-hover:brightness-100 group-focus-visible:grayscale-0 group-focus-visible:saturate-125 group-focus-visible:brightness-100 group-active:grayscale-0 group-active:saturate-125 group-active:brightness-100',
                   )}
                 />
-                <span className="absolute inset-x-2 bottom-2 h-3 rounded-full bg-white/70 blur-sm" />
-                <span className="relative flex h-full flex-col items-center justify-center gap-2 rounded-lg border border-black/20 bg-white/20 px-1 text-center backdrop-blur-[1px]">
-                  <Icon className="h-7 w-7 text-black/70 sm:h-10 sm:w-10" />
-                  <span className="max-w-full truncate text-[10px] font-black uppercase tracking-normal text-black sm:text-xs">
-                    {location.title}
-                  </span>
-                  <span className="inline-flex h-9 w-11 items-center justify-center rounded-lg border border-black/25 bg-zinc-200/95 shadow-lg">
-                    <Lock className="h-5 w-5 text-zinc-900" />
-                  </span>
+                <span className="absolute inset-0 rounded-lg bg-black/25 transition-colors duration-200 group-hover:bg-black/5 group-focus-visible:bg-black/5 group-active:bg-black/5" />
+                <span className="absolute left-1/2 top-1/2 inline-flex h-10 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-lg border border-black/35 bg-zinc-200/95 shadow-[0_8px_18px_rgba(0,0,0,0.5)] transition-transform duration-200 group-hover:scale-105 group-active:scale-95 sm:h-12 sm:w-14">
+                  <Lock className="h-5 w-5 text-zinc-900 sm:h-6 sm:w-6" />
                 </span>
               </button>
             );

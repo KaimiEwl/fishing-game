@@ -29,7 +29,18 @@ import {
   upsertLeaderboardEntry,
 } from '@/lib/leaderboard';
 import type { DailyTaskId, GameTab, GrillLeaderboardEntry, GrillRecipe, WheelPrize } from '@/types/game';
-import { Compass, Mail } from 'lucide-react';
+import { Mail } from 'lucide-react';
+
+const TRAVEL_ICON_SRC = publicAsset('assets/map_travel_icon.png');
+
+const MAP_LOCATION_ASSETS = [
+  publicAsset('assets/map_treasure_vault.jpg'),
+  publicAsset('assets/map_skull_cove.jpg'),
+  publicAsset('assets/map_coral_castle.jpg'),
+  publicAsset('assets/map_volcano_grill.jpg'),
+  publicAsset('assets/map_island_market.jpg'),
+  publicAsset('assets/map_wheel_pier.jpg'),
+];
 
 const PRELOAD_ASSETS = [
   publicAsset('assets/bg_main.jpg'),
@@ -41,6 +52,8 @@ const PRELOAD_ASSETS = [
   publicAsset('assets/rod_legendary.png'),
   publicAsset('assets/bg_tasks.jpg'),
   publicAsset('assets/bg_wheel.jpg'),
+  TRAVEL_ICON_SRC,
+  ...MAP_LOCATION_ASSETS,
   ...Object.values(FISH_IMAGE_SRC),
 ];
 
@@ -326,11 +339,17 @@ const FishingGame: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab('map')}
-              className="absolute right-[8%] top-[17%] z-20 inline-flex min-h-12 items-center gap-2 rounded-lg border border-cyan-300/25 bg-black/75 px-3 text-sm font-black uppercase tracking-normal text-cyan-100 shadow-[0_14px_34px_rgba(0,0,0,0.5)] backdrop-blur-md transition-all hover:scale-105 hover:border-cyan-300/50 hover:bg-zinc-950 active:scale-95 sm:right-[14%] sm:top-[20%] sm:px-4 sm:text-base"
+              className="group absolute right-[7%] top-[15%] z-20 w-28 overflow-hidden rounded-lg border border-yellow-300/70 bg-black shadow-[0_16px_36px_rgba(0,0,0,0.5)] outline-none transition-all duration-200 hover:scale-105 hover:border-yellow-200 focus-visible:scale-105 focus-visible:border-yellow-200 active:scale-95 sm:right-[13%] sm:top-[18%] sm:w-44 md:w-52"
               aria-label="Open travel map"
             >
-              <Compass className="h-5 w-5" />
-              Travel
+              <img
+                src={TRAVEL_ICON_SRC}
+                alt=""
+                className="block aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+              />
+              <span className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-lg border border-yellow-200/45 bg-black/80 px-2 py-1 text-[10px] font-black uppercase tracking-normal text-yellow-100 shadow-lg sm:text-xs">
+                Travel
+              </span>
             </button>
           )}
 
