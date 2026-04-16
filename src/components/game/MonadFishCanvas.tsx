@@ -29,6 +29,12 @@ const drawAnimatedSprite = (
     ctx.save();
     ctx.translate(glide * 0.8 * intensity, Math.cos(phase * 1.35) * 0.75 * intensity);
     ctx.transform(1 + squash, skew, 0, 1 - squash * 0.35, 0, 0);
+    
+    // Тень для пузика
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
+    ctx.shadowBlur = 12;
+    ctx.shadowOffsetY = 8;
+    
     ctx.drawImage(img, -width / 2, -height / 2, width, height);
     ctx.restore();
 };
@@ -326,7 +332,24 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
 
             // === ФОН (Заменяем небо и воду) ===
             if (bgImgRef.current) {
-                ctx.drawImage(bgImgRef.current, 0, 0, w, h);
+                const img = bgImgRef.current;
+                const aspect = img.width / img.height;
+                const canvasAspect = w / h;
+                
+                let drawW = w;
+                let drawH = h;
+                let offsetX = 0;
+                let offsetY = 0;
+                
+                if (canvasAspect > aspect) {
+                    drawH = w / aspect;
+                    offsetY = (h - drawH) / 2;
+                } else {
+                    drawW = h * aspect;
+                    offsetX = (w - drawW) / 2;
+                }
+                
+                ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
             } else {
                 ctx.fillStyle = '#0a0a2e';
                 ctx.fillRect(0, 0, w, h);
