@@ -376,8 +376,8 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
                 // Кончик удочки — вычисляем с учётом поворота лодки
                 const cx = boatX + boatDrawW / 2;
                 const cy = boatY + boatDrawH / 2;
-                const localRodX = boatDrawW * 0.493;
-                const localRodY = -boatDrawH * 0.323;
+                const localRodX = boatDrawW * 0.47;
+                const localRodY = -boatDrawH * 0.374;
                 const cosR = Math.cos(rockAngle), sinR = Math.sin(rockAngle);
                 rodTipX = cx + localRodX * cosR - localRodY * sinR;
                 rodTipY = cy + localRodX * sinR + localRodY * cosR;
@@ -617,8 +617,8 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
             const boatX = w * 0.04;
             const cx = boatX + boatDrawW / 2;
             const cy = (wl - boatDrawH * 0.62) + boatDrawH / 2;
-            const startX = cx + boatDrawW * 0.493;
-            const startY = cy - boatDrawH * 0.323;
+            const startX = cx + boatDrawW * 0.47;
+            const startY = cy - boatDrawH * 0.374;
             const targetX = w * 0.5 + Math.random() * (w * 0.3);
             const targetY = wl;
 
