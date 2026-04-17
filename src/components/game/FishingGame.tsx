@@ -39,7 +39,7 @@ import {
   saveGlobalLeaderboardEntry,
   upsertLeaderboardEntry,
 } from '@/lib/leaderboard';
-import type { DailyTaskId, GameTab, GrillLeaderboardEntry, GrillRecipe, WheelPrize } from '@/types/game';
+import { NFT_ROD_DATA, type DailyTaskId, type GameTab, type GrillLeaderboardEntry, type GrillRecipe, type WheelPrize } from '@/types/game';
 
 const TRAVEL_ICON_SRC = travelIconSrc;
 
@@ -62,6 +62,8 @@ const PRELOAD_ASSETS = [
   publicAsset('assets/rod_legendary.png'),
   publicAsset('assets/bg_tasks.jpg'),
   publicAsset('assets/bg_wheel.jpg'),
+  publicAsset('assets/fish_got_away_panel.png'),
+  publicAsset('assets/inventory_button_panel.png'),
   TRAVEL_ICON_SRC,
   ...MAP_LOCATION_ASSETS,
   ...Object.values(FISH_IMAGE_SRC),
@@ -165,6 +167,13 @@ const FishingGame: React.FC = () => {
   const currentLeaderboardEntry = useMemo(() => (
     leaderboardEntries.find((entry) => entry.id === leaderboardPlayerId)
   ), [leaderboardEntries, leaderboardPlayerId]);
+  const missXpReward = useMemo(() => {
+    const nftBonus = player.nftRods.includes(player.equippedRod)
+      ? NFT_ROD_DATA.find((rod) => rod.rodLevel === player.equippedRod)?.xpBonus ?? 0
+      : 0;
+
+    return Math.floor(5 * (1 + nftBonus / 100));
+  }, [player.equippedRod, player.nftRods]);
 
   const saveCurrentLeaderboardEntry = useCallback((name: string, score: number, dishesDelta = 0) => {
     setLeaderboardEntries((entries) => {
@@ -481,6 +490,8 @@ const FishingGame: React.FC = () => {
               nftRods={player.nftRods}
               biteTimeLeft={biteTimeLeft}
               biteTimeTotal={biteTimeTotal}
+              missXpReward={missXpReward}
+              isMobile={isMobile}
             />
           )}
 

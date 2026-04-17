@@ -50,6 +50,11 @@ In progress.
 - expanded cube rewards to support both coin prizes and fish prizes, with fish tiles reusing the same fish art and relative rarity weighting from the fishing table
 - added a dedicated inventory-only fish reward path for cube prizes so rewarded fish do not incorrectly grant catch XP or daily-task catch progress
 - cleaned the `Volcano Grill` travel-map asset corners so the preview no longer shows a square brown backing outside the rounded card shape
+- swapped the missed-catch result card to a new illustrated `The fish got away...` panel and added a large XP reward readout under it
+- replaced the inventory trigger art with the new `Inventory...` banner asset from local downloads and kept the fish-count badge on top
+- raised the desktop cast/rod controls so they no longer sit as low against the bottom arcade strip
+- reduced the in-scene wait/cast/reel prompt sizes so they interfere less with the lake view on desktop and mobile
+- unified the boat/rod geometry used by the render loop and cast animation so the fishing line starts from the same rod-tip point on both desktop and mobile
 
 ### Validation for milestone 2
 - `npm run build` - passed
@@ -62,7 +67,7 @@ In progress.
 - remaining backlog items should continue milestone-by-milestone even when an existing queued item is edited mid-thread; this needs to stay explicit in follow-up execution, not inferred from the last single screenshot alone
 
 ### Next recommended step
-- manually verify the fishing screen on desktop and mobile, then continue with any remaining main-loop friction in cast/bite/hook/reward feedback before touching secondary tabs again
+- manually verify the fishing screen on desktop and mobile with the new missed-catch / inventory art and the adjusted rod-line anchor, then continue with any remaining main-loop friction in cast/bite/hook/reward feedback before touching secondary tabs again
 
 ## Known local dirty files before milestone completion
 - `public/assets/pepe_final.png`

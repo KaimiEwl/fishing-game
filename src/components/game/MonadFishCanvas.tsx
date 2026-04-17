@@ -232,6 +232,59 @@ const drawBoatWake = (
     ctx.restore();
 };
 
+interface BoatMetrics {
+    boatX: number;
+    boatY: number;
+    boatDrawW: number;
+    boatDrawH: number;
+    centerX: number;
+    centerY: number;
+    driftOffsetX: number;
+    bobOffsetY: number;
+    rockAngle: number;
+    rodTipX: number;
+    rodTipY: number;
+}
+
+const getBoatMetrics = (
+    w: number,
+    h: number,
+    t: number,
+    img: HTMLImageElement | null
+): BoatMetrics => {
+    const waterLevel = h * 0.32;
+    const boatX = w * 0.04;
+    const boatDrawH = Math.min(220, h * 0.3);
+    const aspect = img ? img.width / img.height : 1.5;
+    const boatDrawW = boatDrawH * aspect;
+    const driftOffsetX = Math.sin(t * 0.75) * 1.6;
+    const bobOffsetY = Math.sin(t * 1.35) * 2 + Math.cos(t * 0.72) * 0.7;
+    const boatY = waterLevel - boatDrawH * 0.79 + bobOffsetY;
+    const centerX = boatX + driftOffsetX + boatDrawW / 2;
+    const centerY = boatY + boatDrawH / 2;
+    const rockAngle = Math.sin(t * 1.5) * 0.015 + Math.cos(t * 0.9) * 0.006;
+
+    // Tuned against the current boat sprite so the line leaves the visible tip.
+    const localRodX = boatDrawW * 0.484;
+    const localRodY = -boatDrawH * 0.392;
+    const cosR = Math.cos(rockAngle);
+    const sinR = Math.sin(rockAngle);
+
+    return {
+        boatX,
+        boatY,
+        boatDrawW,
+        boatDrawH,
+        centerX,
+        centerY,
+        driftOffsetX,
+        bobOffsetY,
+        rockAngle,
+        rodTipX: centerX + localRodX * cosR - localRodY * sinR,
+        rodTipY: centerY + localRodX * sinR + localRodY * cosR,
+    };
+};
+
 interface MonadFishCanvasProps {
     onCast: () => void;
     gameState: string;
@@ -570,47 +623,55 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
 
             // === ПЕПЕ В ЛОДКЕ ===
             const pepe = pepeImgRef.current;
-            const boatX = w * 0.04;
-            const boatDrawH = Math.min(220, h * 0.3);
-            let rodTipX = boatX + 200;
-            let rodTipY = waterLevel - 80;
+            const boatMetrics = getBoatMetrics(w, h, t, pepe);
+            let rodTipX = boatMetrics.rodTipX;
+            let rodTipY = boatMetrics.rodTipY;
 
             if (pepe) {
-                const aspect = pepe.width / pepe.height;
-                const boatDrawW = boatDrawH * aspect;
-                const bobOffsetY = Math.sin(t * 1.35) * 2 + Math.cos(t * 0.72) * 0.7;
-                const driftOffsetX = Math.sin(t * 0.75) * 1.6;
-                const boatY = waterLevel - boatDrawH * 0.79 + bobOffsetY;
-                const rockAngle = Math.sin(t * 1.5) * 0.015 + Math.cos(t * 0.9) * 0.006;
+                drawBoatReflection(
+                    ctx,
+                    pepe,
+                    boatMetrics.boatX + boatMetrics.driftOffsetX,
+                    boatMetrics.boatY,
+                    boatMetrics.boatDrawW,
+                    boatMetrics.boatDrawH,
+                    waterLevel,
+                    t
+                );
+                drawBoatWake(ctx, boatMetrics.centerX, waterLevel, boatMetrics.boatDrawW, t);
 
                 // Кончик удочки — вычисляем с учётом поворота лодки
-                const cx = boatX + driftOffsetX + boatDrawW / 2;
-                const cy = boatY + boatDrawH / 2;
-                const localRodX = boatDrawW * 0.47;
-                const localRodY = -boatDrawH * 0.374;
-                const cosR = Math.cos(rockAngle), sinR = Math.sin(rockAngle);
-                rodTipX = cx + localRodX * cosR - localRodY * sinR;
-                rodTipY = cy + localRodX * sinR + localRodY * cosR;
-
-                drawBoatReflection(ctx, pepe, boatX + driftOffsetX, boatY, boatDrawW, boatDrawH, waterLevel, t);
-                drawBoatWake(ctx, cx, waterLevel, boatDrawW, t);
-
                 ctx.save();
-                ctx.translate(cx, cy);
-                ctx.rotate(rockAngle);
+                ctx.translate(boatMetrics.centerX, boatMetrics.centerY);
+                ctx.rotate(boatMetrics.rockAngle);
                 if (gameState === 'biting' || gameState === 'catching' || gameState === 'result') {
                     ctx.rotate(-0.06 + Math.sin(t * 8) * 0.03);
                 }
                 // Тень лодки
                 ctx.save(); ctx.globalAlpha = 0.15; ctx.fillStyle = '#000';
-                ctx.beginPath(); ctx.ellipse(0, boatDrawH * 0.35, boatDrawW * 0.45, 8, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.ellipse(0, boatMetrics.boatDrawH * 0.35, boatMetrics.boatDrawW * 0.45, 8, 0, 0, Math.PI * 2); ctx.fill();
                 ctx.restore();
 
-                ctx.drawImage(pepe, -boatDrawW / 2, -boatDrawH / 2, boatDrawW, boatDrawH);
+                ctx.drawImage(
+                    pepe,
+                    -boatMetrics.boatDrawW / 2,
+                    -boatMetrics.boatDrawH / 2,
+                    boatMetrics.boatDrawW,
+                    boatMetrics.boatDrawH
+                );
                 ctx.restore();
-                drawBoatWaterlineOverlay(ctx, boatX + driftOffsetX, boatY, boatDrawW, boatDrawH, waterLevel, t);
+                drawBoatWaterlineOverlay(
+                    ctx,
+                    boatMetrics.boatX + boatMetrics.driftOffsetX,
+                    boatMetrics.boatY,
+                    boatMetrics.boatDrawW,
+                    boatMetrics.boatDrawH,
+                    waterLevel,
+                    t
+                );
             } else {
                 // Фоллбек лодка
+                const boatX = w * 0.04;
                 ctx.fillStyle = '#8B4513';
                 const bw = 140, bh = 35, by2 = waterLevel - bh * 0.4;
                 ctx.beginPath(); ctx.ellipse(boatX + bw / 2, by2, bw / 2, bh / 2, 0, 0, Math.PI); ctx.fill();
@@ -824,15 +885,11 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
             const { w, h } = getCanvasSize();
             const wl = h * 0.32;
             const pepe = pepeImgRef.current;
-            const boatDrawH = Math.min(220, h * 0.3);
-            const aspect = pepe ? pepe.width / pepe.height : 1.5;
-            const boatDrawW = boatDrawH * aspect;
+            const castPhase = Date.now() * 0.001;
+            const boatMetrics = getBoatMetrics(w, h, castPhase, pepe);
             // Стартовая позиция = кончик удочки (пропорции из анализа спрайта)
-            const boatX = w * 0.04;
-            const cx = boatX + boatDrawW / 2;
-            const cy = (wl - boatDrawH * 0.79) + boatDrawH / 2;
-            const startX = cx + boatDrawW * 0.47;
-            const startY = cy - boatDrawH * 0.374;
+            const startX = boatMetrics.rodTipX;
+            const startY = boatMetrics.rodTipY;
             const targetX = w * 0.5 + Math.random() * (w * 0.3);
             const targetY = wl;
 

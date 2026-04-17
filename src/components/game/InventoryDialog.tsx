@@ -15,6 +15,8 @@ import { publicAsset } from '@/lib/assets';
 import { Backpack, Check, ShipWheel } from 'lucide-react';
 import FishIcon from './FishIcon';
 
+const INVENTORY_BUTTON_PANEL = publicAsset('assets/inventory_button_panel.png');
+
 const ROD_INFO = [
   { name: 'Starter', image: publicAsset('assets/rod_basic.png'), color: '#aaa', bonus: 0 },
   { name: 'Bamboo', image: publicAsset('assets/rod_bamboo.png'), color: '#22aa44', bonus: 5 },
@@ -54,17 +56,18 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({ inventory, rodLevel, 
       <DialogTrigger asChild>
         <button
           aria-label={`Open inventory, ${totalFish} fish`}
-          className="group/inv relative inline-flex min-h-12 items-center justify-center gap-2 rounded-[14px] border border-[#f4cf75]/65 px-3.5 py-2 text-cyan-50 shadow-[0_16px_32px_rgba(0,0,0,0.42)] transition-all hover:scale-[1.03] hover:border-[#ffd88a] hover:brightness-105 active:scale-95 sm:min-h-14 sm:min-w-[9rem] sm:px-4.5"
-          style={{
-            background: 'linear-gradient(180deg, rgba(24,93,174,0.96), rgba(9,33,78,0.96))',
-          }}
+          className="group/inv relative inline-flex items-center justify-center bg-transparent p-0 shadow-none transition-transform hover:scale-[1.03] active:scale-95"
         >
-          <span className="absolute inset-[1px] rounded-[13px] bg-[linear-gradient(180deg,rgba(56,189,248,0.18),rgba(5,16,38,0.08))]" aria-hidden="true" />
-          <span className="absolute inset-x-2 top-[2px] h-[38%] rounded-full bg-white/12 blur-[2px]" aria-hidden="true" />
-          <Backpack className="relative h-[18px] w-[18px] drop-shadow-md sm:h-5 sm:w-5" />
-          <span className="relative text-sm font-black tracking-normal text-white drop-shadow-[0_1px_6px_rgba(0,0,0,0.55)]">Inventory</span>
+          <img
+            src={INVENTORY_BUTTON_PANEL}
+            alt=""
+            aria-hidden="true"
+            className="block w-[10.5rem] object-contain drop-shadow-[0_12px_30px_rgba(0,0,0,0.42)] sm:w-[13.25rem]"
+            draggable={false}
+          />
+          <span className="sr-only">Inventory</span>
           {totalFish > 0 && (
-            <span className="absolute -right-2 -top-2 min-w-[22px] rounded-full bg-[#ffd86c] px-2 py-0.5 text-center text-xs font-bold leading-tight text-black shadow-lg ring-2 ring-black/55">
+            <span className="absolute right-1 top-0 min-w-[24px] rounded-full bg-[#ffd86c] px-2 py-0.5 text-center text-xs font-bold leading-tight text-black shadow-lg ring-2 ring-black/55 sm:right-2 sm:top-1">
               {totalFish}
             </span>
           )}

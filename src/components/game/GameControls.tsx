@@ -1,5 +1,5 @@
 import React from 'react';
-import { GameState, GameResult } from '@/types/game';
+import { GameResult, GameState } from '@/types/game';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import FishDisplay from './FishDisplay';
@@ -7,6 +7,7 @@ import { publicAsset } from '@/lib/assets';
 
 const CAST_BUTTON_BLUE = publicAsset('assets/cast_button_blue.png');
 const CAST_BUTTON_GREEN = publicAsset('assets/cast_button_green.png');
+const FISH_GOT_AWAY_PANEL = publicAsset('assets/fish_got_away_panel.png');
 
 const ROD_INFO = [
   { name: 'Starter', image: publicAsset('assets/rod_basic.png'), color: '#aaa', bonus: 0 },
@@ -26,6 +27,8 @@ interface GameControlsProps {
   nftRods?: number[];
   biteTimeLeft?: number;
   biteTimeTotal?: number;
+  missXpReward?: number;
+  isMobile?: boolean;
 }
 
 const GameControls: React.FC<GameControlsProps> = ({
@@ -38,6 +41,8 @@ const GameControls: React.FC<GameControlsProps> = ({
   nftRods = [],
   biteTimeLeft = 0,
   biteTimeTotal = 1,
+  missXpReward = 5,
+  isMobile = false,
 }) => {
   const rod = ROD_INFO[rodLevel] || ROD_INFO[0];
   const hasNft = nftRods.includes(rodLevel);
@@ -51,45 +56,63 @@ const GameControls: React.FC<GameControlsProps> = ({
   return (
     <>
       {gameState !== 'idle' && (
-        <div className="fixed top-[36%] left-1/2 z-20 w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 -translate-y-1/2 sm:top-[40%]">
+        <div className="fixed left-1/2 top-[35%] z-20 w-[calc(100%-1.5rem)] max-w-[min(30rem,92vw)] -translate-x-1/2 -translate-y-1/2 sm:top-[39%]">
           {gameState === 'result' && lastResult && (
-            <div className="animate-scale-in rounded-lg border border-cyan-300/20 bg-black/90 p-4 text-zinc-100 shadow-2xl backdrop-blur-sm sm:p-6">
+            <div className="animate-scale-in rounded-2xl border border-cyan-300/18 bg-black/84 p-3 text-zinc-100 shadow-2xl backdrop-blur-md sm:p-4">
               {lastResult.success && lastResult.fish ? (
                 <div className="flex flex-col items-center">
                   <p className="mb-2 text-lg font-bold text-cyan-100">Caught!</p>
                   <FishDisplay fish={lastResult.fish} showDetails size="lg" />
                 </div>
               ) : (
-                <div className="py-4 text-center">
-                  <p className="mb-2 text-4xl">🌊</p>
-                  <p className="text-lg font-medium text-zinc-300">The fish got away...</p>
-                  <p className="text-sm text-zinc-500">+5 XP for trying</p>
+                <div className="flex flex-col items-center gap-3 text-center">
+                  <img
+                    src={FISH_GOT_AWAY_PANEL}
+                    alt="The fish got away"
+                    className="block w-full max-w-[26rem] rounded-xl object-contain shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+                    draggable={false}
+                  />
+                  <div className="rounded-2xl border border-amber-300/18 bg-black/72 px-4 py-2.5 shadow-lg">
+                    <p className="text-2xl font-black leading-none text-amber-300 sm:text-4xl">
+                      +{missXpReward} XP
+                    </p>
+                    <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-300/80 sm:text-xs">
+                      Experience for trying
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
           )}
 
           {gameState === 'casting' && (
-            <div className="rounded-lg border border-cyan-300/20 bg-black/85 px-6 py-3 text-center shadow-xl backdrop-blur-sm">
-              <p className="animate-pulse text-lg font-medium text-cyan-100">Casting...</p>
+            <div className="rounded-xl border border-cyan-300/16 bg-black/78 px-4 py-2.5 text-center shadow-xl backdrop-blur-sm">
+              <p className="animate-pulse text-sm font-semibold text-cyan-100 sm:text-base">Casting...</p>
             </div>
           )}
 
           {gameState === 'waiting' && (
-            <div className="rounded-lg border border-cyan-300/20 bg-black/85 px-6 py-3 text-center shadow-xl backdrop-blur-sm">
-              <p className="animate-pulse text-lg font-medium text-zinc-100">Waiting for a bite...</p>
+            <div className="rounded-xl border border-cyan-300/16 bg-black/78 px-4 py-2.5 text-center shadow-xl backdrop-blur-sm">
+              <p className="animate-pulse text-sm font-semibold text-zinc-100 sm:text-base">Waiting for a bite...</p>
             </div>
           )}
 
           {gameState === 'catching' && (
-            <div className="rounded-lg border border-cyan-300/20 bg-black/85 px-6 py-3 text-center shadow-xl backdrop-blur-sm">
-              <p className="animate-pulse text-lg font-medium text-cyan-100">Reeling in!</p>
+            <div className="rounded-xl border border-cyan-300/16 bg-black/78 px-4 py-2.5 text-center shadow-xl backdrop-blur-sm">
+              <p className="animate-pulse text-sm font-semibold text-cyan-100 sm:text-base">Reeling in!</p>
             </div>
           )}
         </div>
       )}
 
-      <div className="fixed bottom-[calc(var(--bottom-nav-clearance,0px)+0.35rem)] left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-3">
+      <div
+        className="fixed left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-3"
+        style={{
+          bottom: isMobile
+            ? 'calc(var(--bottom-nav-clearance,0px) + 0.4rem)'
+            : 'calc(var(--bottom-nav-clearance,0px) + 1.95rem)',
+        }}
+      >
         {gameState === 'biting' && (
           <div className="w-[11.75rem] rounded-xl border border-cyan-300/18 bg-black/82 px-3 py-2 shadow-xl backdrop-blur-md sm:w-[13.5rem]">
             <div className="h-2 overflow-hidden rounded-full border border-zinc-800 bg-zinc-950">
@@ -105,7 +128,7 @@ const GameControls: React.FC<GameControlsProps> = ({
                 }}
               />
             </div>
-            <p className="mt-1.5 text-center text-[11px] font-bold uppercase tracking-normal text-cyan-100/88">
+            <p className="mt-1.5 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-cyan-100/80 sm:text-[11px]">
               Fish on the line
             </p>
           </div>
