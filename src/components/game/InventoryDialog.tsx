@@ -70,7 +70,7 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({ inventory, rodLevel, 
           )}
         </button>
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100svh-1rem)] max-w-[calc(100vw-1rem)] border border-cyan-300/15 bg-black/95 text-zinc-100 shadow-2xl backdrop-blur-md sm:max-w-md">
+      <DialogContent className="max-h-[calc(100svh-1rem)] w-[min(36rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] overflow-x-hidden border border-cyan-300/15 bg-black/95 text-zinc-100 shadow-2xl backdrop-blur-md sm:max-w-[36rem]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl text-zinc-100">
             <Backpack className="h-5 w-5 text-cyan-100" />
@@ -84,8 +84,8 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({ inventory, rodLevel, 
             <TabsTrigger value="rods" className="gap-1.5 text-zinc-200 data-[state=active]:bg-black data-[state=active]:text-cyan-100"><ShipWheel className="h-4 w-4" /> Rods ({ownedRods.length})</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="fish" className="mt-4">
-            <ScrollArea className="h-[min(250px,35vh)] pr-4">
+          <TabsContent value="fish" className="mt-4 min-w-0">
+            <ScrollArea className="h-[min(300px,42vh)] pr-2">
               {inventoryItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center py-12">
                   <FishIcon fishId="carp" className="mb-4 h-12 w-12 opacity-70" />
@@ -95,7 +95,7 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({ inventory, rodLevel, 
                   </p>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-2 pr-2">
                   {inventoryItems.map((item) => (
                     <InventoryItem
                       key={item.fishId}
@@ -110,8 +110,8 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({ inventory, rodLevel, 
             </ScrollArea>
           </TabsContent>
 
-          <TabsContent value="rods" className="mt-4">
-            <ScrollArea className="h-[min(250px,35vh)] pr-2">
+          <TabsContent value="rods" className="mt-4 min-w-0">
+            <ScrollArea className="h-[min(300px,42vh)] pr-2">
               <div className="space-y-2">
                 {ownedRods.map((level) => {
                   const rod = ROD_INFO[level];
@@ -121,7 +121,7 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({ inventory, rodLevel, 
                   return (
                     <div
                       key={level}
-                      className={`flex items-center gap-4 p-3 rounded-xl border shadow-sm transition-all ${
+                      className={`grid grid-cols-[3.5rem_minmax(0,1fr)] gap-3 rounded-xl border p-3 shadow-sm transition-all ${
                         isEquipped
                           ? 'border-cyan-300/35 bg-zinc-950'
                           : 'border-zinc-800 bg-black hover:border-cyan-300/20 hover:bg-zinc-950'
@@ -146,19 +146,21 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({ inventory, rodLevel, 
                         </div>
                       </div>
 
-                      {isEquipped ? (
-                        <span className="inline-flex whitespace-nowrap rounded-lg border border-cyan-300/20 bg-zinc-950 px-3 py-1.5 text-sm font-bold text-cyan-100">
-                          <Check className="h-4 w-4" /> Equipped
-                        </span>
-                      ) : (
-                        <Button
-                          size="sm"
-                          onClick={() => onEquipRod(level)}
-                          className="rounded-lg border border-cyan-300/25 bg-zinc-950 px-5 font-bold text-cyan-100 shadow-sm hover:bg-black"
-                        >
-                          Equip
-                        </Button>
-                      )}
+                      <div className="col-span-2 flex justify-end border-t border-zinc-800/80 pt-3">
+                        {isEquipped ? (
+                          <span className="inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-lg border border-cyan-300/20 bg-zinc-950 px-3 py-1.5 text-sm font-bold text-cyan-100">
+                            <Check className="h-4 w-4" /> Equipped
+                          </span>
+                        ) : (
+                          <Button
+                            size="sm"
+                            onClick={() => onEquipRod(level)}
+                            className="min-h-10 rounded-lg border border-cyan-300/25 bg-zinc-950 px-5 font-bold text-cyan-100 shadow-sm hover:bg-black"
+                          >
+                            Equip
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -182,9 +184,9 @@ const InventoryItem: React.FC<InventoryItemProps> = ({ fish, quantity, onSell })
   const totalValue = fish.price * quantity;
 
   return (
-    <div className="group flex flex-wrap items-center gap-3 overflow-hidden rounded-xl border border-zinc-800 bg-black p-3 shadow-sm transition-all hover:border-cyan-300/20 hover:bg-zinc-950 hover:shadow-md sm:flex-nowrap">
+    <div className="group grid grid-cols-[3.5rem_minmax(0,1fr)] gap-3 overflow-hidden rounded-xl border border-zinc-800 bg-black p-3 shadow-sm transition-all hover:border-cyan-300/20 hover:bg-zinc-950 hover:shadow-md">
       <div
-        className="w-14 h-14 shrink-0 rounded-xl flex items-center justify-center overflow-visible shadow-inner"
+        className="flex h-14 w-14 shrink-0 items-center justify-center overflow-visible rounded-xl shadow-inner"
         style={{
           background: `linear-gradient(135deg, ${RARITY_COLORS[fish.rarity]}30, ${RARITY_COLORS[fish.rarity]}10)`,
           border: `1px solid ${RARITY_COLORS[fish.rarity]}40`
@@ -193,8 +195,8 @@ const InventoryItem: React.FC<InventoryItemProps> = ({ fish, quantity, onSell })
         <FishIcon fish={fish} className="h-12 w-12 drop-shadow-md group-hover:scale-110 transition-transform" />
       </div>
 
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
+      <div className="min-w-0">
+        <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="font-bold text-sm truncate drop-shadow-sm" style={{ color: RARITY_COLORS[fish.rarity] }}>{fish.name}</span>
           <span
             className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider backdrop-blur-sm"
@@ -209,15 +211,15 @@ const InventoryItem: React.FC<InventoryItemProps> = ({ fish, quantity, onSell })
         <p className="truncate text-xs text-zinc-500">{fish.description}</p>
       </div>
 
-      <div className="flex w-full shrink-0 items-end justify-between gap-2 text-right sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:gap-4">
-        <div className="flex flex-col items-end">
-          <span className="mb-1 rounded-md border border-zinc-800 bg-zinc-950 px-2 py-0.5 text-sm font-bold text-zinc-100">x{quantity}</span>
+      <div className="col-span-2 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-800/80 pt-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="rounded-md border border-zinc-800 bg-zinc-950 px-2 py-0.5 text-sm font-bold text-zinc-100">x{quantity}</span>
           <span className="flex items-center gap-1 text-xs font-semibold text-zinc-500 drop-shadow-sm">Total: {totalValue} <CoinIcon size={12} /></span>
         </div>
         <Button
           size="sm"
           onClick={onSell}
-          className="flex min-h-10 items-center gap-1.5 rounded-lg border border-emerald-300/25 bg-zinc-950 px-4 font-bold text-emerald-100 shadow hover:bg-black"
+          className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg border border-emerald-300/25 bg-zinc-950 px-4 font-bold text-emerald-100 shadow hover:bg-black"
         >
           Sell (+{fish.price})
         </Button>

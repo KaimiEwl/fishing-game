@@ -42,6 +42,9 @@ In progress.
 - restyled the `Inventory` trigger into the same arcade/button language as the rest of the HUD
 - tightened the Travel Map preview cards so the hover/active zone follows the card shape instead of a larger square hit box
 - re-cut the `Volcano Grill` map card into a cleaner rounded rectangle so it no longer drags extra padding around the icon
+- stabilized the inventory modal layout so narrow dialog width no longer forces fish and rod rows into a broken single-line layout
+- removed the inventory dialog's horizontal overflow path by widening the modal slightly, constraining inner content with `min-w-0`, and moving quantity / sell actions onto a dedicated bottom row
+- restructured rod cards to use a two-row grid so the equip action stays visible instead of clipping off the right edge
 
 ### Validation for milestone 2
 - `npm run build` - passed
@@ -51,6 +54,7 @@ In progress.
 ### Unresolved issues
 - repo-wide lint debt remains in older files such as `MonadFishCanvas.tsx`, admin pages, UI primitives, and Supabase function code
 - main-loop behavior still needs a hands-on gameplay pass in browser/mobile to confirm feel and timing after the layout fixes
+- remaining backlog items should continue milestone-by-milestone even when an existing queued item is edited mid-thread; this needs to stay explicit in follow-up execution, not inferred from the last single screenshot alone
 
 ### Next recommended step
 - manually verify the fishing screen on desktop and mobile, then continue with any remaining main-loop friction in cast/bite/hook/reward feedback before touching secondary tabs again
