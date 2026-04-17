@@ -49,6 +49,7 @@ In progress.
 - removed the old winner arrow and switched to tile glow/highlight feedback on the active cube face
 - expanded cube rewards to support both coin prizes and fish prizes, with fish tiles reusing the same fish art and relative rarity weighting from the fishing table
 - added a dedicated inventory-only fish reward path for cube prizes so rewarded fish do not incorrectly grant catch XP or daily-task catch progress
+- cleaned the `Volcano Grill` travel-map asset corners so the preview no longer shows a square brown backing outside the rounded card shape
 
 ### Validation for milestone 2
 - `npm run build` - passed
