@@ -45,6 +45,10 @@ In progress.
 - stabilized the inventory modal layout so narrow dialog width no longer forces fish and rod rows into a broken single-line layout
 - removed the inventory dialog's horizontal overflow path by widening the modal slightly, constraining inner content with `min-w-0`, and moving quantity / sell actions onto a dedicated bottom row
 - restructured rod cards to use a two-row grid so the equip action stays visible instead of clipping off the right edge
+- reworked the cube reward flow so it is no longer hardcoded to the center tile of the front face; the cube now stops on a random face and then a running glow selects the winning tile on that face
+- removed the old winner arrow and switched to tile glow/highlight feedback on the active cube face
+- expanded cube rewards to support both coin prizes and fish prizes, with fish tiles reusing the same fish art and relative rarity weighting from the fishing table
+- added a dedicated inventory-only fish reward path for cube prizes so rewarded fish do not incorrectly grant catch XP or daily-task catch progress
 
 ### Validation for milestone 2
 - `npm run build` - passed

@@ -170,6 +170,29 @@ export function useGameState(options?: UseGameStateOptions) {
     options?.onFishCaught?.(caughtFish);
   }, [getNftBonus, options]);
 
+  const grantFishReward = useCallback((fishId: string, quantity = 1) => {
+    const rewardedFish = FISH_DATA.find((fish) => fish.id === fishId);
+    if (!rewardedFish || quantity <= 0) return null;
+
+    setPlayer((prev) => {
+      const existingFish = prev.inventory.find((item) => item.fishId === rewardedFish.id);
+      const newInventory = existingFish
+        ? prev.inventory.map((item) => (
+            item.fishId === rewardedFish.id
+              ? { ...item, quantity: item.quantity + quantity }
+              : item
+          ))
+        : [...prev.inventory, { fishId: rewardedFish.id, caughtAt: new Date(), quantity }];
+
+      return {
+        ...prev,
+        inventory: newInventory,
+      };
+    });
+
+    return rewardedFish;
+  }, []);
+
   const applyMissXp = useCallback(() => {
     setPlayer(prev => {
       const nftB = getNftBonus(prev.equippedRod, prev.nftRods);
@@ -412,6 +435,7 @@ export function useGameState(options?: UseGameStateOptions) {
     buyRod,
     equipRod,
     addCoins,
+    grantFishReward,
     claimDailyBonus,
     dismissLevelUp,
     mintNftRod,

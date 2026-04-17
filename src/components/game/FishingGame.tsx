@@ -147,6 +147,7 @@ const FishingGame: React.FC = () => {
     buyRod,
     equipRod,
     addCoins,
+    grantFishReward,
     dismissLevelUp,
     mintNftRod,
     setNickname,
@@ -322,14 +323,23 @@ const FishingGame: React.FC = () => {
   };
 
   const handleSpinWheel = (selectedPrize: WheelPrize): WheelPrize | null => {
-    const prize = gameProgress.spinWheel(addCoins, selectedPrize);
+    const applyCubeReward = (reward: WheelPrize) => {
+      if (reward.type === 'fish' && reward.fishId) {
+        grantFishReward(reward.fishId, reward.quantity ?? 1);
+        return;
+      }
+
+      addCoins(reward.coins ?? 0);
+    };
+
+    const prize = gameProgress.spinWheel(applyCubeReward, selectedPrize);
     if (prize) {
       sounds.playLevelUpSound();
       return prize;
     }
 
     // Temporary cube test mode: let the prize flow work before daily gates are re-enabled.
-    addCoins(selectedPrize.coins);
+    applyCubeReward(selectedPrize);
     sounds.playLevelUpSound();
     return selectedPrize;
   };

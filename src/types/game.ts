@@ -61,7 +61,10 @@ export interface DailyTaskProgress extends DailyTask {
 export interface WheelPrize {
   id: string;
   label: string;
-  coins: number;
+  type: 'coins' | 'fish';
+  coins?: number;
+  fishId?: string;
+  quantity?: number;
   secret?: boolean;
 }
 
@@ -210,15 +213,15 @@ export const DAILY_TASKS: DailyTask[] = [
 ];
 
 export const WHEEL_PRIZES: WheelPrize[] = [
-  { id: 'coin_1', label: '10 coins', coins: 10 },
-  { id: 'coin_25', label: '100 coins', coins: 100 },
-  { id: 'coin_75', label: '250 coins', coins: 250 },
-  { id: 'coin_150', label: '500 coins', coins: 500 },
-  { id: 'coin_300', label: '1,000 coins', coins: 1000 },
-  { id: 'coin_750', label: '2,500 coins', coins: 2500 },
-  { id: 'coin_1500', label: '5,000 coins', coins: 5000 },
-  { id: 'coin_10000', label: '15,000 coins', coins: 15000 },
-  { id: 'secret_meteor', label: 'Secret Meteor Prize', coins: 20000, secret: true },
+  { id: 'coin_1', type: 'coins', label: '10 coins', coins: 10 },
+  { id: 'coin_25', type: 'coins', label: '100 coins', coins: 100 },
+  { id: 'coin_75', type: 'coins', label: '250 coins', coins: 250 },
+  { id: 'coin_150', type: 'coins', label: '500 coins', coins: 500 },
+  { id: 'coin_300', type: 'coins', label: '1,000 coins', coins: 1000 },
+  { id: 'coin_750', type: 'coins', label: '2,500 coins', coins: 2500 },
+  { id: 'coin_1500', type: 'coins', label: '5,000 coins', coins: 5000 },
+  { id: 'coin_10000', type: 'coins', label: '15,000 coins', coins: 15000 },
+  { id: 'secret_meteor', type: 'coins', label: 'Secret Meteor Prize', coins: 20000, secret: true },
 ];
 
 export const GRILL_RECIPES: GrillRecipe[] = [

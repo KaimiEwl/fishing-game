@@ -46,6 +46,18 @@ const createInitialState = (): GameProgressState => ({
   dishesToday: 0,
 });
 
+const normalizeWheelPrize = (prize: WheelPrize | null | undefined): WheelPrize | null => {
+  if (!prize) return null;
+
+  if (prize.type) return prize;
+
+  return {
+    ...prize,
+    type: prize.fishId ? 'fish' : 'coins',
+    quantity: prize.quantity ?? (prize.fishId ? 1 : undefined),
+  };
+};
+
 const loadState = (): GameProgressState => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -60,6 +72,7 @@ const loadState = (): GameProgressState => {
     return {
       ...createInitialState(),
       ...parsed,
+      wheelPrize: normalizeWheelPrize(parsed.wheelPrize),
       tasks: {
         ...createTasks(),
         ...parsed.tasks,
@@ -163,7 +176,7 @@ export function useGameProgress() {
     return true;
   }, [state.tasks]);
 
-  const spinWheel = useCallback((onReward: (coins: number) => void, selectedPrize?: WheelPrize) => {
+  const spinWheel = useCallback((onReward: (prize: WheelPrize) => void, selectedPrize?: WheelPrize) => {
     if (!wheelReady) return null;
 
     const prize = selectedPrize ?? pickWheelPrize();
@@ -173,7 +186,7 @@ export function useGameProgress() {
       wheelSpun: true,
       wheelPrize: prize,
     }));
-    onReward(prize.coins);
+    onReward(prize);
     return prize;
   }, [wheelReady]);
 
