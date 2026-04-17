@@ -1,8 +1,7 @@
 import React from 'react';
-import { Box, ChefHat, ListChecks, ShoppingBag, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { GameTab } from '@/types/game';
-import FishIcon from './FishIcon';
+import bottomNavArcadePanel from '@/assets/bottom_nav_arcade_panel.png';
 
 interface BottomNavProps {
   activeTab: GameTab;
@@ -10,13 +9,13 @@ interface BottomNavProps {
   wheelReady: boolean;
 }
 
-const navItems: Array<{ id: GameTab; label: string; icon: React.ComponentType<{ className?: string }> | 'fish' }> = [
-  { id: 'fish', label: 'Fish', icon: 'fish' },
-  { id: 'tasks', label: 'Tasks', icon: ListChecks },
-  { id: 'shop', label: 'Shop', icon: ShoppingBag },
-  { id: 'grill', label: 'Grill', icon: ChefHat },
-  { id: 'wheel', label: 'Cube', icon: Box },
-  { id: 'leaderboard', label: 'Board', icon: Trophy },
+const navItems: Array<{ id: GameTab; label: string; glow: string }> = [
+  { id: 'fish', label: 'Fish', glow: 'shadow-[0_0_18px_rgba(59,130,246,0.45),0_0_36px_rgba(14,165,233,0.22)]' },
+  { id: 'tasks', label: 'Tasks', glow: 'shadow-[0_0_18px_rgba(74,222,128,0.48),0_0_36px_rgba(34,197,94,0.22)]' },
+  { id: 'shop', label: 'Shop', glow: 'shadow-[0_0_18px_rgba(250,204,21,0.48),0_0_36px_rgba(245,158,11,0.22)]' },
+  { id: 'grill', label: 'Grill', glow: 'shadow-[0_0_18px_rgba(248,113,113,0.5),0_0_36px_rgba(239,68,68,0.24)]' },
+  { id: 'wheel', label: 'Cube', glow: 'shadow-[0_0_18px_rgba(96,165,250,0.48),0_0_36px_rgba(56,189,248,0.24)]' },
+  { id: 'leaderboard', label: 'Board', glow: 'shadow-[0_0_18px_rgba(255,255,255,0.35),0_0_36px_rgba(250,204,21,0.18)]' },
 ];
 
 const BottomNav: React.FC<BottomNavProps> = ({
@@ -25,39 +24,47 @@ const BottomNav: React.FC<BottomNavProps> = ({
   wheelReady,
 }) => {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:absolute sm:px-5">
-      <div className="mx-auto w-full max-w-3xl overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      <div className="mx-auto flex w-max min-w-full gap-1 rounded-lg border border-cyan-300/15 bg-black/90 p-1.5 shadow-[0_-12px_36px_rgba(0,0,0,0.65)] backdrop-blur-xl sm:grid sm:w-full sm:max-w-3xl sm:grid-cols-6">
-        {navItems.map((item) => {
-          const isActive = activeTab === item.id;
-          const iconClassName = 'h-5 w-5 sm:h-6 sm:w-6';
-          const Icon = item.icon === 'fish' ? null : item.icon;
+    <nav className="relative z-40 shrink-0 border-t border-cyan-900/30 bg-[#05070f] px-1.5 pt-1.5 pb-[max(0.4rem,env(safe-area-inset-bottom))] sm:px-4 sm:pt-2">
+      <div className="mx-auto w-full max-w-5xl">
+        <div className="relative mx-auto h-[5.55rem] w-full max-w-[min(100%,46rem)] sm:h-[6.5rem]">
+          <img
+            src={bottomNavArcadePanel}
+            alt=""
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 h-full w-full rounded-xl object-cover object-center [object-position:center_61%] select-none"
+            draggable={false}
+          />
 
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => onTabChange(item.id)}
-              className={cn(
-                'relative flex h-14 min-w-[4.75rem] flex-col items-center justify-center gap-1 rounded-lg border px-2 text-[10px] font-bold transition sm:h-16 sm:min-w-0 sm:px-1 sm:text-xs',
-                isActive && 'border-cyan-300/35 bg-zinc-900 text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.18)]',
-                !isActive && 'border-transparent bg-black text-zinc-300 hover:border-zinc-700 hover:bg-zinc-950 hover:text-zinc-100',
-              )}
-              aria-current={isActive ? 'page' : undefined}
-            >
-              {item.icon === 'fish' ? (
-                <FishIcon fishId="carp" className={iconClassName} />
-              ) : (
-                <Icon className={iconClassName} />
-              )}
-              <span className="max-w-full truncate">{item.label}</span>
-              {item.id === 'wheel' && wheelReady && (
-                <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.9)]" />
-              )}
-            </button>
-          );
-        })}
-      </div>
+          <div className="pointer-events-none absolute inset-x-[1.8%] bottom-[15%] top-[44%] grid grid-cols-6 gap-[0.8%] sm:inset-x-[1.6%] sm:bottom-[14%] sm:top-[43%]">
+            {navItems.map((item) => {
+              const isActive = activeTab === item.id;
+
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => onTabChange(item.id)}
+                  className={cn(
+                    'pointer-events-auto relative h-full w-full rounded-[12px] transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/80 active:scale-[0.98]',
+                    isActive
+                      ? cn(
+                          'border border-white/20 bg-white/[0.04] backdrop-blur-[1px]',
+                          item.glow,
+                        )
+                      : 'hover:bg-white/[0.03] hover:shadow-[0_0_14px_rgba(255,255,255,0.08)]',
+                  )}
+                  aria-current={isActive ? 'page' : undefined}
+                  aria-label={item.label}
+                >
+                  <span className="sr-only">{item.label}</span>
+                  {item.id === 'wheel' && wheelReady && (
+                    <span className="absolute right-[10%] top-[10%] h-2.5 w-2.5 rounded-full bg-cyan-200 shadow-[0_0_10px_rgba(34,211,238,0.9)]" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </nav>
   );
