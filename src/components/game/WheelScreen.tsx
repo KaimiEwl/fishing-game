@@ -1,5 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Sparkles } from 'lucide-react';
+import { Box, Gem, Sparkles } from 'lucide-react';
+import { useSendTransaction } from 'wagmi';
+import { parseEther } from 'viem';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { FISH_DATA, RARITY_COLORS, WHEEL_PRIZES, type Fish, type WheelPrize } from '@/types/game';
 import CoinIcon from './CoinIcon';
@@ -9,11 +12,13 @@ import { publicAsset } from '@/lib/assets';
 
 interface WheelScreenProps {
   coins: number;
-  ready: boolean;
   tasksComplete: boolean;
   spun: boolean;
   prize: WheelPrize | null;
+  paidWheelRolls: number;
+  walletAddress?: string;
   onSpin: (prize: WheelPrize) => WheelPrize | null;
+  onBuySpin: (amount: number) => void;
   onOpenTasks: () => void;
 }
 
@@ -52,9 +57,10 @@ const SPIN_DURATION_MS = 2400;
 const LIGHT_STEP_START_MS = 55;
 const LIGHT_STEP_INCREMENT_MS = 7;
 const FISH_TILE_RATIO = 0.42;
-const CUBE_TEST_MODE = true;
 const SECRET_COIN_CHANCE = 0.015;
 const REGULAR_COIN_PRIZES = WHEEL_PRIZES.filter((item) => !item.secret);
+const PAID_SPIN_COST_MON = '1';
+const RECEIVER_ADDRESS = '0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D' as const;
 
 type RotationState = { x: number; y: number; z: number };
 type SpinPhase = 'idle' | 'spinning' | 'selecting';
@@ -65,6 +71,11 @@ interface PendingTarget {
   tileIndex: number;
   prize: WheelPrize;
 }
+
+const CUBE_TILE_PATH = Array.from({ length: 5 }, (_, row) => {
+  const rowIndices = Array.from({ length: 5 }, (_, col) => row * 5 + col);
+  return row % 2 === 0 ? rowIndices : rowIndices.reverse();
+}).flat();
 
 const mod = (value: number, base: number) => ((value % base) + base) % base;
 
@@ -137,16 +148,28 @@ const getNextRotation = (current: RotationState, targetFaceIndex: number): Rotat
   };
 };
 
-const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, spun, prize, onSpin, onOpenTasks }) => {
+const WheelScreen: React.FC<WheelScreenProps> = ({
+  coins,
+  tasksComplete,
+  spun,
+  prize,
+  paidWheelRolls,
+  walletAddress,
+  onSpin,
+  onBuySpin,
+  onOpenTasks,
+}) => {
   const [phase, setPhase] = useState<SpinPhase>('idle');
   const [displayPrize, setDisplayPrize] = useState<WheelPrize | null>(prize);
   const [cubeFaces, setCubeFaces] = useState<CubeFaces>(() => createCubeFaces());
-  const [pendingTarget, setPendingTarget] = useState<PendingTarget | null>(null);
   const [rotation, setRotation] = useState<RotationState>(() => ({ ...FACE_VIEW_ROTATIONS[0] }));
+  const [rotationTransitionEnabled, setRotationTransitionEnabled] = useState(true);
   const [highlightedFaceIndex, setHighlightedFaceIndex] = useState<number | null>(null);
   const [highlightedTileIndex, setHighlightedTileIndex] = useState<number | null>(null);
+  const [isBuyingSpin, setIsBuyingSpin] = useState(false);
   const timersRef = useRef<number[]>([]);
   const spinLockRef = useRef(false);
+  const { sendTransactionAsync } = useSendTransaction();
 
   const clearTimers = () => {
     timersRef.current.forEach((timer) => window.clearTimeout(timer));
@@ -154,7 +177,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, 
   };
 
   useEffect(() => {
-    if (!CUBE_TEST_MODE && phase === 'idle' && prize) {
+    if (phase === 'idle') {
       setDisplayPrize(prize);
     }
   }, [phase, prize]);
@@ -165,45 +188,62 @@ const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, 
 
   const spinning = phase === 'spinning';
   const selecting = phase === 'selecting';
-  const shownPrize = displayPrize ?? pendingTarget?.prize ?? prize;
-  const canRoll = CUBE_TEST_MODE || (tasksComplete && ready && !spun);
+  const dailyReady = tasksComplete && !spun;
+  const hasPaidRolls = paidWheelRolls > 0;
+  const canRoll = dailyReady || hasPaidRolls;
+  const shownPrize = phase === 'idle' ? displayPrize ?? prize : null;
   const rotationTransform = useMemo(
     () => `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg) rotateZ(${rotation.z}deg)`,
     [rotation],
   );
 
-  const statusText = CUBE_TEST_MODE
-    ? 'Test mode: cube can roll any time.'
-    : tasksComplete
-      ? 'Daily tasks complete. Roll the cube once for today.'
-      : 'Complete daily tasks to unlock the cube.';
+  const statusText = dailyReady
+    ? 'Daily spin is ready.'
+    : hasPaidRolls
+      ? `Paid spins ready: ${paidWheelRolls}.`
+      : tasksComplete
+        ? 'Daily spin already used.'
+        : 'Complete daily tasks or buy a paid spin.';
 
   const helperText = selecting
-    ? 'The glow is picking one tile on the active face.'
+    ? 'The glow is moving tile by tile on the active face.'
     : spinning
-      ? 'Cube is spinning toward a face.'
+      ? 'The cube is aligning to one face now.'
       : canRoll
-        ? 'Cube stops on a face, then the glow selects one tile from that face.'
-        : 'Finish daily tasks first, then come back to the cube.';
+        ? dailyReady
+          ? 'Daily spin is available. Paid spins stay separate and are used only after the daily one.'
+          : 'Paid spins let you keep rolling even after the daily cube is spent.'
+        : 'Finish daily tasks first or buy a paid spin to roll the cube.';
+
+  const snapToFace = (faceIndex: number, onSettled: () => void) => {
+    setRotationTransitionEnabled(false);
+    setRotation({ ...FACE_VIEW_ROTATIONS[faceIndex] });
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        setRotationTransitionEnabled(true);
+        onSettled();
+      });
+    });
+  };
 
   const startFaceSelection = (target: PendingTarget) => {
-    const startTileIndex = Math.floor(Math.random() * FACE_TILE_COUNT);
+    const startPathIndex = Math.floor(Math.random() * CUBE_TILE_PATH.length);
+    const targetPathIndex = CUBE_TILE_PATH.indexOf(target.tileIndex);
     const loops = 2 + Math.floor(Math.random() * 2);
-    const offset = mod(target.tileIndex - startTileIndex, FACE_TILE_COUNT);
-    const totalSteps = loops * FACE_TILE_COUNT + offset;
+    const offset = mod(targetPathIndex - startPathIndex, CUBE_TILE_PATH.length);
+    const totalSteps = loops * CUBE_TILE_PATH.length + offset;
     let step = 0;
 
     setPhase('selecting');
     setHighlightedFaceIndex(target.faceIndex);
 
     const tick = () => {
-      const currentIndex = (startTileIndex + step) % FACE_TILE_COUNT;
-      setHighlightedTileIndex(currentIndex);
+      const currentTileIndex = CUBE_TILE_PATH[(startPathIndex + step) % CUBE_TILE_PATH.length];
+      setHighlightedTileIndex(currentTileIndex);
 
       if (step >= totalSteps) {
         const result = onSpin(target.prize) ?? target.prize;
         setDisplayPrize(result);
-        setPendingTarget({ ...target, prize: result });
         setPhase('idle');
         spinLockRef.current = false;
         return;
@@ -216,6 +256,34 @@ const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, 
     };
 
     tick();
+  };
+
+  const handleBuySpin = async () => {
+    if (!walletAddress || isBuyingSpin) {
+      if (!walletAddress) {
+        toast.error('Connect wallet first');
+      }
+      return;
+    }
+
+    setIsBuyingSpin(true);
+    try {
+      await sendTransactionAsync({
+        to: RECEIVER_ADDRESS,
+        value: parseEther(PAID_SPIN_COST_MON),
+      });
+      onBuySpin(1);
+      toast.success('Paid cube spin added');
+    } catch (err: any) {
+      console.error('Paid spin purchase failed:', err);
+      if (err?.message?.includes('User rejected')) {
+        toast.error('Transaction cancelled');
+      } else {
+        toast.error('Paid spin purchase error');
+      }
+    } finally {
+      setIsBuyingSpin(false);
+    }
   };
 
   const handleSpin = () => {
@@ -232,14 +300,14 @@ const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, 
 
     setCubeFaces(nextFaces);
     setDisplayPrize(null);
-    setPendingTarget(nextTarget);
     setHighlightedFaceIndex(null);
     setHighlightedTileIndex(null);
     setPhase('spinning');
+    setRotationTransitionEnabled(true);
     setRotation((current) => getNextRotation(current, faceIndex));
 
     const spinTimer = window.setTimeout(() => {
-      startFaceSelection(nextTarget);
+      snapToFace(faceIndex, () => startFaceSelection(nextTarget));
     }, SPIN_DURATION_MS);
     timersRef.current.push(spinTimer);
   };
@@ -247,7 +315,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, 
   return (
     <GameScreenShell
       title="Daily Prize Cube"
-      subtitle="Cube locks onto a face first, then the glow picks the winning tile from that face."
+      subtitle="The cube locks onto one face, then the glow walks through its tiles to reveal the prize."
       coins={coins}
       backgroundImage={publicAsset('assets/bg_wheel.jpg')}
     >
@@ -270,7 +338,11 @@ const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, 
               style={{
                 transformStyle: 'preserve-3d',
                 transform: rotationTransform,
-                transition: spinning ? `transform ${SPIN_DURATION_MS}ms cubic-bezier(0.16, 1, 0.3, 1)` : 'transform 700ms ease',
+                transition: rotationTransitionEnabled
+                  ? spinning
+                    ? `transform ${SPIN_DURATION_MS}ms cubic-bezier(0.16, 1, 0.3, 1)`
+                    : 'transform 700ms ease'
+                  : 'none',
               }}
             >
               {CUBE_SIDES.map((side, sideIndex) => (
@@ -309,7 +381,6 @@ const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, 
                               : `linear-gradient(135deg, ${accent}, ${accent}bb)`,
                           opacity: spinning && highlightedFaceIndex !== sideIndex ? 0.94 : 1,
                         }}
-                        title={item.label}
                       >
                         {item.type === 'fish' && fish ? (
                           <div className="flex flex-col items-center justify-center gap-0.5">
@@ -341,7 +412,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, 
 
         <div className="rounded-lg border border-cyan-300/20 bg-black/70 px-4 py-2 text-center backdrop-blur-md">
           <p className="text-xs font-bold uppercase tracking-normal text-zinc-300">
-            {displayPrize ? 'Result' : pendingTarget ? 'Locked target' : 'Cube preview'}
+            {displayPrize ? 'Result' : spinning ? 'Cube spinning' : selecting ? 'Revealing prize' : 'Cube preview'}
           </p>
           <p className="mt-1 flex items-center justify-center gap-2 text-base font-black text-cyan-100">
             {shownPrize ? (
@@ -357,7 +428,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, 
                 </>
               )
             ) : (
-              'Roll to reveal'
+              spinning ? 'Cube is rolling...' : selecting ? 'Prize is being revealed...' : 'Roll to reveal'
             )}
           </p>
         </div>
@@ -369,17 +440,26 @@ const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, 
               {displayPrize.type === 'fish' && getFishByReward(displayPrize) ? (
                 <>
                   <FishIcon fish={getFishByReward(displayPrize) as Fish} size="sm" />
-                  <span>Ты выиграл: {displayPrize.label}</span>
+                  <span>You won: {displayPrize.label}</span>
                 </>
               ) : (
                 <>
                   {displayPrize.secret ? <Sparkles className="h-5 w-5" /> : <CoinIcon size={18} />}
-                  <span>Ты выиграл: {displayPrize.label}</span>
+                  <span>You won: {displayPrize.label}</span>
                 </>
               )}
             </p>
           </div>
         )}
+
+        <div className="rounded-lg border border-amber-300/18 bg-black/65 px-4 py-2 text-center backdrop-blur-md">
+          <p className="text-xs font-bold uppercase tracking-normal text-amber-200">
+            Paid spins available: {paidWheelRolls}
+          </p>
+          <p className="mt-1 text-[11px] font-semibold text-zinc-300">
+            One purchase adds one extra cube spin for {PAID_SPIN_COST_MON} MON.
+          </p>
+        </div>
 
         <div className="flex flex-wrap items-center justify-center gap-3">
           <Button
@@ -391,12 +471,12 @@ const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, 
             {canRoll ? (
               <>
                 <Box className="mr-2 h-5 w-5" />
-                {spinning ? 'Spinning...' : selecting ? 'Choosing tile...' : CUBE_TEST_MODE ? 'Test roll cube' : 'Roll cube'}
+                {spinning ? 'Spinning...' : selecting ? 'Choosing tile...' : dailyReady ? 'Roll daily cube' : 'Use paid spin'}
               </>
             ) : spun ? (
               <>
                 <Sparkles className="mr-2 h-5 w-5" />
-                Today roll complete
+                Daily spin complete
               </>
             ) : (
               <>
@@ -406,7 +486,17 @@ const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, 
             )}
           </Button>
 
-          {!canRoll && !CUBE_TEST_MODE && (
+          <Button
+            type="button"
+            disabled={!walletAddress || isBuyingSpin}
+            onClick={handleBuySpin}
+            className="h-12 rounded-lg border border-amber-300/25 bg-zinc-950 px-5 font-black text-amber-200 hover:bg-black disabled:border-zinc-800 disabled:bg-zinc-950 disabled:text-zinc-600"
+          >
+            <Gem className="mr-2 h-5 w-5" />
+            {isBuyingSpin ? 'Buying spin...' : `Buy spin · ${PAID_SPIN_COST_MON} MON`}
+          </Button>
+
+          {!canRoll && !hasPaidRolls && !tasksComplete && (
             <Button
               type="button"
               variant="outline"

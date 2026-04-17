@@ -436,11 +436,13 @@ const FishingGame: React.FC = () => {
           ) : activeTab === 'wheel' ? (
             <WheelScreen
               coins={player.coins}
-              ready={gameProgress.wheelReady}
               tasksComplete={gameProgress.allTasksComplete}
               spun={gameProgress.wheelSpun}
               prize={gameProgress.wheelPrize}
+              paidWheelRolls={gameProgress.paidWheelRolls}
+              walletAddress={address}
               onSpin={handleSpinWheel}
+              onBuySpin={gameProgress.addPaidWheelRolls}
               onOpenTasks={() => setActiveTab('tasks')}
             />
           ) : activeTab === 'map' ? (

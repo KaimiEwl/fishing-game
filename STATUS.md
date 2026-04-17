@@ -57,6 +57,10 @@ In progress.
 - unified the boat/rod geometry used by the render loop and cast animation so the fishing line starts from the same rod-tip point on both desktop and mobile
 - replaced the four shop / rod inventory upgrade icons with the new green, blue, purple, and gold rod art from local downloads
 - added a new `Boost` purchase button under `Travel` on the fishing screen with a MON payment dialog flow
+- removed the visible `Locked target` preview from the cube screen so the selected reward stays hidden until reveal
+- reworked cube spin settling so each roll snaps back onto the exact chosen face before the tile-reveal sequence starts
+- changed the cube glow path to a neighbor-by-neighbor serpentine route across the 5x5 face to avoid odd jumpy highlight movement
+- added paid cube spins for `1 MON` each with persistent extra-roll tracking outside the daily free roll
 
 ### Validation for milestone 2
 - `npm run build` - passed

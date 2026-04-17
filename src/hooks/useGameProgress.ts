@@ -16,6 +16,7 @@ interface GameProgressState {
   tasks: DailyTaskMap;
   wheelSpun: boolean;
   wheelPrize: WheelPrize | null;
+  paidWheelRolls: number;
   grillScore: number;
   dishesToday: number;
 }
@@ -42,9 +43,14 @@ const createInitialState = (): GameProgressState => ({
   tasks: createTasks(),
   wheelSpun: false,
   wheelPrize: null,
+  paidWheelRolls: 0,
   grillScore: 0,
   dishesToday: 0,
 });
+
+const areAllTasksComplete = (tasks: DailyTaskMap) => (
+  DAILY_TASKS.every((task) => (tasks[task.id]?.progress ?? 0) >= task.target)
+);
 
 const normalizeWheelPrize = (prize: WheelPrize | null | undefined): WheelPrize | null => {
   if (!prize) return null;
@@ -67,6 +73,7 @@ const loadState = (): GameProgressState => {
       return {
         ...createInitialState(),
         grillScore: Number(parsed.grillScore || 0),
+        paidWheelRolls: Math.max(0, Number(parsed.paidWheelRolls || 0)),
       };
     }
     return {
@@ -153,8 +160,8 @@ export function useGameProgress() {
 
   const allTasksComplete = dailyTasks.every((task) => task.progress >= task.target);
   const allTasksClaimed = dailyTasks.every((task) => task.claimed);
-  const wheelUnlocked = allTasksComplete;
-  const wheelReady = wheelUnlocked && !state.wheelSpun;
+  const wheelUnlocked = allTasksComplete || state.paidWheelRolls > 0;
+  const wheelReady = (allTasksComplete && !state.wheelSpun) || state.paidWheelRolls > 0;
 
   const claimTask = useCallback((id: DailyTaskId, onReward: (coins: number) => void) => {
     const task = DAILY_TASKS.find((item) => item.id === id);
@@ -177,18 +184,40 @@ export function useGameProgress() {
   }, [state.tasks]);
 
   const spinWheel = useCallback((onReward: (prize: WheelPrize) => void, selectedPrize?: WheelPrize) => {
-    if (!wheelReady) return null;
+    let awardedPrize: WheelPrize | null = null;
 
-    const prize = selectedPrize ?? pickWheelPrize();
+    setState((prev) => {
+      const dailyReady = areAllTasksComplete(prev.tasks) && !prev.wheelSpun;
+      const paidReady = prev.paidWheelRolls > 0;
 
+      if (!dailyReady && !paidReady) {
+        return prev;
+      }
+
+      const prize = selectedPrize ?? pickWheelPrize();
+      awardedPrize = prize;
+
+      return {
+        ...prev,
+        wheelSpun: prev.wheelSpun || dailyReady,
+        wheelPrize: prize,
+        paidWheelRolls: dailyReady ? prev.paidWheelRolls : Math.max(0, prev.paidWheelRolls - 1),
+      };
+    });
+
+    if (!awardedPrize) return null;
+
+    onReward(awardedPrize);
+    return awardedPrize;
+  }, []);
+
+  const addPaidWheelRolls = useCallback((amount: number) => {
+    if (amount <= 0) return;
     setState((prev) => ({
       ...prev,
-      wheelSpun: true,
-      wheelPrize: prize,
+      paidWheelRolls: prev.paidWheelRolls + amount,
     }));
-    onReward(prize);
-    return prize;
-  }, [wheelReady]);
+  }, []);
 
   return {
     dailyTasks,
@@ -198,11 +227,13 @@ export function useGameProgress() {
     wheelReady,
     wheelSpun: state.wheelSpun,
     wheelPrize: state.wheelPrize,
+    paidWheelRolls: state.paidWheelRolls,
     grillScore: state.grillScore,
     dishesToday: state.dishesToday,
     recordFishCatch,
     recordGrillDish,
     claimTask,
     spinWheel,
+    addPaidWheelRolls,
   };
 }
