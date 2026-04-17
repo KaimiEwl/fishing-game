@@ -140,44 +140,44 @@ const drawBoatWaterlineOverlay = (
     waterLevel: number,
     t: number
 ) => {
-    const overlayTop = Math.max(boatY + boatDrawH * 0.52, waterLevel - 6);
-    const overlayBottom = Math.min(boatY + boatDrawH * 0.86, waterLevel + boatDrawH * 0.16);
+    const overlayTop = Math.max(boatY + boatDrawH * 0.78, waterLevel - 3);
+    const overlayBottom = Math.min(boatY + boatDrawH * 0.9, waterLevel + boatDrawH * 0.05);
 
     if (overlayBottom <= overlayTop) return;
 
     ctx.save();
     ctx.beginPath();
-    ctx.rect(boatX - 18, overlayTop - 10, boatDrawW + 36, overlayBottom - overlayTop + 22);
+    ctx.rect(boatX - 10, overlayTop - 6, boatDrawW + 20, overlayBottom - overlayTop + 12);
     ctx.clip();
 
     const fill = ctx.createLinearGradient(0, overlayTop - 4, 0, overlayBottom + 18);
-    fill.addColorStop(0, 'rgba(170, 244, 255, 0.14)');
-    fill.addColorStop(0.32, 'rgba(21, 161, 203, 0.18)');
-    fill.addColorStop(1, 'rgba(3, 51, 78, 0.08)');
+    fill.addColorStop(0, 'rgba(170, 244, 255, 0.08)');
+    fill.addColorStop(0.32, 'rgba(21, 161, 203, 0.1)');
+    fill.addColorStop(1, 'rgba(3, 51, 78, 0.03)');
     ctx.fillStyle = fill;
 
     ctx.beginPath();
-    for (let x = -18; x <= boatDrawW + 18; x += 8) {
-        const waveY = waterLevel + Math.sin(t * 2.2 + x * 0.045) * 3 + Math.cos(t * 1.2 + x * 0.018) * 1.5;
+    for (let x = -10; x <= boatDrawW + 10; x += 8) {
+        const waveY = waterLevel + Math.sin(t * 2.2 + x * 0.045) * 2 + Math.cos(t * 1.2 + x * 0.018) * 0.9;
         const drawX = boatX + x;
-        if (x === -18) ctx.moveTo(drawX, waveY);
+        if (x === -10) ctx.moveTo(drawX, waveY);
         else ctx.lineTo(drawX, waveY);
     }
-    ctx.lineTo(boatX + boatDrawW + 18, overlayBottom + 14);
-    ctx.lineTo(boatX - 18, overlayBottom + 14);
+    ctx.lineTo(boatX + boatDrawW + 10, overlayBottom + 8);
+    ctx.lineTo(boatX - 10, overlayBottom + 8);
     ctx.closePath();
     ctx.fill();
 
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 2; i++) {
         ctx.beginPath();
-        for (let x = -12; x <= boatDrawW + 12; x += 10) {
-            const waveY = waterLevel + i * 4 + Math.sin(t * (2.4 + i * 0.25) + x * 0.05 + i) * (2.2 - i * 0.35);
+        for (let x = -8; x <= boatDrawW + 8; x += 10) {
+            const waveY = waterLevel + i * 3 + Math.sin(t * (2.4 + i * 0.25) + x * 0.05 + i) * (1.6 - i * 0.3);
             const drawX = boatX + x;
-            if (x === -12) ctx.moveTo(drawX, waveY);
+            if (x === -8) ctx.moveTo(drawX, waveY);
             else ctx.lineTo(drawX, waveY);
         }
-        ctx.strokeStyle = i === 0 ? 'rgba(224, 252, 255, 0.28)' : 'rgba(150, 233, 247, 0.16)';
-        ctx.lineWidth = i === 0 ? 1.8 : 1;
+        ctx.strokeStyle = i === 0 ? 'rgba(224, 252, 255, 0.2)' : 'rgba(150, 233, 247, 0.1)';
+        ctx.lineWidth = i === 0 ? 1.2 : 0.9;
         ctx.stroke();
     }
 
@@ -196,44 +196,30 @@ const drawBoatWake = (
 
     const wakeGradient = ctx.createRadialGradient(
         centerX,
-        waterLevel + 8,
+        waterLevel + 5,
         8,
         centerX,
-        waterLevel + 18,
-        boatDrawW * 0.38
+        waterLevel + 12,
+        boatDrawW * 0.24
     );
-    wakeGradient.addColorStop(0, 'rgba(210, 248, 255, 0.18)');
-    wakeGradient.addColorStop(0.45, 'rgba(97, 218, 251, 0.08)');
+    wakeGradient.addColorStop(0, 'rgba(210, 248, 255, 0.12)');
+    wakeGradient.addColorStop(0.45, 'rgba(97, 218, 251, 0.05)');
     wakeGradient.addColorStop(1, 'rgba(97, 218, 251, 0)');
     ctx.fillStyle = wakeGradient;
     ctx.beginPath();
-    ctx.ellipse(centerX, waterLevel + 18, boatDrawW * 0.32, 16, 0, 0, Math.PI * 2);
+    ctx.ellipse(centerX, waterLevel + 12, boatDrawW * 0.22, 9, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    for (let i = 0; i < 4; i++) {
-        const radiusX = boatDrawW * (0.18 + i * 0.085);
-        const radiusY = 4 + i * 2.8;
-        const y = waterLevel + 8 + i * 6 + Math.sin(t * 2.1 + i) * 1.8;
+    for (let i = 0; i < 2; i++) {
+        const radiusX = boatDrawW * (0.16 + i * 0.09);
+        const radiusY = 3 + i * 1.8;
+        const y = waterLevel + 5 + i * 4 + Math.sin(t * 2.1 + i) * 1.2;
         ctx.beginPath();
         ctx.ellipse(centerX, y, radiusX, radiusY, 0, 0, Math.PI * 2);
-        ctx.strokeStyle = i === 0 ? 'rgba(225, 253, 255, 0.28)' : 'rgba(155, 234, 247, 0.14)';
-        ctx.lineWidth = i === 0 ? 1.6 : 1;
+        ctx.strokeStyle = i === 0 ? 'rgba(225, 253, 255, 0.16)' : 'rgba(155, 234, 247, 0.08)';
+        ctx.lineWidth = i === 0 ? 1 : 0.8;
         ctx.stroke();
     }
-
-    const foamSpots = [
-        centerX - boatDrawW * 0.34,
-        centerX - boatDrawW * 0.18,
-        centerX + boatDrawW * 0.22,
-        centerX + boatDrawW * 0.36,
-    ];
-    foamSpots.forEach((x, index) => {
-        const y = waterLevel + 4 + Math.sin(t * 2.8 + index * 1.4) * 2.2;
-        ctx.fillStyle = 'rgba(236, 254, 255, 0.2)';
-        ctx.beginPath();
-        ctx.ellipse(x, y, 10 + (index % 2) * 3, 2.2, 0, 0, Math.PI * 2);
-        ctx.fill();
-    });
 
     ctx.restore();
 };
@@ -570,9 +556,9 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
             if (pepe) {
                 const aspect = pepe.width / pepe.height;
                 const boatDrawW = boatDrawH * aspect;
-                const bobOffsetY = Math.sin(t * 1.35) * 3.5 + Math.cos(t * 0.72) * 1.1;
+                const bobOffsetY = Math.sin(t * 1.35) * 2 + Math.cos(t * 0.72) * 0.7;
                 const driftOffsetX = Math.sin(t * 0.75) * 1.6;
-                const boatY = waterLevel - boatDrawH * 0.62 + bobOffsetY;
+                const boatY = waterLevel - boatDrawH * 0.79 + bobOffsetY;
                 const rockAngle = Math.sin(t * 1.5) * 0.015 + Math.cos(t * 0.9) * 0.006;
 
                 // Кончик удочки — вычисляем с учётом поворота лодки
@@ -822,7 +808,7 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
             // Стартовая позиция = кончик удочки (пропорции из анализа спрайта)
             const boatX = w * 0.04;
             const cx = boatX + boatDrawW / 2;
-            const cy = (wl - boatDrawH * 0.62) + boatDrawH / 2;
+            const cy = (wl - boatDrawH * 0.79) + boatDrawH / 2;
             const startX = cx + boatDrawW * 0.47;
             const startY = cy - boatDrawH * 0.374;
             const targetX = w * 0.5 + Math.random() * (w * 0.3);
