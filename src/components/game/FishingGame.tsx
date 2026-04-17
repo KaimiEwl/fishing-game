@@ -40,7 +40,6 @@ import {
   upsertLeaderboardEntry,
 } from '@/lib/leaderboard';
 import type { DailyTaskId, GameTab, GrillLeaderboardEntry, GrillRecipe, WheelPrize } from '@/types/game';
-import { Mail } from 'lucide-react';
 
 const TRAVEL_ICON_SRC = travelIconSrc;
 
@@ -436,7 +435,7 @@ const FishingGame: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab('map')}
-              className="group absolute right-[7%] top-[15%] z-20 w-28 overflow-visible bg-transparent outline-none transition-all duration-200 hover:scale-105 focus-visible:scale-105 active:scale-95 sm:right-[13%] sm:top-[18%] sm:w-44 md:w-52"
+              className="group absolute right-[2.5%] top-[12.5%] z-20 w-24 overflow-visible bg-transparent outline-none transition-all duration-200 hover:scale-105 focus-visible:scale-105 active:scale-95 sm:right-[2.25%] sm:top-[13.5%] sm:w-32 lg:w-36"
               aria-label="Open travel map"
             >
               <img
@@ -444,7 +443,7 @@ const FishingGame: React.FC = () => {
                 alt=""
                 className="block w-full object-contain drop-shadow-[0_16px_30px_rgba(0,0,0,0.42)] transition-transform duration-300 group-hover:scale-[1.03]"
               />
-              <span className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-lg border border-yellow-200/70 bg-yellow-300 px-2 py-1 text-[10px] font-black uppercase tracking-normal text-black shadow-lg sm:text-xs">
+              <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 rounded-lg border border-yellow-200/75 bg-yellow-300 px-2 py-0.5 text-[9px] font-black uppercase tracking-normal text-black shadow-lg sm:bottom-2 sm:text-[10px]">
                 Travel
               </span>
             </button>
@@ -502,18 +501,6 @@ const FishingGame: React.FC = () => {
             score={Math.max(pendingLeaderboardScore, gameProgress.grillScore)}
             onSave={handleSaveLeaderboardName}
           />
-          
-          {!isMobile && (
-            <a
-              href="mailto:support@monadfish.xyz"
-              className="absolute right-5 top-5 z-20 inline-flex h-10 items-center gap-2 rounded-lg border border-cyan-300/15 bg-black/75 px-3 text-xs font-semibold text-zinc-300 shadow-lg backdrop-blur-md transition-colors hover:bg-zinc-950 hover:text-cyan-100"
-              aria-label="Contact support"
-            >
-              <Mail className="h-4 w-4" />
-              <span>Contact</span>
-            </a>
-          )}
-
           {levelUpInfo && (
             <LevelUpCelebration
               newLevel={levelUpInfo.newLevel}

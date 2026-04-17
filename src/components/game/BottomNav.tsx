@@ -1,7 +1,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import type { GameTab } from '@/types/game';
-import bottomNavArcadePanel from '@/assets/bottom_nav_arcade_panel.png';
+import bottomNavArcadeStrip from '@/assets/bottom_nav_arcade_strip.png';
 
 interface BottomNavProps {
   activeTab: GameTab;
@@ -24,18 +24,18 @@ const BottomNav: React.FC<BottomNavProps> = ({
   wheelReady,
 }) => {
   return (
-    <nav className="relative z-40 shrink-0 border-t border-cyan-900/30 bg-[#05070f] px-1.5 pt-1.5 pb-[max(0.4rem,env(safe-area-inset-bottom))] sm:px-4 sm:pt-2">
-      <div className="mx-auto w-full max-w-5xl">
-        <div className="relative mx-auto h-[4.2rem] w-full max-w-[min(100%,46rem)] overflow-hidden rounded-xl sm:h-[5rem]">
+    <nav className="relative z-40 shrink-0 bg-[#05070f] px-2 pt-1 pb-[max(0.45rem,env(safe-area-inset-bottom))] sm:px-4 sm:pt-2">
+      <div className="mx-auto w-full max-w-[min(100%,41rem)] sm:max-w-[42rem]">
+        <div className="relative mx-auto w-full">
           <img
-            src={bottomNavArcadePanel}
+            src={bottomNavArcadeStrip}
             alt=""
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover [object-position:center_78%]"
+            className="pointer-events-none block w-full select-none object-contain"
             draggable={false}
           />
 
-          <div className="pointer-events-none absolute inset-x-[1.5%] inset-y-[5%] grid grid-cols-6 gap-[0.8%] sm:inset-x-[1.35%] sm:inset-y-[5.5%]">
+          <div className="pointer-events-none absolute inset-x-[1.1%] inset-y-[2.5%] grid grid-cols-6 gap-[0.8%] sm:inset-x-[1%] sm:inset-y-[2.5%]">
             {navItems.map((item) => {
               const isActive = activeTab === item.id;
 
@@ -45,13 +45,13 @@ const BottomNav: React.FC<BottomNavProps> = ({
                   type="button"
                   onClick={() => onTabChange(item.id)}
                   className={cn(
-                    'pointer-events-auto relative h-full w-full rounded-[12px] transition duration-200 focus-visible:outline-none active:scale-[0.985]',
+                    'pointer-events-auto relative h-full w-full rounded-[14px] transition duration-200 focus-visible:outline-none active:scale-[0.985]',
                     isActive
                       ? cn(
-                          'ring-2 ring-inset ring-white/55 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]',
+                          'ring-2 ring-inset ring-white/60 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]',
                           item.glow,
                         )
-                      : 'hover:shadow-[0_0_12px_rgba(255,255,255,0.06)]',
+                      : 'hover:ring-1 hover:ring-white/18 hover:shadow-[0_0_10px_rgba(255,255,255,0.04)]',
                   )}
                   aria-current={isActive ? 'page' : undefined}
                   aria-label={item.label}

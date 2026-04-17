@@ -51,9 +51,17 @@ const drawWaterSurface = (
     ctx.rect(0, waterLevel - 8, w, h - waterLevel + 8);
     ctx.clip();
 
+    const underwaterBase = ctx.createLinearGradient(0, waterLevel - 8, 0, h);
+    underwaterBase.addColorStop(0, 'rgba(31, 106, 191, 0.72)');
+    underwaterBase.addColorStop(0.12, 'rgba(24, 95, 188, 0.82)');
+    underwaterBase.addColorStop(0.58, 'rgba(12, 72, 148, 0.9)');
+    underwaterBase.addColorStop(1, 'rgba(5, 28, 72, 0.96)');
+    ctx.fillStyle = underwaterBase;
+    ctx.fillRect(0, waterLevel - 8, w, h - waterLevel + 8);
+
     const surfaceGlow = ctx.createLinearGradient(0, waterLevel - 10, 0, waterLevel + h * 0.24);
-    surfaceGlow.addColorStop(0, 'rgba(125, 235, 255, 0.18)');
-    surfaceGlow.addColorStop(0.28, 'rgba(34, 211, 238, 0.08)');
+    surfaceGlow.addColorStop(0, 'rgba(125, 235, 255, 0.28)');
+    surfaceGlow.addColorStop(0.28, 'rgba(34, 211, 238, 0.12)');
     surfaceGlow.addColorStop(1, 'rgba(2, 8, 23, 0)');
     ctx.fillStyle = surfaceGlow;
     ctx.fillRect(0, waterLevel - 8, w, h - waterLevel + 8);
@@ -332,9 +340,9 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
             this.y = Math.random() * waterLevel * 0.35 + 10;
             this.vx = -5 - Math.random() * 3;
             this.vy = 2.2 + Math.random() * 1.4;
-            this.maxLife = 50 + Math.random() * 30;
+            this.maxLife = 62 + Math.random() * 36;
             this.life = this.maxLife;
-            this.length = 70 + Math.random() * 55;
+            this.length = 90 + Math.random() * 70;
         }
         update() {
             this.x += this.vx;
@@ -349,10 +357,10 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
             gradient.addColorStop(1, 'rgba(180,140,255,0)');
             ctx.save();
             ctx.strokeStyle = gradient;
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 2.6;
             ctx.lineCap = 'round';
-            ctx.shadowColor = 'rgba(180,140,255,0.8)';
-            ctx.shadowBlur = 12;
+            ctx.shadowColor = 'rgba(214,185,255,0.95)';
+            ctx.shadowBlur = 18;
             ctx.beginPath();
             ctx.moveTo(this.x, this.y);
             ctx.lineTo(this.x - this.vx * this.length * 0.08, this.y - this.vy * this.length * 0.08);
@@ -538,9 +546,23 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
                 ctx.fillRect(0, 0, w, h);
             }
 
+            const moonX = w * 0.82;
+            const moonY = h * 0.11;
+            const moonGlow = ctx.createRadialGradient(moonX, moonY, 10, moonX, moonY, Math.min(w, h) * 0.12);
+            moonGlow.addColorStop(0, 'rgba(255, 245, 214, 0.16)');
+            moonGlow.addColorStop(0.38, 'rgba(255, 240, 188, 0.11)');
+            moonGlow.addColorStop(1, 'rgba(255, 240, 188, 0)');
+            ctx.save();
+            ctx.globalCompositeOperation = 'screen';
+            ctx.fillStyle = moonGlow;
+            ctx.beginPath();
+            ctx.arc(moonX, moonY, Math.min(w, h) * 0.12, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
             drawWaterSurface(ctx, w, h, waterLevel, t);
 
-            if (Math.random() < 0.004 && meteorsRef.current.length < 3) {
+            if (Math.random() < 0.008 && meteorsRef.current.length < 4) {
                 meteorsRef.current.push(new Meteor(w, waterLevel));
             }
             meteorsRef.current = meteorsRef.current.filter(meteor => meteor.life > 0 && meteor.y < waterLevel);
