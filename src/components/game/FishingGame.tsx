@@ -548,7 +548,14 @@ const FishingGame: React.FC = () => {
           )}
 
           {isFishingScreen && (
-            <div className="absolute bottom-[calc(var(--bottom-nav-clearance,0px)+0.5rem)] left-3 z-20 flex max-w-[calc(100vw-1.5rem)] flex-col items-start gap-2 sm:left-5 sm:flex-row">
+            <div
+              className="absolute left-3 z-20 flex max-w-[calc(100vw-1.5rem)] flex-col items-start gap-2 sm:left-5 sm:flex-row"
+              style={{
+                bottom: isMobile
+                  ? 'calc(var(--bottom-nav-clearance,0px) + 4rem)'
+                  : 'calc(var(--bottom-nav-clearance,0px) + 1.1rem)',
+              }}
+            >
               <InventoryDialog
                 inventory={player.inventory}
                 rodLevel={player.rodLevel}

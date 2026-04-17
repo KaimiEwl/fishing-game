@@ -106,9 +106,11 @@ const drawBoatReflection = (
     waterLevel: number,
     t: number
 ) => {
+    const sceneWidth = ctx.canvas.clientWidth || ctx.canvas.width;
+    const sceneHeight = ctx.canvas.clientHeight || ctx.canvas.height;
     ctx.save();
     ctx.beginPath();
-    ctx.rect(0, waterLevel - 2, ctx.canvas.width, Math.min(ctx.canvas.height - waterLevel + 2, boatDrawH * 0.55));
+    ctx.rect(0, waterLevel - 2, sceneWidth, Math.min(sceneHeight - waterLevel + 2, boatDrawH * 0.55));
     ctx.clip();
     ctx.globalCompositeOperation = 'screen';
 
@@ -558,8 +560,12 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
         if (!ctx) return;
 
         const initialSize = getCanvasSize();
-        canvas.width = initialSize.w;
-        canvas.height = initialSize.h;
+        const initialDpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(initialSize.w * initialDpr);
+        canvas.height = Math.round(initialSize.h * initialDpr);
+        ctx.setTransform(initialDpr, 0, 0, initialDpr, 0, 0);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
         if (fishRef.current.length === 0) {
             for (let i = 0; i < 8; i++) fishRef.current.push(new FishEntity(initialSize.w, initialSize.h, i));
         }
@@ -568,7 +574,7 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
         }
 
         const render = () => {
-            const w = canvas.width, h = canvas.height;
+            const { w, h } = getCanvasSize();
             ctx.clearRect(0, 0, w, h);
             frameRef.current++;
             const t = Date.now() * 0.001;
@@ -863,8 +869,16 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
 
         const handleResize = () => {
             const { w, h } = getCanvasSize();
-            if (canvas.width !== w) canvas.width = w;
-            if (canvas.height !== h) canvas.height = h;
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            const nextWidth = Math.round(w * dpr);
+            const nextHeight = Math.round(h * dpr);
+
+            if (canvas.width !== nextWidth) canvas.width = nextWidth;
+            if (canvas.height !== nextHeight) canvas.height = nextHeight;
+
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
         };
         window.addEventListener('resize', handleResize);
         const resizeObserver = new ResizeObserver(handleResize);

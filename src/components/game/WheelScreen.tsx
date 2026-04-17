@@ -60,6 +60,7 @@ const FISH_TILE_RATIO = 0.42;
 const SECRET_COIN_CHANCE = 0.015;
 const REGULAR_COIN_PRIZES = WHEEL_PRIZES.filter((item) => !item.secret);
 const PAID_SPIN_COST_MON = '1';
+const CUBE_TEST_MODE = true;
 const RECEIVER_ADDRESS = '0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D' as const;
 
 type RotationState = { x: number; y: number; z: number };
@@ -190,27 +191,31 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
   const selecting = phase === 'selecting';
   const dailyReady = tasksComplete && !spun;
   const hasPaidRolls = paidWheelRolls > 0;
-  const canRoll = dailyReady || hasPaidRolls;
+  const canRoll = CUBE_TEST_MODE || dailyReady || hasPaidRolls;
   const shownPrize = phase === 'idle' ? displayPrize ?? prize : null;
   const rotationTransform = useMemo(
     () => `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg) rotateZ(${rotation.z}deg)`,
     [rotation],
   );
 
-  const statusText = dailyReady
-    ? 'Daily spin is ready.'
-    : hasPaidRolls
-      ? `Paid spins ready: ${paidWheelRolls}.`
-      : tasksComplete
-        ? 'Daily spin already used.'
-        : 'Complete daily tasks or buy a paid spin.';
+  const statusText = CUBE_TEST_MODE
+    ? 'Test mode is active. The cube can spin any time.'
+    : dailyReady
+      ? 'Daily spin is ready.'
+      : hasPaidRolls
+        ? `Paid spins ready: ${paidWheelRolls}.`
+        : tasksComplete
+          ? 'Daily spin already used.'
+          : 'Complete daily tasks or buy a paid spin.';
 
   const helperText = selecting
     ? 'The glow is moving tile by tile on the active face.'
     : spinning
       ? 'The cube is aligning to one face now.'
       : canRoll
-        ? dailyReady
+        ? CUBE_TEST_MODE
+          ? 'Use free test spins to check the cube flow before daily and paid limits matter again.'
+          : dailyReady
           ? 'Daily spin is available. Paid spins stay separate and are used only after the daily one.'
           : 'Paid spins let you keep rolling even after the daily cube is spent.'
         : 'Finish daily tasks first or buy a paid spin to roll the cube.';
@@ -471,7 +476,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
             {canRoll ? (
               <>
                 <Box className="mr-2 h-5 w-5" />
-                {spinning ? 'Spinning...' : selecting ? 'Choosing tile...' : dailyReady ? 'Roll daily cube' : 'Use paid spin'}
+                {spinning ? 'Spinning...' : selecting ? 'Choosing tile...' : CUBE_TEST_MODE ? 'Test roll cube' : dailyReady ? 'Roll daily cube' : 'Use paid spin'}
               </>
             ) : spun ? (
               <>

@@ -64,14 +64,18 @@ const BoostDialog: React.FC<BoostDialogProps> = ({ walletAddress }) => {
       <DialogTrigger asChild>
         <button
           type="button"
-          className="group relative bg-transparent outline-none transition-all duration-200 hover:scale-105 focus-visible:scale-105 active:scale-95"
+          className="group relative isolate overflow-visible bg-transparent outline-none transition-all duration-200 hover:scale-105 focus-visible:scale-105 active:scale-95"
           aria-label="Open boost shop"
         >
+          <span
+            aria-hidden="true"
+            className="absolute inset-[12%] rounded-[1.5rem] bg-[radial-gradient(circle,rgba(42,116,255,0.55),rgba(15,23,42,0)_72%)] blur-md"
+          />
           <img
             src={BOOST_ICON_SRC}
             alt=""
             aria-hidden="true"
-            className="block w-20 rounded-[1.2rem] object-contain drop-shadow-[0_18px_30px_rgba(0,0,0,0.42)] transition-transform duration-300 group-hover:scale-[1.02] sm:w-24"
+            className="relative z-[1] block w-20 rounded-[1.2rem] object-contain mix-blend-screen drop-shadow-[0_18px_30px_rgba(0,0,0,0.18)] transition-transform duration-300 group-hover:scale-[1.02] sm:w-24"
             draggable={false}
           />
         </button>
@@ -93,7 +97,7 @@ const BoostDialog: React.FC<BoostDialogProps> = ({ walletAddress }) => {
               src={BOOST_ICON_SRC}
               alt=""
               aria-hidden="true"
-              className="h-16 w-16 rounded-2xl object-contain"
+              className="h-16 w-16 rounded-2xl object-contain mix-blend-screen"
               draggable={false}
             />
             <div>
