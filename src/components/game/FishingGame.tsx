@@ -55,7 +55,7 @@ const MAP_LOCATION_ASSETS = [
 
 const PRELOAD_ASSETS = [
   publicAsset('assets/bg_main.jpg'),
-  publicAsset('assets/pepe_final.png'),
+  publicAsset('assets/pepe_boat_v2.png'),
   publicAsset('assets/rod_basic.png'),
   publicAsset('assets/rod_bamboo.png'),
   publicAsset('assets/rod_carbon.png'),

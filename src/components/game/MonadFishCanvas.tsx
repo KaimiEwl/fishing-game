@@ -131,6 +131,59 @@ const drawBoatReflection = (
     ctx.restore();
 };
 
+const drawBoatWaterlineOverlay = (
+    ctx: CanvasRenderingContext2D,
+    boatX: number,
+    boatY: number,
+    boatDrawW: number,
+    boatDrawH: number,
+    waterLevel: number,
+    t: number
+) => {
+    const overlayTop = Math.max(boatY + boatDrawH * 0.52, waterLevel - 6);
+    const overlayBottom = Math.min(boatY + boatDrawH * 0.86, waterLevel + boatDrawH * 0.16);
+
+    if (overlayBottom <= overlayTop) return;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(boatX - 18, overlayTop - 10, boatDrawW + 36, overlayBottom - overlayTop + 22);
+    ctx.clip();
+
+    const fill = ctx.createLinearGradient(0, overlayTop - 4, 0, overlayBottom + 18);
+    fill.addColorStop(0, 'rgba(170, 244, 255, 0.14)');
+    fill.addColorStop(0.32, 'rgba(21, 161, 203, 0.18)');
+    fill.addColorStop(1, 'rgba(3, 51, 78, 0.08)');
+    ctx.fillStyle = fill;
+
+    ctx.beginPath();
+    for (let x = -18; x <= boatDrawW + 18; x += 8) {
+        const waveY = waterLevel + Math.sin(t * 2.2 + x * 0.045) * 3 + Math.cos(t * 1.2 + x * 0.018) * 1.5;
+        const drawX = boatX + x;
+        if (x === -18) ctx.moveTo(drawX, waveY);
+        else ctx.lineTo(drawX, waveY);
+    }
+    ctx.lineTo(boatX + boatDrawW + 18, overlayBottom + 14);
+    ctx.lineTo(boatX - 18, overlayBottom + 14);
+    ctx.closePath();
+    ctx.fill();
+
+    for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        for (let x = -12; x <= boatDrawW + 12; x += 10) {
+            const waveY = waterLevel + i * 4 + Math.sin(t * (2.4 + i * 0.25) + x * 0.05 + i) * (2.2 - i * 0.35);
+            const drawX = boatX + x;
+            if (x === -12) ctx.moveTo(drawX, waveY);
+            else ctx.lineTo(drawX, waveY);
+        }
+        ctx.strokeStyle = i === 0 ? 'rgba(224, 252, 255, 0.28)' : 'rgba(150, 233, 247, 0.16)';
+        ctx.lineWidth = i === 0 ? 1.8 : 1;
+        ctx.stroke();
+    }
+
+    ctx.restore();
+};
+
 interface MonadFishCanvasProps {
     onCast: () => void;
     gameState: string;
@@ -173,7 +226,7 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
         };
 
         loadSceneImage(publicAsset('assets/bg_main.jpg'), (img) => { bgImgRef.current = img; });
-        loadSceneImage(publicAsset('assets/pepe_final.png'), (img) => { pepeImgRef.current = img; });
+        loadSceneImage(publicAsset('assets/pepe_boat_v2.png'), (img) => { pepeImgRef.current = img; });
 
         const fishFiles = ['fish_carp.png', 'fish_perch.png', 'fish_bream.png', 'fish_pike.png', 'fish_catfish.png', 'fish_goldfish.png', 'fish_mutant.png', 'fish_leviathan.png'];
         fishFiles.forEach((file, i) => {
@@ -463,11 +516,13 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
             if (pepe) {
                 const aspect = pepe.width / pepe.height;
                 const boatDrawW = boatDrawH * aspect;
-                const boatY = waterLevel - boatDrawH * 0.62;
-                const rockAngle = Math.sin(t * 1.5) * 0.015;
+                const bobOffsetY = Math.sin(t * 1.35) * 3.5 + Math.cos(t * 0.72) * 1.1;
+                const driftOffsetX = Math.sin(t * 0.75) * 1.6;
+                const boatY = waterLevel - boatDrawH * 0.62 + bobOffsetY;
+                const rockAngle = Math.sin(t * 1.5) * 0.015 + Math.cos(t * 0.9) * 0.006;
 
                 // Кончик удочки — вычисляем с учётом поворота лодки
-                const cx = boatX + boatDrawW / 2;
+                const cx = boatX + driftOffsetX + boatDrawW / 2;
                 const cy = boatY + boatDrawH / 2;
                 const localRodX = boatDrawW * 0.47;
                 const localRodY = -boatDrawH * 0.374;
@@ -475,7 +530,7 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
                 rodTipX = cx + localRodX * cosR - localRodY * sinR;
                 rodTipY = cy + localRodX * sinR + localRodY * cosR;
 
-                drawBoatReflection(ctx, pepe, boatX, boatY, boatDrawW, boatDrawH, waterLevel, t);
+                drawBoatReflection(ctx, pepe, boatX + driftOffsetX, boatY, boatDrawW, boatDrawH, waterLevel, t);
 
                 ctx.save();
                 ctx.translate(cx, cy);
@@ -490,6 +545,7 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
 
                 ctx.drawImage(pepe, -boatDrawW / 2, -boatDrawH / 2, boatDrawW, boatDrawH);
                 ctx.restore();
+                drawBoatWaterlineOverlay(ctx, boatX + driftOffsetX, boatY, boatDrawW, boatDrawH, waterLevel, t);
             } else {
                 // Фоллбек лодка
                 ctx.fillStyle = '#8B4513';
