@@ -184,6 +184,60 @@ const drawBoatWaterlineOverlay = (
     ctx.restore();
 };
 
+const drawBoatWake = (
+    ctx: CanvasRenderingContext2D,
+    centerX: number,
+    waterLevel: number,
+    boatDrawW: number,
+    t: number
+) => {
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+
+    const wakeGradient = ctx.createRadialGradient(
+        centerX,
+        waterLevel + 8,
+        8,
+        centerX,
+        waterLevel + 18,
+        boatDrawW * 0.38
+    );
+    wakeGradient.addColorStop(0, 'rgba(210, 248, 255, 0.18)');
+    wakeGradient.addColorStop(0.45, 'rgba(97, 218, 251, 0.08)');
+    wakeGradient.addColorStop(1, 'rgba(97, 218, 251, 0)');
+    ctx.fillStyle = wakeGradient;
+    ctx.beginPath();
+    ctx.ellipse(centerX, waterLevel + 18, boatDrawW * 0.32, 16, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    for (let i = 0; i < 4; i++) {
+        const radiusX = boatDrawW * (0.18 + i * 0.085);
+        const radiusY = 4 + i * 2.8;
+        const y = waterLevel + 8 + i * 6 + Math.sin(t * 2.1 + i) * 1.8;
+        ctx.beginPath();
+        ctx.ellipse(centerX, y, radiusX, radiusY, 0, 0, Math.PI * 2);
+        ctx.strokeStyle = i === 0 ? 'rgba(225, 253, 255, 0.28)' : 'rgba(155, 234, 247, 0.14)';
+        ctx.lineWidth = i === 0 ? 1.6 : 1;
+        ctx.stroke();
+    }
+
+    const foamSpots = [
+        centerX - boatDrawW * 0.34,
+        centerX - boatDrawW * 0.18,
+        centerX + boatDrawW * 0.22,
+        centerX + boatDrawW * 0.36,
+    ];
+    foamSpots.forEach((x, index) => {
+        const y = waterLevel + 4 + Math.sin(t * 2.8 + index * 1.4) * 2.2;
+        ctx.fillStyle = 'rgba(236, 254, 255, 0.2)';
+        ctx.beginPath();
+        ctx.ellipse(x, y, 10 + (index % 2) * 3, 2.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    ctx.restore();
+};
+
 interface MonadFishCanvasProps {
     onCast: () => void;
     gameState: string;
@@ -531,6 +585,7 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
                 rodTipY = cy + localRodX * sinR + localRodY * cosR;
 
                 drawBoatReflection(ctx, pepe, boatX + driftOffsetX, boatY, boatDrawW, boatDrawH, waterLevel, t);
+                drawBoatWake(ctx, cx, waterLevel, boatDrawW, t);
 
                 ctx.save();
                 ctx.translate(cx, cy);

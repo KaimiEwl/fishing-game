@@ -6,6 +6,9 @@ import FishDisplay from './FishDisplay';
 import { publicAsset } from '@/lib/assets';
 import FishIcon from './FishIcon';
 
+const CAST_BUTTON_BLUE = publicAsset('assets/cast_button_blue.png');
+const CAST_BUTTON_GREEN = publicAsset('assets/cast_button_green.png');
+
 const ROD_INFO = [
   { name: 'Starter', image: publicAsset('assets/rod_basic.png'), color: '#aaa', bonus: 0 },
   { name: 'Bamboo', image: publicAsset('assets/rod_bamboo.png'), color: '#22aa44', bonus: 5 },
@@ -170,14 +173,28 @@ const GameControls: React.FC<GameControlsProps> = ({
           <Button
             onClick={onCast}
             disabled={!hasBait}
-            className="h-12 min-w-[6rem] rounded-xl border border-cyan-300/25 bg-zinc-950 px-4 text-base font-bold text-cyan-100 shadow-lg shadow-black/40 transition-all hover:scale-105 hover:bg-black hover:shadow-xl active:scale-95 disabled:border-zinc-800 disabled:bg-zinc-950 disabled:text-zinc-600 disabled:opacity-100 disabled:hover:scale-100 sm:h-14 sm:min-w-[8rem] sm:px-6 sm:text-lg"
-            style={{
-              background: hasBait
-                ? 'linear-gradient(135deg, #020617, #083344)'
-                : undefined
-            }}
+            aria-label={hasBait ? 'Cast line' : 'No bait'}
+            className="group relative h-auto border-0 bg-transparent p-0 shadow-none transition-transform duration-200 hover:scale-[1.04] hover:bg-transparent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-100 disabled:hover:scale-100"
           >
-            {hasBait ? 'Cast' : 'No Bait!'}
+            <span className="relative block w-[11.75rem] sm:w-[13.5rem]">
+              <img
+                src={CAST_BUTTON_BLUE}
+                alt=""
+                aria-hidden="true"
+                className={`block h-auto w-full select-none transition-all duration-200 ${hasBait ? 'drop-shadow-[0_10px_22px_rgba(34,211,238,0.24)]' : 'grayscale-[0.9] brightness-[0.72] opacity-90'}`}
+                draggable={false}
+              />
+              {hasBait && (
+                <img
+                  src={CAST_BUTTON_GREEN}
+                  alt=""
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 h-full w-full select-none opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100 group-active:opacity-100"
+                  draggable={false}
+                />
+              )}
+            </span>
+            <span className="sr-only">{hasBait ? 'Cast line' : 'No bait'}</span>
           </Button>
         </div>
       )}
