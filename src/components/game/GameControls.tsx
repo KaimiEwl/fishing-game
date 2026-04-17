@@ -16,6 +16,7 @@ interface GameControlsProps {
   onCast: () => void;
   onReelIn?: () => void;
   rodLevel?: number;
+  ownedRodLevel?: number;
   nftRods?: number[];
   biteTimeLeft?: number;
   biteTimeTotal?: number;
@@ -30,14 +31,16 @@ const GameControls: React.FC<GameControlsProps> = ({
   onCast,
   onReelIn,
   rodLevel = 0,
+  ownedRodLevel = 0,
   nftRods = [],
   biteTimeLeft = 0,
   biteTimeTotal = 1,
   missXpReward = 5,
   isMobile = false,
 }) => {
-  const rod = ROD_DISPLAY_INFO[rodLevel] || ROD_DISPLAY_INFO[0];
-  const hasNft = nftRods.includes(rodLevel);
+  const displayRodLevel = Math.max(rodLevel, ownedRodLevel);
+  const rod = ROD_DISPLAY_INFO[displayRodLevel] || ROD_DISPLAY_INFO[0];
+  const hasNft = nftRods.includes(displayRodLevel);
   const biteProgress = biteTimeTotal > 0 ? (biteTimeLeft / biteTimeTotal) * 100 : 0;
   const showPrimaryControl = gameState === 'idle' || gameState === 'biting';
   const primaryAction = gameState === 'biting' ? onReelIn : onCast;
@@ -146,7 +149,7 @@ const GameControls: React.FC<GameControlsProps> = ({
                 <TooltipContent side="top" className="max-w-[200px] border-cyan-300/15 bg-black/95 p-3 text-zinc-100 backdrop-blur-md">
                   <div className="flex flex-col gap-1">
                     <p className="text-sm font-bold" style={{ color: rod.color }}>{rod.name}</p>
-                    <p className="text-xs text-zinc-500">Level {rodLevel + 1}</p>
+                    <p className="text-xs text-zinc-500">Level {displayRodLevel + 1}</p>
                     {rod.bonus > 0
                       ? <p className="text-xs text-zinc-200">+{rod.bonus}% rare fish chance</p>
                       : <p className="text-xs text-zinc-200">Standard catch chance</p>
@@ -161,7 +164,7 @@ const GameControls: React.FC<GameControlsProps> = ({
                             { rarityBonus: 7, xpBonus: 20, sellBonus: 15 },
                             { rarityBonus: 10, xpBonus: 25, sellBonus: 20 },
                             { rarityBonus: 15, xpBonus: 30, sellBonus: 25 },
-                          ][rodLevel];
+                          ][displayRodLevel];
                           return nftData ? (
                             <>
                               <p>+{nftData.rarityBonus}% chance</p>

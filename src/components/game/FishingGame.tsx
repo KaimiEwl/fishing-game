@@ -538,6 +538,7 @@ const FishingGame: React.FC = () => {
               onCast={castRod}
               onReelIn={reelIn}
               rodLevel={player.equippedRod}
+              ownedRodLevel={player.rodLevel}
               nftRods={player.nftRods}
               biteTimeLeft={biteTimeLeft}
               biteTimeTotal={biteTimeTotal}
