@@ -40,6 +40,8 @@ In progress.
 - removed the rectangular hover/active frames from the bottom menu and switched to a softer glow that sits behind the art instead of boxing each button
 - re-centered the main `Cast` CTA above the bottom menu and kept the rod badge separate so the button itself stays visually centered
 - restyled the `Inventory` trigger into the same arcade/button language as the rest of the HUD
+- tightened the Travel Map preview cards so the hover/active zone follows the card shape instead of a larger square hit box
+- re-cut the `Volcano Grill` map card into a cleaner rounded rectangle so it no longer drags extra padding around the icon
 
 ### Validation for milestone 2
 - `npm run build` - passed
