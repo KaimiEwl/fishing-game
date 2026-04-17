@@ -54,6 +54,7 @@ const FACE_VIEW_ROTATIONS = [
 
 const FACE_TILE_COUNT = 25;
 const SPIN_DURATION_MS = 2400;
+const SPIN_SETTLE_BUFFER_MS = 90;
 const LIGHT_STEP_START_MS = 55;
 const LIGHT_STEP_INCREMENT_MS = 7;
 const FISH_TILE_RATIO = 0.42;
@@ -313,7 +314,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
 
     const spinTimer = window.setTimeout(() => {
       snapToFace(faceIndex, () => startFaceSelection(nextTarget));
-    }, SPIN_DURATION_MS);
+    }, SPIN_DURATION_MS + SPIN_SETTLE_BUFFER_MS);
     timersRef.current.push(spinTimer);
   };
 
@@ -358,6 +359,8 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
                     transform: FACE_TRANSFORMS[side],
                     transformStyle: 'preserve-3d',
                     backfaceVisibility: 'hidden',
+                    opacity: selecting && highlightedFaceIndex !== sideIndex ? 0.24 : 1,
+                    filter: selecting && highlightedFaceIndex === sideIndex ? 'brightness(1.18) saturate(1.18)' : 'none',
                   }}
                 >
                   {cubeFaces[sideIndex].map((item, tileIndex) => {
@@ -375,7 +378,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
                         key={`${side}-${tileIndex}`}
                         className={`relative flex min-w-0 items-center justify-center overflow-hidden rounded-[4px] border text-[8px] font-black leading-none text-black shadow-[inset_0_1px_0_rgba(255,255,255,0.58),0_5px_10px_rgba(0,0,0,0.22)] transition-all duration-200 sm:text-[10px] ${
                           isHighlighted
-                            ? 'z-20 scale-110 border-white ring-2 ring-cyan-100 shadow-[0_0_20px_rgba(34,211,238,0.8)]'
+                            ? 'z-20 scale-[1.16] border-white ring-4 ring-cyan-100/90 shadow-[0_0_26px_rgba(34,211,238,0.95),0_0_44px_rgba(255,255,255,0.65)]'
                             : 'border-black/25'
                         }`}
                         style={{
@@ -385,8 +388,16 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
                               ? 'linear-gradient(135deg, #f8fafc, #fde68a 45%, #f472b6)'
                               : `linear-gradient(135deg, ${accent}, ${accent}bb)`,
                           opacity: spinning && highlightedFaceIndex !== sideIndex ? 0.94 : 1,
+                          filter: isHighlighted ? 'brightness(1.38) saturate(1.3)' : 'none',
                         }}
                       >
+                        {isHighlighted && (
+                          <>
+                            <span className="pointer-events-none absolute inset-0 bg-white/20" />
+                            <span className="pointer-events-none absolute inset-[10%] rounded-[3px] border border-white/90 shadow-[0_0_16px_rgba(255,255,255,0.9)]" />
+                            <span className="pointer-events-none absolute left-1/2 top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-100/95 blur-md" />
+                          </>
+                        )}
                         {item.type === 'fish' && fish ? (
                           <div className="flex flex-col items-center justify-center gap-0.5">
                             <FishIcon fish={fish} size="xs" className="h-5 w-5 sm:h-6 sm:w-6" />
