@@ -61,6 +61,8 @@ In progress.
 - reworked cube spin settling so each roll snaps back onto the exact chosen face before the tile-reveal sequence starts
 - changed the cube glow path to a neighbor-by-neighbor serpentine route across the 5x5 face to avoid odd jumpy highlight movement
 - added paid cube spins for `1 MON` each with persistent extra-roll tracking outside the daily free roll
+- tightened shared leaderboard sync so remote entries refresh on leaderboard open, app focus, and periodic polling instead of only once on boot
+- updated Supabase typings for `grill_leaderboard` so shared leaderboard requests no longer rely on unsafe cast fallbacks in code
 
 ### Validation for milestone 2
 - `npm run build` - passed

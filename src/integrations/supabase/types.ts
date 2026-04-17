@@ -35,6 +35,36 @@ export type Database = {
         }
         Relationships: []
       }
+      grill_leaderboard: {
+        Row: {
+          created_at: string
+          dishes: number
+          id: string
+          name: string
+          score: number
+          updated_at: string
+          wallet_address: string | null
+        }
+        Insert: {
+          created_at?: string
+          dishes?: number
+          id: string
+          name: string
+          score?: number
+          updated_at?: string
+          wallet_address?: string | null
+        }
+        Update: {
+          created_at?: string
+          dishes?: number
+          id?: string
+          name?: string
+          score?: number
+          updated_at?: string
+          wallet_address?: string | null
+        }
+        Relationships: []
+      }
       players: {
         Row: {
           avatar_url: string | null

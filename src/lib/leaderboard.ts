@@ -1,5 +1,6 @@
 import type { GrillLeaderboardEntry } from '@/types/game';
 import { supabase } from '@/integrations/supabase/client';
+import type { TablesInsert } from '@/integrations/supabase/types';
 
 const LEADERBOARD_STORAGE_KEY = 'monadfish_grill_leaderboard_v1';
 const LOCAL_PLAYER_ID_KEY = 'monadfish_leaderboard_player_id_v1';
@@ -230,7 +231,7 @@ export const upsertLeaderboardEntry = ({
 export const loadGlobalLeaderboardEntries = async () => {
   try {
     const { data, error } = await supabase
-      .from(REMOTE_LEADERBOARD_TABLE as never)
+      .from(REMOTE_LEADERBOARD_TABLE)
       .select('id, name, score, dishes, wallet_address, updated_at')
       .order('score', { ascending: false })
       .order('updated_at', { ascending: false })
@@ -260,18 +261,19 @@ export const loadGlobalLeaderboardEntries = async () => {
 
 export const saveGlobalLeaderboardEntry = async (entry: GrillLeaderboardEntry) => {
   const normalized = normalizeEntry(entry);
+  const payload: TablesInsert<'grill_leaderboard'> = {
+    id: normalized.id,
+    name: normalized.name,
+    score: normalized.score,
+    dishes: normalized.dishes,
+    wallet_address: normalized.walletAddress ?? null,
+    updated_at: normalized.updatedAt,
+  };
 
   try {
     const { error } = await supabase
-      .from(REMOTE_LEADERBOARD_TABLE as never)
-      .upsert({
-        id: normalized.id,
-        name: normalized.name,
-        score: normalized.score,
-        dishes: normalized.dishes,
-        wallet_address: normalized.walletAddress ?? null,
-        updated_at: normalized.updatedAt,
-      } as never, { onConflict: 'id' });
+      .from(REMOTE_LEADERBOARD_TABLE)
+      .upsert(payload, { onConflict: 'id' });
 
     if (error) throw error;
     return true;
@@ -290,7 +292,7 @@ export const deleteGlobalLeaderboardEntry = async (id: string) => {
 
   try {
     const { error } = await supabase
-      .from(REMOTE_LEADERBOARD_TABLE as never)
+      .from(REMOTE_LEADERBOARD_TABLE)
       .delete()
       .eq('id', id);
 

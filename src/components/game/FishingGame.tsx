@@ -202,6 +202,13 @@ const FishingGame: React.FC = () => {
     });
   }, [address, leaderboardPlayerId]);
 
+  const refreshLeaderboard = useCallback(async () => {
+    const remoteEntries = await loadGlobalLeaderboardEntries();
+    if (!remoteEntries) return;
+
+    setLeaderboardEntries((entries) => mergeLeaderboardSnapshots(entries, remoteEntries));
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     const uniqueAssets = Array.from(new Set(PRELOAD_ASSETS));
@@ -236,16 +243,46 @@ const FishingGame: React.FC = () => {
 
   useEffect(() => {
     let cancelled = false;
-
-    void loadGlobalLeaderboardEntries().then((remoteEntries) => {
-      if (cancelled || !remoteEntries) return;
-      setLeaderboardEntries((entries) => mergeLeaderboardSnapshots(entries, remoteEntries));
+    void refreshLeaderboard().then(() => {
+      if (cancelled) return;
     });
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshLeaderboard]);
+
+  useEffect(() => {
+    if (activeTab !== 'leaderboard') return;
+    void refreshLeaderboard();
+  }, [activeTab, refreshLeaderboard]);
+
+  useEffect(() => {
+    const handleWindowFocus = () => {
+      void refreshLeaderboard();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void refreshLeaderboard();
+      }
+    };
+
+    const pollInterval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void refreshLeaderboard();
+      }
+    }, 15000);
+
+    window.addEventListener('focus', handleWindowFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(pollInterval);
+      window.removeEventListener('focus', handleWindowFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [refreshLeaderboard]);
 
   useEffect(() => {
     if (!assetsReady) return;
