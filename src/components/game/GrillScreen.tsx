@@ -1,7 +1,6 @@
 import React from 'react';
 import { ChefHat, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { FISH_DATA, GRILL_RECIPES, type CaughtFish, type GrillRecipe } from '@/types/game';
 import GameScreenShell from './GameScreenShell';
 import FishIcon from './FishIcon';
@@ -26,10 +25,11 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
       subtitle="Cook fish into dishes. Grill score becomes the leaderboard score."
       coins={coins}
       backgroundImage={publicAsset('assets/bg_grill.jpg')}
+      contentScrollable
     >
-      <div className="grid h-full min-h-0 gap-3 lg:grid-cols-[0.8fr_1.2fr]">
+      <div className="flex flex-col gap-4 pb-8 lg:grid lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
         <aside className="rounded-lg border border-cyan-300/15 bg-black/60 p-4 backdrop-blur-md">
-          <div className="flex h-full flex-col justify-between gap-4">
+          <div className="flex flex-col gap-4">
             <div>
               <div className="inline-flex h-12 w-12 items-center justify-center rounded-lg border border-cyan-300/20 bg-zinc-950 text-cyan-100">
                 <Trophy className="h-6 w-6" />
@@ -37,12 +37,12 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
               <h2 className="mt-4 text-2xl font-black">{grillScore.toLocaleString()}</h2>
               <p className="mt-1 text-sm text-white/60">total grill score</p>
             </div>
-            <div className="pointer-events-none relative -mx-3 flex justify-center overflow-hidden py-1">
+            <div className="pointer-events-none relative -mx-2 flex justify-center overflow-hidden py-1">
               <div className="absolute inset-x-8 bottom-3 h-10 rounded-full bg-orange-500/20 blur-2xl" />
               <img
                 src={grillForegroundSrc}
                 alt=""
-                className="relative max-h-40 w-full max-w-md object-contain drop-shadow-[0_18px_28px_rgba(0,0,0,0.65)] lg:max-h-52"
+                className="relative max-h-28 w-full max-w-sm object-contain drop-shadow-[0_18px_28px_rgba(0,0,0,0.65)] sm:max-h-[140px] lg:max-h-48"
                 draggable={false}
               />
             </div>
@@ -52,7 +52,7 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
           </div>
         </aside>
 
-        <ScrollArea className="min-h-0 pr-2">
+        <div className="flex flex-col gap-3 pb-8">
           <div className="grid gap-3">
             {GRILL_RECIPES.map((recipe) => {
               const canCook = Object.entries(recipe.ingredients).every(([fishId, amount]) => (
@@ -109,7 +109,7 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
               );
             })}
           </div>
-        </ScrollArea>
+        </div>
       </div>
     </GameScreenShell>
   );

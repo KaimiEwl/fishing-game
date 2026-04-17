@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { WHEEL_PRIZES, type WheelPrize } from '@/types/game';
@@ -40,7 +40,7 @@ const FACE_TRANSFORMS: Record<(typeof CUBE_SIDES)[number], string> = {
 };
 
 const WINNING_TILE_INDEX = 12;
-const SPIN_DURATION_MS = 2600;
+const SPIN_DURATION_MS = 2400;
 const CUBE_TEST_MODE = true;
 
 const getTilePrize = (sideIndex: number, tileIndex: number, winningPrize: WheelPrize | null) => {
@@ -57,6 +57,8 @@ const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, 
   const [displayPrize, setDisplayPrize] = useState<WheelPrize | null>(prize);
   const [plannedPrize, setPlannedPrize] = useState<WheelPrize | null>(prize);
   const [rotation, setRotation] = useState({ x: -18, y: -28, z: 0 });
+  const spinLockRef = useRef(false);
+  const finishTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!spinning) {
@@ -64,6 +66,12 @@ const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, 
       setPlannedPrize(prize);
     }
   }, [prize, spinning]);
+
+  useEffect(() => () => {
+    if (finishTimeoutRef.current !== null) {
+      window.clearTimeout(finishTimeoutRef.current);
+    }
+  }, []);
 
   const shownPrize = plannedPrize || displayPrize || prize;
   const canRoll = CUBE_TEST_MODE || (tasksComplete && ready && !spun);
@@ -78,24 +86,32 @@ const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, 
   );
 
   const handleSpin = () => {
-    if (!canRoll || spinning) return;
+    if (!canRoll || spinning || spinLockRef.current) return;
 
+    spinLockRef.current = true;
     const nextPrize = pickWheelPrize();
-    const nextX = -18 - 360 * 3;
-    const nextY = Math.ceil(rotation.y / 360) * 360 + 360 * 5 - 28;
-    const nextZ = rotation.z + 360 * 2;
+    const nextRotation = {
+      x: rotation.x - 720,
+      y: rotation.y - 1080,
+      z: rotation.z - 360,
+    };
 
     setSpinning(true);
     setDisplayPrize(null);
     setPlannedPrize(nextPrize);
-    setRotation({ x: nextX, y: nextY, z: nextZ });
+    setRotation(nextRotation);
 
-    window.setTimeout(() => {
+    if (finishTimeoutRef.current !== null) {
+      window.clearTimeout(finishTimeoutRef.current);
+    }
+
+    finishTimeoutRef.current = window.setTimeout(() => {
       const result = onSpin(nextPrize) ?? nextPrize;
       setDisplayPrize(result);
       setPlannedPrize(result);
       setSpinning(false);
-      setRotation({ x: -18, y: -28, z: 0 });
+      spinLockRef.current = false;
+      finishTimeoutRef.current = null;
     }, SPIN_DURATION_MS);
   };
 
@@ -112,11 +128,11 @@ const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, 
         </div>
 
         <div className="relative h-[18rem] w-full max-w-[24rem] sm:h-[24rem] sm:max-w-[32rem]" style={{ perspective: '1050px' }}>
-          <div className="absolute left-1/2 top-1 z-20 flex -translate-x-1/2 flex-col items-center gap-1">
-            <span className="rounded-lg border border-cyan-300/25 bg-black/85 px-3 py-1 text-[11px] font-black uppercase tracking-normal text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.35)]">
-              Winning tile
+          <div className="absolute left-[2%] sm:left-[8%] top-[55%] z-20 flex -translate-y-1/2 items-center gap-1">
+            <span className="rounded-lg border border-cyan-300/25 bg-black/85 px-3 py-1 bg-gradient-to-r from-cyan-900 to-black text-[11px] font-black uppercase tracking-normal text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.35)]">
+              Winner
             </span>
-            <span className="h-0 w-0 border-x-[14px] border-t-[24px] border-x-transparent border-t-cyan-100 drop-shadow-[0_0_12px_rgba(34,211,238,0.85)]" />
+            <span className="h-0 w-0 border-y-[10px] border-l-[16px] border-y-transparent border-l-cyan-100 drop-shadow-[0_0_12px_rgba(34,211,238,0.85)]" />
           </div>
 
           <div
@@ -131,7 +147,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, 
               style={{
                 transformStyle: 'preserve-3d',
                 transform: cubeTransform,
-                transition: spinning ? `transform ${SPIN_DURATION_MS}ms cubic-bezier(0.12, 0.86, 0.14, 1)` : 'transform 520ms ease',
+                transition: spinning ? `transform ${SPIN_DURATION_MS}ms cubic-bezier(0.16, 1, 0.3, 1)` : 'transform 700ms ease',
               }}
             >
               {CUBE_SIDES.map((side, sideIndex) => (
@@ -153,13 +169,12 @@ const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, 
                   return (
                     <div
                       key={`${side}-${tileIndex}`}
-                      className={`relative flex min-w-0 items-center justify-center overflow-hidden rounded-[4px] border text-[8px] font-black leading-none text-black shadow-[inset_0_1px_0_rgba(255,255,255,0.58),0_5px_10px_rgba(0,0,0,0.22)] transition-all duration-200 sm:text-[10px] ${isWinningTile ? 'z-10 scale-110 border-white ring-2 ring-cyan-100' : 'border-black/25'}`}
+                      className={`relative flex min-w-0 items-center justify-center overflow-hidden rounded-[4px] border text-[8px] font-black leading-none text-black shadow-[inset_0_1px_0_rgba(255,255,255,0.58),0_5px_10px_rgba(0,0,0,0.22)] transition-all duration-200 sm:text-[10px] ${isWinningTile ? 'z-20 scale-125 border-white ring-2 ring-cyan-100 shadow-[0_0_20px_rgba(34,211,238,0.8)]' : 'border-black/25'}`}
                       style={{
                         background: item.secret
                           ? 'linear-gradient(135deg, #f8fafc, #fde68a 45%, #f472b6)'
                           : `linear-gradient(135deg, ${color}, ${color}bb)`,
-                        opacity: spinning && !isWinningTile ? 0.86 : 1,
-                        animation: spinning ? `prize-tile-pulse 900ms ease-in-out ${tileIndex * 22}ms infinite alternate` : undefined,
+                        opacity: spinning && !isWinningTile ? 0.9 : 1,
                       }}
                       title={item.label}
                     >
@@ -179,12 +194,25 @@ const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, 
 
           <style>
             {`
-              @keyframes prize-tile-pulse {
-                50% { opacity: 0.62; filter: saturate(1.4); }
-                100% { opacity: 1; filter: saturate(1.8) brightness(1.15); }
+              @keyframes popup-reveal {
+                0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+                100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
               }
             `}
           </style>
+
+          {(!spinning && displayPrize) && (
+            <div 
+              className="absolute left-1/2 top-1/2 z-50 flex w-full max-w-[16rem] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-2xl border-2 border-yellow-400 bg-black/85 p-6 text-center shadow-[0_0_60px_rgba(250,204,21,0.65)] backdrop-blur-xl"
+              style={{ animation: 'popup-reveal 500ms cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
+            >
+              <h2 className="text-xl font-black uppercase text-yellow-500 line-through decoration-transparent">YOU WON!</h2>
+              <div className="mt-3 flex items-center justify-center gap-3 text-3xl font-black text-yellow-300 drop-shadow-[0_2px_10px_rgba(250,204,21,0.5)]">
+                {displayPrize.secret ? <Sparkles className="h-8 w-8" /> : <CoinIcon size={28} />}
+                {displayPrize.label}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="rounded-lg border border-cyan-300/20 bg-black/70 px-4 py-2 text-center backdrop-blur-md">
@@ -219,15 +247,6 @@ const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, 
           )}
         </Button>
 
-        {(displayPrize || prize) && (
-          <div className="rounded-lg border border-cyan-300/20 bg-black/70 px-5 py-3 text-center backdrop-blur-md">
-            <p className="text-sm text-zinc-400">Today prize</p>
-            <p className="mt-1 flex items-center justify-center gap-2 text-xl font-black text-cyan-100">
-              {(displayPrize || prize)?.secret ? <Sparkles className="h-5 w-5" /> : <CoinIcon size={18} />}
-              {(displayPrize || prize)?.label}
-            </p>
-          </div>
-        )}
       </div>
     </GameScreenShell>
   );

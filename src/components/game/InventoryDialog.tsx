@@ -54,13 +54,13 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({ inventory, rodLevel, 
       <DialogTrigger asChild>
         <button
           aria-label={`Open inventory, ${totalFish} fish`}
-          className="group/inv relative inline-flex h-14 min-w-14 items-center justify-center gap-2.5 rounded-xl border border-cyan-300/20 px-4 text-cyan-100 shadow-[0_14px_28px_rgba(0,0,0,0.45)] backdrop-blur-md transition-all hover:scale-105 hover:border-cyan-300/40 hover:bg-black active:scale-95 sm:h-14 sm:min-w-[8.25rem] sm:rounded-lg"
+          className="group/inv relative inline-flex h-11 w-11 items-center justify-center gap-2 rounded-full border border-cyan-300/20 text-cyan-100 shadow-[0_14px_28px_rgba(0,0,0,0.45)] backdrop-blur-md transition-all hover:scale-105 hover:border-cyan-300/40 hover:bg-black active:scale-95 sm:h-14 sm:w-auto sm:min-w-[8.25rem] sm:rounded-xl sm:px-4"
           style={{
             background: 'linear-gradient(135deg, rgba(2,6,23,0.95), rgba(8,47,73,0.72))',
           }}
         >
-          <Backpack className="h-6 w-6 sm:h-6 sm:w-6 drop-shadow-md" />
-          <span className="text-sm font-bold sm:inline">Inventory</span>
+          <Backpack className="h-[18px] w-[18px] drop-shadow-md sm:h-6 sm:w-6" />
+          <span className="hidden text-sm font-bold sm:inline">Inventory</span>
           {totalFish > 0 && (
             <span className="absolute -right-2 -top-2 min-w-[22px] rounded-full bg-cyan-300 px-2 py-0.5 text-center text-xs font-bold leading-tight text-black shadow-lg ring-2 ring-black/60">
               {totalFish}
