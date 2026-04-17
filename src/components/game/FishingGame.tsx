@@ -4,6 +4,7 @@ import PlayerPanel from './PlayerPanel';
 import GameControls from './GameControls';
 import InventoryDialog from './InventoryDialog';
 import BuyCoinsDialog from './BuyCoinsDialog';
+import BoostDialog from './BoostDialog';
 import BottomNav from './BottomNav';
 import TasksScreen from './TasksScreen';
 import ShopScreen from './ShopScreen';
@@ -22,6 +23,12 @@ import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { publicAsset } from '@/lib/assets';
+import {
+  BOOST_ICON_SRC,
+  FISH_GOT_AWAY_PANEL_SRC,
+  INVENTORY_BUTTON_PANEL_SRC,
+  ROD_ICON_PRELOADS,
+} from '@/lib/rodAssets';
 import travelIconSrc from '@/assets/map_travel_icon_cutout.png';
 import mapTreasureVaultSrc from '@/assets/map_treasure_vault_cutout.png';
 import mapSkullCoveSrc from '@/assets/map_skull_cove_cutout.png';
@@ -62,10 +69,12 @@ const PRELOAD_ASSETS = [
   publicAsset('assets/rod_legendary.png'),
   publicAsset('assets/bg_tasks.jpg'),
   publicAsset('assets/bg_wheel.jpg'),
-  publicAsset('assets/fish_got_away_panel.png'),
-  publicAsset('assets/inventory_button_panel.png'),
+  FISH_GOT_AWAY_PANEL_SRC,
+  INVENTORY_BUTTON_PANEL_SRC,
+  BOOST_ICON_SRC,
   TRAVEL_ICON_SRC,
   ...MAP_LOCATION_ASSETS,
+  ...ROD_ICON_PRELOADS,
   ...Object.values(FISH_IMAGE_SRC),
 ];
 
@@ -452,21 +461,24 @@ const FishingGame: React.FC = () => {
           )}
 
           {isFishingScreen && (
-            <button
-              type="button"
-              onClick={() => setActiveTab('map')}
-              className="group absolute right-[2.5%] top-[12.5%] z-20 w-24 overflow-visible bg-transparent outline-none transition-all duration-200 hover:scale-105 focus-visible:scale-105 active:scale-95 sm:right-[2.25%] sm:top-[13.5%] sm:w-32 lg:w-36"
-              aria-label="Open travel map"
-            >
-              <img
-                src={TRAVEL_ICON_SRC}
-                alt=""
-                className="block w-full object-contain drop-shadow-[0_16px_30px_rgba(0,0,0,0.42)] transition-transform duration-300 group-hover:scale-[1.03]"
-              />
-              <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 rounded-lg border border-yellow-200/75 bg-yellow-300 px-2 py-0.5 text-[9px] font-black uppercase tracking-normal text-black shadow-lg sm:bottom-2 sm:text-[10px]">
-                Travel
-              </span>
-            </button>
+            <div className="absolute right-[2.5%] top-[12.5%] z-20 flex flex-col items-center gap-3 sm:right-[2.25%] sm:top-[13.5%]">
+              <button
+                type="button"
+                onClick={() => setActiveTab('map')}
+                className="group relative w-24 overflow-visible bg-transparent outline-none transition-all duration-200 hover:scale-105 focus-visible:scale-105 active:scale-95 sm:w-32 lg:w-36"
+                aria-label="Open travel map"
+              >
+                <img
+                  src={TRAVEL_ICON_SRC}
+                  alt=""
+                  className="block w-full object-contain drop-shadow-[0_16px_30px_rgba(0,0,0,0.42)] transition-transform duration-300 group-hover:scale-[1.03]"
+                />
+                <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 rounded-lg border border-yellow-200/75 bg-yellow-300 px-2 py-0.5 text-[9px] font-black uppercase tracking-normal text-black shadow-lg sm:bottom-2 sm:text-[10px]">
+                  Travel
+                </span>
+              </button>
+              <BoostDialog walletAddress={address} />
+            </div>
           )}
 
           {isFishingScreen && (

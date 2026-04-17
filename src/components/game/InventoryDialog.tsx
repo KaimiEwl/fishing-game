@@ -11,19 +11,9 @@ import { CaughtFish, FISH_DATA, RARITY_COLORS, RARITY_NAMES } from '@/types/game
 import CoinIcon from './CoinIcon';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { publicAsset } from '@/lib/assets';
 import { Backpack, Check, ShipWheel } from 'lucide-react';
 import FishIcon from './FishIcon';
-
-const INVENTORY_BUTTON_PANEL = publicAsset('assets/inventory_button_panel.png');
-
-const ROD_INFO = [
-  { name: 'Starter', image: publicAsset('assets/rod_basic.png'), color: '#aaa', bonus: 0 },
-  { name: 'Bamboo', image: publicAsset('assets/rod_bamboo.png'), color: '#22aa44', bonus: 5 },
-  { name: 'Carbon', image: publicAsset('assets/rod_carbon.png'), color: '#2255cc', bonus: 10 },
-  { name: 'Pro', image: publicAsset('assets/rod_pro.png'), color: '#9944ff', bonus: 15 },
-  { name: 'Legendary', image: publicAsset('assets/rod_legendary.png'), color: '#ffcc00', bonus: 25 },
-];
+import { INVENTORY_BUTTON_PANEL_SRC, ROD_DISPLAY_INFO } from '@/lib/rodAssets';
 
 interface InventoryDialogProps {
   inventory: CaughtFish[];
@@ -59,7 +49,7 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({ inventory, rodLevel, 
           className="group/inv relative inline-flex items-center justify-center bg-transparent p-0 shadow-none transition-transform hover:scale-[1.03] active:scale-95"
         >
           <img
-            src={INVENTORY_BUTTON_PANEL}
+            src={INVENTORY_BUTTON_PANEL_SRC}
             alt=""
             aria-hidden="true"
             className="block w-[10.5rem] object-contain drop-shadow-[0_12px_30px_rgba(0,0,0,0.42)] sm:w-[13.25rem]"
@@ -117,7 +107,7 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({ inventory, rodLevel, 
             <ScrollArea className="h-[min(300px,42vh)] pr-2">
               <div className="space-y-2">
                 {ownedRods.map((level) => {
-                  const rod = ROD_INFO[level];
+                  const rod = ROD_DISPLAY_INFO[level];
                   const isEquipped = equippedRod === level;
                   const hasNft = nftRods.includes(level);
 

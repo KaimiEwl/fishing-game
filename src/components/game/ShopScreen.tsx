@@ -5,6 +5,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ROD_BONUSES } from '@/types/game';
 import { publicAsset } from '@/lib/assets';
+import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
 import CoinIcon from './CoinIcon';
 import GameScreenShell from './GameScreenShell';
 
@@ -25,10 +26,10 @@ const BAIT_PACKAGES = [
 ];
 
 const ROD_UPGRADES = [
-  { level: 1, cost: 2500, name: 'Bamboo Rod', bonus: 5, image: publicAsset('assets/rod_bamboo.png'), bobber: 'Green bobber', bobberColor: '#22aa44' },
-  { level: 2, cost: 15000, name: 'Carbon Rod', bonus: 10, image: publicAsset('assets/rod_carbon.png'), bobber: 'Blue bobber', bobberColor: '#2255cc' },
-  { level: 3, cost: 60000, name: 'Pro Rod', bonus: 15, image: publicAsset('assets/rod_pro.png'), bobber: 'Purple bobber', bobberColor: '#9944ff' },
-  { level: 4, cost: 250000, name: 'Legendary Rod', bonus: 25, image: publicAsset('assets/rod_legendary.png'), bobber: 'Golden glowing bobber', bobberColor: '#ffcc00' },
+  { level: 1, cost: 2500, name: 'Bamboo Rod', bonus: 5, image: ROD_DISPLAY_INFO[1].image, bobber: 'Green bobber', bobberColor: '#22aa44' },
+  { level: 2, cost: 15000, name: 'Carbon Rod', bonus: 10, image: ROD_DISPLAY_INFO[2].image, bobber: 'Blue bobber', bobberColor: '#2255cc' },
+  { level: 3, cost: 60000, name: 'Pro Rod', bonus: 15, image: ROD_DISPLAY_INFO[3].image, bobber: 'Purple bobber', bobberColor: '#9944ff' },
+  { level: 4, cost: 250000, name: 'Legendary Rod', bonus: 25, image: ROD_DISPLAY_INFO[4].image, bobber: 'Golden glowing bobber', bobberColor: '#ffcc00' },
 ];
 
 const ShopScreen: React.FC<ShopScreenProps> = ({
@@ -100,8 +101,8 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                         : 'border-zinc-800 bg-zinc-950/82'
                     }`}
                   >
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
-                      <img src={rod.image} alt={rod.name} className="h-12 object-contain" />
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950/90 shadow-inner">
+                      <img src={rod.image} alt={rod.name} className="h-14 w-14 object-contain" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="font-bold text-zinc-100">{rod.name}</div>

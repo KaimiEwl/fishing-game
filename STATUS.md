@@ -51,10 +51,12 @@ In progress.
 - added a dedicated inventory-only fish reward path for cube prizes so rewarded fish do not incorrectly grant catch XP or daily-task catch progress
 - cleaned the `Volcano Grill` travel-map asset corners so the preview no longer shows a square brown backing outside the rounded card shape
 - swapped the missed-catch result card to a new illustrated `The fish got away...` panel and added a large XP reward readout under it
-- replaced the inventory trigger art with the new `Inventory...` banner asset from local downloads and kept the fish-count badge on top
-- raised the desktop cast/rod controls so they no longer sit as low against the bottom arcade strip
+- replaced the inventory trigger art with the new `Inventory...` banner asset from local downloads, switched it to a cache-busted asset path, and kept the fish-count badge on top
+- raised the desktop cast/rod controls further so the cast button and rod badge clear the bottom arcade strip more reliably
 - reduced the in-scene wait/cast/reel prompt sizes so they interfere less with the lake view on desktop and mobile
 - unified the boat/rod geometry used by the render loop and cast animation so the fishing line starts from the same rod-tip point on both desktop and mobile
+- replaced the four shop / rod inventory upgrade icons with the new green, blue, purple, and gold rod art from local downloads
+- added a new `Boost` purchase button under `Travel` on the fishing screen with a MON payment dialog flow
 
 ### Validation for milestone 2
 - `npm run build` - passed

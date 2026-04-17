@@ -4,18 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import FishDisplay from './FishDisplay';
 import { publicAsset } from '@/lib/assets';
+import { FISH_GOT_AWAY_PANEL_SRC, ROD_DISPLAY_INFO } from '@/lib/rodAssets';
 
 const CAST_BUTTON_BLUE = publicAsset('assets/cast_button_blue.png');
 const CAST_BUTTON_GREEN = publicAsset('assets/cast_button_green.png');
-const FISH_GOT_AWAY_PANEL = publicAsset('assets/fish_got_away_panel.png');
-
-const ROD_INFO = [
-  { name: 'Starter', image: publicAsset('assets/rod_basic.png'), color: '#aaa', bonus: 0 },
-  { name: 'Bamboo', image: publicAsset('assets/rod_bamboo.png'), color: '#22aa44', bonus: 5 },
-  { name: 'Carbon', image: publicAsset('assets/rod_carbon.png'), color: '#2255cc', bonus: 10 },
-  { name: 'Pro', image: publicAsset('assets/rod_pro.png'), color: '#9944ff', bonus: 15 },
-  { name: 'Legendary', image: publicAsset('assets/rod_legendary.png'), color: '#ffcc00', bonus: 25 },
-];
 
 interface GameControlsProps {
   gameState: GameState;
@@ -44,7 +36,7 @@ const GameControls: React.FC<GameControlsProps> = ({
   missXpReward = 5,
   isMobile = false,
 }) => {
-  const rod = ROD_INFO[rodLevel] || ROD_INFO[0];
+  const rod = ROD_DISPLAY_INFO[rodLevel] || ROD_DISPLAY_INFO[0];
   const hasNft = nftRods.includes(rodLevel);
   const biteProgress = biteTimeTotal > 0 ? (biteTimeLeft / biteTimeTotal) * 100 : 0;
   const showPrimaryControl = gameState === 'idle' || gameState === 'biting';
@@ -67,7 +59,7 @@ const GameControls: React.FC<GameControlsProps> = ({
               ) : (
                 <div className="flex flex-col items-center gap-3 text-center">
                   <img
-                    src={FISH_GOT_AWAY_PANEL}
+                    src={FISH_GOT_AWAY_PANEL_SRC}
                     alt="The fish got away"
                     className="block w-full max-w-[26rem] rounded-xl object-contain shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
                     draggable={false}
@@ -109,8 +101,8 @@ const GameControls: React.FC<GameControlsProps> = ({
         className="fixed left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-3"
         style={{
           bottom: isMobile
-            ? 'calc(var(--bottom-nav-clearance,0px) + 0.4rem)'
-            : 'calc(var(--bottom-nav-clearance,0px) + 1.95rem)',
+            ? 'calc(var(--bottom-nav-clearance,0px) + 0.75rem)'
+            : 'calc(var(--bottom-nav-clearance,0px) + 5.1rem)',
         }}
       >
         {gameState === 'biting' && (
