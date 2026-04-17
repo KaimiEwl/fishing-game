@@ -89,7 +89,7 @@ const GameControls: React.FC<GameControlsProps> = ({
         </div>
       )}
 
-      <div className="fixed bottom-[calc(var(--bottom-nav-clearance,0px)+1rem)] left-1/2 z-20 flex -translate-x-1/2 flex-col items-end gap-3 sm:bottom-24 sm:left-auto sm:right-5 sm:translate-x-0">
+      <div className="fixed bottom-[calc(var(--bottom-nav-clearance,0px)+0.35rem)] left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-3">
         {gameState === 'biting' && (
           <div className="w-[11.75rem] rounded-xl border border-cyan-300/18 bg-black/82 px-3 py-2 shadow-xl backdrop-blur-md sm:w-[13.5rem]">
             <div className="h-2 overflow-hidden rounded-full border border-zinc-800 bg-zinc-950">
@@ -112,12 +112,12 @@ const GameControls: React.FC<GameControlsProps> = ({
         )}
 
         {showPrimaryControl && (
-          <div className="flex items-center gap-2">
+          <div className="relative flex w-[11.75rem] justify-center sm:w-[13.5rem]">
             <TooltipProvider delayDuration={200}>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div
-                    className={`relative flex h-12 w-12 cursor-pointer flex-col items-center justify-center rounded-xl border border-cyan-300/20 bg-black/85 shadow-lg backdrop-blur-md transition-all hover:scale-105 hover:bg-zinc-950 active:scale-95 sm:h-14 sm:w-14 ${hasNft ? 'ring-2 ring-cyan-300/40' : ''}`}
+                    className={`absolute bottom-1 right-[calc(100%+0.55rem)] flex h-12 w-12 cursor-pointer flex-col items-center justify-center rounded-xl border border-cyan-300/20 bg-black/85 shadow-lg backdrop-blur-md transition-all hover:scale-105 hover:bg-zinc-950 active:scale-95 sm:bottom-1.5 sm:h-14 sm:w-14 ${hasNft ? 'ring-2 ring-cyan-300/40' : ''}`}
                   >
                     <img src={rod.image} alt={rod.name} className="h-7 object-contain drop-shadow-md sm:h-8" />
                     {rod.bonus > 0 && <span className="mt-0.5 text-[9px] font-bold leading-none text-cyan-100">+{rod.bonus}%</span>}
@@ -166,7 +166,7 @@ const GameControls: React.FC<GameControlsProps> = ({
               onClick={primaryAction}
               disabled={primaryDisabled}
               aria-label={primaryLabel}
-              className="relative h-auto border-0 bg-transparent p-0 shadow-none transition-transform duration-200 hover:scale-[1.04] hover:bg-transparent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-100 disabled:hover:scale-100"
+              className="relative z-[1] h-auto border-0 bg-transparent p-0 shadow-none transition-transform duration-200 hover:scale-[1.04] hover:bg-transparent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-100 disabled:hover:scale-100"
             >
               <span className="relative block w-[11.75rem] sm:w-[13.5rem]">
                 <img

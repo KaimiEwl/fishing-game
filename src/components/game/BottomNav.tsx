@@ -10,12 +10,12 @@ interface BottomNavProps {
 }
 
 const navItems: Array<{ id: GameTab; label: string; glow: string }> = [
-  { id: 'fish', label: 'Fish', glow: 'shadow-[0_0_18px_rgba(59,130,246,0.45),0_0_36px_rgba(14,165,233,0.22)]' },
-  { id: 'tasks', label: 'Tasks', glow: 'shadow-[0_0_18px_rgba(74,222,128,0.48),0_0_36px_rgba(34,197,94,0.22)]' },
-  { id: 'shop', label: 'Shop', glow: 'shadow-[0_0_18px_rgba(250,204,21,0.48),0_0_36px_rgba(245,158,11,0.22)]' },
-  { id: 'grill', label: 'Grill', glow: 'shadow-[0_0_18px_rgba(248,113,113,0.5),0_0_36px_rgba(239,68,68,0.24)]' },
-  { id: 'wheel', label: 'Cube', glow: 'shadow-[0_0_18px_rgba(96,165,250,0.48),0_0_36px_rgba(56,189,248,0.24)]' },
-  { id: 'leaderboard', label: 'Board', glow: 'shadow-[0_0_18px_rgba(255,255,255,0.35),0_0_36px_rgba(250,204,21,0.18)]' },
+  { id: 'fish', label: 'Fish', glow: 'before:bg-[radial-gradient(circle,rgba(56,189,248,0.34)_0%,rgba(56,189,248,0.18)_46%,rgba(56,189,248,0)_76%)]' },
+  { id: 'tasks', label: 'Tasks', glow: 'before:bg-[radial-gradient(circle,rgba(74,222,128,0.32)_0%,rgba(74,222,128,0.18)_46%,rgba(74,222,128,0)_76%)]' },
+  { id: 'shop', label: 'Shop', glow: 'before:bg-[radial-gradient(circle,rgba(250,204,21,0.34)_0%,rgba(250,204,21,0.2)_46%,rgba(250,204,21,0)_76%)]' },
+  { id: 'grill', label: 'Grill', glow: 'before:bg-[radial-gradient(circle,rgba(248,113,113,0.34)_0%,rgba(248,113,113,0.2)_46%,rgba(248,113,113,0)_76%)]' },
+  { id: 'wheel', label: 'Cube', glow: 'before:bg-[radial-gradient(circle,rgba(96,165,250,0.34)_0%,rgba(96,165,250,0.18)_46%,rgba(96,165,250,0)_76%)]' },
+  { id: 'leaderboard', label: 'Board', glow: 'before:bg-[radial-gradient(circle,rgba(250,204,21,0.3)_0%,rgba(255,255,255,0.16)_46%,rgba(255,255,255,0)_76%)]' },
 ];
 
 const BottomNav: React.FC<BottomNavProps> = ({
@@ -24,14 +24,14 @@ const BottomNav: React.FC<BottomNavProps> = ({
   wheelReady,
 }) => {
   return (
-    <nav className="relative z-40 shrink-0 bg-[#05070f] px-2 pt-1 pb-[max(0.45rem,env(safe-area-inset-bottom))] sm:px-4 sm:pt-2">
-      <div className="mx-auto w-full max-w-[min(100%,41rem)] sm:max-w-[42rem]">
+    <nav className="relative z-40 px-2 pb-[max(0.45rem,env(safe-area-inset-bottom))] pt-1 sm:px-4 sm:pt-2">
+      <div className="mx-auto w-full max-w-[min(100%,34rem)] sm:max-w-[38rem]">
         <div className="relative mx-auto w-full">
           <img
             src={bottomNavArcadeStrip}
             alt=""
             aria-hidden="true"
-            className="pointer-events-none block w-full select-none object-contain"
+            className="pointer-events-none block w-full select-none object-contain drop-shadow-[0_14px_26px_rgba(0,0,0,0.38)]"
             draggable={false}
           />
 
@@ -45,13 +45,16 @@ const BottomNav: React.FC<BottomNavProps> = ({
                   type="button"
                   onClick={() => onTabChange(item.id)}
                   className={cn(
-                    'pointer-events-auto relative h-full w-full rounded-[14px] transition duration-200 focus-visible:outline-none active:scale-[0.985]',
+                    'pointer-events-auto relative h-full w-full rounded-[14px] transition duration-200 focus-visible:outline-none active:scale-[0.985] before:absolute before:left-1/2 before:top-1/2 before:h-[64%] before:w-[74%] before:-translate-x-1/2 before:-translate-y-1/2 before:rounded-full before:opacity-0 before:transition-opacity before:duration-200',
                     isActive
                       ? cn(
-                          'ring-2 ring-inset ring-white/60 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]',
+                          'scale-[1.02] before:opacity-100',
                           item.glow,
                         )
-                      : 'hover:ring-1 hover:ring-white/18 hover:shadow-[0_0_10px_rgba(255,255,255,0.04)]',
+                      : cn(
+                          item.glow,
+                          'hover:scale-[1.015] hover:before:opacity-80',
+                        ),
                   )}
                   aria-current={isActive ? 'page' : undefined}
                   aria-label={item.label}

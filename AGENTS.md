@@ -1,25 +1,39 @@
-# AGENTS
+# AGENTS.md
 
-## Working style
-- Prefer small, shippable fixes over large rewrites.
-- Protect the existing desktop and mobile flows unless a change is explicitly required.
-- Before each milestone, identify the root cause first, then change the minimum number of files needed.
-- After each milestone:
-  1. update `STATUS.md`
-  2. run `npm run build`
-  3. run `npm run lint`
-  4. fix critical failures before moving on
+## Project context
+This is a casual mobile game prototype.
+Primary goal: fast iteration and playable features.
 
-## Repo conventions
-- Main app entry for the game flow: `src/components/game/FishingGame.tsx`
-- Main gameplay canvas: `src/components/game/MonadFishCanvas.tsx`
-- HUD / controls / shell components live in `src/components/game/`
-- Use `apply_patch` for code edits.
-- Avoid staging unrelated dirty files.
+## Tech stack
+- Unity / Web / Godot / etc.
+- Main language: ...
+- UI system: ...
 
-## Current priority
-- Build a stable playable vertical slice of the fishing game.
-- Keep the main gameplay loop working end-to-end:
-  cast -> bite -> hook/reel -> reward -> inventory update -> feedback
-- Fix visible regressions on the main screen while preserving existing tabs.
+## Coding rules
+- Keep files small and focused
+- Avoid unnecessary abstractions
+- Reuse existing patterns before creating new systems
+- Preserve current art pipeline and asset paths
 
+## Workflow
+Before coding:
+1. Read PLANS.md
+2. Read STATUS.md
+
+During work:
+1. Implement one milestone at a time
+2. Run validation after each milestone
+3. Update STATUS.md
+
+## Validation
+Run:
+- build
+- lint
+- tests
+
+## Output expectations
+Always record:
+- completed tasks
+- changed files
+- unresolved issues
+- next recommended step

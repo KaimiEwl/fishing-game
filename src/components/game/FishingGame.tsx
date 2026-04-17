@@ -367,6 +367,7 @@ const FishingGame: React.FC = () => {
         className="relative mx-auto flex h-full w-full flex-col overflow-hidden bg-black shadow-2xl"
         style={{
           maxWidth: isMobile ? '100vw' : '1920px',
+          ['--bottom-nav-clearance' as string]: isMobile ? '5.25rem' : '6.25rem',
         }}
       >
         <div className={cn('relative flex-1 overflow-hidden transition-opacity duration-300', assetsReady ? 'opacity-100' : 'opacity-0')}>
@@ -474,7 +475,7 @@ const FishingGame: React.FC = () => {
           )}
 
           {isFishingScreen && (
-            <div className="absolute bottom-4 left-3 z-20 flex max-w-[calc(100vw-1.5rem)] flex-col items-start gap-2 sm:left-5 sm:flex-row">
+            <div className="absolute bottom-[calc(var(--bottom-nav-clearance,0px)+0.5rem)] left-3 z-20 flex max-w-[calc(100vw-1.5rem)] flex-col items-start gap-2 sm:left-5 sm:flex-row">
               <InventoryDialog
                 inventory={player.inventory}
                 rodLevel={player.rodLevel}
@@ -511,11 +512,15 @@ const FishingGame: React.FC = () => {
 
         </div>
 
-        <BottomNav
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          wheelReady={gameProgress.wheelReady}
-        />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30">
+          <div className="pointer-events-auto">
+            <BottomNav
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              wheelReady={gameProgress.wheelReady}
+            />
+          </div>
+        </div>
 
         <GameLoadingScreen visible={!assetsReady} progress={assetsProgress} />
       </div>

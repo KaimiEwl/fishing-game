@@ -54,16 +54,17 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({ inventory, rodLevel, 
       <DialogTrigger asChild>
         <button
           aria-label={`Open inventory, ${totalFish} fish`}
-          className="group/inv relative inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-cyan-300/24 px-3.5 py-2 text-cyan-50 shadow-[0_14px_28px_rgba(0,0,0,0.45)] backdrop-blur-md transition-all hover:scale-[1.03] hover:border-cyan-300/42 hover:bg-black active:scale-95 sm:min-h-14 sm:min-w-[9rem] sm:px-4.5"
+          className="group/inv relative inline-flex min-h-12 items-center justify-center gap-2 rounded-[14px] border border-[#f4cf75]/65 px-3.5 py-2 text-cyan-50 shadow-[0_16px_32px_rgba(0,0,0,0.42)] transition-all hover:scale-[1.03] hover:border-[#ffd88a] hover:brightness-105 active:scale-95 sm:min-h-14 sm:min-w-[9rem] sm:px-4.5"
           style={{
-            background: 'linear-gradient(135deg, rgba(7,12,28,0.96), rgba(8,52,88,0.78))',
+            background: 'linear-gradient(180deg, rgba(24,93,174,0.96), rgba(9,33,78,0.96))',
           }}
         >
-          <span className="absolute inset-0 rounded-xl ring-1 ring-inset ring-white/6" aria-hidden="true" />
+          <span className="absolute inset-[1px] rounded-[13px] bg-[linear-gradient(180deg,rgba(56,189,248,0.18),rgba(5,16,38,0.08))]" aria-hidden="true" />
+          <span className="absolute inset-x-2 top-[2px] h-[38%] rounded-full bg-white/12 blur-[2px]" aria-hidden="true" />
           <Backpack className="relative h-[18px] w-[18px] drop-shadow-md sm:h-5 sm:w-5" />
-          <span className="relative text-sm font-black tracking-normal">Inventory</span>
+          <span className="relative text-sm font-black tracking-normal text-white drop-shadow-[0_1px_6px_rgba(0,0,0,0.55)]">Inventory</span>
           {totalFish > 0 && (
-            <span className="absolute -right-2 -top-2 min-w-[22px] rounded-full bg-cyan-300 px-2 py-0.5 text-center text-xs font-bold leading-tight text-black shadow-lg ring-2 ring-black/60">
+            <span className="absolute -right-2 -top-2 min-w-[22px] rounded-full bg-[#ffd86c] px-2 py-0.5 text-center text-xs font-bold leading-tight text-black shadow-lg ring-2 ring-black/55">
               {totalFish}
             </span>
           )}
