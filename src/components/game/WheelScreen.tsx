@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { WHEEL_PRIZES, type WheelPrize } from '@/types/game';
@@ -61,7 +61,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, 
   const finishTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!spinning) {
+    if (!spinning && prize && !CUBE_TEST_MODE) {
       setDisplayPrize(prize);
       setPlannedPrize(prize);
     }
@@ -128,7 +128,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, 
         </div>
 
         <div className="relative h-[18rem] w-full max-w-[24rem] sm:h-[24rem] sm:max-w-[32rem]" style={{ perspective: '1050px' }}>
-          <div className="absolute left-[2%] sm:left-[8%] top-[55%] z-20 flex -translate-y-1/2 items-center gap-1">
+          <div className="absolute left-[3%] sm:left-[9%] top-1/2 z-20 flex -translate-y-1/2 items-center gap-1">
             <span className="rounded-lg border border-cyan-300/25 bg-black/85 px-3 py-1 bg-gradient-to-r from-cyan-900 to-black text-[11px] font-black uppercase tracking-normal text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.35)]">
               Winner
             </span>
@@ -136,7 +136,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, 
           </div>
 
           <div
-            className={`absolute left-1/2 top-[55%] h-[var(--cube-size)] w-[var(--cube-size)] -translate-x-1/2 -translate-y-1/2 transition-[filter] ${canRoll ? 'brightness-110 drop-shadow-[0_0_70px_rgba(34,211,238,0.38)]' : 'grayscale-[0.45] brightness-75'}`}
+            className={`absolute left-1/2 top-1/2 h-[var(--cube-size)] w-[var(--cube-size)] -translate-x-1/2 -translate-y-1/2 transition-[filter] ${canRoll ? 'brightness-110 drop-shadow-[0_0_70px_rgba(34,211,238,0.38)]' : 'grayscale-[0.45] brightness-75'}`}
             style={{
               '--cube-size': 'min(max(46vmin, 12rem), 20rem)',
               '--cube-half': 'calc(var(--cube-size) / 2)',
@@ -223,6 +223,15 @@ const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, 
           </p>
         </div>
 
+        {displayPrize && !spinning && (
+          <div className="rounded-lg border border-yellow-400/30 bg-black/75 px-5 py-3 text-center shadow-[0_0_24px_rgba(250,204,21,0.18)] backdrop-blur-md">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-yellow-300/80">Result</p>
+            <p className="mt-1 text-lg font-black text-yellow-200">
+              Ты выиграл: {displayPrize.label}
+            </p>
+          </div>
+        )}
+
         <Button
           type="button"
           disabled={!canRoll || spinning}
@@ -253,3 +262,4 @@ const WheelScreen: React.FC<WheelScreenProps> = ({ coins, ready, tasksComplete, 
 };
 
 export default WheelScreen;
+

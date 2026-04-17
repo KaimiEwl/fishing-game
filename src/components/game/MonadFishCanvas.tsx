@@ -136,10 +136,9 @@ interface MonadFishCanvasProps {
     gameState: string;
     lastResult?: GameResult | null;
     rodLevel?: number;
-    bottomClearance?: number;
 }
 
-const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, lastResult, rodLevel = 0, bottomClearance = 0 }) => {
+const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, lastResult, rodLevel = 0 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const particlesRef = useRef<any[]>([]);
     const bubblesRef = useRef<any[]>([]);
@@ -434,10 +433,10 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
                 
                 if (canvasAspect > aspect) {
                     drawH = w / aspect;
-                    offsetY = (h - drawH) / 2;
+                    offsetY = 0;
                 } else {
                     drawW = h * aspect;
-                    offsetX = (w - drawW) / 2;
+                    offsetX = w - drawW;
                 }
                 
                 ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
@@ -767,8 +766,7 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
     return (
         <canvas
             ref={canvasRef}
-            className="absolute left-0 top-0 w-full"
-            style={{ height: bottomClearance > 0 ? `calc(100% - ${bottomClearance}px)` : '100%' }}
+            className="absolute left-0 top-0 h-full w-full"
         />
     );
 };

@@ -30,9 +30,13 @@ import mapVolcanoGrillSrc from '@/assets/map_volcano_grill_cutout.png';
 import mapIslandMarketSrc from '@/assets/map_island_market_cutout.png';
 import mapWheelPierSrc from '@/assets/map_wheel_pier_cutout.png';
 import {
+  deleteGlobalLeaderboardEntry,
   getLeaderboardPlayerId,
   loadLeaderboardEntries,
+  loadGlobalLeaderboardEntries,
   mergeLeaderboardEntries,
+  mergeLeaderboardSnapshots,
+  saveGlobalLeaderboardEntry,
   upsertLeaderboardEntry,
 } from '@/lib/leaderboard';
 import type { DailyTaskId, GameTab, GrillLeaderboardEntry, GrillRecipe, WheelPrize } from '@/types/game';
@@ -100,11 +104,28 @@ const preloadImage = (src: string) => new Promise<void>((resolve) => {
   }
 });
 
+const setBootLoaderState = (progress: number, label?: string) => {
+  const bootWindow = window as Window & {
+    __setBootLoaderState?: (nextProgress: number, nextLabel?: string) => void;
+  };
+
+  bootWindow.__setBootLoaderState?.(progress, label);
+};
+
+const hideBootLoader = () => {
+  const bootWindow = window as Window & {
+    __hideBootLoader?: () => void;
+  };
+
+  bootWindow.__hideBootLoader?.();
+};
+
 const FishingGame: React.FC = () => {
   const { isConnected, isVerified, savedPlayer, saveProgress, address } = useWalletAuth();
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<GameTab>('fish');
   const [assetsReady, setAssetsReady] = useState(false);
+  const [assetsProgress, setAssetsProgress] = useState(0);
   const [leaderboardEntries, setLeaderboardEntries] = useState<GrillLeaderboardEntry[]>(() => loadLeaderboardEntries());
   const [leaderboardPlayerId, setLeaderboardPlayerId] = useState(() => getLeaderboardPlayerId(address));
   const [leaderboardNameOpen, setLeaderboardNameOpen] = useState(false);
@@ -146,24 +167,46 @@ const FishingGame: React.FC = () => {
   ), [leaderboardEntries, leaderboardPlayerId]);
 
   const saveCurrentLeaderboardEntry = useCallback((name: string, score: number, dishesDelta = 0) => {
-    setLeaderboardEntries((entries) => upsertLeaderboardEntry({
-      entries,
-      id: leaderboardPlayerId,
-      name,
-      score,
-      dishesDelta,
-      walletAddress: address,
-    }));
+    setLeaderboardEntries((entries) => {
+      const nextEntries = upsertLeaderboardEntry({
+        entries,
+        id: leaderboardPlayerId,
+        name,
+        score,
+        dishesDelta,
+        walletAddress: address,
+      });
+      const updatedEntry = nextEntries.find((entry) => entry.id === leaderboardPlayerId);
+      if (updatedEntry) {
+        void saveGlobalLeaderboardEntry(updatedEntry);
+      }
+      return nextEntries;
+    });
   }, [address, leaderboardPlayerId]);
 
   useEffect(() => {
     let cancelled = false;
     const uniqueAssets = Array.from(new Set(PRELOAD_ASSETS));
+    let loaded = 0;
 
-    Promise.all(uniqueAssets.map(preloadImage)).then(() => {
+    setAssetsProgress(0.04);
+    setBootLoaderState(0.04, 'Loading the lake...');
+
+    Promise.all(uniqueAssets.map((src) => preloadImage(src).finally(() => {
+      loaded += 1;
+      const nextProgress = Math.min(0.96, loaded / uniqueAssets.length);
+      if (!cancelled) {
+        setAssetsProgress(nextProgress);
+        setBootLoaderState(nextProgress, 'Loading the lake...');
+      }
+    }))).then(() => {
       window.requestAnimationFrame(() => {
         window.requestAnimationFrame(() => {
-          if (!cancelled) setAssetsReady(true);
+          if (!cancelled) {
+            setAssetsProgress(1);
+            setBootLoaderState(1, 'Ready to fish...');
+            setAssetsReady(true);
+          }
         });
       });
     });
@@ -174,17 +217,48 @@ const FishingGame: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
+    void loadGlobalLeaderboardEntries().then((remoteEntries) => {
+      if (cancelled || !remoteEntries) return;
+      setLeaderboardEntries((entries) => mergeLeaderboardSnapshots(entries, remoteEntries));
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!assetsReady) return;
+
+    const timer = window.setTimeout(() => {
+      hideBootLoader();
+    }, 120);
+
+    return () => window.clearTimeout(timer);
+  }, [assetsReady]);
+
+  useEffect(() => {
     const nextId = getLeaderboardPlayerId(address);
     const previousId = prevLeaderboardPlayerId.current;
 
     if (address && previousId !== nextId && previousId.startsWith('guest:')) {
-      setLeaderboardEntries((entries) => mergeLeaderboardEntries({
-        entries,
-        fromId: previousId,
-        toId: nextId,
-        fallbackName: player.nickname || 'Guest griller',
-        walletAddress: address,
-      }));
+      setLeaderboardEntries((entries) => {
+        const nextEntries = mergeLeaderboardEntries({
+          entries,
+          fromId: previousId,
+          toId: nextId,
+          fallbackName: player.nickname || 'Guest griller',
+          walletAddress: address,
+        });
+        const mergedEntry = nextEntries.find((entry) => entry.id === nextId);
+        if (mergedEntry) {
+          void saveGlobalLeaderboardEntry(mergedEntry);
+          void deleteGlobalLeaderboardEntry(previousId);
+        }
+        return nextEntries;
+      });
     }
 
     prevLeaderboardPlayerId.current = nextId;
@@ -286,29 +360,23 @@ const FishingGame: React.FC = () => {
   };
 
   const isFishingScreen = activeTab === 'fish';
-  const bottomNavClearance = isMobile ? 92 : 128;
 
   return (
-    <main className="fixed inset-0 overflow-hidden bg-black">
+    <main className="fixed inset-0 flex flex-col bg-[#05060b]">
       <div
         data-device={isMobile ? 'mobile' : 'desktop'}
-        className="relative mx-auto overflow-hidden bg-black"
+        className="relative mx-auto flex h-full w-full flex-col overflow-hidden bg-black shadow-2xl"
         style={{
-          '--bottom-nav-clearance': `${bottomNavClearance}px`,
-          width: '100vw',
           maxWidth: isMobile ? '100vw' : '1920px',
-          height: '100dvh',
-          minHeight: '100svh',
-        } as React.CSSProperties}
+        }}
       >
-        <div className={cn('absolute inset-0 transition-opacity duration-300', assetsReady ? 'opacity-100' : 'opacity-0')}>
+        <div className={cn('relative flex-1 overflow-hidden transition-opacity duration-300', assetsReady ? 'opacity-100' : 'opacity-0')}>
           {isFishingScreen ? (
             <MonadFishCanvas
               onCast={castRod}
               gameState={gameState}
               lastResult={lastResult}
               rodLevel={player.equippedRod}
-              bottomClearance={bottomNavClearance}
             />
           ) : activeTab === 'tasks' ? (
             <TasksScreen
@@ -407,7 +475,7 @@ const FishingGame: React.FC = () => {
           )}
 
           {isFishingScreen && (
-            <div className="fixed bottom-[calc(var(--bottom-nav-clearance,0px)+0.75rem)] left-3 z-20 flex max-w-[calc(100vw-1.5rem)] flex-col items-start gap-2 sm:bottom-28 sm:left-5 sm:flex-row">
+            <div className="absolute bottom-4 left-3 z-20 flex max-w-[calc(100vw-1.5rem)] flex-col items-start gap-2 sm:left-5 sm:flex-row">
               <InventoryDialog
                 inventory={player.inventory}
                 rodLevel={player.rodLevel}
@@ -428,16 +496,17 @@ const FishingGame: React.FC = () => {
             </div>
           )}
 
-          <BottomNav
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            wheelReady={gameProgress.wheelReady}
+          <LeaderboardNameDialog
+            open={leaderboardNameOpen}
+            defaultName={currentLeaderboardEntry?.name || player.nickname}
+            score={Math.max(pendingLeaderboardScore, gameProgress.grillScore)}
+            onSave={handleSaveLeaderboardName}
           />
-
+          
           {!isMobile && (
             <a
               href="mailto:support@monadfish.xyz"
-              className="fixed right-5 top-5 z-20 inline-flex h-10 items-center gap-2 rounded-lg border border-cyan-300/15 bg-black/75 px-3 text-xs font-semibold text-zinc-300 shadow-lg backdrop-blur-md transition-colors hover:bg-zinc-950 hover:text-cyan-100"
+              className="absolute right-5 top-5 z-20 inline-flex h-10 items-center gap-2 rounded-lg border border-cyan-300/15 bg-black/75 px-3 text-xs font-semibold text-zinc-300 shadow-lg backdrop-blur-md transition-colors hover:bg-zinc-950 hover:text-cyan-100"
               aria-label="Contact support"
             >
               <Mail className="h-4 w-4" />
@@ -453,15 +522,15 @@ const FishingGame: React.FC = () => {
             />
           )}
 
-          <LeaderboardNameDialog
-            open={leaderboardNameOpen}
-            defaultName={currentLeaderboardEntry?.name || player.nickname}
-            score={Math.max(pendingLeaderboardScore, gameProgress.grillScore)}
-            onSave={handleSaveLeaderboardName}
-          />
         </div>
 
-        <GameLoadingScreen visible={!assetsReady} />
+        <BottomNav
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          wheelReady={gameProgress.wheelReady}
+        />
+
+        <GameLoadingScreen visible={!assetsReady} progress={assetsProgress} />
       </div>
     </main>
   );

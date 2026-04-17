@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { ChefHat, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FISH_DATA, GRILL_RECIPES, type CaughtFish, type GrillRecipe } from '@/types/game';
@@ -47,7 +47,7 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
               />
             </div>
             <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-sm text-zinc-400">
-              Stronger fish make stronger dishes. Cook once, save a name, and your score stays on the local leaderboard.
+              Stronger fish make stronger dishes. Cook once, save a name, and your score stays on the leaderboard.
             </div>
           </div>
         </aside>
@@ -116,3 +116,4 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
 };
 
 export default GrillScreen;
+

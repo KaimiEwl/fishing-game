@@ -26,16 +26,16 @@ const BottomNav: React.FC<BottomNavProps> = ({
   return (
     <nav className="relative z-40 shrink-0 border-t border-cyan-900/30 bg-[#05070f] px-1.5 pt-1.5 pb-[max(0.4rem,env(safe-area-inset-bottom))] sm:px-4 sm:pt-2">
       <div className="mx-auto w-full max-w-5xl">
-        <div className="relative mx-auto h-[5.55rem] w-full max-w-[min(100%,46rem)] sm:h-[6.5rem]">
+        <div className="relative mx-auto h-[4.2rem] w-full max-w-[min(100%,46rem)] overflow-hidden rounded-xl sm:h-[5rem]">
           <img
             src={bottomNavArcadePanel}
             alt=""
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 h-full w-full rounded-xl object-cover object-center [object-position:center_61%] select-none"
+            className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover [object-position:center_78%]"
             draggable={false}
           />
 
-          <div className="pointer-events-none absolute inset-x-[1.8%] bottom-[15%] top-[44%] grid grid-cols-6 gap-[0.8%] sm:inset-x-[1.6%] sm:bottom-[14%] sm:top-[43%]">
+          <div className="pointer-events-none absolute inset-x-[1.5%] inset-y-[5%] grid grid-cols-6 gap-[0.8%] sm:inset-x-[1.35%] sm:inset-y-[5.5%]">
             {navItems.map((item) => {
               const isActive = activeTab === item.id;
 
@@ -45,13 +45,13 @@ const BottomNav: React.FC<BottomNavProps> = ({
                   type="button"
                   onClick={() => onTabChange(item.id)}
                   className={cn(
-                    'pointer-events-auto relative h-full w-full rounded-[12px] transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/80 active:scale-[0.98]',
+                    'pointer-events-auto relative h-full w-full rounded-[12px] transition duration-200 focus-visible:outline-none active:scale-[0.985]',
                     isActive
                       ? cn(
-                          'border border-white/20 bg-white/[0.04] backdrop-blur-[1px]',
+                          'ring-2 ring-inset ring-white/55 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]',
                           item.glow,
                         )
-                      : 'hover:bg-white/[0.03] hover:shadow-[0_0_14px_rgba(255,255,255,0.08)]',
+                      : 'hover:shadow-[0_0_12px_rgba(255,255,255,0.06)]',
                   )}
                   aria-current={isActive ? 'page' : undefined}
                   aria-label={item.label}
