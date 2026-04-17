@@ -100,34 +100,36 @@ const MapScreen: React.FC<MapScreenProps> = ({ coins, onBack }) => {
               const isActive = activeLocation === location.id;
 
               return (
-                <button
-                  key={location.id}
-                  type="button"
-                  className={cn(
-                    'group relative aspect-[4/3] w-full min-w-0 overflow-visible bg-transparent text-left outline-none transition-all duration-200',
-                    'drop-shadow-[0_12px_24px_rgba(0,0,0,0.38)] hover:scale-[1.03] focus-visible:scale-[1.03]',
-                    isActive ? 'scale-[1.03] shadow-[0_0_38px_rgba(250,204,21,0.38)]' : '',
-                  )}
-                  onMouseEnter={() => setActiveLocation(location.id)}
-                  onMouseLeave={() => setActiveLocation(null)}
-                  onFocus={() => setActiveLocation(location.id)}
-                  onBlur={() => setActiveLocation(null)}
-                  onTouchStart={() => setActiveLocation(location.id)}
-                  onTouchEnd={() => window.setTimeout(() => setActiveLocation(null), 500)}
-                  aria-label={`${location.title}, locked`}
-                >
-                  <img
-                    src={location.image}
-                    alt=""
+                <div key={location.id} className="flex justify-center">
+                  <button
+                    type="button"
                     className={cn(
-                      'h-full w-full object-contain transition-all duration-200',
-                      isActive ? 'grayscale-0 saturate-125' : 'grayscale saturate-50 brightness-75 group-hover:grayscale-0 group-hover:saturate-125 group-hover:brightness-100 group-focus-visible:grayscale-0 group-focus-visible:saturate-125 group-focus-visible:brightness-100 group-active:grayscale-0 group-active:saturate-125 group-active:brightness-100',
+                      'group relative inline-flex min-w-0 overflow-visible bg-transparent text-left outline-none transition-all duration-200',
+                      'drop-shadow-[0_12px_24px_rgba(0,0,0,0.38)] hover:scale-[1.03] focus-visible:scale-[1.03]',
+                      isActive ? 'scale-[1.03] shadow-[0_0_38px_rgba(250,204,21,0.38)]' : '',
                     )}
-                  />
-                  <span className="absolute left-1/2 top-1/2 inline-flex h-10 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-lg border border-black/35 bg-zinc-200/95 shadow-[0_8px_18px_rgba(0,0,0,0.5)] transition-transform duration-200 group-hover:scale-105 group-active:scale-95 sm:h-12 sm:w-14">
-                    <Lock className="h-5 w-5 text-zinc-900 sm:h-6 sm:w-6" />
-                  </span>
-                </button>
+                    onMouseEnter={() => setActiveLocation(location.id)}
+                    onMouseLeave={() => setActiveLocation(null)}
+                    onFocus={() => setActiveLocation(location.id)}
+                    onBlur={() => setActiveLocation(null)}
+                    onTouchStart={() => setActiveLocation(location.id)}
+                    onTouchEnd={() => window.setTimeout(() => setActiveLocation(null), 500)}
+                    aria-label={`${location.title}, locked`}
+                  >
+                    <img
+                      src={location.image}
+                      alt=""
+                      className={cn(
+                        'block h-auto w-[14rem] max-w-full transition-all duration-200 sm:w-[15.25rem]',
+                        location.id === 'barbecue' ? '-translate-y-1 sm:w-[15.75rem]' : '',
+                        isActive ? 'grayscale-0 saturate-125' : 'grayscale saturate-50 brightness-75 group-hover:grayscale-0 group-hover:saturate-125 group-hover:brightness-100 group-focus-visible:grayscale-0 group-focus-visible:saturate-125 group-focus-visible:brightness-100 group-active:grayscale-0 group-active:saturate-125 group-active:brightness-100',
+                      )}
+                    />
+                    <span className="absolute left-1/2 top-1/2 inline-flex h-10 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-lg border border-black/35 bg-zinc-200/95 shadow-[0_8px_18px_rgba(0,0,0,0.5)] transition-transform duration-200 group-hover:scale-105 group-active:scale-95 sm:h-12 sm:w-14">
+                      <Lock className="h-5 w-5 text-zinc-900 sm:h-6 sm:w-6" />
+                    </span>
+                  </button>
+                </div>
               );
             })}
           </div>
