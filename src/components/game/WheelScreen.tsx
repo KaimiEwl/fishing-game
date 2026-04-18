@@ -79,6 +79,8 @@ interface PendingTarget {
   prize: WheelPrize;
 }
 
+const REVEAL_FACE_INDEX = 0;
+
 const CUBE_TILE_PATH = Array.from({ length: 5 }, (_, row) => {
   const rowIndices = Array.from({ length: 5 }, (_, col) => row * 5 + col);
   return row % 2 === 0 ? rowIndices : rowIndices.reverse();
@@ -307,7 +309,17 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     settleStartedRef.current = true;
     const target = pendingTargetRef.current;
     pendingTargetRef.current = null;
-    snapToFace(target.faceIndex, () => startFaceSelection(target));
+    setCubeFaces((prev) => {
+      if (target.faceIndex === REVEAL_FACE_INDEX) return prev;
+
+      const nextFaces = prev.map((face) => [...face]) as CubeFaces;
+      nextFaces[REVEAL_FACE_INDEX] = [...prev[target.faceIndex]];
+      return nextFaces;
+    });
+    snapToFace(REVEAL_FACE_INDEX, () => startFaceSelection({
+      ...target,
+      faceIndex: REVEAL_FACE_INDEX,
+    }));
   };
 
   const startFaceSelection = (target: PendingTarget) => {
