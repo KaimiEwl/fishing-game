@@ -38,6 +38,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
   avatarUrl,
   onAvatarUploaded,
 }) => {
+  const [open, setOpen] = useState(false);
   const [nickInput, setNickInput] = useState(nickname);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
@@ -70,6 +71,13 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
     const newMuted = !checked;
     setMuted(newMuted);
     setSoundMuted(newMuted);
+  };
+
+  const handleWalletModalOpen = (openModal?: (() => void) | null) => {
+    setOpen(false);
+    window.setTimeout(() => {
+      openModal?.();
+    }, 80);
   };
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -109,7 +117,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
   };
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
           variant="outline"
@@ -143,7 +151,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={openAccountModal}
+                        onClick={() => handleWalletModalOpen(openAccountModal)}
                         className="h-11 gap-1 border-zinc-800 bg-black px-3 text-zinc-100 hover:bg-zinc-950"
                       >
                         <LogOut className="h-3 w-3" />
@@ -165,14 +173,14 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
                 {({ openConnectModal }) => (
                   <div className="flex gap-2">
                     <Button
-                      onClick={openConnectModal}
+                      onClick={() => handleWalletModalOpen(openConnectModal)}
                       className="h-11 flex-1 gap-2 border border-cyan-300/25 bg-zinc-950 text-cyan-100 hover:bg-black"
                       style={{ background: 'linear-gradient(135deg, #020617, #083344)' }}
                     >
                       Sign In
                     </Button>
                     <Button
-                      onClick={openConnectModal}
+                      onClick={() => handleWalletModalOpen(openConnectModal)}
                       variant="outline"
                       className="h-11 flex-1 gap-2 border-zinc-800 bg-black text-zinc-100 hover:bg-zinc-950"
                     >

@@ -12,6 +12,25 @@
   - `npm run lint` - still fails on pre-existing repo-wide ESLint debt
   - `tests` - not found in `package.json`
 
+## Milestone 3 status
+Completed.
+
+### Delivered in milestone 3
+- added an in-game guide page with game rules, progression overview, wallet/account notes, and reward-system explanations inspired by the requested whitepaper-style reference
+- linked the guide into the player/account panel alongside the existing legal pages so it is reachable without leaving the app shell
+- added lightweight cheerful background music that starts after user interaction, respects mute state, and pauses on tab hide
+- fixed wallet connect/account actions inside the settings dialog by closing the settings modal before opening the RainbowKit modal on both desktop and mobile
+- kept the new audio path dependency-free by using a small WebAudio loop instead of shipping a new media file
+
+### Validation for milestone 3
+- `npm run lint` - passed with warnings only, no errors
+- `npm run build` - passed
+- `npm run build:pages` - passed
+
+### Notes from validation
+- repo-wide ESLint errors are now cleared; remaining output is limited to warnings
+- builds still report large chunk warnings from the existing app bundle, but the site compiles successfully for local and GitHub Pages output
+
 ## Session start
 - Backup created before new milestone work:
   - `c:\Video Test\N8N_API_ACTIVE_BUSINESSSTORIES_2026-02-17\backups\bright-greet-forge-main_20260416_200316`

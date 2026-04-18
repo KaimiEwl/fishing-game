@@ -10,6 +10,7 @@ import { publicAsset } from '@/lib/assets';
 import '@rainbow-me/rainbowkit/styles.css';
 import Index from "./pages/Index";
 import Admin from "./pages/Admin";
+import Guide from "./pages/Guide";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
@@ -32,6 +33,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/admin" element={<Admin />} />
+              <Route path="/guide" element={<Guide />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="*" element={<NotFound />} />

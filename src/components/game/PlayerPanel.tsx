@@ -76,6 +76,8 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({
               ))}
             </div>
             <div className="mt-4 flex justify-center gap-4 border-t border-zinc-800 pt-3 text-xs font-bold uppercase tracking-wider text-zinc-300">
+              <Link to="/guide" className="transition-colors hover:text-cyan-100">Guide</Link>
+              <span className="text-zinc-500">|</span>
               <Link to="/terms" className="transition-colors hover:text-cyan-100">Terms</Link>
               <span className="text-zinc-500">|</span>
               <Link to="/privacy" className="transition-colors hover:text-cyan-100">Privacy</Link>

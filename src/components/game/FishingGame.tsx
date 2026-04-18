@@ -18,6 +18,7 @@ import GameLoadingScreen from './GameLoadingScreen';
 import { useGameState } from '@/hooks/useGameState';
 import { useGameProgress } from '@/hooks/useGameProgress';
 import { useWalletAuth } from '@/hooks/useWalletAuth';
+import { useBackgroundMusic } from '@/hooks/useBackgroundMusic';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
@@ -123,6 +124,7 @@ const FishingGame: React.FC = () => {
   });
 
   const sounds = useSoundEffects();
+  useBackgroundMusic();
   const prevGameState = useRef(gameState);
   const prevLevel = useRef(player.level);
   const prevLeaderboardPlayerId = useRef(leaderboardPlayerId);

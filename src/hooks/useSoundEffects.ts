@@ -1,5 +1,7 @@
 import { useCallback } from 'react';
 
+export const SOUND_MUTED_EVENT = 'monadfish:sound-muted-changed';
+
 // Один общий AudioContext (лениво создаётся)
 let audioContext: AudioContext | null = null;
 type LegacyAudioWindow = Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext };
@@ -40,6 +42,7 @@ export function setSoundMuted(muted: boolean) {
     } catch {
       // ignore storage errors
     }
+    window.dispatchEvent(new CustomEvent<boolean>(SOUND_MUTED_EVENT, { detail: muted }));
   }
 }
 
