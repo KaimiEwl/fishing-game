@@ -1,3 +1,74 @@
+# MonadFish Release Notes
+
+## Project-specific release setup
+
+- Active app repo: `bright-greet-forge-main`
+- Runtime used in CI: Node `20` (`.github/workflows/deploy.yml`)
+- Package manager used in CI: `npm`
+- Auto deploy target: GitHub Pages on push to `main`
+
+## Local install
+
+```sh
+npm ci
+```
+
+## Required env vars
+
+Copy `.env.example` and provide:
+
+- `VITE_SUPABASE_PROJECT_ID`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
+- `VITE_SUPABASE_URL`
+
+Optional:
+
+- `VITE_WALLETCONNECT_PROJECT_ID`
+
+## Local release build for GitHub Pages
+
+This produces the same style of artifact as CI, including SPA fallback `dist/404.html`:
+
+```sh
+npm run build:pages
+```
+
+If the repository name changes, override the base path.
+
+PowerShell:
+
+```sh
+$env:PAGES_REPO_NAME="<new-repo-name>"; npm run build:pages
+```
+
+Bash:
+
+```sh
+PAGES_REPO_NAME=<new-repo-name> npm run build:pages
+```
+
+## Release preflight
+
+```sh
+npm run build
+npm run build:pages
+```
+
+Notes:
+
+- `npm run lint` currently fails because of pre-existing repo-wide ESLint debt.
+- No automated test script is present in `package.json`.
+
+## Deployment
+
+- CI workflow: `.github/workflows/deploy.yml`
+- Trigger: push to `main`
+- CI injects `VITE_BASE_PATH=/<repo-name>/` and publishes `dist/` to GitHub Pages
+
+## Customer handoff note
+
+For customer delivery, include the deployed GitHub Pages URL and the backup zip created before release work.
+
 # Welcome to your Lovable project
 
 ## Project info

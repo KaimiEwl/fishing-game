@@ -1,5 +1,17 @@
 # STATUS
 
+## Release prep
+- Release backup created before final prep:
+  - `C:\Video Test\N8N_API_ACTIVE_BUSINESSSTORIES_2026-02-17\FISHING GAME\backup_bright-greet-forge-main_release_20260418_002505.zip`
+- Added a repo-local GitHub Pages build helper: `npm run build:pages`
+- Added `.nvmrc` with Node `20` to match CI
+- Updated `README.md` with concrete release, env, and deployment steps instead of only the generic Lovable template
+- Release validation status:
+  - `npm run build` - passed
+  - `npm run build:pages` - passed
+  - `npm run lint` - still fails on pre-existing repo-wide ESLint debt
+  - `tests` - not found in `package.json`
+
 ## Session start
 - Backup created before new milestone work:
   - `c:\Video Test\N8N_API_ACTIVE_BUSINESSSTORIES_2026-02-17\backups\bright-greet-forge-main_20260416_200316`
