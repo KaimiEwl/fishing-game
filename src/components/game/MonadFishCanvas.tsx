@@ -249,6 +249,11 @@ interface BoatMetrics {
     rodTipY: number;
 }
 
+const BOAT_ROD_TIP_ANCHOR = {
+    x: 0.898,
+    y: 0.095,
+} as const;
+
 const getBoatMetrics = (
     w: number,
     h: number,
@@ -267,10 +272,10 @@ const getBoatMetrics = (
     const centerY = boatY + boatDrawH / 2;
     const rockAngle = Math.sin(t * 1.5) * 0.015 + Math.cos(t * 0.9) * 0.006;
 
-    // Tuned against the current boat sprite and then slightly extended so the
-    // line leaves from the visible rod peak rather than from a nearby point.
-    const localRodX = boatDrawW * 0.484 + boatDrawW * 0.034;
-    const localRodY = -boatDrawH * 0.392 - boatDrawH * 0.028;
+    // Tie the line to the actual rod-tip pixel on pepe_boat_v2.png so it
+    // leaves from the visible peak of the rod instead of a nearby estimate.
+    const localRodX = boatDrawW * (BOAT_ROD_TIP_ANCHOR.x - 0.5);
+    const localRodY = boatDrawH * (BOAT_ROD_TIP_ANCHOR.y - 0.5);
     const cosR = Math.cos(rockAngle);
     const sinR = Math.sin(rockAngle);
 
