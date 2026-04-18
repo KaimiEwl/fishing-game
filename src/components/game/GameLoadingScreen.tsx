@@ -1,5 +1,6 @@
 import React from 'react';
 import { publicAsset } from '@/lib/assets';
+import GameTitleBanner from '@/components/GameTitleBanner';
 
 interface GameLoadingScreenProps {
   visible: boolean;
@@ -32,7 +33,7 @@ const GameLoadingScreen: React.FC<GameLoadingScreenProps> = ({ visible, progress
           <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[#040913] via-[#040913]/76 to-transparent" />
         </div>
 
-        <h1 className="mt-5 text-3xl font-black tracking-tight text-white">Fishing Game</h1>
+        <GameTitleBanner className="mt-5 w-full max-w-[16rem]" />
         <p className="mt-2 text-sm font-medium text-white/65">
           {normalizedProgress >= 100 ? 'Ready to cast...' : 'Preparing the water...'}
         </p>

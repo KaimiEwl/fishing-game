@@ -5,6 +5,7 @@ import FishIcon from './FishIcon';
 import WelcomeBackdrop from '@/components/WelcomeBackdrop';
 import WelcomeFeatureItem from '@/components/WelcomeFeatureItem';
 import WelcomeConnectCta from '@/components/WelcomeConnectCta';
+import GameTitleBanner from '@/components/GameTitleBanner';
 
 const WelcomeScreen: React.FC = () => {
   return (
@@ -14,9 +15,7 @@ const WelcomeScreen: React.FC = () => {
       <div className="relative z-10 flex max-w-lg flex-col items-center px-6 text-center">
         <div className="mb-8">
           <span className="mb-4 block text-7xl drop-shadow-lg">🎣</span>
-          <h1 className="mb-2 bg-[linear-gradient(135deg,hsl(var(--primary)),hsl(180,70%,55%))] bg-clip-text text-5xl font-bold text-transparent">
-            Fishing Game
-          </h1>
+          <GameTitleBanner className="mx-auto mb-3 w-full max-w-[21rem]" />
           <p className="text-lg font-medium tracking-wide text-muted-foreground">
             Arcade fishing with wallet saves
           </p>

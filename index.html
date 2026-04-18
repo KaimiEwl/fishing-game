@@ -87,10 +87,9 @@
       }
 
       .boot-loader__title {
-        margin: 0;
-        font-size: 2rem;
-        font-weight: 900;
-        letter-spacing: -0.03em;
+        display: block;
+        width: min(17rem, calc(100vw - 5rem));
+        margin: 0.25rem auto 0;
       }
 
       .boot-loader__text {
@@ -135,7 +134,7 @@
         <div class="boot-loader__art">
           <img src="/assets/loading_art_v2.png" alt="Fishing Game loading art" />
         </div>
-        <h1 class="boot-loader__title">Fishing Game</h1>
+        <img class="boot-loader__title" src="/assets/title_banner_v1.png" alt="Hook and Loot title banner" />
         <p class="boot-loader__text" id="boot-loader-text">Preparing the water...</p>
         <div class="boot-loader__bar" aria-hidden="true">
           <div class="boot-loader__fill" id="boot-loader-fill"></div>
