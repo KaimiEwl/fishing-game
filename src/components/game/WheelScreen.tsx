@@ -224,6 +224,8 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
           : 'Paid spins let you keep rolling even after the daily cube is spent.'
         : 'Finish daily tasks first or buy a paid spin to roll the cube.';
 
+  const showingRevealOverlay = selecting && highlightedFaceIndex !== null;
+
   const renderTile = (
     item: WheelPrize,
     tileIndex: number,
@@ -231,7 +233,9 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     mode: 'cube' | 'overlay' = 'cube',
   ) => {
     const fish = getFishByReward(item);
-    const isHighlighted = highlightedFaceIndex === sideIndex && highlightedTileIndex === tileIndex;
+    const isHighlighted = mode === 'overlay'
+      ? highlightedFaceIndex === sideIndex && highlightedTileIndex === tileIndex
+      : !showingRevealOverlay && highlightedFaceIndex === sideIndex && highlightedTileIndex === tileIndex;
     const colorIndex = Math.max(WHEEL_PRIZES.findIndex((prizeItem) => prizeItem.id === item.id), 0);
     const accent = item.type === 'fish' && fish
       ? RARITY_COLORS[fish.rarity]
@@ -420,6 +424,10 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
             style={{
               '--cube-size': 'min(max(46vmin, 12rem), 20rem)',
               '--cube-half': 'calc(var(--cube-size) / 2)',
+              opacity: showingRevealOverlay ? 0.72 : 1,
+              filter: showingRevealOverlay
+                ? 'brightness(0.78) saturate(0.82) blur(0.6px)'
+                : undefined,
             } as React.CSSProperties}
           >
             <div
@@ -446,8 +454,8 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
                     transform: FACE_TRANSFORMS[side],
                     transformStyle: 'preserve-3d',
                     backfaceVisibility: 'hidden',
-                    opacity: selecting && highlightedFaceIndex !== sideIndex ? 0.82 : 1,
-                    filter: selecting
+                    opacity: showingRevealOverlay && highlightedFaceIndex !== sideIndex ? 0.78 : 1,
+                    filter: showingRevealOverlay
                       ? highlightedFaceIndex === sideIndex
                         ? 'brightness(1.18) saturate(1.18)'
                         : 'brightness(0.72) saturate(0.86)'
@@ -460,7 +468,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
             </div>
           </div>
 
-          {selecting && highlightedFaceIndex !== null && (
+          {showingRevealOverlay && (
             <div className="pointer-events-none absolute left-1/2 top-1/2 z-30 grid h-[10.5rem] w-[10.5rem] -translate-x-1/2 -translate-y-1/2 grid-cols-5 gap-1.5 rounded-2xl border border-cyan-100/45 bg-slate-950/86 p-2 shadow-[0_0_30px_rgba(34,211,238,0.3),inset_0_0_24px_rgba(255,255,255,0.08)] backdrop-blur-sm sm:h-[13.5rem] sm:w-[13.5rem] sm:gap-2 sm:p-2.5">
               {cubeFaces[highlightedFaceIndex].map((item, tileIndex) => renderTile(item, tileIndex, highlightedFaceIndex, 'overlay'))}
             </div>
