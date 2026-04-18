@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
-import { PlayerState, FISH_DATA, RARITY_COLORS } from '@/types/game';
+import { PlayerState, FISH_DATA } from '@/types/game';
 import CoinIcon from './CoinIcon';
 import { Card } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ChevronDown, Info, Package, Trophy, Worm } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import SettingsDialog from './SettingsDialog';
-import FishIcon from './FishIcon';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
+import PlayerStatItem from '@/components/PlayerStatItem';
+import PlayerFishInfoRow from '@/components/PlayerFishInfoRow';
+import PlayerLevelAvatar from '@/components/PlayerLevelAvatar';
 
 interface PlayerPanelProps {
   player: PlayerState;
@@ -57,23 +58,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({
                 <span>Fish</span>
                 <span className="text-right">Chance & Price</span>
               </div>
-              {FISH_DATA.map((fish) => (
-                <div key={fish.id} className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-950/85 p-2 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <FishIcon fish={fish} size="sm" frame />
-                    <span className="font-semibold text-sm drop-shadow-sm" style={{ color: RARITY_COLORS[fish.rarity] }}>
-                      {fish.name}
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <span className="rounded bg-zinc-900 px-1.5 py-0.5 text-xs font-medium text-zinc-300">{fish.chance}%</span>
-                    <span className="mt-1 flex items-center gap-1 font-semibold">
-                      {fish.price}
-                      <CoinIcon size="xs" />
-                    </span>
-                  </div>
-                </div>
-              ))}
+              {FISH_DATA.map((fish) => <PlayerFishInfoRow key={fish.id} fish={fish} />)}
             </div>
             <div className="mt-4 flex justify-center gap-4 border-t border-zinc-800 pt-3 text-xs font-bold uppercase tracking-wider text-zinc-300">
               <Link to="/guide" className="transition-colors hover:text-cyan-100">Guide</Link>
@@ -104,15 +89,9 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({
           aria-expanded={isExpanded}
           aria-label={isExpanded ? 'Hide level details' : 'Show level details'}
         >
-          <Avatar className="h-9 w-9 border border-cyan-300/18">
-            {player.avatarUrl ? <AvatarImage src={player.avatarUrl} alt="Avatar" /> : null}
-            <AvatarFallback
-              className="text-sm font-black text-white"
-              style={{ background: 'linear-gradient(135deg, #050505, #164e63)' }}
-            >
-              {player.level}
-            </AvatarFallback>
-          </Avatar>
+          <div className="rounded-full border border-cyan-300/18">
+            <PlayerLevelAvatar level={player.level} avatarUrl={player.avatarUrl} size="sm" />
+          </div>
           {!isMobile && (
             <>
               <span className="text-left">
@@ -136,15 +115,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({
         >
           <Card className="border border-cyan-300/16 bg-black/92 p-3 text-zinc-100 shadow-[0_18px_40px_rgba(0,0,0,0.58)] backdrop-blur-xl">
             <div className="flex items-center gap-3">
-              <Avatar className="h-12 w-12">
-                {player.avatarUrl ? <AvatarImage src={player.avatarUrl} alt="Avatar" /> : null}
-                <AvatarFallback
-                  className="text-lg font-bold text-white"
-                  style={{ background: 'linear-gradient(135deg, #050505, #164e63)' }}
-                >
-                  {player.level}
-                </AvatarFallback>
-              </Avatar>
+              <PlayerLevelAvatar level={player.level} avatarUrl={player.avatarUrl} size="md" />
 
               <div className="min-w-0 flex-1">
                 <p className="truncate text-lg font-black text-zinc-100">
@@ -166,10 +137,10 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({
             </div>
 
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <StatItem compact icon={<CoinIcon size="sm" />} label="Coins" value={player.coins} />
-              <StatItem compact icon={<Worm className="h-4 w-4 text-zinc-200" />} label="Bait" value={player.bait} />
-              <StatItem compact icon={<Trophy className="h-4 w-4 text-zinc-200" />} label="Catches" value={player.totalCatches} />
-              <StatItem compact icon={<Package className="h-4 w-4 text-zinc-200" />} label="Inventory" value={totalFishCount} />
+              <PlayerStatItem compact icon={<CoinIcon size="sm" />} label="Coins" value={player.coins} />
+              <PlayerStatItem compact icon={<Worm className="h-4 w-4 text-zinc-200" />} label="Bait" value={player.bait} />
+              <PlayerStatItem compact icon={<Trophy className="h-4 w-4 text-zinc-200" />} label="Catches" value={player.totalCatches} />
+              <PlayerStatItem compact icon={<Package className="h-4 w-4 text-zinc-200" />} label="Inventory" value={totalFishCount} />
             </div>
           </Card>
         </div>
@@ -177,25 +148,5 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({
     </>
   );
 };
-
-const StatItem: React.FC<{ icon: React.ReactNode; label: string; value: number; compact?: boolean }> = ({
-  icon,
-  label,
-  value,
-  compact = false,
-}) => (
-  <div
-    className={cn(
-      'flex min-w-0 items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-950/85',
-      compact ? 'min-h-10 px-2 py-1' : 'px-2.5 py-1.5',
-    )}
-  >
-    <span className="shrink-0">{icon}</span>
-    <div className="min-w-0">
-      <p className={cn('truncate leading-tight text-zinc-400', compact ? 'text-[10px]' : 'text-xs')}>{label}</p>
-      <p className={cn('font-bold leading-tight text-zinc-100', compact ? 'text-xs' : 'text-sm')}>{value}</p>
-    </div>
-  </div>
-);
 
 export default PlayerPanel;

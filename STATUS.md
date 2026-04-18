@@ -10,6 +10,7 @@
 - Extracted `Admin` page-local UI helpers into shared components (`AdminStatCard`, `AdminSortableHead`, `AdminTopList`, `AdminEditField`) so the page is now composed from `src/components/`
 - Simplified the unused `NavLink` wrapper to a semantic `tone` API instead of raw class-based styling hooks
 - Moved guide / legal / not-found route chrome into shared components (`ContentPageShell`, `DocumentSection`, `GuideSectionCard`, `NotFoundState`) so content pages are assembled from `src/components/` instead of carrying their own visual shell
+- Extracted another batch of HUD / onboarding helpers (`PlayerStatItem`, `PlayerFishInfoRow`, `PlayerLevelAvatar`, `GameStateNotice`, `BiteMeter`, `RodPreviewBadge`, `WelcomeBackdrop`, `WelcomeFeatureItem`, `WelcomeConnectCta`) to keep `PlayerPanel`, `GameControls`, and `WelcomeScreen` focused on composition instead of inline visual assembly
 
 ### Validation for UI architecture refactor
 - `npm run build` - passed

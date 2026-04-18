@@ -1,10 +1,12 @@
 import React from 'react';
 import { GameResult, GameState } from '@/types/game';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import FishDisplay from './FishDisplay';
 import { publicAsset } from '@/lib/assets';
-import { FISH_GOT_AWAY_PANEL_SRC, ROD_DISPLAY_INFO } from '@/lib/rodAssets';
+import { FISH_GOT_AWAY_PANEL_SRC } from '@/lib/rodAssets';
+import GameStateNotice from '@/components/GameStateNotice';
+import BiteMeter from '@/components/BiteMeter';
+import RodPreviewBadge from '@/components/RodPreviewBadge';
 
 const CAST_BUTTON_BLUE = publicAsset('assets/cast_button_blue.png');
 const CAST_BUTTON_GREEN = publicAsset('assets/cast_button_green.png');
@@ -38,9 +40,6 @@ const GameControls: React.FC<GameControlsProps> = ({
   missXpReward = 5,
   isMobile = false,
 }) => {
-  const displayRodLevel = Math.max(rodLevel, ownedRodLevel);
-  const rod = ROD_DISPLAY_INFO[displayRodLevel] || ROD_DISPLAY_INFO[0];
-  const hasNft = nftRods.includes(displayRodLevel);
   const biteProgress = biteTimeTotal > 0 ? (biteTimeLeft / biteTimeTotal) * 100 : 0;
   const showPrimaryControl = gameState === 'idle' || gameState === 'biting';
   const primaryAction = gameState === 'biting' ? onReelIn : onCast;
@@ -81,21 +80,15 @@ const GameControls: React.FC<GameControlsProps> = ({
           )}
 
           {gameState === 'casting' && (
-            <div className="rounded-xl border border-cyan-300/16 bg-black/78 px-4 py-2.5 text-center shadow-xl backdrop-blur-sm">
-              <p className="animate-pulse text-sm font-semibold text-cyan-100 sm:text-base">Casting...</p>
-            </div>
+            <GameStateNotice tone="success">Casting...</GameStateNotice>
           )}
 
           {gameState === 'waiting' && (
-            <div className="rounded-xl border border-cyan-300/16 bg-black/78 px-4 py-2.5 text-center shadow-xl backdrop-blur-sm">
-              <p className="animate-pulse text-sm font-semibold text-zinc-100 sm:text-base">Waiting for a bite...</p>
-            </div>
+            <GameStateNotice>Waiting for a bite...</GameStateNotice>
           )}
 
           {gameState === 'catching' && (
-            <div className="rounded-xl border border-cyan-300/16 bg-black/78 px-4 py-2.5 text-center shadow-xl backdrop-blur-sm">
-              <p className="animate-pulse text-sm font-semibold text-cyan-100 sm:text-base">Reeling in!</p>
-            </div>
+            <GameStateNotice tone="success">Reeling in!</GameStateNotice>
           )}
         </div>
       )}
@@ -109,76 +102,12 @@ const GameControls: React.FC<GameControlsProps> = ({
         }}
       >
         {gameState === 'biting' && (
-          <div className="w-[11.75rem] rounded-xl border border-cyan-300/18 bg-black/82 px-3 py-2 shadow-xl backdrop-blur-md sm:w-[13.5rem]">
-            <div className="h-2 overflow-hidden rounded-full border border-zinc-800 bg-zinc-950">
-              <div
-                className="h-full rounded-full transition-all duration-75"
-                style={{
-                  width: `${biteProgress}%`,
-                  background: biteProgress > 40
-                    ? 'linear-gradient(90deg, #22cc44, #66ff88)'
-                    : biteProgress > 20
-                      ? 'linear-gradient(90deg, #ffaa00, #ffcc44)'
-                      : 'linear-gradient(90deg, #ff3333, #ff6644)',
-                }}
-              />
-            </div>
-            <p className="mt-1.5 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-cyan-100/80 sm:text-[11px]">
-              Fish on the line
-            </p>
-          </div>
+          <BiteMeter progress={biteProgress} />
         )}
 
         {showPrimaryControl && (
           <div className="relative flex w-[11.75rem] justify-center sm:w-[13.5rem]">
-            <TooltipProvider delayDuration={200}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div
-                    className={`absolute bottom-1 right-[calc(100%+0.55rem)] flex h-12 w-12 cursor-pointer flex-col items-center justify-center rounded-xl border border-cyan-300/20 bg-black/85 shadow-lg backdrop-blur-md transition-all hover:scale-105 hover:bg-zinc-950 active:scale-95 sm:bottom-1.5 sm:h-14 sm:w-14 ${hasNft ? 'ring-2 ring-cyan-300/40' : ''}`}
-                  >
-                    <img src={rod.image} alt={rod.name} className="h-7 object-contain drop-shadow-md sm:h-8" />
-                    {rod.bonus > 0 && <span className="mt-0.5 text-[9px] font-bold leading-none text-cyan-100">+{rod.bonus}%</span>}
-                    {hasNft && (
-                      <div className="absolute -right-1.5 -top-1.5 rounded-sm border border-cyan-300/40 bg-cyan-300 px-1.5 text-[8px] font-bold text-black shadow-sm">
-                        NFT
-                      </div>
-                    )}
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="max-w-[200px] border-cyan-300/15 bg-black/95 p-3 text-zinc-100 backdrop-blur-md">
-                  <div className="flex flex-col gap-1">
-                    <p className="text-sm font-bold" style={{ color: rod.color }}>{rod.name}</p>
-                    <p className="text-xs text-zinc-500">Level {displayRodLevel + 1}</p>
-                    {rod.bonus > 0
-                      ? <p className="text-xs text-zinc-200">+{rod.bonus}% rare fish chance</p>
-                      : <p className="text-xs text-zinc-200">Standard catch chance</p>
-                    }
-                    {hasNft && (
-                      <div className="mt-1 border-t border-cyan-300/15 pt-1 text-xs text-cyan-100">
-                        <p className="font-bold">NFT bonuses:</p>
-                        {(() => {
-                          const nftData = [
-                            { rarityBonus: 3, xpBonus: 10, sellBonus: 0 },
-                            { rarityBonus: 5, xpBonus: 15, sellBonus: 10 },
-                            { rarityBonus: 7, xpBonus: 20, sellBonus: 15 },
-                            { rarityBonus: 10, xpBonus: 25, sellBonus: 20 },
-                            { rarityBonus: 15, xpBonus: 30, sellBonus: 25 },
-                          ][displayRodLevel];
-                          return nftData ? (
-                            <>
-                              <p>+{nftData.rarityBonus}% chance</p>
-                              <p>+{nftData.xpBonus}% XP</p>
-                              {nftData.sellBonus > 0 && <p>+{nftData.sellBonus}% price</p>}
-                            </>
-                          ) : null;
-                        })()}
-                      </div>
-                    )}
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <RodPreviewBadge rodLevel={rodLevel} ownedRodLevel={ownedRodLevel} nftRods={nftRods} />
 
             <Button
               onClick={primaryAction}
