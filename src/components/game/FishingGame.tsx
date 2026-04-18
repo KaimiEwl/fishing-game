@@ -15,7 +15,6 @@ import MapScreen from './MapScreen';
 import LeaderboardNameDialog from './LeaderboardNameDialog';
 import LevelUpCelebration from './LevelUpCelebration';
 import GameLoadingScreen from './GameLoadingScreen';
-import { FISH_IMAGE_SRC } from './FishIcon';
 import { useGameState } from '@/hooks/useGameState';
 import { useGameProgress } from '@/hooks/useGameProgress';
 import { useWalletAuth } from '@/hooks/useWalletAuth';
@@ -24,9 +23,16 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { publicAsset } from '@/lib/assets';
 import {
+  loadMainSceneAssets,
+  warmPreloadAssets,
+  WARM_PRELOAD_ASSET_URLS,
+  type MainSceneAssets,
+} from '@/lib/mainSceneAssets';
+import {
   BOOST_ICON_SRC,
   FISH_GOT_AWAY_PANEL_SRC,
   INVENTORY_BUTTON_PANEL_SRC,
+  INVENTORY_SHORTCUT_ICON_SRC,
   ROD_ICON_PRELOADS,
 } from '@/lib/rodAssets';
 import travelIconSrc from '@/assets/map_travel_icon_cutout.png';
@@ -59,61 +65,6 @@ const MAP_LOCATION_ASSETS = [
   mapWheelPierSrc,
 ];
 
-const PRELOAD_ASSETS = [
-  publicAsset('assets/bg_main.jpg'),
-  publicAsset('assets/pepe_boat_v2.png'),
-  publicAsset('assets/rod_basic.png'),
-  publicAsset('assets/rod_bamboo.png'),
-  publicAsset('assets/rod_carbon.png'),
-  publicAsset('assets/rod_pro.png'),
-  publicAsset('assets/rod_legendary.png'),
-  publicAsset('assets/bg_tasks.jpg'),
-  publicAsset('assets/bg_wheel.jpg'),
-  FISH_GOT_AWAY_PANEL_SRC,
-  INVENTORY_BUTTON_PANEL_SRC,
-  BOOST_ICON_SRC,
-  TRAVEL_ICON_SRC,
-  ...MAP_LOCATION_ASSETS,
-  ...ROD_ICON_PRELOADS,
-  ...Object.values(FISH_IMAGE_SRC),
-];
-
-const preloadImage = (src: string) => new Promise<void>((resolve) => {
-  const img = new Image();
-  let settled = false;
-  const decodeTimeoutMs = 1200;
-  const loadTimeoutMs = 8000;
-  const loadTimeout = window.setTimeout(() => {
-    void finish();
-  }, loadTimeoutMs);
-
-  const waitForDecode = async () => {
-    if (!img.decode) return;
-    await Promise.race([
-      img.decode(),
-      new Promise<void>((done) => window.setTimeout(done, decodeTimeoutMs)),
-    ]);
-  };
-
-  const finish = async () => {
-    if (settled) return;
-    settled = true;
-    window.clearTimeout(loadTimeout);
-    try {
-      await waitForDecode();
-    } catch {
-      // onload already confirmed the browser has the image; decode can fail on older engines.
-    }
-    resolve();
-  };
-  img.onload = () => { void finish(); };
-  img.onerror = () => resolve();
-  img.src = src;
-  if (img.complete && img.naturalWidth > 0) {
-    void finish();
-  }
-});
-
 const setBootLoaderState = (progress: number, label?: string) => {
   const bootWindow = window as Window & {
     __setBootLoaderState?: (nextProgress: number, nextLabel?: string) => void;
@@ -136,6 +87,7 @@ const FishingGame: React.FC = () => {
   const [activeTab, setActiveTab] = useState<GameTab>('fish');
   const [assetsReady, setAssetsReady] = useState(false);
   const [assetsProgress, setAssetsProgress] = useState(0);
+  const [mainSceneAssets, setMainSceneAssets] = useState<MainSceneAssets | null>(null);
   const [leaderboardEntries, setLeaderboardEntries] = useState<GrillLeaderboardEntry[]>(() => loadLeaderboardEntries());
   const [leaderboardPlayerId, setLeaderboardPlayerId] = useState(() => getLeaderboardPlayerId(address));
   const [leaderboardNameOpen, setLeaderboardNameOpen] = useState(false);
@@ -164,9 +116,10 @@ const FishingGame: React.FC = () => {
     setNickname,
     setAvatarUrl,
   } = useGameState({
-    savedPlayer: isConnected ? savedPlayer : undefined,
+    savedPlayer: isVerified ? savedPlayer : undefined,
     onSave: isVerified ? saveProgress : undefined,
     onFishCaught: gameProgress.recordFishCatch,
+    saveReady: isVerified,
   });
 
   const sounds = useSoundEffects();
@@ -211,20 +164,29 @@ const FishingGame: React.FC = () => {
 
   useEffect(() => {
     let cancelled = false;
-    const uniqueAssets = Array.from(new Set(PRELOAD_ASSETS));
-    let loaded = 0;
 
     setAssetsProgress(0.04);
     setBootLoaderState(0.04, 'Loading the lake...');
 
-    Promise.all(uniqueAssets.map((src) => preloadImage(src).finally(() => {
-      loaded += 1;
-      const nextProgress = Math.min(0.96, loaded / uniqueAssets.length);
-      if (!cancelled) {
-        setAssetsProgress(nextProgress);
-        setBootLoaderState(nextProgress, 'Loading the lake...');
-      }
-    }))).then(() => {
+    void loadMainSceneAssets((loaded, total) => {
+      if (cancelled) return;
+      const nextProgress = Math.min(0.96, loaded / total);
+      setAssetsProgress(nextProgress);
+      setBootLoaderState(nextProgress, 'Loading the lake...');
+    }).then((assets) => {
+      if (cancelled) return;
+      setMainSceneAssets(assets);
+      warmPreloadAssets([
+        ...WARM_PRELOAD_ASSET_URLS,
+        FISH_GOT_AWAY_PANEL_SRC,
+        INVENTORY_BUTTON_PANEL_SRC,
+        INVENTORY_SHORTCUT_ICON_SRC,
+        BOOST_ICON_SRC,
+        TRAVEL_ICON_SRC,
+        ...MAP_LOCATION_ASSETS,
+        ...ROD_ICON_PRELOADS,
+      ]);
+
       window.requestAnimationFrame(() => {
         window.requestAnimationFrame(() => {
           if (!cancelled) {
@@ -234,6 +196,11 @@ const FishingGame: React.FC = () => {
           }
         });
       });
+    }).catch(() => {
+      if (cancelled) return;
+      setAssetsProgress(1);
+      setBootLoaderState(1, 'Ready to fish...');
+      setAssetsReady(true);
     });
 
     return () => {
@@ -442,6 +409,7 @@ const FishingGame: React.FC = () => {
               gameState={gameState}
               lastResult={lastResult}
               rodLevel={player.equippedRod}
+              assets={mainSceneAssets}
             />
           ) : activeTab === 'tasks' ? (
             <TasksScreen
@@ -517,6 +485,25 @@ const FishingGame: React.FC = () => {
                 </span>
               </button>
               <BoostDialog walletAddress={address} />
+              <InventoryDialog
+                inventory={player.inventory}
+                rodLevel={player.rodLevel}
+                equippedRod={player.equippedRod}
+                nftRods={player.nftRods}
+                onEquipRod={equipRod}
+                onSellFish={handleSellFish}
+                triggerClassName="group relative overflow-visible bg-transparent outline-none transition-all duration-200 hover:scale-105 focus-visible:scale-105 active:scale-95"
+                badgeClassName="right-0 top-0 sm:right-0.5 sm:top-0.5"
+                trigger={(
+                  <img
+                    src={INVENTORY_SHORTCUT_ICON_SRC}
+                    alt=""
+                    aria-hidden="true"
+                    className="block w-20 object-contain drop-shadow-[0_18px_30px_rgba(0,0,0,0.36)] transition-transform duration-300 group-hover:scale-[1.02] sm:w-24"
+                    draggable={false}
+                  />
+                )}
+              />
             </div>
           )}
 

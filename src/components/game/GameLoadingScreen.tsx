@@ -28,6 +28,8 @@ const GameLoadingScreen: React.FC<GameLoadingScreenProps> = ({ visible, progress
             alt="MonadFish loading mascot"
             className="absolute inset-0 h-[160%] w-full object-contain object-top drop-shadow-[0_18px_24px_rgba(0,0,0,0.45)] animate-float"
             draggable={false}
+            loading="eager"
+            fetchPriority="high"
           />
           <FishIcon fishId="goldfish" className="absolute -right-2 top-8 h-12 w-12 animate-pulse" />
         </div>

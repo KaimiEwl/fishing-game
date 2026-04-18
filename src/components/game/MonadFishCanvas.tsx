@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import type { GameResult } from '@/types/game';
 import { publicAsset } from '@/lib/assets';
+import type { MainSceneAssets } from '@/lib/mainSceneAssets';
 
 // Маппинг id рыб из FISH_DATA на индекс спрайта (0-6)
 const FISH_SPRITE_MAP: Record<string, number> = {
@@ -292,9 +293,10 @@ interface MonadFishCanvasProps {
     gameState: string;
     lastResult?: GameResult | null;
     rodLevel?: number;
+    assets?: MainSceneAssets | null;
 }
 
-const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, lastResult, rodLevel = 0 }) => {
+const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, lastResult, rodLevel = 0, assets = null }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const particlesRef = useRef<any[]>([]);
     const bubblesRef = useRef<any[]>([]);
@@ -321,6 +323,14 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
 
     // Загрузка картинок
     useEffect(() => {
+        if (assets) {
+            bgImgRef.current = assets.background;
+            pepeImgRef.current = assets.pepe;
+            fishImgsRef.current = [...assets.fish];
+            rodImgsRef.current = [...assets.rods];
+            return;
+        }
+
         const loadSceneImage = (src: string, onReady: (img: HTMLImageElement) => void) => {
             const img = new Image();
             img.onload = () => onReady(img);
@@ -340,7 +350,7 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
         rodFiles.forEach((file, i) => {
             loadSceneImage(publicAsset('assets/' + file), (img) => { rodImgsRef.current[i] = img; });
         });
-    }, []);
+    }, [assets]);
 
     // --- Пузырь ---
     class Bubble {

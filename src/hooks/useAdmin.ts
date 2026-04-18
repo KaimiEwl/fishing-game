@@ -1,6 +1,20 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+const SESSION_KEY = 'monadfish_session';
+
+const getStoredSessionToken = (walletAddress: string) => {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { address?: string; token?: string };
+    if (!parsed.address || !parsed.token) return null;
+    return parsed.address.toLowerCase() === walletAddress.toLowerCase() ? parsed.token : null;
+  } catch {
+    return null;
+  }
+};
+
 interface AdminStats {
   totalPlayers: number;
   totalCoins: number;
@@ -21,8 +35,15 @@ export function useAdmin(walletAddress: string | undefined) {
 
   const callAdmin = useCallback(async (action: string, params: Record<string, unknown> = {}) => {
     if (!walletAddress) throw new Error('No wallet');
+    const sessionToken = getStoredSessionToken(walletAddress);
+    if (!sessionToken) throw new Error('Wallet session expired. Reconnect in the game first.');
     const { data, error } = await supabase.functions.invoke('admin', {
-      body: { action, wallet_address: walletAddress.toLowerCase(), ...params }
+      body: {
+        action,
+        wallet_address: walletAddress.toLowerCase(),
+        session_token: sessionToken,
+        ...params,
+      }
     });
     if (error) throw error;
     if (data?.error) throw new Error(data.error);

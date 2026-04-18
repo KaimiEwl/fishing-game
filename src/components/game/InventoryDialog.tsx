@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Backpack, Check, ShipWheel } from 'lucide-react';
 import FishIcon from './FishIcon';
 import { INVENTORY_BUTTON_PANEL_SRC, ROD_DISPLAY_INFO } from '@/lib/rodAssets';
+import { cn } from '@/lib/utils';
 
 interface InventoryDialogProps {
   inventory: CaughtFish[];
@@ -22,9 +23,22 @@ interface InventoryDialogProps {
   nftRods: number[];
   onEquipRod: (level: number) => void;
   onSellFish: (fishId: string) => void;
+  trigger?: React.ReactNode;
+  triggerClassName?: string;
+  badgeClassName?: string;
 }
 
-const InventoryDialog: React.FC<InventoryDialogProps> = ({ inventory, rodLevel, equippedRod, nftRods, onEquipRod, onSellFish }) => {
+const InventoryDialog: React.FC<InventoryDialogProps> = ({
+  inventory,
+  rodLevel,
+  equippedRod,
+  nftRods,
+  onEquipRod,
+  onSellFish,
+  trigger,
+  triggerClassName,
+  badgeClassName,
+}) => {
   const totalFish = inventory.reduce((sum, f) => sum + f.quantity, 0);
 
   const inventoryItems = inventory.map(item => {
@@ -46,18 +60,26 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({ inventory, rodLevel, 
       <DialogTrigger asChild>
         <button
           aria-label={`Open inventory, ${totalFish} fish`}
-          className="group/inv relative inline-flex items-center justify-center bg-transparent p-0 shadow-none transition-transform hover:scale-[1.03] active:scale-95"
+          className={cn(
+            'group/inv relative inline-flex items-center justify-center bg-transparent p-0 shadow-none transition-transform hover:scale-[1.03] active:scale-95',
+            triggerClassName,
+          )}
         >
-          <img
-            src={INVENTORY_BUTTON_PANEL_SRC}
-            alt=""
-            aria-hidden="true"
-            className="block w-[10.5rem] object-contain drop-shadow-[0_12px_30px_rgba(0,0,0,0.42)] sm:w-[13.25rem]"
-            draggable={false}
-          />
+          {trigger ?? (
+            <img
+              src={INVENTORY_BUTTON_PANEL_SRC}
+              alt=""
+              aria-hidden="true"
+              className="block w-[10.5rem] object-contain drop-shadow-[0_12px_30px_rgba(0,0,0,0.42)] sm:w-[13.25rem]"
+              draggable={false}
+            />
+          )}
           <span className="sr-only">Inventory</span>
           {totalFish > 0 && (
-            <span className="absolute right-1 top-0 min-w-[24px] rounded-full bg-[#ffd86c] px-2 py-0.5 text-center text-xs font-bold leading-tight text-black shadow-lg ring-2 ring-black/55 sm:right-2 sm:top-1">
+            <span className={cn(
+              'absolute right-1 top-0 min-w-[24px] rounded-full bg-[#ffd86c] px-2 py-0.5 text-center text-xs font-bold leading-tight text-black shadow-lg ring-2 ring-black/55 sm:right-2 sm:top-1',
+              badgeClassName,
+            )}>
               {totalFish}
             </span>
           )}

@@ -36,6 +36,7 @@ interface UseGameStateOptions {
   savedPlayer?: PlayerState | null;
   onSave?: (player: PlayerState) => void;
   onFishCaught?: (fish: Fish) => void;
+  saveReady?: boolean;
 }
 
 export function useGameState(options?: UseGameStateOptions) {
@@ -62,11 +63,13 @@ export function useGameState(options?: UseGameStateOptions) {
 
   // Load saved player when it becomes available
   useEffect(() => {
-    if (options?.savedPlayer && !initializedRef.current) {
+    if (initializedRef.current || !options?.saveReady) return;
+
+    if (options.savedPlayer) {
       setPlayer(options.savedPlayer);
-      initializedRef.current = true;
     }
-  }, [options?.savedPlayer]);
+    initializedRef.current = true;
+  }, [options?.saveReady, options?.savedPlayer]);
 
   // Debounced save
   useEffect(() => {

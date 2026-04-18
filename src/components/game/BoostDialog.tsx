@@ -69,13 +69,13 @@ const BoostDialog: React.FC<BoostDialogProps> = ({ walletAddress }) => {
         >
           <span
             aria-hidden="true"
-            className="absolute inset-[12%] rounded-[1.5rem] bg-[radial-gradient(circle,rgba(42,116,255,0.55),rgba(15,23,42,0)_72%)] blur-md"
+            className="absolute inset-[12%] rounded-[1.5rem] bg-[radial-gradient(circle,rgba(42,116,255,0.32),rgba(15,23,42,0)_72%)] blur-md"
           />
           <img
             src={BOOST_ICON_SRC}
             alt=""
             aria-hidden="true"
-            className="relative z-[1] block w-20 rounded-[1.2rem] object-contain mix-blend-screen drop-shadow-[0_18px_30px_rgba(0,0,0,0.18)] transition-transform duration-300 group-hover:scale-[1.02] sm:w-24"
+            className="relative z-[1] block w-20 object-contain drop-shadow-[0_18px_30px_rgba(0,0,0,0.36)] transition-transform duration-300 group-hover:scale-[1.02] sm:w-24"
             draggable={false}
           />
         </button>
@@ -97,7 +97,7 @@ const BoostDialog: React.FC<BoostDialogProps> = ({ walletAddress }) => {
               src={BOOST_ICON_SRC}
               alt=""
               aria-hidden="true"
-              className="h-16 w-16 rounded-2xl object-contain mix-blend-screen"
+              className="h-16 w-16 object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.3)]"
               draggable={false}
             />
             <div>

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { hashMessage, recoverAddress } from "npm:viem@2.21.0";
+import { createSessionToken, verifySessionToken } from "../_shared/session.ts";
 
 const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || '*';
 const corsHeaders = {
@@ -87,7 +88,7 @@ serve(async (req) => {
 
     // Restore session (no signature, no player_data — just fetch existing player)
     if (session_token && !player_data && !signature) {
-      if (session_token !== normalizedAddress) {
+      if (!(await verifySessionToken(session_token, normalizedAddress))) {
         return new Response(
           JSON.stringify({ error: 'Invalid session' }),
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -107,16 +108,17 @@ serve(async (req) => {
         );
       }
 
+      const refreshedToken = await createSessionToken(normalizedAddress);
+
       return new Response(
-        JSON.stringify({ player, isNew: false, session_token: normalizedAddress }),
+        JSON.stringify({ player, isNew: false, session_token: refreshedToken }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // If saving with session token, verify session
     if (player_data && session_token) {
-      // Validate session token matches the wallet address
-      if (session_token !== normalizedAddress) {
+      if (!(await verifySessionToken(session_token, normalizedAddress))) {
         return new Response(
           JSON.stringify({ error: 'Invalid session' }),
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -166,8 +168,10 @@ serve(async (req) => {
 
       if (error) throw error;
 
+      const refreshedToken = await createSessionToken(normalizedAddress);
+
       return new Response(
-        JSON.stringify({ player: updated }),
+        JSON.stringify({ player: updated, session_token: refreshedToken }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -220,9 +224,10 @@ serve(async (req) => {
         .single();
 
       if (error) throw error;
+      const sessionToken = await createSessionToken(normalizedAddress);
 
       return new Response(
-        JSON.stringify({ player: updated, isNew: false, session_token: normalizedAddress }),
+        JSON.stringify({ player: updated, isNew: false, session_token: sessionToken }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     } else {
@@ -233,9 +238,10 @@ serve(async (req) => {
         .single();
 
       if (error) throw error;
+      const sessionToken = await createSessionToken(normalizedAddress);
 
       return new Response(
-        JSON.stringify({ player: newPlayer, isNew: true, session_token: normalizedAddress }),
+        JSON.stringify({ player: newPlayer, isNew: true, session_token: sessionToken }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

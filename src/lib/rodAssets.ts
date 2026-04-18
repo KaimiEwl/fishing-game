@@ -3,6 +3,7 @@ import { publicAsset } from './assets';
 export const INVENTORY_BUTTON_PANEL_SRC = publicAsset('assets/inventory_button_panel_v2.png');
 export const FISH_GOT_AWAY_PANEL_SRC = publicAsset('assets/fish_got_away_panel_v2.png');
 export const BOOST_ICON_SRC = publicAsset('assets/boost_icon.png');
+export const INVENTORY_SHORTCUT_ICON_SRC = publicAsset('assets/inventory_shortcut_icon.png');
 
 export const ROD_DISPLAY_INFO = [
   { name: 'Starter', image: publicAsset('assets/rod_basic.png'), color: '#aaa', bonus: 0, bobber: 'Standard tackle' },

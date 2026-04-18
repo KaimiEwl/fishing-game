@@ -171,6 +171,8 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
   const [isBuyingSpin, setIsBuyingSpin] = useState(false);
   const timersRef = useRef<number[]>([]);
   const spinLockRef = useRef(false);
+  const pendingTargetRef = useRef<PendingTarget | null>(null);
+  const settleStartedRef = useRef(false);
   const { sendTransactionAsync } = useSendTransaction();
 
   const clearTimers = () => {
@@ -232,6 +234,15 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     });
   };
 
+  const finishSpinAndReveal = () => {
+    if (settleStartedRef.current || phase !== 'spinning' || !pendingTargetRef.current) return;
+
+    settleStartedRef.current = true;
+    const target = pendingTargetRef.current;
+    pendingTargetRef.current = null;
+    snapToFace(target.faceIndex, () => startFaceSelection(target));
+  };
+
   const startFaceSelection = (target: PendingTarget) => {
     const startPathIndex = Math.floor(Math.random() * CUBE_TILE_PATH.length);
     const targetPathIndex = CUBE_TILE_PATH.indexOf(target.tileIndex);
@@ -251,6 +262,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
         const result = onSpin(target.prize) ?? target.prize;
         setDisplayPrize(result);
         setPhase('idle');
+        setHighlightedFaceIndex(target.faceIndex);
         spinLockRef.current = false;
         return;
       }
@@ -310,10 +322,12 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     setHighlightedTileIndex(null);
     setPhase('spinning');
     setRotationTransitionEnabled(true);
+    pendingTargetRef.current = nextTarget;
+    settleStartedRef.current = false;
     setRotation((current) => getNextRotation(current, faceIndex));
 
     const spinTimer = window.setTimeout(() => {
-      snapToFace(faceIndex, () => startFaceSelection(nextTarget));
+      finishSpinAndReveal();
     }, SPIN_DURATION_MS + SPIN_SETTLE_BUFFER_MS);
     timersRef.current.push(spinTimer);
   };
@@ -341,6 +355,10 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
           >
             <div
               className="relative h-full w-full"
+              onTransitionEnd={(event) => {
+                if (event.propertyName !== 'transform') return;
+                finishSpinAndReveal();
+              }}
               style={{
                 transformStyle: 'preserve-3d',
                 transform: rotationTransform,
@@ -359,7 +377,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
                     transform: FACE_TRANSFORMS[side],
                     transformStyle: 'preserve-3d',
                     backfaceVisibility: 'hidden',
-                    opacity: selecting && highlightedFaceIndex !== sideIndex ? 0.24 : 1,
+                    opacity: selecting && highlightedFaceIndex !== sideIndex ? 0 : 1,
                     filter: selecting && highlightedFaceIndex === sideIndex ? 'brightness(1.18) saturate(1.18)' : 'none',
                   }}
                 >
