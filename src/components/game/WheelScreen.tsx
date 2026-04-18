@@ -269,7 +269,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
         )}
         {item.type === 'fish' && fish ? (
           <div className="flex flex-col items-center justify-center gap-0.5">
-            <FishIcon fish={fish} size={isOverlay ? 'sm' : 'xs'} />
+            <FishIcon fish={fish} size="xs" />
             <span className="text-[7px] font-black text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.7)] sm:text-[8px]">
               x{item.quantity ?? 1}
             </span>
@@ -277,7 +277,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
         ) : (
           <div className="flex flex-col items-center justify-center gap-0.5">
             {item.secret ? (
-              <Sparkles className={isOverlay ? 'h-3.5 w-3.5 text-black/75 sm:h-4 sm:w-4' : 'h-3 w-3 text-black/75 sm:h-3.5 sm:w-3.5'} />
+              <Sparkles className="h-3 w-3 text-black/75 sm:h-3.5 sm:w-3.5" />
             ) : (
               <CoinIcon size="xs" />
             )}
