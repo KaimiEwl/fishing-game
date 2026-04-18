@@ -16,6 +16,8 @@ interface GameProgressState {
   tasks: DailyTaskMap;
   wheelSpun: boolean;
   wheelPrize: WheelPrize | null;
+  dailyWheelRolls: number;
+  dailyRollRewardGranted: boolean;
   paidWheelRolls: number;
   grillScore: number;
   dishesToday: number;
@@ -43,6 +45,8 @@ const createInitialState = (): GameProgressState => ({
   tasks: createTasks(),
   wheelSpun: false,
   wheelPrize: null,
+  dailyWheelRolls: 0,
+  dailyRollRewardGranted: false,
   paidWheelRolls: 0,
   grillScore: 0,
   dishesToday: 0,
@@ -76,14 +80,28 @@ const loadState = (): GameProgressState => {
         paidWheelRolls: Math.max(0, Number(parsed.paidWheelRolls || 0)),
       };
     }
+    const tasks = {
+      ...createTasks(),
+      ...parsed.tasks,
+    };
+    const rewardState = applyDailyRollReward({
+      ...createInitialState(),
+      ...parsed,
+      tasks,
+      wheelPrize: normalizeWheelPrize(parsed.wheelPrize),
+      paidWheelRolls: Math.max(0, Number(parsed.paidWheelRolls || 0)),
+      dailyWheelRolls: Math.max(0, Number(parsed.dailyWheelRolls || 0)),
+      dailyRollRewardGranted: Boolean(parsed.dailyRollRewardGranted),
+    }, tasks);
+
     return {
       ...createInitialState(),
       ...parsed,
       wheelPrize: normalizeWheelPrize(parsed.wheelPrize),
-      tasks: {
-        ...createTasks(),
-        ...parsed.tasks,
-      },
+      tasks,
+      dailyWheelRolls: rewardState.dailyWheelRolls,
+      dailyRollRewardGranted: rewardState.dailyRollRewardGranted,
+      paidWheelRolls: Math.max(0, Number(parsed.paidWheelRolls || 0)),
     };
   } catch {
     return createInitialState();
@@ -93,6 +111,20 @@ const loadState = (): GameProgressState => {
 const capProgress = (id: DailyTaskId, progress: number) => {
   const task = DAILY_TASKS.find((item) => item.id === id);
   return Math.min(task?.target ?? progress, progress);
+};
+
+const applyDailyRollReward = (prev: GameProgressState, tasks: DailyTaskMap) => {
+  if (prev.dailyRollRewardGranted || !areAllTasksComplete(tasks)) {
+    return {
+      dailyWheelRolls: prev.dailyWheelRolls,
+      dailyRollRewardGranted: prev.dailyRollRewardGranted,
+    };
+  }
+
+  return {
+    dailyWheelRolls: prev.dailyWheelRolls + 3,
+    dailyRollRewardGranted: true,
+  };
 };
 
 export const pickWheelPrize = () => {
@@ -113,15 +145,19 @@ export function useGameProgress() {
     setState((prev) => {
       const current = prev.tasks[id];
       if (!current || current.claimed) return prev;
+      const tasks = {
+        ...prev.tasks,
+        [id]: {
+          ...current,
+          progress: capProgress(id, current.progress + amount),
+        },
+      };
+      const rewardState = applyDailyRollReward(prev, tasks);
+
       return {
         ...prev,
-        tasks: {
-          ...prev.tasks,
-          [id]: {
-            ...current,
-            progress: capProgress(id, current.progress + amount),
-          },
-        },
+        tasks,
+        ...rewardState,
       };
     });
   }, []);
@@ -134,11 +170,8 @@ export function useGameProgress() {
   }, [updateTask]);
 
   const recordGrillDish = useCallback((score: number) => {
-    setState((prev) => ({
-      ...prev,
-      grillScore: prev.grillScore + score,
-      dishesToday: prev.dishesToday + 1,
-      tasks: {
+    setState((prev) => {
+      const tasks = {
         ...prev.tasks,
         grill_1: {
           ...prev.tasks.grill_1,
@@ -146,8 +179,17 @@ export function useGameProgress() {
             ? prev.tasks.grill_1.progress
             : capProgress('grill_1', prev.tasks.grill_1.progress + 1),
         },
-      },
-    }));
+      };
+      const rewardState = applyDailyRollReward(prev, tasks);
+
+      return {
+        ...prev,
+        grillScore: prev.grillScore + score,
+        dishesToday: prev.dishesToday + 1,
+        tasks,
+        ...rewardState,
+      };
+    });
   }, []);
 
   const dailyTasks = useMemo<DailyTaskProgress[]>(() => (
@@ -160,8 +202,8 @@ export function useGameProgress() {
 
   const allTasksComplete = dailyTasks.every((task) => task.progress >= task.target);
   const allTasksClaimed = dailyTasks.every((task) => task.claimed);
-  const wheelUnlocked = allTasksComplete || state.paidWheelRolls > 0;
-  const wheelReady = (allTasksComplete && !state.wheelSpun) || state.paidWheelRolls > 0;
+  const wheelUnlocked = allTasksComplete || state.dailyWheelRolls > 0 || state.paidWheelRolls > 0;
+  const wheelReady = state.dailyWheelRolls > 0 || state.paidWheelRolls > 0;
 
   const claimTask = useCallback((id: DailyTaskId, onReward: (coins: number) => void) => {
     const task = DAILY_TASKS.find((item) => item.id === id);
@@ -187,7 +229,7 @@ export function useGameProgress() {
     let awardedPrize: WheelPrize | null = null;
 
     setState((prev) => {
-      const dailyReady = areAllTasksComplete(prev.tasks) && !prev.wheelSpun;
+      const dailyReady = prev.dailyWheelRolls > 0;
       const paidReady = prev.paidWheelRolls > 0;
 
       if (!dailyReady && !paidReady) {
@@ -201,6 +243,7 @@ export function useGameProgress() {
         ...prev,
         wheelSpun: prev.wheelSpun || dailyReady,
         wheelPrize: prize,
+        dailyWheelRolls: dailyReady ? Math.max(0, prev.dailyWheelRolls - 1) : prev.dailyWheelRolls,
         paidWheelRolls: dailyReady ? prev.paidWheelRolls : Math.max(0, prev.paidWheelRolls - 1),
       };
     });
@@ -227,6 +270,8 @@ export function useGameProgress() {
     wheelReady,
     wheelSpun: state.wheelSpun,
     wheelPrize: state.wheelPrize,
+    dailyWheelRolls: state.dailyWheelRolls,
+    availableWheelRolls: state.dailyWheelRolls + state.paidWheelRolls,
     paidWheelRolls: state.paidWheelRolls,
     grillScore: state.grillScore,
     dishesToday: state.dishesToday,

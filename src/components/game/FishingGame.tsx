@@ -414,9 +414,7 @@ const FishingGame: React.FC = () => {
               coins={player.coins}
               tasks={gameProgress.dailyTasks}
               allTasksComplete={gameProgress.allTasksComplete}
-              wheelUnlocked={gameProgress.wheelUnlocked}
-              wheelReady={gameProgress.wheelReady}
-              wheelSpun={gameProgress.wheelSpun}
+              availableWheelRolls={gameProgress.availableWheelRolls}
               onClaimTask={handleClaimTask}
               onOpenWheel={() => setActiveTab('wheel')}
             />
@@ -439,9 +437,7 @@ const FishingGame: React.FC = () => {
           ) : activeTab === 'wheel' ? (
             <WheelScreen
               coins={player.coins}
-              tasksComplete={gameProgress.allTasksComplete}
-              spun={gameProgress.wheelSpun}
-              prize={gameProgress.wheelPrize}
+              availableRolls={gameProgress.availableWheelRolls}
               paidWheelRolls={gameProgress.paidWheelRolls}
               walletAddress={address}
               onSpin={handleSpinWheel}

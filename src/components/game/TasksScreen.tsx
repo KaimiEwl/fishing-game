@@ -10,9 +10,7 @@ interface TasksScreenProps {
   coins: number;
   tasks: DailyTaskProgress[];
   allTasksComplete: boolean;
-  wheelUnlocked: boolean;
-  wheelReady: boolean;
-  wheelSpun: boolean;
+  availableWheelRolls: number;
   onClaimTask: (id: DailyTaskId) => void;
   onOpenWheel: () => void;
 }
@@ -21,9 +19,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   coins,
   tasks,
   allTasksComplete,
-  wheelUnlocked,
-  wheelReady,
-  wheelSpun,
+  availableWheelRolls,
   onClaimTask,
   onOpenWheel,
 }) => {
@@ -32,7 +28,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   return (
     <GameScreenShell
       title="Daily Tasks"
-      subtitle="Finish today's list, claim coins, then unlock the prize cube."
+      subtitle="Finish today's list, claim coins, and earn 3 cube rolls."
       coins={coins}
       backgroundImage={publicAsset('assets/bg_tasks.jpg')}
       contentScrollable
@@ -100,25 +96,20 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
               </div>
               <h2 className="mt-5 text-2xl font-black text-white drop-shadow-md">Daily prize cube</h2>
               <p className="mt-2 text-base text-white/70 leading-relaxed">
-                {completedCount}/{tasks.length} tasks complete. {wheelSpun ? 'Today roll is complete.' : 'Complete all tasks to unlock today roll.'}
+                {completedCount}/{tasks.length} tasks complete. {availableWheelRolls > 0 ? `${availableWheelRolls} cube rolls ready.` : allTasksComplete ? 'Daily rolls are being prepared.' : 'Complete all tasks to earn 3 cube rolls.'}
               </p>
             </div>
 
             <Button
               type="button"
-              disabled={!wheelUnlocked}
+              disabled={availableWheelRolls <= 0}
               onClick={onOpenWheel}
               className="h-14 rounded-xl border border-cyan-300/25 bg-zinc-950 text-lg font-bold text-cyan-100 shadow-lg shadow-black/30 transition-all hover:bg-black hover:shadow-xl disabled:border-zinc-800 disabled:bg-zinc-950 disabled:text-zinc-600 disabled:shadow-none"
             >
-              {wheelReady ? (
+              {availableWheelRolls > 0 ? (
                 <>
                   <Box className="mr-2 h-5 w-5" />
                   Open cube
-                </>
-              ) : wheelSpun ? (
-                <>
-                  <Check className="mr-2 h-5 w-5" />
-                  Cube complete
                 </>
               ) : (
                 <>
