@@ -44,13 +44,14 @@ const FACE_TRANSFORMS: Record<(typeof CUBE_SIDES)[number], string> = {
   bottom: 'rotateX(-90deg) translateZ(var(--cube-half))',
 };
 
-const FACE_VIEW_ROTATIONS = [
-  { x: -18, y: -28, z: 0 },
-  { x: -18, y: 152, z: 0 },
-  { x: -18, y: -118, z: 0 },
-  { x: -18, y: 62, z: 0 },
-  { x: 72, y: -28, z: 0 },
-  { x: -108, y: -28, z: 0 },
+const BASE_REVEAL_ROTATION = { x: -18, y: -28, z: 0 } as const;
+const FACE_ALIGNMENT_OFFSETS = [
+  { x: 0, y: 0, z: 0 },
+  { x: 0, y: 180, z: 0 },
+  { x: 0, y: -90, z: 0 },
+  { x: 0, y: 90, z: 0 },
+  { x: -90, y: 0, z: 0 },
+  { x: 90, y: 0, z: 0 },
 ] as const;
 
 const FACE_TILE_COUNT = 25;
@@ -78,8 +79,6 @@ interface PendingTarget {
   tileIndex: number;
   prize: WheelPrize;
 }
-
-const REVEAL_FACE_INDEX = 0;
 
 const CUBE_TILE_PATH = Array.from({ length: 5 }, (_, row) => {
   const rowIndices = Array.from({ length: 5 }, (_, col) => row * 5 + col);
@@ -141,8 +140,17 @@ const createCubeFaces = (): CubeFaces => (
   CUBE_SIDES.map(() => Array.from({ length: FACE_TILE_COUNT }, () => createCubeTilePrize()))
 );
 
+const getFaceViewRotation = (faceIndex: number): RotationState => {
+  const offset = FACE_ALIGNMENT_OFFSETS[faceIndex] ?? FACE_ALIGNMENT_OFFSETS[0];
+  return {
+    x: BASE_REVEAL_ROTATION.x + offset.x,
+    y: BASE_REVEAL_ROTATION.y + offset.y,
+    z: BASE_REVEAL_ROTATION.z + offset.z,
+  };
+};
+
 const getNextRotation = (current: RotationState, targetFaceIndex: number): RotationState => {
-  const target = FACE_VIEW_ROTATIONS[targetFaceIndex];
+  const target = getFaceViewRotation(targetFaceIndex);
   const currentX = mod(current.x, 360);
   const currentY = mod(current.y, 360);
   const currentZ = mod(current.z, 360);
@@ -171,7 +179,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
   const [phase, setPhase] = useState<SpinPhase>('idle');
   const [displayPrize, setDisplayPrize] = useState<WheelPrize | null>(prize);
   const [cubeFaces, setCubeFaces] = useState<CubeFaces>(() => createCubeFaces());
-  const [rotation, setRotation] = useState<RotationState>(() => ({ ...FACE_VIEW_ROTATIONS[0] }));
+  const [rotation, setRotation] = useState<RotationState>(() => getFaceViewRotation(0));
   const [rotationTransitionEnabled, setRotationTransitionEnabled] = useState(true);
   const [highlightedFaceIndex, setHighlightedFaceIndex] = useState<number | null>(null);
   const [highlightedTileIndex, setHighlightedTileIndex] = useState<number | null>(null);
@@ -294,7 +302,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
 
   const snapToFace = (faceIndex: number, onSettled: () => void) => {
     setRotationTransitionEnabled(false);
-    setRotation({ ...FACE_VIEW_ROTATIONS[faceIndex] });
+    setRotation(getFaceViewRotation(faceIndex));
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
         setRotationTransitionEnabled(true);
@@ -309,17 +317,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     settleStartedRef.current = true;
     const target = pendingTargetRef.current;
     pendingTargetRef.current = null;
-    setCubeFaces((prev) => {
-      if (target.faceIndex === REVEAL_FACE_INDEX) return prev;
-
-      const nextFaces = prev.map((face) => [...face]) as CubeFaces;
-      nextFaces[REVEAL_FACE_INDEX] = [...prev[target.faceIndex]];
-      return nextFaces;
-    });
-    snapToFace(REVEAL_FACE_INDEX, () => startFaceSelection({
-      ...target,
-      faceIndex: REVEAL_FACE_INDEX,
-    }));
+    snapToFace(target.faceIndex, () => startFaceSelection(target));
   };
 
   const startFaceSelection = (target: PendingTarget) => {
