@@ -1,10 +1,13 @@
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { usePageScroll } from '@/hooks/usePageScroll';
 
 const Terms = () => {
+  usePageScroll();
+
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen overflow-y-auto bg-background text-foreground">
       <div className="max-w-3xl mx-auto px-6 py-12">
         <Button variant="ghost" asChild className="mb-8">
           <Link to="/">

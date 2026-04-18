@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, Fish, Flame, Gem, Map, Shield, Sparkles, Trophy, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { usePageScroll } from '@/hooks/usePageScroll';
 
 const sections = [
   {
@@ -74,8 +75,10 @@ const sections = [
 ];
 
 const Guide = () => {
+  usePageScroll();
+
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#102458,#04060d_60%)] text-zinc-100">
+    <div className="min-h-screen overflow-y-auto bg-[radial-gradient(circle_at_top,#102458,#04060d_60%)] text-zinc-100">
       <div className="mx-auto flex max-w-6xl flex-col gap-10 px-5 py-10 sm:px-8 lg:flex-row lg:px-10">
         <aside className="lg:sticky lg:top-8 lg:h-fit lg:w-72">
           <Button variant="ghost" asChild className="mb-5 justify-start text-cyan-100 hover:bg-cyan-300/10 hover:text-cyan-50">
