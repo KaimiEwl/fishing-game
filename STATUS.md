@@ -22,6 +22,7 @@ Completed.
 - fixed wallet connect/account actions inside the settings dialog by closing the settings modal before opening the RainbowKit modal on both desktop and mobile
 - kept the new audio path dependency-free by using a small WebAudio loop instead of shipping a new media file
 - gave `Purple Fish` a unique animated presentation with a soft aura, shimmer sweep, and light-band treatment so its cutout looks intentional rather than rough in fish lists and inventory
+- replaced the cube screen background with the new `cube.png` art from local downloads via a cache-busted `bg_wheel_v2.png` asset
 
 ### Validation for milestone 3
 - `npm run lint` - passed with warnings only, no errors

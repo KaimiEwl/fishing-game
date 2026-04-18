@@ -338,7 +338,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
       title="Daily Prize Cube"
       subtitle="The cube locks onto one face, then the glow walks through its tiles to reveal the prize."
       coins={coins}
-      backgroundImage={publicAsset('assets/bg_wheel.jpg')}
+      backgroundImage={publicAsset('assets/bg_wheel_v2.png')}
     >
       <div className="flex h-full min-h-0 flex-col items-center justify-center gap-3 sm:gap-5">
         <div className="rounded-lg border border-cyan-300/20 bg-black/70 px-4 py-2 text-center backdrop-blur-md">
