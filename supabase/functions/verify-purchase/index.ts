@@ -14,6 +14,10 @@ const RECEIVER_ADDRESS = '0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D';
 // Exchange rate: 0.1 MON = 100 coins → 1 MON = 1000 coins
 const COINS_PER_MON = 1000;
 
+interface RpcTransactionReceipt {
+  status?: string;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -104,7 +108,7 @@ serve(async (req) => {
 });
 
 async function processReceipt(
-  receipt: any,
+  receipt: RpcTransactionReceipt,
   wallet_address: string,
   expected_coins: number,
   expected_mon: string,

@@ -9,6 +9,7 @@ import CoinIcon from './CoinIcon';
 import FishIcon from './FishIcon';
 import GameScreenShell from './GameScreenShell';
 import { publicAsset } from '@/lib/assets';
+import { isUserRejectedError } from '@/lib/errorUtils';
 
 interface WheelScreenProps {
   coins: number;
@@ -292,9 +293,9 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
       });
       onBuySpin(1);
       toast.success('Paid cube spin added');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Paid spin purchase failed:', err);
-      if (err?.message?.includes('User rejected')) {
+      if (isUserRejectedError(err)) {
         toast.error('Transaction cancelled');
       } else {
         toast.error('Paid spin purchase error');

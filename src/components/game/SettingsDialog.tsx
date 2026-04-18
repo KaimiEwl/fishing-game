@@ -16,6 +16,7 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useBalance } from 'wagmi';
 import { isSoundMuted, setSoundMuted } from '@/hooks/useSoundEffects';
 import { supabase } from '@/integrations/supabase/client';
+import type { TablesUpdate } from '@/integrations/supabase/types';
 import { cn } from '@/lib/utils';
 
 interface SettingsDialogProps {
@@ -92,9 +93,11 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
 
       const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
 
+      const avatarUpdate: TablesUpdate<'players'> = { avatar_url: publicUrl };
+
       await supabase
         .from('players')
-        .update({ avatar_url: publicUrl } as any)
+        .update(avatarUpdate)
         .eq('wallet_address', walletAddress.toLowerCase());
 
       onAvatarUploaded?.(publicUrl);

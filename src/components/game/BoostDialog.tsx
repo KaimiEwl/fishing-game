@@ -13,6 +13,7 @@ import { parseEther } from 'viem';
 import { Gem, Rocket, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { BOOST_ICON_SRC } from '@/lib/rodAssets';
+import { isUserRejectedError } from '@/lib/errorUtils';
 
 const RECEIVER_ADDRESS = '0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D' as const;
 
@@ -47,9 +48,9 @@ const BoostDialog: React.FC<BoostDialogProps> = ({ walletAddress }) => {
       });
 
       toast.success('Boost purchase sent');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Boost purchase failed:', err);
-      if (err?.message?.includes('User rejected')) {
+      if (isUserRejectedError(err)) {
         toast.error('Transaction cancelled');
       } else {
         toast.error('Boost purchase error');

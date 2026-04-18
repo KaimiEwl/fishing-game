@@ -296,12 +296,39 @@ interface MonadFishCanvasProps {
     assets?: MainSceneAssets | null;
 }
 
+interface BubbleInstance {
+    update: (h: number, waterLevel: number) => void;
+    draw: (ctx: CanvasRenderingContext2D) => void;
+}
+
+interface MeteorInstance {
+    life: number;
+    y: number;
+    update: () => void;
+    draw: (ctx: CanvasRenderingContext2D) => void;
+}
+
+interface FishInstance {
+    state: 'idle' | 'chasing' | 'booked';
+    fishType: number;
+    x: number;
+    y: number;
+    update: (w: number, h: number, bobber: { x: number; y: number }, gs: string) => void;
+    draw: (ctx: CanvasRenderingContext2D, imgs: (HTMLImageElement | null)[]) => void;
+}
+
+interface ParticleInstance {
+    life: number;
+    update: () => void;
+    draw: (ctx: CanvasRenderingContext2D) => void;
+}
+
 const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, lastResult, rodLevel = 0, assets = null }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const particlesRef = useRef<any[]>([]);
-    const bubblesRef = useRef<any[]>([]);
-    const meteorsRef = useRef<any[]>([]);
-    const fishRef = useRef<any[]>([]);
+    const particlesRef = useRef<ParticleInstance[]>([]);
+    const bubblesRef = useRef<BubbleInstance[]>([]);
+    const meteorsRef = useRef<MeteorInstance[]>([]);
+    const fishRef = useRef<FishInstance[]>([]);
     const bobberPosRef = useRef({ x: 0, y: 0 });
     const animationFrameRef = useRef<number>();
     const pepeImgRef = useRef<HTMLImageElement | null>(null);
@@ -640,8 +667,8 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
             // === ПЕПЕ В ЛОДКЕ ===
             const pepe = pepeImgRef.current;
             const boatMetrics = getBoatMetrics(w, h, t, pepe);
-            let rodTipX = boatMetrics.rodTipX;
-            let rodTipY = boatMetrics.rodTipY;
+            const rodTipX = boatMetrics.rodTipX;
+            const rodTipY = boatMetrics.rodTipY;
 
             if (pepe) {
                 drawBoatReflection(
@@ -787,7 +814,7 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
                 ctx.stroke(); ctx.lineCap = 'butt';
 
                 // Пойманная рыба на крючке
-                const bookedFish = fishRef.current.find((f: any) => f.state === 'booked');
+                const bookedFish = fishRef.current.find((f) => f.state === 'booked');
                 if (bookedFish && fishImgsRef.current[bookedFish.fishType]) {
                     const fImg = fishImgsRef.current[bookedFish.fishType]!;
                     const fA = fImg.width / fImg.height;
@@ -807,11 +834,12 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
             // При catching — цепляем рыбу правильного типа
             if ((gameState === 'biting' || gameState === 'catching') && lastResult?.success && lastResult.fish) {
                 const targetType = FISH_SPRITE_MAP[lastResult.fish.id] ?? 0;
-                const alreadyBooked = fishRef.current.some((f: any) => f.state === 'booked');
+                const alreadyBooked = fishRef.current.some((f) => f.state === 'booked');
                 if (!alreadyBooked) {
                     // Ищем ближайшую рыбу нужного типа
-                    let best: any = null, bestDist = Infinity;
-                    fishRef.current.forEach((f: any) => {
+                    let best: FishInstance | null = null;
+                    let bestDist = Infinity;
+                    fishRef.current.forEach((f) => {
                         if (f.fishType === targetType && f.state !== 'booked') {
                             const d = Math.hypot(f.x - bobberPosRef.current.x, f.y - bobberPosRef.current.y);
                             if (d < bestDist) { bestDist = d; best = f; }
@@ -819,8 +847,9 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
                     });
                     // Если нет нужного типа — берём любую и меняем тип
                     if (!best) {
-                        let anyBest: any = null, anyDist = Infinity;
-                        fishRef.current.forEach((f: any) => {
+                        let anyBest: FishInstance | null = null;
+                        let anyDist = Infinity;
+                        fishRef.current.forEach((f) => {
                             if (f.state !== 'booked') {
                                 const d = Math.hypot(f.x - bobberPosRef.current.x, f.y - bobberPosRef.current.y);
                                 if (d < anyDist) { anyDist = d; anyBest = f; }
@@ -836,7 +865,7 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
             ctx.globalCompositeOperation = 'source-over';
             ctx.shadowBlur = 0;
 
-            fishRef.current.forEach((f: any) => {
+            fishRef.current.forEach((f) => {
                 f.update(w, h, bobberPosRef.current, gameState);
                 if (gameState === 'idle' && f.state === 'booked') {
                     f.state = 'idle'; f.y = h * 0.6 + Math.random() * (h * 0.3); f.x = Math.random() * w;
@@ -861,7 +890,7 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
                     `rodTip: x=${rodTipX.toFixed(0)} y=${rodTipY.toFixed(0)}`,
                     `waterLevel: ${waterLevel.toFixed(0)}`,
                     `fish count: ${fishRef.current.length}`,
-                    `booked fish: ${fishRef.current.filter((f: any) => f.state === 'booked').length}`,
+                    `booked fish: ${fishRef.current.filter((f) => f.state === 'booked').length}`,
                     `pepe loaded: ${!!pepeImgRef.current}`,
                     `fish imgs: [${fishImgsRef.current.map((img, i) => img ? `${i}:OK` : `${i}:NO`).join(', ')}]`,
                     `bubbles: ${bubblesRef.current.length}`,

@@ -14,6 +14,7 @@ import { useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
 import { parseEther } from 'viem';
 import { toast } from 'sonner';
 import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
+import { isUserRejectedError } from '@/lib/errorUtils';
 
 const ROD_IMAGES = ROD_DISPLAY_INFO.map((rod) => rod.image);
 
@@ -67,9 +68,9 @@ const NftRodDialog: React.FC<NftRodDialogProps> = ({
 
       onMinted(nftRod.rodLevel);
       toast.success(`🎉 NFT ${ROD_NAMES[nftRod.rodLevel]} minted!`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('NFT mint failed:', err);
-      if (err?.message?.includes('User rejected')) {
+      if (isUserRejectedError(err)) {
         toast.error('Transaction cancelled');
       } else {
         toast.error('NFT mint error');

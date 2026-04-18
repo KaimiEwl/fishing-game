@@ -17,6 +17,7 @@ import { NFT_ROD_DATA } from '@/types/game';
 import CoinIcon from './CoinIcon';
 import { Check, Gem } from 'lucide-react';
 import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
+import { getErrorMessage, isUserRejectedError } from '@/lib/errorUtils';
 
 const RECEIVER_ADDRESS = '0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D' as const;
 
@@ -75,12 +76,12 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({ walletAddress, onCoinsA
 
       onCoinsAdded(pkg.coins);
       toast.success(`+${pkg.coins} coins! 🎉`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Purchase failed:', err);
-      if (err?.message?.includes('User rejected')) {
+      if (isUserRejectedError(err)) {
         toast.error('Transaction cancelled');
       } else {
-        toast.error('Purchase error: ' + (err?.shortMessage || err?.message || 'Unknown'));
+        toast.error(`Purchase error: ${getErrorMessage(err)}`);
       }
     } finally {
       setIsPurchasing(false);
@@ -118,9 +119,9 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({ walletAddress, onCoinsA
 
       onNftMinted(nftRod.rodLevel);
       toast.success(`🎉 NFT ${ROD_NAMES[nftRod.rodLevel]} minted!`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('NFT mint failed:', err);
-      if (err?.message?.includes('User rejected')) {
+      if (isUserRejectedError(err)) {
         toast.error('Transaction cancelled');
       } else {
         toast.error('NFT mint error');

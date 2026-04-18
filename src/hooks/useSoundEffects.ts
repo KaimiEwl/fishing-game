@@ -2,10 +2,16 @@ import { useCallback } from 'react';
 
 // Один общий AudioContext (лениво создаётся)
 let audioContext: AudioContext | null = null;
+type LegacyAudioWindow = Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext };
 
 const getCtx = () => {
   if (!audioContext) {
-    audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const audioWindow = window as LegacyAudioWindow;
+    const AudioContextCtor = audioWindow.AudioContext ?? audioWindow.webkitAudioContext;
+    if (!AudioContextCtor) {
+      throw new Error('AudioContext is not available');
+    }
+    audioContext = new AudioContextCtor();
   }
   return audioContext;
 };
