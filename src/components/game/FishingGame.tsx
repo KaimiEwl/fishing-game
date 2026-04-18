@@ -367,7 +367,7 @@ const FishingGame: React.FC = () => {
   };
 
   const handleCookRecipe = (recipe: GrillRecipe) => {
-    if (!consumeFish(recipe.ingredients)) return;
+    if (!consumeFish(recipe.ingredients)) return false;
     const nextGrillScore = gameProgress.grillScore + recipe.score;
     const fallbackLeaderboardName = player.nickname || 'Guest griller';
     gameProgress.recordGrillDish(recipe.score);
@@ -380,6 +380,7 @@ const FishingGame: React.FC = () => {
       setLeaderboardNameOpen(true);
     }
     sounds.playSellSound();
+    return true;
   };
 
   const handleSaveLeaderboardName = (name: string) => {
@@ -534,7 +535,7 @@ const FishingGame: React.FC = () => {
             />
           )}
 
-          {isFishingScreen && (!isMobile || isConnected) && (
+          {isFishingScreen && isConnected && (
             <div
               className="absolute left-3 z-20 flex max-w-[calc(100vw-1.5rem)] flex-col items-start gap-2 sm:left-5 sm:flex-row"
               style={{
@@ -543,25 +544,13 @@ const FishingGame: React.FC = () => {
                   : 'calc(var(--bottom-nav-clearance,0px) + 1.1rem)',
               }}
             >
-              {!isMobile && (
-                <InventoryDialog
-                  inventory={player.inventory}
-                  rodLevel={player.rodLevel}
-                  equippedRod={player.equippedRod}
-                  nftRods={player.nftRods}
-                  onEquipRod={equipRod}
-                  onSellFish={handleSellFish}
-                />
-              )}
-              {isConnected && (
-                <BuyCoinsDialog
-                  walletAddress={address}
-                  onCoinsAdded={addCoins}
-                  rodLevel={player.rodLevel}
-                  nftRods={player.nftRods}
-                  onNftMinted={mintNftRod}
-                />
-              )}
+              <BuyCoinsDialog
+                walletAddress={address}
+                onCoinsAdded={addCoins}
+                rodLevel={player.rodLevel}
+                nftRods={player.nftRods}
+                onNftMinted={mintNftRod}
+              />
             </div>
           )}
 
