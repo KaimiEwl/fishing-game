@@ -15,7 +15,7 @@ const Privacy = () => {
       <div className="space-y-8 text-sm leading-relaxed text-muted-foreground">
         <DocumentSection title="1. Introduction">
           <p>
-            This Privacy Policy explains how MonadFish ("we", "our", "us") collects and uses
+            This Privacy Policy explains how the game project ("we", "our", "us") collects and uses
             information when you use the Service.
           </p>
         </DocumentSection>
@@ -97,7 +97,7 @@ const Privacy = () => {
 
         <DocumentSection title="11. Contact">
           <p>Privacy inquiries:</p>
-          <p className="mt-2">support.monadfish.xyz</p>
+          <p className="mt-2">Contact the project owner directly for privacy requests.</p>
         </DocumentSection>
       </div>
     </ContentPageShell>

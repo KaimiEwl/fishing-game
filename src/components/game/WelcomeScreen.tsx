@@ -15,10 +15,10 @@ const WelcomeScreen: React.FC = () => {
         <div className="mb-8">
           <span className="mb-4 block text-7xl drop-shadow-lg">🎣</span>
           <h1 className="mb-2 bg-[linear-gradient(135deg,hsl(var(--primary)),hsl(180,70%,55%))] bg-clip-text text-5xl font-bold text-transparent">
-            MonadFish
+            Fishing Game
           </h1>
           <p className="text-lg font-medium tracking-wide text-muted-foreground">
-            Blockchain Fishing on Monad
+            Arcade fishing with wallet saves
           </p>
         </div>
 
@@ -30,7 +30,7 @@ const WelcomeScreen: React.FC = () => {
           </div>
           <p className="text-sm leading-relaxed text-foreground/70">
             Catch fish, sell your haul, upgrade your rod, and level up. Connect your wallet and
-            your progress will be saved on-chain.
+            your progress will be saved to your connected profile.
           </p>
         </div>
 

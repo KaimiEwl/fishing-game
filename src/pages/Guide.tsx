@@ -9,7 +9,7 @@ const sections = [
     id: 'overview',
     title: 'Game Overview',
     icon: Fish,
-    body: 'MonadFish is a browser fishing game where you cast from the main lake, catch fish by rarity, sell or cook them, upgrade rods, spin the cube, and compete on the grill leaderboard.',
+    body: 'This browser fishing game lets you cast from the main lake, catch fish by rarity, sell or cook them, upgrade rods, spin the cube, and compete on the grill leaderboard.',
   },
   {
     id: 'loop',
@@ -84,10 +84,10 @@ const Guide = () => {
           <ContentPageBackLink tone="guide" />
 
           <div className="rounded-3xl border border-cyan-300/15 bg-black/40 p-5 shadow-2xl backdrop-blur-xl">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-200/80">MonadFish Guide</p>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-200/80">Game Guide</p>
             <h1 className="mt-3 text-3xl font-black leading-tight text-white">Rules, progression, and wallet basics</h1>
             <p className="mt-3 text-sm leading-6 text-zinc-300">
-              This is the in-project guide for players, inspired by whitepaper-style layouts but focused on the current MonadFish flow.
+              This is the in-project guide for players, inspired by whitepaper-style layouts but focused on the current game flow.
             </p>
 
             <nav className="mt-6 space-y-2">
@@ -116,7 +116,7 @@ const Guide = () => {
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-200/70">Current Build</p>
                   <CardTitle className="mt-2 text-3xl font-black text-white">How the game works right now</CardTitle>
                   <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-300">
-                    MonadFish combines arcade fishing, rod progression, grill recipes, a shared leaderboard, wallet-linked purchases, and a daily cube reward loop. Everything below reflects the current project implementation.
+                    The game combines arcade fishing, rod progression, grill recipes, a shared leaderboard, wallet-linked purchases, and a daily cube reward loop. Everything below reflects the current project implementation.
                   </p>
                 </div>
               </div>

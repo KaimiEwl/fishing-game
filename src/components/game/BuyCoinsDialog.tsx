@@ -184,7 +184,7 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({ walletAddress, onCoinsA
               })}
             </div>
             <p className="mt-3 text-center text-xs text-zinc-500">
-              Monad Mainnet • Transaction confirmed automatically
+              Transaction confirmed automatically
             </p>
           </TabsContent>
 

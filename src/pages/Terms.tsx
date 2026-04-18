@@ -15,14 +15,14 @@ const Terms = () => {
       <div className="space-y-8 text-sm leading-relaxed text-muted-foreground">
         <DocumentSection title="1. Acceptance of Terms">
           <p>
-            By accessing or using the MonadFish website and game ("Service"), you agree to be bound
+            By accessing or using this website and game ("Service"), you agree to be bound
             by these Terms of Service. If you do not agree, you must not use the Service.
           </p>
         </DocumentSection>
 
         <DocumentSection title="2. Description of Service">
           <p>
-            MonadFish is a browser-based entertainment game. The Service may include optional
+            This is a browser-based entertainment game. The Service may include optional
             blockchain-related features such as digital collectible items (NFTs) and wallet
             connectivity.
           </p>
@@ -38,7 +38,7 @@ const Terms = () => {
         </DocumentSection>
 
         <DocumentSection title="4. No Financial or Investment Services">
-          <p>MonadFish is not:</p>
+          <p>This game is not:</p>
           <DocumentList
             items={[
               'a financial platform',
@@ -95,7 +95,7 @@ const Terms = () => {
         </DocumentSection>
 
         <DocumentSection title="9. Limitation of Liability">
-          <p>To the fullest extent permitted by law, MonadFish shall not be liable for:</p>
+          <p>To the fullest extent permitted by law, the project owner shall not be liable for:</p>
           <DocumentList
             items={[
               'losses related to digital assets',
@@ -115,7 +115,7 @@ const Terms = () => {
 
         <DocumentSection title="11. Contact">
           <p>For questions or legal requests:</p>
-          <p className="mt-2">support.monadfish.xyz</p>
+          <p className="mt-2">Contact the project owner directly for support.</p>
         </DocumentSection>
       </div>
     </ContentPageShell>

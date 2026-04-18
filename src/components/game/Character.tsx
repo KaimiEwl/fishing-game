@@ -18,7 +18,7 @@ const Character: React.FC<CharacterProps> = ({ gameState, isHappy = false }) => 
     <div className={`relative ${getBodyAnimation()}`}>
       <img
         src={characterImage}
-        alt="Monad Pepe"
+      alt="Fishing character"
         className="h-48 w-48 object-contain drop-shadow-[2px_4px_6px_rgba(0,0,0,0.3)]"
       />
     </div>

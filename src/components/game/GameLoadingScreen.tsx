@@ -25,7 +25,7 @@ const GameLoadingScreen: React.FC<GameLoadingScreenProps> = ({ visible, progress
           <div className="absolute inset-x-8 bottom-1 h-5 rounded-full bg-black/35 blur-sm" />
           <img
             src={publicAsset('assets/pepe_boat_v2.png')}
-            alt="MonadFish loading mascot"
+            alt="Fishing game loading mascot"
             className="absolute inset-0 h-[160%] w-full object-contain object-top drop-shadow-[0_18px_24px_rgba(0,0,0,0.45)] animate-float"
             draggable={false}
             loading="eager"
@@ -36,7 +36,7 @@ const GameLoadingScreen: React.FC<GameLoadingScreenProps> = ({ visible, progress
           </div>
         </div>
 
-        <h1 className="mt-5 text-3xl font-black tracking-tight">MonadFish</h1>
+        <h1 className="mt-5 text-3xl font-black tracking-tight">Fishing Game</h1>
         <p className="mt-2 text-sm font-medium text-white/65">
           {normalizedProgress >= 100 ? 'Ready to fish...' : 'Loading the lake...'}
         </p>

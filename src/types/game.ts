@@ -256,7 +256,7 @@ export const GRILL_RECIPES: GrillRecipe[] = [
   {
     id: 'cosmic_grill',
     name: 'Cosmic Grill',
-    description: 'A Monad-style signature dish for serious grillers.',
+    description: 'A signature dish for serious grillers.',
     ingredients: { goldfish: 1, mutant: 1 },
     score: 1200,
   },

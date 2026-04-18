@@ -68,7 +68,7 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
 
   return (
     <GameScreenShell
-      title="Monad Grill"
+      title="Grill"
       subtitle="Cook fish into dishes. Grill score becomes the leaderboard score."
       coins={coins}
       backgroundImage={publicAsset('assets/bg_grill.jpg')}
