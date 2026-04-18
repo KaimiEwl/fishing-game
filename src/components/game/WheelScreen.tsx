@@ -377,8 +377,12 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
                     transform: FACE_TRANSFORMS[side],
                     transformStyle: 'preserve-3d',
                     backfaceVisibility: 'hidden',
-                    opacity: selecting && highlightedFaceIndex !== sideIndex ? 0 : 1,
-                    filter: selecting && highlightedFaceIndex === sideIndex ? 'brightness(1.18) saturate(1.18)' : 'none',
+                    opacity: selecting && highlightedFaceIndex !== sideIndex ? 0.82 : 1,
+                    filter: selecting
+                      ? highlightedFaceIndex === sideIndex
+                        ? 'brightness(1.18) saturate(1.18)'
+                        : 'brightness(0.72) saturate(0.86)'
+                      : 'none',
                   }}
                 >
                   {cubeFaces[sideIndex].map((item, tileIndex) => {
