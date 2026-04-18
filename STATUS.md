@@ -43,6 +43,7 @@ Completed.
 - removed the duplicate cube reveal highlight so the front-facing overlay is now the only active prize-walk UI during reveal instead of competing with the 3D cube face behind it
 - hid the 3D cube entirely during the reveal step so the prize walk now renders on a single overlay only, eliminating the remaining “double cube” look
 - replaced the cube background with a cleaner text-free `bg_wheel_v3.png` and removed visible `Monad` / `MonadFish` branding from loading, welcome, wallet signing copy, guide/legal pages, grill copy, and other player-facing UI strings
+- refreshed both boot-loading layers with the new `loading_art_v2.png` artwork and removed the remaining visible `MonadFish` label from the HTML boot loader
 - reduced the critical boot asset set so heavy HUD art now loads as warm preload instead of blocking first paint, and normalized the cube info/result panels back to one shared visual style
 - removed the separate cube reveal overlay so tile selection now happens directly on the snapped 3D cube face, and shifted the fishing line origin forward to the actual rod tip peak on the boat sprite
 - replaced the rough fishing-line rod-tip estimate with a sprite-anchored rod-tip point so the line now starts from the real visible end of the rod on `pepe_boat_v2.png`

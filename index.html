@@ -51,24 +51,39 @@
       .boot-loader__panel {
         position: relative;
         width: min(22rem, calc(100vw - 2rem));
-        padding: 2rem 1.25rem 1.5rem;
+        padding: 1rem 1.25rem 1.5rem;
         text-align: center;
         font-family: Inter, system-ui, sans-serif;
       }
 
-      .boot-loader__orb {
-        width: 5.75rem;
-        height: 5.75rem;
+      .boot-loader__art {
+        position: relative;
+        overflow: hidden;
+        width: min(18rem, calc(100vw - 4rem));
+        aspect-ratio: 3 / 2;
         margin: 0 auto 1rem;
-        border-radius: 999px;
-        background:
-          radial-gradient(circle at 35% 30%, rgba(255,255,255,0.8), rgba(255,255,255,0.08) 28%, transparent 32%),
-          linear-gradient(135deg, rgba(34,211,238,0.95), rgba(59,130,246,0.72) 48%, rgba(168,85,247,0.88));
+        border-radius: 1.75rem;
+        border: 1px solid rgba(255,255,255,0.1);
+        background: rgba(255,255,255,0.04);
         box-shadow:
-          0 0 0 1px rgba(255,255,255,0.08),
-          0 14px 40px rgba(8, 145, 178, 0.28),
-          0 0 36px rgba(56, 189, 248, 0.24);
-        animation: boot-float 1.8s ease-in-out infinite;
+          0 22px 60px rgba(0, 0, 0, 0.38),
+          inset 0 0 0 1px rgba(255,255,255,0.04);
+      }
+
+      .boot-loader__art img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+      }
+
+      .boot-loader__art::after {
+        content: "";
+        position: absolute;
+        inset: auto 0 0;
+        height: 5rem;
+        background: linear-gradient(180deg, transparent, rgba(4, 9, 19, 0.92));
       }
 
       .boot-loader__title {
@@ -113,17 +128,15 @@
         color: rgba(186, 230, 253, 0.88);
       }
 
-      @keyframes boot-float {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-8px); }
-      }
     </style>
 
     <div id="boot-loader" aria-hidden="false">
       <div class="boot-loader__panel">
-        <div class="boot-loader__orb"></div>
-        <h1 class="boot-loader__title">MonadFish</h1>
-        <p class="boot-loader__text" id="boot-loader-text">Loading the lake...</p>
+        <div class="boot-loader__art">
+          <img src="/assets/loading_art_v2.png" alt="Fishing Game loading art" />
+        </div>
+        <h1 class="boot-loader__title">Fishing Game</h1>
+        <p class="boot-loader__text" id="boot-loader-text">Preparing the water...</p>
         <div class="boot-loader__bar" aria-hidden="true">
           <div class="boot-loader__fill" id="boot-loader-fill"></div>
         </div>

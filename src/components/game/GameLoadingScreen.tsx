@@ -1,6 +1,5 @@
 import React from 'react';
 import { publicAsset } from '@/lib/assets';
-import FishIcon from './FishIcon';
 
 interface GameLoadingScreenProps {
   visible: boolean;
@@ -21,24 +20,21 @@ const GameLoadingScreen: React.FC<GameLoadingScreenProps> = ({ visible, progress
       <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-[linear-gradient(180deg,transparent,rgba(0,132,165,0.32))]" />
 
       <div className="relative flex w-full max-w-sm flex-col items-center px-6 text-center">
-        <div className="relative h-40 w-48 overflow-hidden">
-          <div className="absolute inset-x-8 bottom-1 h-5 rounded-full bg-black/35 blur-sm" />
+        <div className="relative h-52 w-full max-w-[18rem] overflow-hidden rounded-[28px] border border-white/10 bg-white/5 shadow-[0_22px_60px_rgba(0,0,0,0.38)]">
           <img
-            src={publicAsset('assets/pepe_boat_v2.png')}
+            src={publicAsset('assets/loading_art_v2.png')}
             alt="Fishing game loading mascot"
-            className="absolute inset-0 h-[160%] w-full object-contain object-top drop-shadow-[0_18px_24px_rgba(0,0,0,0.45)] animate-float"
+            className="h-full w-full object-cover object-center"
             draggable={false}
             loading="eager"
             fetchPriority="high"
           />
-          <div className="absolute -right-2 top-8">
-            <FishIcon fishId="goldfish" size="xl" motion="pulse" />
-          </div>
+          <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[#040913] via-[#040913]/76 to-transparent" />
         </div>
 
-        <h1 className="mt-5 text-3xl font-black tracking-tight">Fishing Game</h1>
+        <h1 className="mt-5 text-3xl font-black tracking-tight text-white">Fishing Game</h1>
         <p className="mt-2 text-sm font-medium text-white/65">
-          {normalizedProgress >= 100 ? 'Ready to fish...' : 'Loading the lake...'}
+          {normalizedProgress >= 100 ? 'Ready to cast...' : 'Preparing the water...'}
         </p>
 
         <div className="mt-6 h-2 w-full overflow-hidden rounded-full bg-zinc-900">
