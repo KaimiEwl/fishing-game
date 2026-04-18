@@ -63,20 +63,32 @@ const metaMaskExtensionWallet = (
     ...wallet,
     id: 'metaMask',
     name: 'MetaMask',
-    installed: typeof window !== 'undefined' && Boolean(getMetaMaskProvider(window)) ? true : undefined,
-    mobile: undefined,
-    qrCode: undefined,
-    createConnector: (walletDetails) => createConnector((config) => ({
-      ...injected({
-        target: () => ({
-          id: walletDetails.rkDetails.id,
-          name: walletDetails.rkDetails.name,
-          provider: (targetWindow?: Window) => getMetaMaskProvider(targetWindow),
-        }),
-        unstable_shimAsyncInject: 1_000,
-      })(config),
-      ...walletDetails,
-    })),
+    installed: typeof window !== 'undefined' && Boolean(getMetaMaskProvider(window))
+      ? true
+      : wallet.installed,
+    mobile: wallet.mobile,
+    qrCode: wallet.qrCode,
+    createConnector: (walletDetails) => createConnector((config) => {
+      const provider = typeof window !== 'undefined' ? getMetaMaskProvider(window) : undefined;
+
+      if (!provider) {
+        // Keep the stock RainbowKit MetaMask mobile / QR / deep-link flow
+        // when no extension-style injected provider exists in the browser.
+        return wallet.createConnector(walletDetails)(config);
+      }
+
+      return {
+        ...injected({
+          target: () => ({
+            id: walletDetails.rkDetails.id,
+            name: walletDetails.rkDetails.name,
+            provider: (targetWindow?: Window) => getMetaMaskProvider(targetWindow),
+          }),
+          unstable_shimAsyncInject: 1_000,
+        })(config),
+        ...walletDetails,
+      };
+    }),
   };
 };
 
