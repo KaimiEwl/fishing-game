@@ -362,6 +362,29 @@
     100% { transform: scale(3); opacity: 0; }
   }
 
+  @keyframes purple-fish-drift {
+    0%, 100% { transform: translateY(0) rotate(-3deg) scale(1); }
+    50% { transform: translateY(-2px) rotate(2deg) scale(1.035); }
+  }
+
+  @keyframes purple-fish-aura {
+    0%, 100% { transform: scale(0.96); opacity: 0.58; }
+    50% { transform: scale(1.08); opacity: 0.96; }
+  }
+
+  @keyframes purple-fish-bands {
+    0%, 100% { transform: translateX(-2%) scale(0.98); opacity: 0.5; }
+    50% { transform: translateX(3%) scale(1.05); opacity: 0.9; }
+  }
+
+  @keyframes purple-fish-glint {
+    0% { transform: translateX(-165%) skewX(-20deg); opacity: 0; }
+    15% { opacity: 0.14; }
+    40% { opacity: 0.58; }
+    65% { opacity: 0.1; }
+    100% { transform: translateX(320%) skewX(-20deg); opacity: 0; }
+  }
+
   /* Character casting animations */
   @keyframes character-cast {
     0% { 
@@ -475,6 +498,23 @@
 
   .animate-ripple {
     animation: ripple 2s ease-out infinite;
+  }
+
+  .animate-purple-fish-drift {
+    animation: purple-fish-drift 3.2s ease-in-out infinite;
+    transform-origin: center;
+  }
+
+  .animate-purple-fish-aura {
+    animation: purple-fish-aura 2.6s ease-in-out infinite;
+  }
+
+  .animate-purple-fish-bands {
+    animation: purple-fish-bands 2.8s ease-in-out infinite;
+  }
+
+  .animate-purple-fish-glint {
+    animation: purple-fish-glint 2.9s ease-in-out infinite;
   }
 
   .animate-ripple-expand {

@@ -21,6 +21,7 @@ Completed.
 - added lightweight cheerful background music that starts after user interaction, respects mute state, and pauses on tab hide
 - fixed wallet connect/account actions inside the settings dialog by closing the settings modal before opening the RainbowKit modal on both desktop and mobile
 - kept the new audio path dependency-free by using a small WebAudio loop instead of shipping a new media file
+- gave `Purple Fish` a unique animated presentation with a soft aura, shimmer sweep, and light-band treatment so its cutout looks intentional rather than rough in fish lists and inventory
 
 ### Validation for milestone 3
 - `npm run lint` - passed with warnings only, no errors
