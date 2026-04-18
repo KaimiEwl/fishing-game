@@ -7,6 +7,7 @@ const LOCAL_PLAYER_ID_KEY = 'monadfish_leaderboard_player_id_v1';
 const REMOTE_LEADERBOARD_TABLE = 'grill_leaderboard';
 const REMOTE_LEADERBOARD_BUCKET = 'avatars';
 const REMOTE_LEADERBOARD_PREFIX = 'leaderboards/grill';
+export const DEFAULT_LEADERBOARD_NAME = 'Guest griller';
 
 const createFallbackId = () => `guest:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 8)}`;
 
@@ -14,13 +15,18 @@ export const sanitizeLeaderboardName = (name: string) => (
   name.trim().replace(/\s+/g, ' ').slice(0, 24)
 );
 
+export const hasCustomLeaderboardName = (name?: string | null) => {
+  const clean = sanitizeLeaderboardName(name || '');
+  return Boolean(clean && clean !== DEFAULT_LEADERBOARD_NAME);
+};
+
 const normalizeEntry = (entry: Partial<GrillLeaderboardEntry> & {
   wallet_address?: string | null;
   updated_at?: string | null;
   walletAddress?: string | null;
 }): GrillLeaderboardEntry => ({
   id: String(entry.id || ''),
-  name: sanitizeLeaderboardName(entry.name || 'Guest griller') || 'Guest griller',
+  name: sanitizeLeaderboardName(entry.name || DEFAULT_LEADERBOARD_NAME) || DEFAULT_LEADERBOARD_NAME,
   score: Math.max(0, Number(entry.score || 0)),
   dishes: Math.max(0, Number(entry.dishes || 0)),
   walletAddress: entry.walletAddress || entry.wallet_address || undefined,
@@ -228,6 +234,49 @@ export const upsertLeaderboardEntry = ({
   return nextEntries;
 };
 
+const shouldSyncLocalEntry = (localEntry: GrillLeaderboardEntry, remoteEntry?: GrillLeaderboardEntry) => {
+  if (!localEntry.id || localEntry.score <= 0 || !hasCustomLeaderboardName(localEntry.name)) {
+    return false;
+  }
+
+  if (!remoteEntry) return true;
+  if (localEntry.score > remoteEntry.score) return true;
+  if (localEntry.dishes > remoteEntry.dishes) return true;
+  if (hasCustomLeaderboardName(localEntry.name) && !hasCustomLeaderboardName(remoteEntry.name)) return true;
+
+  const localUpdatedAt = new Date(localEntry.updatedAt).getTime();
+  const remoteUpdatedAt = new Date(remoteEntry.updatedAt).getTime();
+
+  return localUpdatedAt > remoteUpdatedAt
+    && (
+      localEntry.name !== remoteEntry.name
+      || localEntry.score !== remoteEntry.score
+      || localEntry.dishes !== remoteEntry.dishes
+    );
+};
+
+const syncNamedLocalEntries = async (remoteEntries: GrillLeaderboardEntry[]) => {
+  const localEntries = loadLeaderboardEntries().filter((entry) => (
+    entry.id
+    && entry.score > 0
+    && hasCustomLeaderboardName(entry.name)
+  ));
+
+  if (localEntries.length === 0) {
+    return false;
+  }
+
+  const remoteMap = new Map(remoteEntries.map((entry) => [entry.id, entry]));
+  const syncTargets = localEntries.filter((entry) => shouldSyncLocalEntry(entry, remoteMap.get(entry.id)));
+
+  if (syncTargets.length === 0) {
+    return false;
+  }
+
+  await Promise.allSettled(syncTargets.map((entry) => saveGlobalLeaderboardEntry(entry)));
+  return true;
+};
+
 export const loadGlobalLeaderboardEntries = async () => {
   try {
     const { data, error } = await supabase
@@ -239,20 +288,35 @@ export const loadGlobalLeaderboardEntries = async () => {
 
     if (error) throw error;
 
-    const merged = mergeLeaderboardSnapshots(
-      loadLeaderboardEntries(),
-      ((data || []) as Array<Record<string, unknown>>).map((entry) => normalizeEntry(entry)),
-    );
-    saveLeaderboardEntries(merged);
-    return merged;
+    let remoteEntries = ((data || []) as Array<Record<string, unknown>>).map((entry) => normalizeEntry(entry));
+
+    if (await syncNamedLocalEntries(remoteEntries)) {
+      const { data: syncedData, error: syncedError } = await supabase
+        .from(REMOTE_LEADERBOARD_TABLE)
+        .select('id, name, score, dishes, wallet_address, updated_at')
+        .order('score', { ascending: false })
+        .order('updated_at', { ascending: false })
+        .limit(100);
+
+      if (!syncedError) {
+        remoteEntries = ((syncedData || []) as Array<Record<string, unknown>>).map((entry) => normalizeEntry(entry));
+      }
+    }
+
+    const canonicalEntries = mergeLeaderboardSnapshots(remoteEntries);
+    saveLeaderboardEntries(canonicalEntries);
+    return canonicalEntries;
   } catch {
     try {
-      const merged = mergeLeaderboardSnapshots(
-        loadLeaderboardEntries(),
-        await loadStorageLeaderboardEntries(),
-      );
-      saveLeaderboardEntries(merged);
-      return merged;
+      let remoteEntries = await loadStorageLeaderboardEntries();
+
+      if (await syncNamedLocalEntries(remoteEntries)) {
+        remoteEntries = await loadStorageLeaderboardEntries();
+      }
+
+      const canonicalEntries = mergeLeaderboardSnapshots(remoteEntries);
+      saveLeaderboardEntries(canonicalEntries);
+      return canonicalEntries;
     } catch {
       return null;
     }

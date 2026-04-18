@@ -45,10 +45,10 @@ import mapWheelPierSrc from '@/assets/map_wheel_pier_cutout.png';
 import {
   deleteGlobalLeaderboardEntry,
   getLeaderboardPlayerId,
+  hasCustomLeaderboardName,
   loadLeaderboardEntries,
   loadGlobalLeaderboardEntries,
   mergeLeaderboardEntries,
-  mergeLeaderboardSnapshots,
   saveGlobalLeaderboardEntry,
   upsertLeaderboardEntry,
 } from '@/lib/leaderboard';
@@ -159,7 +159,7 @@ const FishingGame: React.FC = () => {
     const remoteEntries = await loadGlobalLeaderboardEntries();
     if (!remoteEntries) return;
 
-    setLeaderboardEntries((entries) => mergeLeaderboardSnapshots(entries, remoteEntries));
+    setLeaderboardEntries(remoteEntries);
   }, []);
 
   useEffect(() => {
@@ -276,7 +276,9 @@ const FishingGame: React.FC = () => {
         });
         const mergedEntry = nextEntries.find((entry) => entry.id === nextId);
         if (mergedEntry) {
-          void saveGlobalLeaderboardEntry(mergedEntry);
+          if (hasCustomLeaderboardName(mergedEntry.name)) {
+            void saveGlobalLeaderboardEntry(mergedEntry);
+          }
           void deleteGlobalLeaderboardEntry(previousId);
         }
         return nextEntries;
@@ -316,7 +318,11 @@ const FishingGame: React.FC = () => {
   }, [player.level, sounds]);
 
   useEffect(() => {
-    if (gameProgress.grillScore > 0 && !currentLeaderboardEntry?.name && !leaderboardNameOpen) {
+    if (
+      gameProgress.grillScore > 0
+      && !hasCustomLeaderboardName(currentLeaderboardEntry?.name)
+      && !leaderboardNameOpen
+    ) {
       setPendingLeaderboardScore(gameProgress.grillScore);
       setPendingLeaderboardDishes(0);
       setLeaderboardNameOpen(true);
@@ -369,14 +375,12 @@ const FishingGame: React.FC = () => {
   const handleCookRecipe = (recipe: GrillRecipe) => {
     if (!consumeFish(recipe.ingredients)) return false;
     const nextGrillScore = gameProgress.grillScore + recipe.score;
-    const fallbackLeaderboardName = player.nickname || 'Guest griller';
     gameProgress.recordGrillDish(recipe.score);
-    if (currentLeaderboardEntry?.name) {
+    if (hasCustomLeaderboardName(currentLeaderboardEntry?.name)) {
       saveCurrentLeaderboardEntry(currentLeaderboardEntry.name, nextGrillScore, 1);
     } else {
-      saveCurrentLeaderboardEntry(fallbackLeaderboardName, nextGrillScore, 1);
       setPendingLeaderboardScore(nextGrillScore);
-      setPendingLeaderboardDishes(0);
+      setPendingLeaderboardDishes(1);
       setLeaderboardNameOpen(true);
     }
     sounds.playSellSound();
@@ -556,7 +560,9 @@ const FishingGame: React.FC = () => {
 
           <LeaderboardNameDialog
             open={leaderboardNameOpen}
-            defaultName={currentLeaderboardEntry?.name || player.nickname}
+            defaultName={hasCustomLeaderboardName(currentLeaderboardEntry?.name)
+              ? currentLeaderboardEntry?.name
+              : player.nickname}
             score={Math.max(pendingLeaderboardScore, gameProgress.grillScore)}
             onSave={handleSaveLeaderboardName}
           />
