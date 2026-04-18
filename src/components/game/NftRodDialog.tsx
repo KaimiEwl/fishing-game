@@ -13,15 +13,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
 import { parseEther } from 'viem';
 import { toast } from 'sonner';
-import { publicAsset } from '@/lib/assets';
+import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
 
-const ROD_IMAGES = [
-  publicAsset('assets/rod_basic.png'),
-  publicAsset('assets/rod_bamboo.png'),
-  publicAsset('assets/rod_carbon.png'),
-  publicAsset('assets/rod_pro.png'),
-  publicAsset('assets/rod_legendary.png'),
-];
+const ROD_IMAGES = ROD_DISPLAY_INFO.map((rod) => rod.image);
 
 const ROD_NAMES = ['Starter', 'Bamboo', 'Carbon', 'Pro', 'Legendary'];
 

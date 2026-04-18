@@ -11,7 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ROD_BONUSES } from '@/types/game';
 import CoinIcon from './CoinIcon';
-import { publicAsset } from '@/lib/assets';
+import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
 import { Check, Package, ShipWheel, ShoppingBag, Store, Worm } from 'lucide-react';
 
 interface ShopDialogProps {
@@ -31,10 +31,10 @@ const BAIT_PACKAGES = [
 ];
 
 const ROD_UPGRADES = [
-  { level: 1, cost: 200, name: 'Bamboo Rod', bonus: 5, image: publicAsset('assets/rod_bamboo.png'), bobber: 'Green bobber', bobberColor: '#22aa44' },
-  { level: 2, cost: 500, name: 'Carbon Rod', bonus: 10, image: publicAsset('assets/rod_carbon.png'), bobber: 'Blue bobber', bobberColor: '#2255cc' },
-  { level: 3, cost: 1000, name: 'Pro Rod', bonus: 15, image: publicAsset('assets/rod_pro.png'), bobber: 'Purple bobber', bobberColor: '#9944ff' },
-  { level: 4, cost: 2500, name: 'Legendary Rod', bonus: 25, image: publicAsset('assets/rod_legendary.png'), bobber: 'Golden glowing bobber', bobberColor: '#ffcc00' },
+  { level: 1, cost: 200, name: 'Bamboo Rod', bonus: 5, image: ROD_DISPLAY_INFO[1].image, bobber: 'Green bobber', bobberColor: '#22aa44' },
+  { level: 2, cost: 500, name: 'Carbon Rod', bonus: 10, image: ROD_DISPLAY_INFO[2].image, bobber: 'Blue bobber', bobberColor: '#2255cc' },
+  { level: 3, cost: 1000, name: 'Pro Rod', bonus: 15, image: ROD_DISPLAY_INFO[3].image, bobber: 'Purple bobber', bobberColor: '#9944ff' },
+  { level: 4, cost: 2500, name: 'Legendary Rod', bonus: 25, image: ROD_DISPLAY_INFO[4].image, bobber: 'Golden glowing bobber', bobberColor: '#ffcc00' },
 ];
 
 const ShopDialog: React.FC<ShopDialogProps> = ({
