@@ -26,13 +26,16 @@ const RodPreviewBadge = ({ rodLevel, ownedRodLevel, nftRods }: RodPreviewBadgePr
       <Tooltip>
         <TooltipTrigger asChild>
           <div
-            className={`absolute bottom-1 right-[calc(100%+0.55rem)] flex h-12 w-12 cursor-pointer flex-col items-center justify-center rounded-xl border border-cyan-300/20 bg-black/85 shadow-lg backdrop-blur-md transition-all hover:scale-105 hover:bg-zinc-950 active:scale-95 sm:bottom-1.5 sm:h-14 sm:w-14 ${
+            className={`absolute bottom-1 right-[calc(100%+0.55rem)] flex h-12 w-12 cursor-pointer flex-col items-center justify-end overflow-hidden rounded-xl border border-cyan-300/30 bg-slate-950/20 shadow-[0_14px_24px_rgba(0,0,0,0.35)] backdrop-blur-sm transition-all hover:scale-105 active:scale-95 sm:bottom-1.5 sm:h-14 sm:w-14 ${
               hasNft ? 'ring-2 ring-cyan-300/40' : ''
             }`}
           >
-            <img src={rod.image} alt={rod.name} className="h-7 object-contain drop-shadow-md sm:h-8" />
+            <img src={rod.image} alt={rod.name} className="absolute inset-0 h-full w-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
             {rod.bonus > 0 && (
-              <span className="mt-0.5 text-[9px] font-bold leading-none text-cyan-100">+{rod.bonus}%</span>
+              <span className="relative z-10 mb-1 rounded-md bg-black/55 px-1 py-[2px] text-[9px] font-bold leading-none text-cyan-50 sm:text-[10px]">
+                +{rod.bonus}%
+              </span>
             )}
             {hasNft && (
               <div className="absolute -right-1.5 -top-1.5 rounded-sm border border-cyan-300/40 bg-cyan-300 px-1.5 text-[8px] font-bold text-black shadow-sm">
