@@ -3,13 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { usePageScroll } from '@/hooks/usePageScroll';
 import ContentPageShell, { ContentPageBackLink } from '@/components/ContentPageShell';
 import GuideSectionCard from '@/components/GuideSectionCard';
+import GameTitleBanner from '@/components/GameTitleBanner';
 
 const sections = [
   {
     id: 'overview',
     title: 'Game Overview',
     icon: Fish,
-    body: 'This browser fishing game lets you cast from the main lake, catch fish by rarity, sell or cook them, upgrade rods, spin the cube, and compete on the grill leaderboard.',
+    body: 'Hook & Loot lets you cast from the main lake, catch fish by rarity, sell or cook them, upgrade rods, spin the cube, and compete on the grill leaderboard.',
   },
   {
     id: 'loop',
@@ -84,6 +85,7 @@ const Guide = () => {
           <ContentPageBackLink tone="guide" />
 
           <div className="rounded-3xl border border-cyan-300/15 bg-black/40 p-5 shadow-2xl backdrop-blur-xl">
+            <GameTitleBanner className="mb-5 w-full max-w-[15rem]" />
             <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-200/80">Game Guide</p>
             <h1 className="mt-3 text-3xl font-black leading-tight text-white">Rules, progression, and wallet basics</h1>
             <p className="mt-3 text-sm leading-6 text-zinc-300">

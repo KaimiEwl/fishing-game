@@ -97,7 +97,7 @@ export function useWalletAuth() {
     
     setIsVerifying(true);
     try {
-      const message = `Fishing Game: Sign to verify your wallet\nAddress: ${address}\nTimestamp: ${Date.now()}`;
+      const message = `Hook & Loot: Sign to verify your wallet\nAddress: ${address}\nTimestamp: ${Date.now()}`;
       const signature = await signMessageAsync({ account: address, message });
       
       const { data, error } = await supabase.functions.invoke('verify-wallet', {

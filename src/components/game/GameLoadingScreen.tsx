@@ -24,7 +24,7 @@ const GameLoadingScreen: React.FC<GameLoadingScreenProps> = ({ visible, progress
         <div className="relative h-52 w-full max-w-[18rem] overflow-hidden rounded-[28px] border border-white/10 bg-white/5 shadow-[0_22px_60px_rgba(0,0,0,0.38)]">
           <img
             src={publicAsset('assets/loading_art_v2.png')}
-            alt="Fishing game loading mascot"
+            alt="Hook and Loot loading art"
             className="h-full w-full object-cover object-center"
             draggable={false}
             loading="eager"

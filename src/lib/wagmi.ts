@@ -93,7 +93,7 @@ const metaMaskExtensionWallet = (
 };
 
 export const wagmiConfig = getDefaultConfig({
-  appName: 'Fishing Game',
+  appName: 'Hook & Loot',
   projectId,
   chains: [monadMainnet],
   wallets: [
