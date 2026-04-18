@@ -9,6 +9,7 @@
 - Extracted `LakeScene` helper visuals (`LakeCloud`, `LakeDetailedTree`, `LakeWaveLayer`, `LakeReedCluster`) out of the screen file so the scene is assembled from components instead of local inline definitions
 - Extracted `Admin` page-local UI helpers into shared components (`AdminStatCard`, `AdminSortableHead`, `AdminTopList`, `AdminEditField`) so the page is now composed from `src/components/`
 - Simplified the unused `NavLink` wrapper to a semantic `tone` API instead of raw class-based styling hooks
+- Moved guide / legal / not-found route chrome into shared components (`ContentPageShell`, `DocumentSection`, `GuideSectionCard`, `NotFoundState`) so content pages are assembled from `src/components/` instead of carrying their own visual shell
 
 ### Validation for UI architecture refactor
 - `npm run build` - passed

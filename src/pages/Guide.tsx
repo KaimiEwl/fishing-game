@@ -1,8 +1,8 @@
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Fish, Flame, Gem, Map, Shield, Sparkles, Trophy, Wallet } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Fish, Flame, Gem, Map, Shield, Sparkles, Trophy, Wallet } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { usePageScroll } from '@/hooks/usePageScroll';
+import ContentPageShell, { ContentPageBackLink } from '@/components/ContentPageShell';
+import GuideSectionCard from '@/components/GuideSectionCard';
 
 const sections = [
   {
@@ -78,15 +78,10 @@ const Guide = () => {
   usePageScroll();
 
   return (
-    <div className="min-h-screen overflow-y-auto bg-[radial-gradient(circle_at_top,#102458,#04060d_60%)] text-zinc-100">
-      <div className="mx-auto flex max-w-6xl flex-col gap-10 px-5 py-10 sm:px-8 lg:flex-row lg:px-10">
+    <ContentPageShell tone="guide" maxWidth="wide">
+      <div className="flex flex-col gap-10 px-0 py-0 sm:px-2 lg:flex-row">
         <aside className="lg:sticky lg:top-8 lg:h-fit lg:w-72">
-          <Button variant="ghost" asChild className="mb-5 justify-start text-cyan-100 hover:bg-cyan-300/10 hover:text-cyan-50">
-            <Link to="/">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Game
-            </Link>
-          </Button>
+          <ContentPageBackLink tone="guide" />
 
           <div className="rounded-3xl border border-cyan-300/15 bg-black/40 p-5 shadow-2xl backdrop-blur-xl">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-200/80">MonadFish Guide</p>
@@ -143,32 +138,18 @@ const Guide = () => {
           </Card>
 
           {sections.map((section) => (
-            <Card key={section.id} id={section.id} className="scroll-mt-8 border border-cyan-300/10 bg-black/40 backdrop-blur-xl">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/10 p-3">
-                    <section.icon className="h-5 w-5 text-cyan-100" />
-                  </div>
-                  <CardTitle className="text-xl font-black text-white">{section.title}</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="text-sm leading-6 text-zinc-300">
-                {section.body && <p>{section.body}</p>}
-                {section.bullets && (
-                  <ul className="space-y-2">
-                    {section.bullets.map((bullet) => (
-                      <li key={bullet} className="rounded-2xl border border-zinc-800 bg-zinc-950/65 px-4 py-3">
-                        {bullet}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
+            <GuideSectionCard
+              key={section.id}
+              id={section.id}
+              title={section.title}
+              icon={section.icon}
+              body={section.body}
+              bullets={section.bullets}
+            />
           ))}
         </div>
       </div>
-    </div>
+    </ContentPageShell>
   );
 };
 
