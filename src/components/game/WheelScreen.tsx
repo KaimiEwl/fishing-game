@@ -224,6 +224,74 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
           : 'Paid spins let you keep rolling even after the daily cube is spent.'
         : 'Finish daily tasks first or buy a paid spin to roll the cube.';
 
+  const renderTile = (
+    item: WheelPrize,
+    tileIndex: number,
+    sideIndex: number,
+    mode: 'cube' | 'overlay' = 'cube',
+  ) => {
+    const fish = getFishByReward(item);
+    const isHighlighted = highlightedFaceIndex === sideIndex && highlightedTileIndex === tileIndex;
+    const colorIndex = Math.max(WHEEL_PRIZES.findIndex((prizeItem) => prizeItem.id === item.id), 0);
+    const accent = item.type === 'fish' && fish
+      ? RARITY_COLORS[fish.rarity]
+      : item.secret
+        ? '#f8fafc'
+        : CUBE_TILE_COLORS[colorIndex % CUBE_TILE_COLORS.length];
+    const isOverlay = mode === 'overlay';
+
+    return (
+      <div
+        key={`${mode}-${sideIndex}-${tileIndex}`}
+        className={`relative flex min-w-0 items-center justify-center overflow-hidden rounded-[4px] border text-[8px] font-black leading-none text-black transition-all duration-200 sm:text-[10px] ${
+          isOverlay
+            ? isHighlighted
+              ? 'z-20 scale-[1.08] border-white ring-4 ring-cyan-100/90 shadow-[0_0_26px_rgba(34,211,238,0.95),0_0_44px_rgba(255,255,255,0.65)]'
+              : 'border-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_8px_14px_rgba(0,0,0,0.3)]'
+            : isHighlighted
+              ? 'z-20 scale-[1.16] border-white ring-4 ring-cyan-100/90 shadow-[0_0_26px_rgba(34,211,238,0.95),0_0_44px_rgba(255,255,255,0.65)]'
+              : 'border-black/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.58),0_5px_10px_rgba(0,0,0,0.22)]'
+        }`}
+        style={{
+          background: item.type === 'fish' && fish
+            ? `linear-gradient(135deg, ${accent}40, ${accent}18)`
+            : item.secret
+              ? 'linear-gradient(135deg, #f8fafc, #fde68a 45%, #f472b6)'
+              : `linear-gradient(135deg, ${accent}, ${accent}bb)`,
+          opacity: !isOverlay && spinning && highlightedFaceIndex !== sideIndex ? 0.94 : 1,
+          filter: isHighlighted ? 'brightness(1.38) saturate(1.3)' : 'none',
+        }}
+      >
+        {isHighlighted && (
+          <>
+            <span className="pointer-events-none absolute inset-0 bg-white/20" />
+            <span className="pointer-events-none absolute inset-[10%] rounded-[3px] border border-white/90 shadow-[0_0_16px_rgba(255,255,255,0.9)]" />
+            <span className="pointer-events-none absolute left-1/2 top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-100/95 blur-md" />
+          </>
+        )}
+        {item.type === 'fish' && fish ? (
+          <div className="flex flex-col items-center justify-center gap-0.5">
+            <FishIcon fish={fish} size="xs" className={isOverlay ? 'h-6 w-6 sm:h-7 sm:w-7' : 'h-5 w-5 sm:h-6 sm:w-6'} />
+            <span className="text-[7px] font-black text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.7)] sm:text-[8px]">
+              x{item.quantity ?? 1}
+            </span>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center gap-0.5">
+            {item.secret ? (
+              <Sparkles className={isOverlay ? 'h-3.5 w-3.5 text-black/75 sm:h-4 sm:w-4' : 'h-3 w-3 text-black/75 sm:h-3.5 sm:w-3.5'} />
+            ) : (
+              <CoinIcon size={isOverlay ? 12 : 11} />
+            )}
+            <span className="text-[7px] font-black text-black/85 sm:text-[8px]">
+              {item.secret ? '???' : shortCoinLabel(item.coins ?? 0)}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const snapToFace = (faceIndex: number, onSettled: () => void) => {
     setRotationTransitionEnabled(false);
     setRotation({ ...FACE_VIEW_ROTATIONS[faceIndex] });
@@ -386,67 +454,17 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
                       : 'none',
                   }}
                 >
-                  {cubeFaces[sideIndex].map((item, tileIndex) => {
-                    const fish = getFishByReward(item);
-                    const isHighlighted = highlightedFaceIndex === sideIndex && highlightedTileIndex === tileIndex;
-                    const colorIndex = Math.max(WHEEL_PRIZES.findIndex((prizeItem) => prizeItem.id === item.id), 0);
-                    const accent = item.type === 'fish' && fish
-                      ? RARITY_COLORS[fish.rarity]
-                      : item.secret
-                        ? '#f8fafc'
-                        : CUBE_TILE_COLORS[colorIndex % CUBE_TILE_COLORS.length];
-
-                    return (
-                      <div
-                        key={`${side}-${tileIndex}`}
-                        className={`relative flex min-w-0 items-center justify-center overflow-hidden rounded-[4px] border text-[8px] font-black leading-none text-black shadow-[inset_0_1px_0_rgba(255,255,255,0.58),0_5px_10px_rgba(0,0,0,0.22)] transition-all duration-200 sm:text-[10px] ${
-                          isHighlighted
-                            ? 'z-20 scale-[1.16] border-white ring-4 ring-cyan-100/90 shadow-[0_0_26px_rgba(34,211,238,0.95),0_0_44px_rgba(255,255,255,0.65)]'
-                            : 'border-black/25'
-                        }`}
-                        style={{
-                          background: item.type === 'fish' && fish
-                            ? `linear-gradient(135deg, ${accent}40, ${accent}18)`
-                            : item.secret
-                              ? 'linear-gradient(135deg, #f8fafc, #fde68a 45%, #f472b6)'
-                              : `linear-gradient(135deg, ${accent}, ${accent}bb)`,
-                          opacity: spinning && highlightedFaceIndex !== sideIndex ? 0.94 : 1,
-                          filter: isHighlighted ? 'brightness(1.38) saturate(1.3)' : 'none',
-                        }}
-                      >
-                        {isHighlighted && (
-                          <>
-                            <span className="pointer-events-none absolute inset-0 bg-white/20" />
-                            <span className="pointer-events-none absolute inset-[10%] rounded-[3px] border border-white/90 shadow-[0_0_16px_rgba(255,255,255,0.9)]" />
-                            <span className="pointer-events-none absolute left-1/2 top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-100/95 blur-md" />
-                          </>
-                        )}
-                        {item.type === 'fish' && fish ? (
-                          <div className="flex flex-col items-center justify-center gap-0.5">
-                            <FishIcon fish={fish} size="xs" className="h-5 w-5 sm:h-6 sm:w-6" />
-                            <span className="text-[7px] font-black text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.7)] sm:text-[8px]">
-                              x{item.quantity ?? 1}
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center gap-0.5">
-                            {item.secret ? (
-                              <Sparkles className="h-3 w-3 text-black/75 sm:h-3.5 sm:w-3.5" />
-                            ) : (
-                              <CoinIcon size={11} />
-                            )}
-                            <span className="text-[7px] font-black text-black/85 sm:text-[8px]">
-                              {item.secret ? '???' : shortCoinLabel(item.coins ?? 0)}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                  {cubeFaces[sideIndex].map((item, tileIndex) => renderTile(item, tileIndex, sideIndex))}
                 </div>
               ))}
             </div>
           </div>
+
+          {selecting && highlightedFaceIndex !== null && (
+            <div className="pointer-events-none absolute left-1/2 top-1/2 z-30 grid h-[10.5rem] w-[10.5rem] -translate-x-1/2 -translate-y-1/2 grid-cols-5 gap-1.5 rounded-2xl border border-cyan-100/45 bg-slate-950/86 p-2 shadow-[0_0_30px_rgba(34,211,238,0.3),inset_0_0_24px_rgba(255,255,255,0.08)] backdrop-blur-sm sm:h-[13.5rem] sm:w-[13.5rem] sm:gap-2 sm:p-2.5">
+              {cubeFaces[highlightedFaceIndex].map((item, tileIndex) => renderTile(item, tileIndex, highlightedFaceIndex, 'overlay'))}
+            </div>
+          )}
         </div>
 
         <div className="rounded-lg border border-cyan-300/20 bg-black/70 px-4 py-2 text-center backdrop-blur-md">
