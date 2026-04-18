@@ -47,6 +47,7 @@ Completed.
 - added the new `title_banner_v1.png` title card to the boot loader, in-app loading screen, and welcome screen so the game name is shown through one shared banner asset instead of plain text headings
 - switched the visible project name to `Hook & Loot` in app title/meta, wallet-facing labels, and guide copy, and added the shared title banner into the guide page header
 - expanded the equipped rod preview badge next to `Cast Line` so the purchased rod art now fills the full icon area instead of sitting as a tiny image inside a black square
+- fixed the starter rod preview badge so the non-square `rod_basic.png` now renders with its own contain/scale treatment instead of stretching into a broken thin strip
 - reduced the critical boot asset set so heavy HUD art now loads as warm preload instead of blocking first paint, and normalized the cube info/result panels back to one shared visual style
 - removed the separate cube reveal overlay so tile selection now happens directly on the snapped 3D cube face, and shifted the fishing line origin forward to the actual rod tip peak on the boat sprite
 - replaced the rough fishing-line rod-tip estimate with a sprite-anchored rod-tip point so the line now starts from the real visible end of the rod on `pepe_boat_v2.png`

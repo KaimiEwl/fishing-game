@@ -30,7 +30,12 @@ const RodPreviewBadge = ({ rodLevel, ownedRodLevel, nftRods }: RodPreviewBadgePr
               hasNft ? 'ring-2 ring-cyan-300/40' : ''
             }`}
           >
-            <img src={rod.image} alt={rod.name} className="absolute inset-0 h-full w-full object-cover" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(34,211,238,0.18),transparent_60%),linear-gradient(180deg,rgba(15,23,42,0.15),rgba(15,23,42,0.35))]" />
+            <img
+              src={rod.image}
+              alt={rod.name}
+              className={`absolute inset-0 h-full w-full ${rod.previewFit === 'contain' ? 'object-contain p-1.5' : 'object-cover'} ${rod.previewScale}`}
+            />
             <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
             {rod.bonus > 0 && (
               <span className="relative z-10 mb-1 rounded-md bg-black/55 px-1 py-[2px] text-[9px] font-bold leading-none text-cyan-50 sm:text-[10px]">

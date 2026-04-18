@@ -8,11 +8,11 @@ const ROD_PREVIEW_VERSION = 'rod-previews-20260417b';
 const versionedRodPreview = (file: string) => `${publicAsset(`assets/${file}`)}?v=${ROD_PREVIEW_VERSION}`;
 
 export const ROD_DISPLAY_INFO = [
-  { name: 'Starter', image: versionedRodPreview('rod_basic.png'), color: '#aaa', bonus: 0, bobber: 'Standard tackle' },
-  { name: 'Bamboo', image: versionedRodPreview('rod_green_icon.png'), color: '#22aa44', bonus: 5, bobber: 'Green bobber' },
-  { name: 'Carbon', image: versionedRodPreview('rod_blue_icon.png'), color: '#2255cc', bonus: 10, bobber: 'Blue bobber' },
-  { name: 'Pro', image: versionedRodPreview('rod_purple_icon.png'), color: '#9944ff', bonus: 15, bobber: 'Purple bobber' },
-  { name: 'Legendary', image: versionedRodPreview('rod_gold_icon.png'), color: '#ffcc00', bonus: 25, bobber: 'Golden bobber' },
+  { name: 'Starter', image: versionedRodPreview('rod_basic.png'), color: '#aaa', bonus: 0, bobber: 'Standard tackle', previewFit: 'contain' as const, previewScale: 'scale-[1.9]' },
+  { name: 'Bamboo', image: versionedRodPreview('rod_green_icon.png'), color: '#22aa44', bonus: 5, bobber: 'Green bobber', previewFit: 'cover' as const, previewScale: '' },
+  { name: 'Carbon', image: versionedRodPreview('rod_blue_icon.png'), color: '#2255cc', bonus: 10, bobber: 'Blue bobber', previewFit: 'cover' as const, previewScale: '' },
+  { name: 'Pro', image: versionedRodPreview('rod_purple_icon.png'), color: '#9944ff', bonus: 15, bobber: 'Purple bobber', previewFit: 'cover' as const, previewScale: '' },
+  { name: 'Legendary', image: versionedRodPreview('rod_gold_icon.png'), color: '#ffcc00', bonus: 25, bobber: 'Golden bobber', previewFit: 'cover' as const, previewScale: '' },
 ] as const;
 
 export const ROD_ICON_PRELOADS = ROD_DISPLAY_INFO.slice(1).map((rod) => rod.image);
