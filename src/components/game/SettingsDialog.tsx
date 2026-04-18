@@ -14,6 +14,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Camera, Check, ChevronDown, LogOut, Settings, Volume2, VolumeX } from 'lucide-react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useBalance } from 'wagmi';
+import { Link } from 'react-router-dom';
 import { isSoundMuted, setSoundMuted } from '@/hooks/useSoundEffects';
 import { supabase } from '@/integrations/supabase/client';
 import type { TablesUpdate } from '@/integrations/supabase/types';
@@ -232,6 +233,19 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
               </div>
               <Switch checked={!muted} onCheckedChange={handleToggleSound} />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-base font-bold text-zinc-100 sm:text-sm sm:font-medium">Game guide</p>
+            <Link to="/guide" onClick={() => setOpen(false)} className="block">
+              <Button
+                variant="outline"
+                className="h-11 w-full justify-between border-zinc-800 bg-zinc-950 px-4 text-zinc-100 hover:bg-black"
+              >
+                <span>Open rules and description</span>
+                <span className="text-cyan-100">Guide</span>
+              </Button>
+            </Link>
           </div>
 
           <Collapsible open={nicknameOpen} onOpenChange={setNicknameOpen} className="rounded-lg border border-zinc-800 bg-zinc-950">
