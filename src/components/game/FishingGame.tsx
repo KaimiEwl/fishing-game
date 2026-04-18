@@ -30,11 +30,7 @@ import {
   type MainSceneAssets,
 } from '@/lib/mainSceneAssets';
 import {
-  BOOST_ICON_SRC,
   FISH_GOT_AWAY_PANEL_SRC,
-  INVENTORY_BUTTON_PANEL_SRC,
-  INVENTORY_SHORTCUT_ICON_SRC,
-  ROD_ICON_PRELOADS,
 } from '@/lib/rodAssets';
 import travelIconSrc from '@/assets/map_travel_icon_cutout.png';
 import mapTreasureVaultSrc from '@/assets/map_treasure_vault_cutout.png';
@@ -180,13 +176,8 @@ const FishingGame: React.FC = () => {
       setMainSceneAssets(assets);
       warmPreloadAssets([
         ...WARM_PRELOAD_ASSET_URLS,
-        FISH_GOT_AWAY_PANEL_SRC,
-        INVENTORY_BUTTON_PANEL_SRC,
-        INVENTORY_SHORTCUT_ICON_SRC,
-        BOOST_ICON_SRC,
-        TRAVEL_ICON_SRC,
         ...MAP_LOCATION_ASSETS,
-        ...ROD_ICON_PRELOADS,
+        FISH_GOT_AWAY_PANEL_SRC,
       ]);
 
       window.requestAnimationFrame(() => {

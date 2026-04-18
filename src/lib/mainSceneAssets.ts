@@ -42,10 +42,6 @@ export const CRITICAL_BOOT_ASSET_URLS = [
   ...MAIN_SCENE_ROD_FILES.map((file) => publicAsset(`assets/${file}`)),
   publicAsset('assets/cast_button_blue.png'),
   publicAsset('assets/cast_button_green.png'),
-  INVENTORY_BUTTON_PANEL_SRC,
-  INVENTORY_SHORTCUT_ICON_SRC,
-  BOOST_ICON_SRC,
-  travelIconSrc,
   bottomNavArcadeStrip,
 ] as const;
 
@@ -53,6 +49,10 @@ export const WARM_PRELOAD_ASSET_URLS = [
   publicAsset('assets/bg_tasks.jpg'),
   publicAsset('assets/bg_wheel.jpg'),
   FISH_GOT_AWAY_PANEL_SRC,
+  INVENTORY_BUTTON_PANEL_SRC,
+  INVENTORY_SHORTCUT_ICON_SRC,
+  BOOST_ICON_SRC,
+  travelIconSrc,
   ...ROD_ICON_PRELOADS,
 ] as const;
 

@@ -43,6 +43,7 @@ Completed.
 - removed the duplicate cube reveal highlight so the front-facing overlay is now the only active prize-walk UI during reveal instead of competing with the 3D cube face behind it
 - hid the 3D cube entirely during the reveal step so the prize walk now renders on a single overlay only, eliminating the remaining “double cube” look
 - replaced the cube background with a cleaner text-free `bg_wheel_v3.png` and removed visible `Monad` / `MonadFish` branding from loading, welcome, wallet signing copy, guide/legal pages, grill copy, and other player-facing UI strings
+- reduced the critical boot asset set so heavy HUD art now loads as warm preload instead of blocking first paint, and normalized the cube info/result panels back to one shared visual style
 - restored normal page scrolling on `Guide`, `Terms`, and `Privacy` routes while preserving the no-scroll game shell on the main fishing screen
 - fixed mobile wallet binding by restoring the stock RainbowKit MetaMask mobile / QR / deep-link flow whenever no extension-style injected provider exists, while keeping the desktop MetaMask extension path intact
 

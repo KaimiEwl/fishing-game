@@ -64,6 +64,10 @@ const REGULAR_COIN_PRIZES = WHEEL_PRIZES.filter((item) => !item.secret);
 const PAID_SPIN_COST_MON = '1';
 const CUBE_TEST_MODE = true;
 const RECEIVER_ADDRESS = '0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D' as const;
+const PANEL_CLASS = 'rounded-xl border bg-black/70 px-4 py-2 text-center shadow-[0_10px_26px_rgba(0,0,0,0.28)] backdrop-blur-md';
+const CYAN_PANEL_CLASS = `${PANEL_CLASS} border-cyan-300/20`;
+const AMBER_PANEL_CLASS = `${PANEL_CLASS} border-amber-300/18`;
+const RESULT_PANEL_CLASS = 'rounded-xl border border-yellow-400/28 bg-black/74 px-5 py-3 text-center shadow-[0_0_24px_rgba(250,204,21,0.16)] backdrop-blur-md';
 
 type RotationState = { x: number; y: number; z: number };
 type SpinPhase = 'idle' | 'spinning' | 'selecting';
@@ -413,7 +417,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
       backgroundImage={publicAsset('assets/bg_wheel_v3.png')}
     >
       <div className="flex h-full min-h-0 flex-col items-center justify-center gap-3 sm:gap-5">
-        <div className="rounded-lg border border-cyan-300/20 bg-black/70 px-4 py-2 text-center backdrop-blur-md">
+        <div className={CYAN_PANEL_CLASS}>
           <p className="text-xs font-bold uppercase tracking-normal text-cyan-100">{statusText}</p>
           <p className="mt-1 text-[11px] font-semibold text-zinc-300">{helperText}</p>
         </div>
@@ -475,7 +479,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
           )}
         </div>
 
-        <div className="rounded-lg border border-cyan-300/20 bg-black/70 px-4 py-2 text-center backdrop-blur-md">
+        <div className={CYAN_PANEL_CLASS}>
           <p className="text-xs font-bold uppercase tracking-normal text-zinc-300">
             {displayPrize ? 'Result' : spinning ? 'Cube spinning' : selecting ? 'Revealing prize' : 'Cube preview'}
           </p>
@@ -499,7 +503,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
         </div>
 
         {displayPrize && !spinning && !selecting && (
-          <div className="rounded-lg border border-yellow-400/30 bg-black/75 px-5 py-3 text-center shadow-[0_0_24px_rgba(250,204,21,0.18)] backdrop-blur-md">
+          <div className={RESULT_PANEL_CLASS}>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-yellow-300/80">Result</p>
             <p className="mt-1 flex items-center justify-center gap-2 text-lg font-black text-yellow-200">
               {displayPrize.type === 'fish' && getFishByReward(displayPrize) ? (
@@ -517,7 +521,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
           </div>
         )}
 
-        <div className="rounded-lg border border-amber-300/18 bg-black/65 px-4 py-2 text-center backdrop-blur-md">
+        <div className={AMBER_PANEL_CLASS}>
           <p className="text-xs font-bold uppercase tracking-normal text-amber-200">
             Paid spins available: {paidWheelRolls}
           </p>
