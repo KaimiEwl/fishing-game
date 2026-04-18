@@ -534,7 +534,7 @@ const FishingGame: React.FC = () => {
             />
           )}
 
-          {isFishingScreen && (
+          {isFishingScreen && (!isMobile || isConnected) && (
             <div
               className="absolute left-3 z-20 flex max-w-[calc(100vw-1.5rem)] flex-col items-start gap-2 sm:left-5 sm:flex-row"
               style={{
@@ -543,14 +543,16 @@ const FishingGame: React.FC = () => {
                   : 'calc(var(--bottom-nav-clearance,0px) + 1.1rem)',
               }}
             >
-              <InventoryDialog
-                inventory={player.inventory}
-                rodLevel={player.rodLevel}
-                equippedRod={player.equippedRod}
-                nftRods={player.nftRods}
-                onEquipRod={equipRod}
-                onSellFish={handleSellFish}
-              />
+              {!isMobile && (
+                <InventoryDialog
+                  inventory={player.inventory}
+                  rodLevel={player.rodLevel}
+                  equippedRod={player.equippedRod}
+                  nftRods={player.nftRods}
+                  onEquipRod={equipRod}
+                  onSellFish={handleSellFish}
+                />
+              )}
               {isConnected && (
                 <BuyCoinsDialog
                   walletAddress={address}
