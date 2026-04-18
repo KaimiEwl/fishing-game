@@ -419,57 +419,49 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
         </div>
 
         <div className="relative h-[18rem] w-full max-w-[24rem] sm:h-[24rem] sm:max-w-[32rem]" style={{ perspective: '1050px' }}>
-          <div
-            className={`absolute left-1/2 top-1/2 h-[var(--cube-size)] w-[var(--cube-size)] -translate-x-1/2 -translate-y-1/2 transition-[filter] ${canRoll ? 'brightness-110 drop-shadow-[0_0_70px_rgba(34,211,238,0.38)]' : 'grayscale-[0.45] brightness-75'}`}
-            style={{
-              '--cube-size': 'min(max(46vmin, 12rem), 20rem)',
-              '--cube-half': 'calc(var(--cube-size) / 2)',
-              opacity: showingRevealOverlay ? 0.72 : 1,
-              filter: showingRevealOverlay
-                ? 'brightness(0.78) saturate(0.82) blur(0.6px)'
-                : undefined,
-            } as React.CSSProperties}
-          >
+          {!showingRevealOverlay && (
             <div
-              className="relative h-full w-full"
-              onTransitionEnd={(event) => {
-                if (event.propertyName !== 'transform') return;
-                finishSpinAndReveal();
-              }}
+              className={`absolute left-1/2 top-1/2 h-[var(--cube-size)] w-[var(--cube-size)] -translate-x-1/2 -translate-y-1/2 transition-[filter] ${canRoll ? 'brightness-110 drop-shadow-[0_0_70px_rgba(34,211,238,0.38)]' : 'grayscale-[0.45] brightness-75'}`}
               style={{
-                transformStyle: 'preserve-3d',
-                transform: rotationTransform,
-                transition: rotationTransitionEnabled
-                  ? spinning
-                    ? `transform ${SPIN_DURATION_MS}ms cubic-bezier(0.16, 1, 0.3, 1)`
-                    : 'transform 700ms ease'
-                  : 'none',
-              }}
+                '--cube-size': 'min(max(46vmin, 12rem), 20rem)',
+                '--cube-half': 'calc(var(--cube-size) / 2)',
+              } as React.CSSProperties}
             >
-              {CUBE_SIDES.map((side, sideIndex) => (
-                <div
-                  key={side}
-                  className="absolute inset-0 grid grid-cols-5 gap-1.5 rounded-lg border border-cyan-100/40 bg-slate-950/90 p-2 shadow-[inset_0_0_28px_rgba(255,255,255,0.12),0_0_28px_rgba(34,211,238,0.18)]"
-                  style={{
-                    transform: FACE_TRANSFORMS[side],
-                    transformStyle: 'preserve-3d',
-                    backfaceVisibility: 'hidden',
-                    opacity: showingRevealOverlay && highlightedFaceIndex !== sideIndex ? 0.78 : 1,
-                    filter: showingRevealOverlay
-                      ? highlightedFaceIndex === sideIndex
-                        ? 'brightness(1.18) saturate(1.18)'
-                        : 'brightness(0.72) saturate(0.86)'
-                      : 'none',
-                  }}
-                >
-                  {cubeFaces[sideIndex].map((item, tileIndex) => renderTile(item, tileIndex, sideIndex))}
-                </div>
-              ))}
+              <div
+                className="relative h-full w-full"
+                onTransitionEnd={(event) => {
+                  if (event.propertyName !== 'transform') return;
+                  finishSpinAndReveal();
+                }}
+                style={{
+                  transformStyle: 'preserve-3d',
+                  transform: rotationTransform,
+                  transition: rotationTransitionEnabled
+                    ? spinning
+                      ? `transform ${SPIN_DURATION_MS}ms cubic-bezier(0.16, 1, 0.3, 1)`
+                      : 'transform 700ms ease'
+                    : 'none',
+                }}
+              >
+                {CUBE_SIDES.map((side, sideIndex) => (
+                  <div
+                    key={side}
+                    className="absolute inset-0 grid grid-cols-5 gap-1.5 rounded-lg border border-cyan-100/40 bg-slate-950/90 p-2 shadow-[inset_0_0_28px_rgba(255,255,255,0.12),0_0_28px_rgba(34,211,238,0.18)]"
+                    style={{
+                      transform: FACE_TRANSFORMS[side],
+                      transformStyle: 'preserve-3d',
+                      backfaceVisibility: 'hidden',
+                    }}
+                  >
+                    {cubeFaces[sideIndex].map((item, tileIndex) => renderTile(item, tileIndex, sideIndex))}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {showingRevealOverlay && (
-            <div className="pointer-events-none absolute left-1/2 top-1/2 z-30 grid h-[10.5rem] w-[10.5rem] -translate-x-1/2 -translate-y-1/2 grid-cols-5 gap-1.5 rounded-2xl border border-cyan-100/45 bg-slate-950/86 p-2 shadow-[0_0_30px_rgba(34,211,238,0.3),inset_0_0_24px_rgba(255,255,255,0.08)] backdrop-blur-sm sm:h-[13.5rem] sm:w-[13.5rem] sm:gap-2 sm:p-2.5">
+            <div className="pointer-events-none absolute left-1/2 top-1/2 z-30 grid h-[10.5rem] w-[10.5rem] -translate-x-1/2 -translate-y-1/2 grid-cols-5 gap-1.5 rounded-2xl border border-cyan-100/45 bg-slate-950/92 p-2 shadow-[0_0_30px_rgba(34,211,238,0.3),inset_0_0_24px_rgba(255,255,255,0.08)] backdrop-blur-sm sm:h-[13.5rem] sm:w-[13.5rem] sm:gap-2 sm:p-2.5">
               {cubeFaces[highlightedFaceIndex].map((item, tileIndex) => renderTile(item, tileIndex, highlightedFaceIndex, 'overlay'))}
             </div>
           )}
