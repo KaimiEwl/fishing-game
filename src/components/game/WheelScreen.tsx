@@ -228,37 +228,27 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
           : 'Paid spins let you keep rolling even after the daily cube is spent.'
         : 'Finish daily tasks first or buy a paid spin to roll the cube.';
 
-  const showingRevealOverlay = selecting && highlightedFaceIndex !== null;
-
   const renderTile = (
     item: WheelPrize,
     tileIndex: number,
     sideIndex: number,
-    mode: 'cube' | 'overlay' = 'cube',
   ) => {
     const fish = getFishByReward(item);
-    const isHighlighted = mode === 'overlay'
-      ? highlightedFaceIndex === sideIndex && highlightedTileIndex === tileIndex
-      : !showingRevealOverlay && highlightedFaceIndex === sideIndex && highlightedTileIndex === tileIndex;
+    const isHighlighted = highlightedFaceIndex === sideIndex && highlightedTileIndex === tileIndex;
     const colorIndex = Math.max(WHEEL_PRIZES.findIndex((prizeItem) => prizeItem.id === item.id), 0);
     const accent = item.type === 'fish' && fish
       ? RARITY_COLORS[fish.rarity]
       : item.secret
         ? '#f8fafc'
         : CUBE_TILE_COLORS[colorIndex % CUBE_TILE_COLORS.length];
-    const isOverlay = mode === 'overlay';
 
     return (
       <div
-        key={`${mode}-${sideIndex}-${tileIndex}`}
+        key={`${sideIndex}-${tileIndex}`}
         className={`relative flex min-w-0 items-center justify-center overflow-hidden rounded-[4px] border text-[8px] font-black leading-none text-black transition-all duration-200 sm:text-[10px] ${
-          isOverlay
-            ? isHighlighted
-              ? 'z-20 scale-[1.08] border-white ring-4 ring-cyan-100/90 shadow-[0_0_26px_rgba(34,211,238,0.95),0_0_44px_rgba(255,255,255,0.65)]'
-              : 'border-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_8px_14px_rgba(0,0,0,0.3)]'
-            : isHighlighted
-              ? 'z-20 scale-[1.16] border-white ring-4 ring-cyan-100/90 shadow-[0_0_26px_rgba(34,211,238,0.95),0_0_44px_rgba(255,255,255,0.65)]'
-              : 'border-black/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.58),0_5px_10px_rgba(0,0,0,0.22)]'
+          isHighlighted
+            ? 'z-20 scale-[1.16] border-white ring-4 ring-cyan-100/90 shadow-[0_0_26px_rgba(34,211,238,0.95),0_0_44px_rgba(255,255,255,0.65)]'
+            : 'border-black/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.58),0_5px_10px_rgba(0,0,0,0.22)]'
         }`}
         style={{
           background: item.type === 'fish' && fish
@@ -266,7 +256,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
             : item.secret
               ? 'linear-gradient(135deg, #f8fafc, #fde68a 45%, #f472b6)'
               : `linear-gradient(135deg, ${accent}, ${accent}bb)`,
-          opacity: !isOverlay && spinning && highlightedFaceIndex !== sideIndex ? 0.94 : 1,
+          opacity: spinning && highlightedFaceIndex !== null && highlightedFaceIndex !== sideIndex ? 0.94 : 1,
           filter: isHighlighted ? 'brightness(1.38) saturate(1.3)' : 'none',
         }}
       >
@@ -428,55 +418,42 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
             perspective: '1050px',
             '--cube-size': 'min(max(46vmin, 12rem), 20rem)',
             '--cube-half': 'calc(var(--cube-size) / 2)',
-            '--reveal-size': 'min(max(38vmin, 11.5rem), 16.5rem)',
           } as React.CSSProperties}
         >
-          {!showingRevealOverlay && (
+          <div
+            className={`absolute left-1/2 top-1/2 h-[var(--cube-size)] w-[var(--cube-size)] -translate-x-1/2 -translate-y-1/2 transition-[filter] ${canRoll ? 'brightness-110 drop-shadow-[0_0_70px_rgba(34,211,238,0.38)]' : 'grayscale-[0.45] brightness-75'}`}
+          >
             <div
-              className={`absolute left-1/2 top-1/2 h-[var(--cube-size)] w-[var(--cube-size)] -translate-x-1/2 -translate-y-1/2 transition-[filter] ${canRoll ? 'brightness-110 drop-shadow-[0_0_70px_rgba(34,211,238,0.38)]' : 'grayscale-[0.45] brightness-75'}`}
+              className="relative h-full w-full"
+              onTransitionEnd={(event) => {
+                if (event.propertyName !== 'transform') return;
+                finishSpinAndReveal();
+              }}
+              style={{
+                transformStyle: 'preserve-3d',
+                transform: rotationTransform,
+                transition: rotationTransitionEnabled
+                  ? spinning
+                    ? `transform ${SPIN_DURATION_MS}ms cubic-bezier(0.16, 1, 0.3, 1)`
+                    : 'transform 700ms ease'
+                  : 'none',
+              }}
             >
-              <div
-                className="relative h-full w-full"
-                onTransitionEnd={(event) => {
-                  if (event.propertyName !== 'transform') return;
-                  finishSpinAndReveal();
-                }}
-                style={{
-                  transformStyle: 'preserve-3d',
-                  transform: rotationTransform,
-                  transition: rotationTransitionEnabled
-                    ? spinning
-                      ? `transform ${SPIN_DURATION_MS}ms cubic-bezier(0.16, 1, 0.3, 1)`
-                      : 'transform 700ms ease'
-                    : 'none',
-                }}
-              >
-                {CUBE_SIDES.map((side, sideIndex) => (
-                  <div
-                    key={side}
-                    className="absolute inset-0 grid grid-cols-5 gap-1.5 rounded-lg border border-cyan-100/40 bg-slate-950/90 p-2 shadow-[inset_0_0_28px_rgba(255,255,255,0.12),0_0_28px_rgba(34,211,238,0.18)]"
-                    style={{
-                      transform: FACE_TRANSFORMS[side],
-                      transformStyle: 'preserve-3d',
-                      backfaceVisibility: 'hidden',
-                    }}
-                  >
-                    {cubeFaces[sideIndex].map((item, tileIndex) => renderTile(item, tileIndex, sideIndex))}
-                  </div>
-                ))}
-              </div>
+              {CUBE_SIDES.map((side, sideIndex) => (
+                <div
+                  key={side}
+                  className="absolute inset-0 grid grid-cols-5 gap-1.5 rounded-lg border border-cyan-100/40 bg-slate-950/90 p-2 shadow-[inset_0_0_28px_rgba(255,255,255,0.12),0_0_28px_rgba(34,211,238,0.18)]"
+                  style={{
+                    transform: FACE_TRANSFORMS[side],
+                    transformStyle: 'preserve-3d',
+                    backfaceVisibility: 'hidden',
+                  }}
+                >
+                  {cubeFaces[sideIndex].map((item, tileIndex) => renderTile(item, tileIndex, sideIndex))}
+                </div>
+              ))}
             </div>
-          )}
-
-          {showingRevealOverlay && (
-            <div className="pointer-events-none absolute left-1/2 top-1/2 z-30 h-[var(--reveal-size)] w-[var(--reveal-size)] -translate-x-1/2 -translate-y-1/2">
-              <div className="absolute inset-[-9%] rounded-[2rem] border border-cyan-200/20 bg-[radial-gradient(circle_at_50%_45%,rgba(34,211,238,0.24),rgba(15,23,42,0.58)_60%,rgba(2,6,23,0.82))] shadow-[0_0_80px_rgba(34,211,238,0.22)]" />
-              <div className="absolute inset-[-2.5%] rounded-[1.7rem] border border-white/12 bg-slate-950/55 shadow-[inset_0_0_40px_rgba(255,255,255,0.06)]" />
-              <div className="absolute inset-0 grid grid-cols-5 gap-1.5 rounded-[1.4rem] border border-cyan-100/45 bg-slate-950/92 p-2.5 shadow-[0_0_30px_rgba(34,211,238,0.3),inset_0_0_24px_rgba(255,255,255,0.08)] backdrop-blur-sm sm:gap-2 sm:p-3">
-                {cubeFaces[highlightedFaceIndex].map((item, tileIndex) => renderTile(item, tileIndex, highlightedFaceIndex, 'overlay'))}
-              </div>
-            </div>
-          )}
+          </div>
         </div>
 
         <div className={CYAN_PANEL_CLASS}>

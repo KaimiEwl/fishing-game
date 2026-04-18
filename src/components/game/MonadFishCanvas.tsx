@@ -267,9 +267,10 @@ const getBoatMetrics = (
     const centerY = boatY + boatDrawH / 2;
     const rockAngle = Math.sin(t * 1.5) * 0.015 + Math.cos(t * 0.9) * 0.006;
 
-    // Tuned against the current boat sprite so the line leaves the visible tip.
-    const localRodX = boatDrawW * 0.484;
-    const localRodY = -boatDrawH * 0.392;
+    // Tuned against the current boat sprite and then slightly extended so the
+    // line leaves from the visible rod peak rather than from a nearby point.
+    const localRodX = boatDrawW * 0.484 + boatDrawW * 0.034;
+    const localRodY = -boatDrawH * 0.392 - boatDrawH * 0.028;
     const cosR = Math.cos(rockAngle);
     const sinR = Math.sin(rockAngle);
 
