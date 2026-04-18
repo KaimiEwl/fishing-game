@@ -418,14 +418,18 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
           <p className="mt-1 text-[11px] font-semibold text-zinc-300">{helperText}</p>
         </div>
 
-        <div className="relative h-[18rem] w-full max-w-[24rem] sm:h-[24rem] sm:max-w-[32rem]" style={{ perspective: '1050px' }}>
+        <div
+          className="relative h-[18rem] w-full max-w-[24rem] sm:h-[24rem] sm:max-w-[32rem]"
+          style={{
+            perspective: '1050px',
+            '--cube-size': 'min(max(46vmin, 12rem), 20rem)',
+            '--cube-half': 'calc(var(--cube-size) / 2)',
+            '--reveal-size': 'min(max(38vmin, 11.5rem), 16.5rem)',
+          } as React.CSSProperties}
+        >
           {!showingRevealOverlay && (
             <div
               className={`absolute left-1/2 top-1/2 h-[var(--cube-size)] w-[var(--cube-size)] -translate-x-1/2 -translate-y-1/2 transition-[filter] ${canRoll ? 'brightness-110 drop-shadow-[0_0_70px_rgba(34,211,238,0.38)]' : 'grayscale-[0.45] brightness-75'}`}
-              style={{
-                '--cube-size': 'min(max(46vmin, 12rem), 20rem)',
-                '--cube-half': 'calc(var(--cube-size) / 2)',
-              } as React.CSSProperties}
             >
               <div
                 className="relative h-full w-full"
@@ -461,8 +465,12 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
           )}
 
           {showingRevealOverlay && (
-            <div className="pointer-events-none absolute left-1/2 top-1/2 z-30 grid h-[10.5rem] w-[10.5rem] -translate-x-1/2 -translate-y-1/2 grid-cols-5 gap-1.5 rounded-2xl border border-cyan-100/45 bg-slate-950/92 p-2 shadow-[0_0_30px_rgba(34,211,238,0.3),inset_0_0_24px_rgba(255,255,255,0.08)] backdrop-blur-sm sm:h-[13.5rem] sm:w-[13.5rem] sm:gap-2 sm:p-2.5">
-              {cubeFaces[highlightedFaceIndex].map((item, tileIndex) => renderTile(item, tileIndex, highlightedFaceIndex, 'overlay'))}
+            <div className="pointer-events-none absolute left-1/2 top-1/2 z-30 h-[var(--reveal-size)] w-[var(--reveal-size)] -translate-x-1/2 -translate-y-1/2">
+              <div className="absolute inset-[-9%] rounded-[2rem] border border-cyan-200/20 bg-[radial-gradient(circle_at_50%_45%,rgba(34,211,238,0.24),rgba(15,23,42,0.58)_60%,rgba(2,6,23,0.82))] shadow-[0_0_80px_rgba(34,211,238,0.22)]" />
+              <div className="absolute inset-[-2.5%] rounded-[1.7rem] border border-white/12 bg-slate-950/55 shadow-[inset_0_0_40px_rgba(255,255,255,0.06)]" />
+              <div className="absolute inset-0 grid grid-cols-5 gap-1.5 rounded-[1.4rem] border border-cyan-100/45 bg-slate-950/92 p-2.5 shadow-[0_0_30px_rgba(34,211,238,0.3),inset_0_0_24px_rgba(255,255,255,0.08)] backdrop-blur-sm sm:gap-2 sm:p-3">
+                {cubeFaces[highlightedFaceIndex].map((item, tileIndex) => renderTile(item, tileIndex, highlightedFaceIndex, 'overlay'))}
+              </div>
             </div>
           )}
         </div>
