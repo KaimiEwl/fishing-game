@@ -499,17 +499,7 @@ const FishingGame: React.FC = () => {
                 nftRods={player.nftRods}
                 onEquipRod={equipRod}
                 onSellFish={handleSellFish}
-                triggerClassName="group relative overflow-visible bg-transparent outline-none transition-all duration-200 hover:scale-105 focus-visible:scale-105 active:scale-95"
-                badgeClassName="right-0 top-0 sm:right-0.5 sm:top-0.5"
-                trigger={(
-                  <img
-                    src={INVENTORY_SHORTCUT_ICON_SRC}
-                    alt=""
-                    aria-hidden="true"
-                    className="block w-20 object-contain drop-shadow-[0_18px_30px_rgba(0,0,0,0.36)] transition-transform duration-300 group-hover:scale-[1.02] sm:w-24"
-                    draggable={false}
-                  />
-                )}
+                triggerVariant="shortcut"
               />
             </div>
           )}

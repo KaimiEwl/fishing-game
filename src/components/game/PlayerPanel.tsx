@@ -60,7 +60,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({
               {FISH_DATA.map((fish) => (
                 <div key={fish.id} className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-950/85 p-2 shadow-sm">
                   <div className="flex items-center gap-3">
-                    <FishIcon fish={fish} size="sm" framed />
+                    <FishIcon fish={fish} size="sm" frame />
                     <span className="font-semibold text-sm drop-shadow-sm" style={{ color: RARITY_COLORS[fish.rarity] }}>
                       {fish.name}
                     </span>
@@ -69,7 +69,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({
                     <span className="rounded bg-zinc-900 px-1.5 py-0.5 text-xs font-medium text-zinc-300">{fish.chance}%</span>
                     <span className="mt-1 flex items-center gap-1 font-semibold">
                       {fish.price}
-                      <CoinIcon size={12} />
+                      <CoinIcon size="xs" />
                     </span>
                   </div>
                 </div>
@@ -166,7 +166,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({
             </div>
 
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <StatItem compact icon={<CoinIcon size={14} />} label="Coins" value={player.coins} />
+              <StatItem compact icon={<CoinIcon size="sm" />} label="Coins" value={player.coins} />
               <StatItem compact icon={<Worm className="h-4 w-4 text-zinc-200" />} label="Bait" value={player.bait} />
               <StatItem compact icon={<Trophy className="h-4 w-4 text-zinc-200" />} label="Catches" value={player.totalCatches} />
               <StatItem compact icon={<Package className="h-4 w-4 text-zinc-200" />} label="Inventory" value={totalFishCount} />

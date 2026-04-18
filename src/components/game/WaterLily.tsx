@@ -1,20 +1,28 @@
 import React from 'react';
 
+const LILY_SIZES = {
+  sm: { width: 35, height: 21 },
+  md: { width: 42, height: 25 },
+  lg: { width: 50, height: 30 },
+  xl: { width: 56, height: 34 },
+} as const;
+
 interface WaterLilyProps {
-  size?: number;
+  size?: keyof typeof LILY_SIZES;
   hasFlower?: boolean;
-  className?: string;
 }
 
-const WaterLily: React.FC<WaterLilyProps> = ({ size = 40, hasFlower = false, className = '' }) => {
+const WaterLily: React.FC<WaterLilyProps> = ({ size = 'md', hasFlower = false }) => {
+  const dimensions = LILY_SIZES[size];
+
   return (
     <svg
-      width={size}
-      height={size * 0.6}
+      width={dimensions.width}
+      height={dimensions.height}
       viewBox="0 0 60 36"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className={`animate-float ${className}`}
+      className="animate-float"
     >
       {/* Lily pad (leaf) */}
       <ellipse

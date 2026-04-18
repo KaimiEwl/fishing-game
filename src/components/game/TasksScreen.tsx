@@ -51,7 +51,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                     <p className="mt-1 text-sm text-white/70">{task.description}</p>
                   </div>
                   <div className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-amber-400/20 border border-amber-400/30 px-3 py-1.5 text-sm font-bold text-amber-300 shadow-sm">
-                    <CoinIcon size={16} />
+            <CoinIcon size="md" />
                     {task.rewardCoins}
                   </div>
                 </div>

@@ -1,5 +1,19 @@
 # STATUS
 
+## UI architecture refactor
+- UI refactor backup created before the component cleanup:
+  - `C:\Video Test\N8N_API_ACTIVE_BUSINESSSTORIES_2026-02-17\FISHING GAME\backup_bright-greet-forge-main_ui_refactor_20260418_070746.zip`
+- Introduced a repo-level `Wrapper` layout primitive for gap / direction / alignment composition without cosmetic override props
+- Removed external `className` / `style` visual override APIs from the main icon components (`FishIcon`, `CoinIcon`, `WaterLily`) and converted call sites to semantic props
+- Rebuilt `InventoryDialog` around internal visual variants and extracted inventory trigger / fish row / rod card pieces into shared `src/components/`
+- Extracted `LakeScene` helper visuals (`LakeCloud`, `LakeDetailedTree`, `LakeWaveLayer`, `LakeReedCluster`) out of the screen file so the scene is assembled from components instead of local inline definitions
+- Extracted `Admin` page-local UI helpers into shared components (`AdminStatCard`, `AdminSortableHead`, `AdminTopList`, `AdminEditField`) so the page is now composed from `src/components/`
+- Simplified the unused `NavLink` wrapper to a semantic `tone` API instead of raw class-based styling hooks
+
+### Validation for UI architecture refactor
+- `npm run build` - passed
+- `npm run lint` - passed with warnings only, no errors
+
 ## Release prep
 - Release backup created before final prep:
   - `C:\Video Test\N8N_API_ACTIVE_BUSINESSSTORIES_2026-02-17\FISHING GAME\backup_bright-greet-forge-main_release_20260418_002505.zip`

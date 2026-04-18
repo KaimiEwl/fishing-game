@@ -31,7 +31,9 @@ const GameLoadingScreen: React.FC<GameLoadingScreenProps> = ({ visible, progress
             loading="eager"
             fetchPriority="high"
           />
-          <FishIcon fishId="goldfish" className="absolute -right-2 top-8 h-12 w-12 animate-pulse" />
+          <div className="absolute -right-2 top-8">
+            <FishIcon fishId="goldfish" size="xl" motion="pulse" />
+          </div>
         </div>
 
         <h1 className="mt-5 text-3xl font-black tracking-tight">MonadFish</h1>

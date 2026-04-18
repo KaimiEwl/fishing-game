@@ -23,9 +23,9 @@ const FishDisplay: React.FC<FishDisplayProps> = ({
   };
 
   const imageSizes = {
-    sm: 'w-10 h-10',
-    md: 'w-16 h-16',
-    lg: 'w-28 h-28',
+    sm: 'lg',
+    md: 'hero',
+    lg: 'showcase',
   };
 
   return (
@@ -41,7 +41,7 @@ const FishDisplay: React.FC<FishDisplayProps> = ({
           boxShadow: `0 0 20px ${RARITY_COLORS[fish.rarity]}50`,
         }}
       >
-        <FishIcon fish={fish} className={imageSizes[size]} />
+        <FishIcon fish={fish} size={imageSizes[size]} />
       </div>
 
       {showDetails && (
@@ -59,7 +59,7 @@ const FishDisplay: React.FC<FishDisplayProps> = ({
             {RARITY_NAMES[fish.rarity]}
           </p>
           <p className="mt-1 text-sm text-zinc-500">
-            +{fish.xp} XP <CoinIcon size={14} /> {fish.price}
+            +{fish.xp} XP <CoinIcon size="sm" /> {fish.price}
           </p>
         </div>
       )}

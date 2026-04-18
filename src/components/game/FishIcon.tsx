@@ -15,20 +15,24 @@ export const FISH_IMAGE_SRC: Record<string, string> = {
 };
 
 const SIZE_CLASSES = {
+  badge: 'h-4 w-4',
   xs: 'h-5 w-5',
-  sm: 'h-7 w-7',
-  md: 'h-10 w-10',
-  lg: 'h-14 w-14',
-  xl: 'h-24 w-24',
+  sm: 'h-6 w-6',
+  md: 'h-8 w-8',
+  lg: 'h-10 w-10',
+  xl: 'h-12 w-12',
+  hero: 'h-16 w-16',
+  showcase: 'h-28 w-28',
 } as const;
 
-interface FishIconProps extends React.HTMLAttributes<HTMLSpanElement> {
+interface FishIconProps {
   fish?: Pick<Fish, 'id' | 'name' | 'rarity'>;
   fishId?: string;
   alt?: string;
   size?: keyof typeof SIZE_CLASSES;
-  framed?: boolean;
-  imgClassName?: string;
+  frame?: boolean;
+  tone?: 'default' | 'muted';
+  motion?: 'static' | 'pulse';
 }
 
 const FishIcon: React.FC<FishIconProps> = ({
@@ -36,11 +40,9 @@ const FishIcon: React.FC<FishIconProps> = ({
   fishId,
   alt,
   size = 'md',
-  framed = false,
-  className,
-  imgClassName,
-  style,
-  ...props
+  frame = false,
+  tone = 'default',
+  motion = 'static',
 }) => {
   const id = fish?.id ?? fishId ?? 'carp';
   const src = FISH_IMAGE_SRC[id] ?? FISH_IMAGE_SRC.carp;
@@ -73,19 +75,18 @@ const FishIcon: React.FC<FishIconProps> = ({
       className={cn(
         'relative isolate inline-flex shrink-0 items-center justify-center overflow-visible',
         SIZE_CLASSES[size],
-        framed && 'rounded-lg border bg-black/25',
-        className,
+        frame && 'rounded-lg border bg-black/25',
+        tone === 'muted' && 'opacity-65',
+        motion === 'pulse' && 'animate-pulse',
       )}
-      style={{
-        ...(framed
+      style={
+        frame
           ? {
               borderColor: rarityColor,
               boxShadow: `inset 0 0 0 1px ${rarityColor}, 0 0 18px ${rarityColor}26`,
             }
-          : null),
-        ...style,
-      }}
-      {...props}
+          : undefined
+      }
     >
       {isPurpleFish && (
         <>
@@ -119,7 +120,6 @@ const FishIcon: React.FC<FishIconProps> = ({
           className={cn(
             'relative z-[1] block h-full w-full object-contain drop-shadow-[0_6px_8px_rgba(0,0,0,0.32)]',
             isPurpleFish && 'animate-purple-fish-drift drop-shadow-[0_0_14px_rgba(197,116,255,0.7)]',
-            imgClassName,
           )}
           draggable={false}
         />

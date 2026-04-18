@@ -37,7 +37,7 @@ const BarbecueScreen: React.FC<BarbecueScreenProps> = ({ inventory, coins, onBac
           </Button>
 
           <div className="inline-flex h-10 items-center gap-2 rounded-lg border border-amber-300/20 bg-black/35 px-3 text-sm font-bold text-amber-100 backdrop-blur-md">
-            <CoinIcon size={16} />
+            <CoinIcon size="md" />
             {coins}
           </div>
         </div>
@@ -64,7 +64,9 @@ const BarbecueScreen: React.FC<BarbecueScreenProps> = ({ inventory, coins, onBac
 
             {grillItems.length === 0 ? (
               <div className="flex min-h-[220px] flex-col items-center justify-center rounded-lg border border-dashed border-white/15 bg-white/5 px-4 text-center">
-                <FishIcon fishId="carp" className="mb-3 h-12 w-12 opacity-60" />
+                <div className="mb-3">
+                  <FishIcon fishId="carp" size="xl" tone="muted" />
+                </div>
                 <p className="font-semibold">No fish on the grill yet</p>
                 <p className="mt-1 text-sm text-white/60">Catch something first, then come back here.</p>
               </div>
@@ -83,7 +85,7 @@ const BarbecueScreen: React.FC<BarbecueScreenProps> = ({ inventory, coins, onBac
                           className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-black/30"
                           style={{ boxShadow: `inset 0 0 0 1px ${RARITY_COLORS[fish.rarity]}` }}
                         >
-                          <FishIcon fish={fish} className="h-11 w-11" />
+                          <FishIcon fish={fish} size="xl" />
                         </div>
 
                         <div className="min-w-0 flex-1">
@@ -102,7 +104,7 @@ const BarbecueScreen: React.FC<BarbecueScreenProps> = ({ inventory, coins, onBac
                           className="h-10 shrink-0 rounded-lg bg-amber-500 px-3 text-black hover:bg-amber-400"
                         >
                           <ChefHat className="mr-1.5 h-4 w-4" />
-                          <CoinIcon size={13} /> +{fish.price}
+                          <CoinIcon size="sm" /> +{fish.price}
                         </Button>
                       </div>
                     );

@@ -62,7 +62,7 @@ const ShopDialog: React.FC<ShopDialogProps> = ({
             <Store className="h-5 w-5 text-amber-500" />
             Shop
             <span className="ml-auto text-base font-normal text-amber-500">
-              <CoinIcon size={16} /> {coins} coins
+              <CoinIcon size="md" /> {coins} coins
             </span>
           </DialogTitle>
         </DialogHeader>
@@ -91,7 +91,7 @@ const ShopDialog: React.FC<ShopDialogProps> = ({
                   >
                     <BaitIcon className="h-6 w-6 text-primary" />
                     <span className="font-bold">{pkg.amount} bait</span>
-                    <span className="text-amber-500 flex items-center gap-1"><CoinIcon size={14} /> {pkg.cost}</span>
+                    <span className="text-amber-500 flex items-center gap-1"><CoinIcon size="sm" /> {pkg.cost}</span>
                   </Button>
                 );
               })}
@@ -145,7 +145,7 @@ const ShopDialog: React.FC<ShopDialogProps> = ({
                           onClick={() => onBuyRod(rod.level, rod.cost)}
                           className="bg-amber-500 hover:bg-amber-600 text-black"
                         >
-                          <CoinIcon size={14} /> {rod.cost}
+                          <CoinIcon size="sm" /> {rod.cost}
                         </Button>
                       )}
                     </div>

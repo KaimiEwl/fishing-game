@@ -153,7 +153,7 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({ walletAddress, onCoinsA
 
         <Tabs defaultValue="coins" className="w-full">
           <TabsList className="grid w-full grid-cols-2 bg-zinc-950">
-            <TabsTrigger value="coins" className="flex items-center gap-1 data-[state=active]:bg-black data-[state=active]:text-cyan-100"><CoinIcon size={14} /> Coins</TabsTrigger>
+            <TabsTrigger value="coins" className="flex items-center gap-1 data-[state=active]:bg-black data-[state=active]:text-cyan-100"><CoinIcon size="sm" /> Coins</TabsTrigger>
             <TabsTrigger value="nft" className="gap-1.5 data-[state=active]:bg-black data-[state=active]:text-cyan-100"><Gem className="h-4 w-4" /> NFT Rods</TabsTrigger>
           </TabsList>
 
@@ -173,7 +173,7 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({ walletAddress, onCoinsA
                     onClick={() => handlePurchase(pkg)}
                   >
                     <div className="flex items-center gap-3">
-                      {pkg.premium ? <Gem className="h-7 w-7 text-cyan-100" /> : <CoinIcon size={28} />}
+                    {pkg.premium ? <Gem className="h-7 w-7 text-cyan-100" /> : <CoinIcon size="xl" />}
                       <span className="font-bold text-lg">{pkg.coins} coins</span>
                     </div>
                     <span className="font-mono font-bold text-cyan-100">

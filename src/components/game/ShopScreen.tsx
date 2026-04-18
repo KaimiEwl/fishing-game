@@ -71,7 +71,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                 >
                   <BaitIcon className="h-7 w-7 text-cyan-100" />
                   <span className="font-bold">{pkg.amount} bait</span>
-                  <span className="flex items-center gap-1 text-amber-200"><CoinIcon size={14} /> {pkg.cost}</span>
+                <span className="flex items-center gap-1 text-amber-200"><CoinIcon size="sm" /> {pkg.cost}</span>
                 </Button>
               );
             })}
@@ -122,7 +122,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                         onClick={() => onBuyRod(rod.level, rod.cost)}
                         className="min-h-10 w-full shrink-0 rounded-lg border border-cyan-300/25 bg-zinc-950 text-cyan-100 hover:bg-black disabled:border-zinc-700 disabled:bg-zinc-900 disabled:text-zinc-300 sm:w-auto"
                       >
-                        <CoinIcon size={14} /> {rod.cost}
+                    <CoinIcon size="sm" /> {rod.cost}
                       </Button>
                     )}
                   </article>

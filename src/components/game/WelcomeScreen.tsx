@@ -62,11 +62,11 @@ const WelcomeScreen: React.FC = () => {
         >
           <div className="grid grid-cols-3 gap-4 mb-6">
             <div className="flex flex-col items-center gap-1">
-              <FishIcon fishId="goldfish" className="h-8 w-8" />
+              <FishIcon fishId="goldfish" size="md" />
               <span className="text-xs text-muted-foreground">7 fish species</span>
             </div>
             <div className="flex flex-col items-center gap-1">
-              <CoinIcon size={28} />
+              <CoinIcon size="xl" />
               <span className="text-xs text-muted-foreground">Trading</span>
             </div>
             <div className="flex flex-col items-center gap-1">

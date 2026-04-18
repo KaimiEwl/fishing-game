@@ -113,7 +113,7 @@ const LevelUpCelebration: React.FC<LevelUpCelebrationProps> = ({ newLevel, coins
         <div className="mb-6 space-y-2 rounded-xl border border-zinc-800 bg-zinc-950 p-4 text-left">
           <div className="flex items-center justify-between">
             <span className="text-sm text-zinc-500">Reward</span>
-            <span className="flex items-center gap-1 font-bold text-zinc-100"><CoinIcon size={16} /> {coinsReward} coins</span>
+            <span className="flex items-center gap-1 font-bold text-zinc-100"><CoinIcon size="md" /> {coinsReward} coins</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-zinc-500">Catch bonus</span>

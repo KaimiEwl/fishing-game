@@ -30,7 +30,7 @@ const GameScreenShell: React.FC<GameScreenShellProps> = ({ title, subtitle, coin
           </div>
           {typeof coins === 'number' && (
             <div className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg border border-cyan-300/20 bg-black/70 px-3 text-sm font-bold text-cyan-100 backdrop-blur-md">
-              <CoinIcon size={16} />
+            <CoinIcon size="md" />
               {coins.toLocaleString()}
             </div>
           )}

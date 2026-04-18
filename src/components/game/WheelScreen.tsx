@@ -271,7 +271,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
         )}
         {item.type === 'fish' && fish ? (
           <div className="flex flex-col items-center justify-center gap-0.5">
-            <FishIcon fish={fish} size="xs" className={isOverlay ? 'h-6 w-6 sm:h-7 sm:w-7' : 'h-5 w-5 sm:h-6 sm:w-6'} />
+            <FishIcon fish={fish} size={isOverlay ? 'sm' : 'xs'} />
             <span className="text-[7px] font-black text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.7)] sm:text-[8px]">
               x{item.quantity ?? 1}
             </span>
@@ -281,7 +281,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
             {item.secret ? (
               <Sparkles className={isOverlay ? 'h-3.5 w-3.5 text-black/75 sm:h-4 sm:w-4' : 'h-3 w-3 text-black/75 sm:h-3.5 sm:w-3.5'} />
             ) : (
-              <CoinIcon size={isOverlay ? 12 : 11} />
+              <CoinIcon size="xs" />
             )}
             <span className="text-[7px] font-black text-black/85 sm:text-[8px]">
               {item.secret ? '???' : shortCoinLabel(item.coins ?? 0)}
@@ -480,7 +480,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
                 </>
               ) : (
                 <>
-                  {shownPrize.secret ? <Sparkles className="h-4 w-4" /> : <CoinIcon size={16} />}
+                  {shownPrize.secret ? <Sparkles className="h-4 w-4" /> : <CoinIcon size="md" />}
                   {shownPrize.label}
                 </>
               )
@@ -501,7 +501,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
                 </>
               ) : (
                 <>
-                  {displayPrize.secret ? <Sparkles className="h-5 w-5" /> : <CoinIcon size={18} />}
+                  {displayPrize.secret ? <Sparkles className="h-5 w-5" /> : <CoinIcon size="lg" />}
                   <span>You won: {displayPrize.label}</span>
                 </>
               )}
