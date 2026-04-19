@@ -1,4 +1,4 @@
-import bottomNavArcadeStrip from '@/assets/bottom_nav_arcade_strip.png';
+import bottomNavArcadeStrip from '@/assets/bottom_nav_arcade_strip_v2.png';
 import travelIconSrc from '@/assets/map_travel_icon_cutout.png';
 import { publicAsset } from './assets';
 import {
@@ -37,7 +37,7 @@ export interface MainSceneAssets {
 
 export const CRITICAL_BOOT_ASSET_URLS = [
   publicAsset('assets/bg_main.jpg'),
-  publicAsset('assets/pepe_boat_v2.png'),
+  publicAsset('assets/pepe_boat_v3.png'),
   ...MAIN_SCENE_FISH_FILES.map((file) => publicAsset(`assets/${file}`)),
   ...MAIN_SCENE_ROD_FILES.map((file) => publicAsset(`assets/${file}`)),
   publicAsset('assets/cast_button_blue.png'),

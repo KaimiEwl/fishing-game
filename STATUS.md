@@ -153,3 +153,4 @@ These should not be staged unless they become part of an intentional task.
 - wallet connect from `Settings` now waits for the settings dialog to close before opening RainbowKit, which avoids the non-clickable mobile wallet menu overlay
 - guest fishing progress now persists locally as well: coins, bait, fish inventory, owned/equipped rods, NFT rods, level, XP, and catches survive reloads without a wallet
 - wheel tab now uses lighter assets and warm-preloads the current wheel background + action buttons instead of outdated files, reducing the delay when opening the cube screen
+- major UI art now uses adapted sizes instead of oversized originals on the boot loader and core HUD: the boat sprite, title banner, loading art, rod previews, inventory/boost shortcuts, inventory panel, fish-got-away panel, and bottom nav strip all switched to lighter assets

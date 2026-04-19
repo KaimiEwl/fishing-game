@@ -272,7 +272,7 @@ const getBoatMetrics = (
     const centerY = boatY + boatDrawH / 2;
     const rockAngle = Math.sin(t * 1.5) * 0.015 + Math.cos(t * 0.9) * 0.006;
 
-    // Tie the line to the actual rod-tip pixel on pepe_boat_v2.png so it
+    // Tie the line to the actual rod-tip pixel on the Pepe boat sprite so it
     // leaves from the visible peak of the rod instead of a nearby estimate.
     const localRodX = boatDrawW * (BOAT_ROD_TIP_ANCHOR.x - 0.5);
     const localRodY = boatDrawH * (BOAT_ROD_TIP_ANCHOR.y - 0.5);
@@ -372,7 +372,7 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
         };
 
         loadSceneImage(publicAsset('assets/bg_main.jpg'), (img) => { bgImgRef.current = img; });
-        loadSceneImage(publicAsset('assets/pepe_boat_v2.png'), (img) => { pepeImgRef.current = img; });
+        loadSceneImage(publicAsset('assets/pepe_boat_v3.png'), (img) => { pepeImgRef.current = img; });
 
         const fishFiles = ['fish_carp.png', 'fish_perch.png', 'fish_bream.png', 'fish_pike.png', 'fish_catfish.png', 'fish_goldfish.png', 'fish_mutant.png', 'fish_leviathan.png'];
         fishFiles.forEach((file, i) => {
