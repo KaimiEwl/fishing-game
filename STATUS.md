@@ -147,3 +147,6 @@ In progress.
 - `crop.py`
 
 These should not be staged unless they become part of an intentional task.
+
+## Recent UI follow-up
+- cube actions now use English popup dialogs: unfinished daily rolls route to `Tasks`, and `Buy Roll` opens wallet connect when no wallet is attached

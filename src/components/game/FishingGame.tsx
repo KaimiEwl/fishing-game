@@ -444,6 +444,7 @@ const FishingGame: React.FC = () => {
               walletAddress={address}
               onSpin={handleSpinWheel}
               onBuySpin={gameProgress.addPaidWheelRolls}
+              onOpenTasks={() => setActiveTab('tasks')}
             />
           ) : activeTab === 'map' ? (
             <MapScreen

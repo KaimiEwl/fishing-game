@@ -3,7 +3,18 @@ import { Sparkles } from 'lucide-react';
 import { useSendTransaction } from 'wagmi';
 import { parseEther } from 'viem';
 import { toast } from 'sonner';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 import WheelActionIconButton from '@/components/WheelActionIconButton';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { FISH_DATA, RARITY_COLORS, WHEEL_PRIZES, type WheelPrize } from '@/types/game';
 import CoinIcon from './CoinIcon';
 import FishIcon from './FishIcon';
@@ -20,6 +31,7 @@ interface WheelScreenProps {
   walletAddress?: string;
   onSpin: (prize: WheelPrize) => WheelPrize | null;
   onBuySpin: (amount: number) => void;
+  onOpenTasks: () => void;
 }
 
 const CUBE_TILE_COLORS = [
@@ -69,6 +81,7 @@ const ROLL_CUBE_ICON_SRC = publicAsset('assets/wheel_roll_cube_icon_v1.png');
 type RotationState = { x: number; y: number; z: number };
 type SpinPhase = 'idle' | 'spinning' | 'selecting';
 type CubeFaces = WheelPrize[][];
+type PromptType = 'tasks' | 'tomorrow' | 'wallet';
 
 interface PendingTarget {
   faceIndex: number;
@@ -163,6 +176,28 @@ const getNextRotation = (current: RotationState, targetFaceIndex: number): Rotat
   };
 };
 
+const PROMPT_CONFIG: Record<PromptType, {
+  title: string;
+  description: string;
+  actionLabel: string;
+}> = {
+  tasks: {
+    title: 'Finish daily tasks first',
+    description: 'Complete your daily tasks to unlock 3 cube rolls.',
+    actionLabel: 'Go to Tasks',
+  },
+  tomorrow: {
+    title: 'Come back tomorrow',
+    description: 'Your daily cube rolls are finished for today.',
+    actionLabel: 'OK',
+  },
+  wallet: {
+    title: 'Connect wallet first',
+    description: 'Connect your wallet before buying cube rolls with MON.',
+    actionLabel: 'Connect Wallet',
+  },
+};
+
 const WheelScreen: React.FC<WheelScreenProps> = ({
   coins,
   availableRolls,
@@ -172,6 +207,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
   walletAddress,
   onSpin,
   onBuySpin,
+  onOpenTasks,
 }) => {
   const [phase, setPhase] = useState<SpinPhase>('idle');
   const [cubeFaces, setCubeFaces] = useState<CubeFaces>(() => createCubeFaces());
@@ -180,6 +216,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
   const [highlightedFaceIndex, setHighlightedFaceIndex] = useState<number | null>(null);
   const [highlightedTileIndex, setHighlightedTileIndex] = useState<number | null>(null);
   const [isBuyingSpin, setIsBuyingSpin] = useState(false);
+  const [promptType, setPromptType] = useState<PromptType | null>(null);
   const timersRef = useRef<number[]>([]);
   const spinLockRef = useRef(false);
   const pendingTargetRef = useRef<PendingTarget | null>(null);
@@ -297,7 +334,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
         const result = onSpin(target.prize) ?? target.prize;
         setPhase('idle');
         setHighlightedFaceIndex(target.faceIndex);
-        toast.success(`Вы выиграли: ${result.label}`);
+        toast.success(`You won: ${result.label}`);
         spinLockRef.current = false;
         return;
       }
@@ -320,13 +357,22 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     snapToFace(target.faceIndex, () => startFaceSelection(target));
   };
 
+  const showRollRequirementPrompt = () => {
+    if (allTasksComplete) {
+      setPromptType('tomorrow');
+      return;
+    }
+
+    setPromptType('tasks');
+  };
+
   const handleBuySpin = async () => {
     if (isBuyingSpin) {
       return;
     }
 
     if (!walletAddress) {
-      toast.error('Сначала подключите кошелек.');
+      setPromptType('wallet');
       return;
     }
 
@@ -337,13 +383,13 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
         value: parseEther(PAID_SPIN_COST_MON),
       });
       onBuySpin(1);
-      toast.success('Платный ролл куба добавлен.');
+      toast.success('Paid cube roll added.');
     } catch (err: unknown) {
       console.error('Paid spin purchase failed:', err);
       if (isUserRejectedError(err)) {
-        toast.error('Транзакция отменена.');
+        toast.error('Transaction cancelled.');
       } else {
-        toast.error('Не удалось купить ролл.');
+        toast.error('Could not buy a roll.');
       }
     } finally {
       setIsBuyingSpin(false);
@@ -352,26 +398,17 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
 
   const handleCubeTap = () => {
     if (canRoll) {
-      toast.info('Нажмите кнопку Roll Cube ниже.');
+      toast.info('Use the Roll Cube button below.');
       return;
     }
 
-    if (allTasksComplete) {
-      toast.error('Ежедневные роллы закончились. Приходите завтра.');
-      return;
-    }
-
-    toast.error('Сначала закончите ежедневные задания.');
+    showRollRequirementPrompt();
   };
 
   const handleSpin = () => {
     if (spinning || selecting || spinLockRef.current) return;
     if (!hasDailyRolls && !hasPaidRolls) {
-      if (allTasksComplete) {
-        toast.error('Ежедневные роллы закончились. Приходите завтра.');
-      } else {
-        toast.error('Сначала закончите ежедневные задания.');
-      }
+      showRollRequirementPrompt();
       return;
     }
 
@@ -399,94 +436,153 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
   };
 
   return (
-    <GameScreenShell
-      title="Daily Prize Cube"
-      subtitle="Finish daily tasks to unlock 3 cube rolls. Buy extra rolls with MON any time."
-      coins={coins}
-      backgroundImage={publicAsset('assets/bg_wheel_v3.png')}
-    >
-      <div className="flex h-full min-h-0 flex-col items-center justify-center gap-4 sm:gap-6">
-        <div
-          className={`relative h-[18rem] w-full max-w-[24rem] sm:h-[24rem] sm:max-w-[32rem] ${
-            canRoll && !spinning && !selecting ? 'cursor-pointer' : 'cursor-default'
-          }`}
-          style={{
-            perspective: '1050px',
-            '--cube-size': 'min(max(46vmin, 12rem), 20rem)',
-            '--cube-half': 'calc(var(--cube-size) / 2)',
-          } as React.CSSProperties}
-          onClick={handleCubeTap}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault();
-              handleCubeTap();
-            }
-          }}
-          aria-label="Cube preview"
-        >
-          <div
-            className={`absolute left-1/2 top-1/2 h-[var(--cube-size)] w-[var(--cube-size)] -translate-x-1/2 -translate-y-1/2 transition-[filter,transform] duration-300 ${
-              canRoll ? 'brightness-110 drop-shadow-[0_0_70px_rgba(34,211,238,0.38)]' : 'grayscale-[0.45] brightness-75'
-            } ${
-              canRoll && !spinning && !selecting ? 'hover:scale-[1.02]' : ''
-            }`}
-          >
-            <div
-              className="relative h-full w-full"
-              onTransitionEnd={(event) => {
-                if (event.propertyName !== 'transform') return;
-                finishSpinAndReveal();
-              }}
-              style={{
-                transformStyle: 'preserve-3d',
-                transform: rotationTransform,
-                transition: rotationTransitionEnabled
-                  ? spinning
-                    ? `transform ${SPIN_DURATION_MS}ms cubic-bezier(0.16, 1, 0.3, 1)`
-                    : 'transform 700ms ease'
-                  : 'none',
+    <ConnectButton.Custom>
+      {({ openConnectModal }) => {
+        const activePrompt = promptType ? PROMPT_CONFIG[promptType] : null;
+
+        const handlePromptAction = () => {
+          if (promptType === 'tasks') {
+            setPromptType(null);
+            onOpenTasks();
+            return;
+          }
+
+          if (promptType === 'wallet') {
+            setPromptType(null);
+            window.setTimeout(() => {
+              openConnectModal?.();
+            }, 80);
+            return;
+          }
+
+          setPromptType(null);
+        };
+
+        return (
+          <>
+            <GameScreenShell
+              title="Daily Prize Cube"
+              subtitle="Finish daily tasks to unlock 3 cube rolls. Buy extra rolls with MON any time."
+              coins={coins}
+              backgroundImage={publicAsset('assets/bg_wheel_v3.png')}
+            >
+              <div className="flex h-full min-h-0 flex-col items-center justify-center gap-4 sm:gap-6">
+                <div
+                  className={`relative h-[18rem] w-full max-w-[24rem] sm:h-[24rem] sm:max-w-[32rem] ${
+                    canRoll && !spinning && !selecting ? 'cursor-pointer' : 'cursor-default'
+                  }`}
+                  style={{
+                    perspective: '1050px',
+                    '--cube-size': 'min(max(46vmin, 12rem), 20rem)',
+                    '--cube-half': 'calc(var(--cube-size) / 2)',
+                  } as React.CSSProperties}
+                  onClick={handleCubeTap}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      handleCubeTap();
+                    }
+                  }}
+                  aria-label="Cube preview"
+                >
+                  <div
+                    className={`absolute left-1/2 top-1/2 h-[var(--cube-size)] w-[var(--cube-size)] -translate-x-1/2 -translate-y-1/2 transition-[filter,transform] duration-300 ${
+                      canRoll ? 'brightness-110 drop-shadow-[0_0_70px_rgba(34,211,238,0.38)]' : 'grayscale-[0.45] brightness-75'
+                    } ${
+                      canRoll && !spinning && !selecting ? 'hover:scale-[1.02]' : ''
+                    }`}
+                  >
+                    <div
+                      className="relative h-full w-full"
+                      onTransitionEnd={(event) => {
+                        if (event.propertyName !== 'transform') return;
+                        finishSpinAndReveal();
+                      }}
+                      style={{
+                        transformStyle: 'preserve-3d',
+                        transform: rotationTransform,
+                        transition: rotationTransitionEnabled
+                          ? spinning
+                            ? `transform ${SPIN_DURATION_MS}ms cubic-bezier(0.16, 1, 0.3, 1)`
+                            : 'transform 700ms ease'
+                          : 'none',
+                      }}
+                    >
+                      {CUBE_SIDES.map((side, sideIndex) => (
+                        <div
+                          key={side}
+                          className="absolute inset-0 grid grid-cols-5 gap-1.5 rounded-lg border border-cyan-100/40 bg-slate-950/90 p-2 shadow-[inset_0_0_28px_rgba(255,255,255,0.12),0_0_28px_rgba(34,211,238,0.18)]"
+                          style={{
+                            transform: FACE_TRANSFORMS[side],
+                            transformStyle: 'preserve-3d',
+                            backfaceVisibility: 'hidden',
+                          }}
+                        >
+                          {cubeFaces[sideIndex].map((item, tileIndex) => renderTile(item, tileIndex, sideIndex))}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-center gap-4 sm:gap-6">
+                  <WheelActionIconButton
+                    src={ROLL_CUBE_ICON_SRC}
+                    alt="Roll cube"
+                    label="Roll cube"
+                    onClick={handleSpin}
+                    disabled={spinning || selecting}
+                    badge={canRoll ? `${availableRolls}` : null}
+                    shape="banner"
+                  />
+                  <WheelActionIconButton
+                    src={BUY_ROLL_ICON_SRC}
+                    alt="Buy roll"
+                    label={`Buy roll for ${PAID_SPIN_COST_MON} MON`}
+                    onClick={handleBuySpin}
+                    disabled={isBuyingSpin}
+                    badge={hasPaidRolls ? `${paidWheelRolls}` : null}
+                  />
+                </div>
+              </div>
+            </GameScreenShell>
+
+            <AlertDialog
+              open={!!activePrompt}
+              onOpenChange={(open) => {
+                if (!open) {
+                  setPromptType(null);
+                }
               }}
             >
-              {CUBE_SIDES.map((side, sideIndex) => (
-                <div
-                  key={side}
-                  className="absolute inset-0 grid grid-cols-5 gap-1.5 rounded-lg border border-cyan-100/40 bg-slate-950/90 p-2 shadow-[inset_0_0_28px_rgba(255,255,255,0.12),0_0_28px_rgba(34,211,238,0.18)]"
-                  style={{
-                    transform: FACE_TRANSFORMS[side],
-                    transformStyle: 'preserve-3d',
-                    backfaceVisibility: 'hidden',
-                  }}
-                >
-                  {cubeFaces[sideIndex].map((item, tileIndex) => renderTile(item, tileIndex, sideIndex))}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-center gap-4 sm:gap-6">
-          <WheelActionIconButton
-            src={ROLL_CUBE_ICON_SRC}
-            alt="Roll cube"
-            label="Roll cube"
-            onClick={handleSpin}
-            disabled={spinning || selecting}
-            badge={canRoll ? `${availableRolls}` : null}
-            shape="banner"
-          />
-          <WheelActionIconButton
-            src={BUY_ROLL_ICON_SRC}
-            alt="Buy roll"
-            label={`Buy roll for ${PAID_SPIN_COST_MON} MON`}
-            onClick={handleBuySpin}
-            disabled={isBuyingSpin}
-            badge={hasPaidRolls ? `${paidWheelRolls}` : null}
-          />
-        </div>
-      </div>
-    </GameScreenShell>
+              <AlertDialogContent className="max-w-[calc(100vw-2rem)] border border-cyan-300/20 bg-slate-950/95 text-cyan-50 shadow-[0_24px_60px_rgba(0,0,0,0.55)] backdrop-blur-md sm:max-w-md">
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="text-xl font-black text-white">
+                    {activePrompt?.title}
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="text-sm font-medium text-cyan-100/80">
+                    {activePrompt?.description}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="border-cyan-300/20 bg-slate-900 text-cyan-50 hover:bg-slate-800">
+                    Close
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handlePromptAction}
+                    className="border border-cyan-300/25 bg-cyan-500/20 text-cyan-50 hover:bg-cyan-500/30"
+                  >
+                    {activePrompt?.actionLabel}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </>
+        );
+      }}
+    </ConnectButton.Custom>
   );
 };
 
