@@ -7,6 +7,7 @@ interface WheelActionIconButtonProps {
   onClick: () => void;
   disabled?: boolean;
   badge?: string | null;
+  shape?: 'square' | 'banner';
 }
 
 const WheelActionIconButton: React.FC<WheelActionIconButtonProps> = ({
@@ -16,6 +17,7 @@ const WheelActionIconButton: React.FC<WheelActionIconButtonProps> = ({
   onClick,
   disabled = false,
   badge,
+  shape = 'square',
 }) => (
   <button
     type="button"
@@ -35,7 +37,9 @@ const WheelActionIconButton: React.FC<WheelActionIconButtonProps> = ({
     <img
       src={src}
       alt={alt}
-      className="relative z-[1] block w-24 object-contain drop-shadow-[0_18px_30px_rgba(0,0,0,0.36)] transition-transform duration-300 group-hover:scale-[1.02] sm:w-28"
+      className={`relative z-[1] block object-contain drop-shadow-[0_18px_30px_rgba(0,0,0,0.36)] transition-transform duration-300 group-hover:scale-[1.02] ${
+        shape === 'banner' ? 'w-56 sm:w-72' : 'w-24 sm:w-28'
+      }`}
       draggable={false}
     />
     {badge ? (

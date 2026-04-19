@@ -14,11 +14,12 @@ import { isUserRejectedError } from '@/lib/errorUtils';
 interface WheelScreenProps {
   coins: number;
   availableRolls: number;
+  dailyWheelRolls: number;
   paidWheelRolls: number;
+  allTasksComplete: boolean;
   walletAddress?: string;
   onSpin: (prize: WheelPrize) => WheelPrize | null;
   onBuySpin: (amount: number) => void;
-  onOpenTasks: () => void;
 }
 
 const CUBE_TILE_COLORS = [
@@ -63,7 +64,7 @@ const REGULAR_COIN_PRIZES = WHEEL_PRIZES.filter((item) => !item.secret);
 const PAID_SPIN_COST_MON = '1';
 const RECEIVER_ADDRESS = '0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D' as const;
 const BUY_ROLL_ICON_SRC = publicAsset('assets/wheel_buy_roll_icon_v1.png');
-const TASKS_ICON_SRC = publicAsset('assets/wheel_tasks_icon_v1.png');
+const ROLL_CUBE_ICON_SRC = publicAsset('assets/wheel_roll_cube_icon_v1.png');
 
 type RotationState = { x: number; y: number; z: number };
 type SpinPhase = 'idle' | 'spinning' | 'selecting';
@@ -165,11 +166,12 @@ const getNextRotation = (current: RotationState, targetFaceIndex: number): Rotat
 const WheelScreen: React.FC<WheelScreenProps> = ({
   coins,
   availableRolls,
+  dailyWheelRolls,
   paidWheelRolls,
+  allTasksComplete,
   walletAddress,
   onSpin,
   onBuySpin,
-  onOpenTasks,
 }) => {
   const [phase, setPhase] = useState<SpinPhase>('idle');
   const [cubeFaces, setCubeFaces] = useState<CubeFaces>(() => createCubeFaces());
@@ -197,6 +199,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
   const selecting = phase === 'selecting';
   const canRoll = availableRolls > 0;
   const hasPaidRolls = paidWheelRolls > 0;
+  const hasDailyRolls = dailyWheelRolls > 0;
   const rotationTransform = useMemo(
     () => `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg) rotateZ(${rotation.z}deg)`,
     [rotation],
@@ -294,7 +297,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
         const result = onSpin(target.prize) ?? target.prize;
         setPhase('idle');
         setHighlightedFaceIndex(target.faceIndex);
-        toast.success(`You won ${result.label}`);
+        toast.success(`Вы выиграли: ${result.label}`);
         spinLockRef.current = false;
         return;
       }
@@ -318,10 +321,12 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
   };
 
   const handleBuySpin = async () => {
-    if (!walletAddress || isBuyingSpin) {
-      if (!walletAddress) {
-        toast.error('Connect wallet first');
-      }
+    if (isBuyingSpin) {
+      return;
+    }
+
+    if (!walletAddress) {
+      toast.error('Сначала подключите кошелек.');
       return;
     }
 
@@ -332,23 +337,41 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
         value: parseEther(PAID_SPIN_COST_MON),
       });
       onBuySpin(1);
-      toast.success('Paid cube spin added');
+      toast.success('Платный ролл куба добавлен.');
     } catch (err: unknown) {
       console.error('Paid spin purchase failed:', err);
       if (isUserRejectedError(err)) {
-        toast.error('Transaction cancelled');
+        toast.error('Транзакция отменена.');
       } else {
-        toast.error('Paid spin purchase error');
+        toast.error('Не удалось купить ролл.');
       }
     } finally {
       setIsBuyingSpin(false);
     }
   };
 
+  const handleCubeTap = () => {
+    if (canRoll) {
+      toast.info('Нажмите кнопку Roll Cube ниже.');
+      return;
+    }
+
+    if (allTasksComplete) {
+      toast.error('Ежедневные роллы закончились. Приходите завтра.');
+      return;
+    }
+
+    toast.error('Сначала закончите ежедневные задания.');
+  };
+
   const handleSpin = () => {
     if (spinning || selecting || spinLockRef.current) return;
-    if (!canRoll) {
-      toast.error('Complete daily tasks to earn 3 cube rolls or buy one.');
+    if (!hasDailyRolls && !hasPaidRolls) {
+      if (allTasksComplete) {
+        toast.error('Ежедневные роллы закончились. Приходите завтра.');
+      } else {
+        toast.error('Сначала закончите ежедневные задания.');
+      }
       return;
     }
 
@@ -378,7 +401,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
   return (
     <GameScreenShell
       title="Daily Prize Cube"
-      subtitle="Tap the cube to spend a roll. Complete daily tasks to earn 3 more."
+      subtitle="Finish daily tasks to unlock 3 cube rolls. Buy extra rolls with MON any time."
       coins={coins}
       backgroundImage={publicAsset('assets/bg_wheel_v3.png')}
     >
@@ -392,16 +415,16 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
             '--cube-size': 'min(max(46vmin, 12rem), 20rem)',
             '--cube-half': 'calc(var(--cube-size) / 2)',
           } as React.CSSProperties}
-          onClick={handleSpin}
+          onClick={handleCubeTap}
           role="button"
           tabIndex={0}
           onKeyDown={(event) => {
             if (event.key === 'Enter' || event.key === ' ') {
               event.preventDefault();
-              handleSpin();
+              handleCubeTap();
             }
           }}
-          aria-label={canRoll ? 'Spin cube' : 'Cube locked'}
+          aria-label="Cube preview"
         >
           <div
             className={`absolute left-1/2 top-1/2 h-[var(--cube-size)] w-[var(--cube-size)] -translate-x-1/2 -translate-y-1/2 transition-[filter,transform] duration-300 ${
@@ -445,18 +468,21 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
 
         <div className="flex items-center justify-center gap-4 sm:gap-6">
           <WheelActionIconButton
+            src={ROLL_CUBE_ICON_SRC}
+            alt="Roll cube"
+            label="Roll cube"
+            onClick={handleSpin}
+            disabled={spinning || selecting}
+            badge={canRoll ? `${availableRolls}` : null}
+            shape="banner"
+          />
+          <WheelActionIconButton
             src={BUY_ROLL_ICON_SRC}
             alt="Buy roll"
             label={`Buy roll for ${PAID_SPIN_COST_MON} MON`}
             onClick={handleBuySpin}
-            disabled={!walletAddress || isBuyingSpin}
+            disabled={isBuyingSpin}
             badge={hasPaidRolls ? `${paidWheelRolls}` : null}
-          />
-          <WheelActionIconButton
-            src={TASKS_ICON_SRC}
-            alt="Tasks"
-            label="Open daily tasks"
-            onClick={onOpenTasks}
           />
         </div>
       </div>

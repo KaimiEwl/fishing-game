@@ -54,7 +54,7 @@ Completed.
 - changed cube reveal so the real rolled face rotates into one consistent readable angle before the prize-walk highlight begins, without copying prizes onto a fake front face
 - restored normal page scrolling on `Guide`, `Terms`, and `Privacy` routes while preserving the no-scroll game shell on the main fishing screen
 - fixed mobile wallet binding by restoring the stock RainbowKit MetaMask mobile / QR / deep-link flow whenever no extension-style injected provider exists, while keeping the desktop MetaMask extension path intact
-- removed the cube test-mode panels and rebuilt the cube screen into a cleaner flow: the cube itself now spins on tap, daily tasks grant 3 cube rolls, the screen only keeps the new `Buy Roll` and `Tasks` icon actions, and the starter rod preview now uses the new square icon asset
+- removed the cube test-mode panels and rebuilt the cube screen into a cleaner flow: daily tasks grant 3 cube rolls, the screen now uses a new `Roll Cube` banner plus a `Buy Roll` icon action, the cube itself only shows guidance to finish tasks or come back tomorrow, and the starter rod preview now uses the new square icon asset
 
 ### Validation for milestone 3
 - `npm run lint` - passed with warnings only, no errors
