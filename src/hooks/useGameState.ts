@@ -11,6 +11,8 @@ import {
   NFT_ROD_DATA
 } from '@/types/game';
 
+const PLAYER_STORAGE_KEY = 'hook_loot_player_v1';
+
 const INITIAL_PLAYER_STATE: PlayerState = {
   coins: 100,
   bait: 10,
@@ -32,6 +34,56 @@ const MIN_CAST_INTERVAL = 4000; // minimum 4s between casts
 const BITE_WINDOW_MIN = 1500; // ms
 const BITE_WINDOW_MAX = 2500; // ms
 
+interface StoredCaughtFish {
+  fishId: string;
+  caughtAt: string;
+  quantity: number;
+}
+
+interface StoredPlayerState extends Omit<PlayerState, 'inventory'> {
+  inventory: StoredCaughtFish[];
+}
+
+const loadStoredPlayer = (): PlayerState | null => {
+  try {
+    const raw = localStorage.getItem(PLAYER_STORAGE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Partial<StoredPlayerState>;
+    if (!parsed || typeof parsed !== 'object') return null;
+
+    return {
+      ...INITIAL_PLAYER_STATE,
+      ...parsed,
+      inventory: Array.isArray(parsed.inventory)
+        ? parsed.inventory.map((item) => ({
+            fishId: item.fishId,
+            caughtAt: new Date(item.caughtAt),
+            quantity: item.quantity,
+          }))
+        : [],
+      nickname: parsed.nickname ?? null,
+      avatarUrl: parsed.avatarUrl ?? null,
+      nftRods: Array.isArray(parsed.nftRods) ? parsed.nftRods : [],
+    };
+  } catch {
+    return null;
+  }
+};
+
+const storePlayerLocally = (player: PlayerState) => {
+  const serialized: StoredPlayerState = {
+    ...player,
+    inventory: player.inventory.map((item) => ({
+      fishId: item.fishId,
+      caughtAt: item.caughtAt instanceof Date ? item.caughtAt.toISOString() : new Date(item.caughtAt).toISOString(),
+      quantity: item.quantity,
+    })),
+  };
+
+  localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(serialized));
+};
+
 interface UseGameStateOptions {
   savedPlayer?: PlayerState | null;
   onSave?: (player: PlayerState) => void;
@@ -40,8 +92,12 @@ interface UseGameStateOptions {
 }
 
 export function useGameState(options?: UseGameStateOptions) {
+  const savedPlayer = options?.savedPlayer;
+  const onSave = options?.onSave;
+  const onFishCaught = options?.onFishCaught;
+  const saveReady = options?.saveReady;
   const [player, setPlayer] = useState<PlayerState>(
-    options?.savedPlayer || INITIAL_PLAYER_STATE
+    savedPlayer || loadStoredPlayer() || INITIAL_PLAYER_STATE
   );
   const [gameState, setGameState] = useState<GameState>('idle');
   const [lastResult, setLastResult] = useState<GameResult | null>(null);
@@ -63,27 +119,35 @@ export function useGameState(options?: UseGameStateOptions) {
 
   // Load saved player when it becomes available
   useEffect(() => {
-    if (initializedRef.current || !options?.saveReady) return;
-
-    if (options.savedPlayer) {
-      setPlayer(options.savedPlayer);
+    if (savedPlayer) {
+      setPlayer(savedPlayer);
     }
+
+    if (initializedRef.current || !saveReady) return;
     initializedRef.current = true;
-  }, [options?.saveReady, options?.savedPlayer]);
+  }, [saveReady, savedPlayer]);
+
+  useEffect(() => {
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+  }, []);
 
   // Debounced save
   useEffect(() => {
-    if (!options?.onSave || !initializedRef.current) return;
-    
+    if (!initializedRef.current) return;
+
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
-      options.onSave!(player);
+      storePlayerLocally(player);
+      if (onSave) {
+        onSave(player);
+      }
     }, 3000);
 
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
-  }, [player, options?.onSave]);
+  }, [onSave, player]);
 
   const getNftBonus = useCallback((rodLevel: number, nftRods: number[]) => {
     if (!nftRods.includes(rodLevel)) return { rarityBonus: 0, xpBonus: 0, sellBonus: 0 };
@@ -170,8 +234,8 @@ export function useGameState(options?: UseGameStateOptions) {
         totalCatches: prev.totalCatches + 1
       };
     });
-    options?.onFishCaught?.(caughtFish);
-  }, [getNftBonus, options]);
+    onFishCaught?.(caughtFish);
+  }, [getNftBonus, onFishCaught]);
 
   const grantFishReward = useCallback((fishId: string, quantity = 1) => {
     const rewardedFish = FISH_DATA.find((fish) => fish.id === fishId);
