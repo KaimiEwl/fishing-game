@@ -18,6 +18,8 @@ const GameScreenShell: React.FC<GameScreenShellProps> = ({ title, subtitle, coin
           src={backgroundImage}
           alt=""
           aria-hidden="true"
+          decoding="async"
+          fetchPriority="high"
           className="absolute inset-0 h-full w-full object-cover"
         />
       )}

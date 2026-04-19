@@ -47,7 +47,9 @@ export const CRITICAL_BOOT_ASSET_URLS = [
 
 export const WARM_PRELOAD_ASSET_URLS = [
   publicAsset('assets/bg_tasks.jpg'),
-  publicAsset('assets/bg_wheel.jpg'),
+  publicAsset('assets/bg_wheel_v4.jpg'),
+  publicAsset('assets/wheel_buy_roll_icon_v2.png'),
+  publicAsset('assets/wheel_roll_cube_icon_v2.png'),
   FISH_GOT_AWAY_PANEL_SRC,
   INVENTORY_BUTTON_PANEL_SRC,
   INVENTORY_SHORTCUT_ICON_SRC,
