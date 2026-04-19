@@ -14,6 +14,9 @@ export interface Fish {
 export interface PlayerState {
   coins: number;
   bait: number;
+  dailyFreeBait: number;
+  dailyFreeBaitResetAt: string | null;
+  bonusBaitGrantedTotal: number;
   level: number;
   xp: number;
   xpToNextLevel: number;
@@ -265,7 +268,7 @@ export const GRILL_RECIPES: GrillRecipe[] = [
 export const ROD_BONUSES = [0, 5, 10, 15, 25]; // % bonus to rare fish chance per rod level
 export const XP_PER_LEVEL = 100;
 export const CATCH_CHANCE = 60; // Base 60% chance to catch something
-export const BAIT_COST = 5; // Cost per 1 bait
+export const BAIT_COST = 80; // Cost per 1 bait
 
 export interface NftRod {
   rodLevel: number;

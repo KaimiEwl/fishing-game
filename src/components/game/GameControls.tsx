@@ -15,6 +15,7 @@ interface GameControlsProps {
   gameState: GameState;
   lastResult: GameResult | null;
   hasBait: boolean;
+  totalBait?: number;
   onCast: () => void;
   onReelIn?: () => void;
   rodLevel?: number;
@@ -30,6 +31,7 @@ const GameControls: React.FC<GameControlsProps> = ({
   gameState,
   lastResult,
   hasBait,
+  totalBait = 0,
   onCast,
   onReelIn,
   rodLevel = 0,
@@ -107,7 +109,12 @@ const GameControls: React.FC<GameControlsProps> = ({
 
         {showPrimaryControl && (
           <div className="relative flex w-[11.75rem] justify-center sm:w-[13.5rem]">
-            <RodPreviewBadge rodLevel={rodLevel} ownedRodLevel={ownedRodLevel} nftRods={nftRods} />
+            <RodPreviewBadge
+              rodLevel={rodLevel}
+              ownedRodLevel={ownedRodLevel}
+              nftRods={nftRods}
+              totalBait={totalBait}
+            />
 
             <Button
               onClick={primaryAction}

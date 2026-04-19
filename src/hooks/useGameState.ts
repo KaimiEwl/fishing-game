@@ -10,12 +10,24 @@ import {
   XP_PER_LEVEL,
   NFT_ROD_DATA
 } from '@/types/game';
-
-const PLAYER_STORAGE_KEY = 'hook_loot_player_v1';
+import {
+  BAIT_BUCKETS_V2_ENABLED,
+  DAILY_FREE_BAIT,
+  LEGACY_DAILY_BONUS_DISABLED,
+} from '@/lib/baitEconomy';
+import {
+  applyServerBonusBaitSync,
+  loadStoredPlayer,
+  normalizePlayerDailyFreeBait,
+  storePlayerLocally,
+} from '@/lib/playerStorage';
 
 const INITIAL_PLAYER_STATE: PlayerState = {
   coins: 100,
   bait: 10,
+  dailyFreeBait: BAIT_BUCKETS_V2_ENABLED ? DAILY_FREE_BAIT : 0,
+  dailyFreeBaitResetAt: BAIT_BUCKETS_V2_ENABLED ? new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate())).toISOString() : null,
+  bonusBaitGrantedTotal: 0,
   level: 1,
   xp: 0,
   xpToNextLevel: XP_PER_LEVEL,
@@ -34,60 +46,13 @@ const MIN_CAST_INTERVAL = 4000; // minimum 4s between casts
 const BITE_WINDOW_MIN = 1500; // ms
 const BITE_WINDOW_MAX = 2500; // ms
 
-interface StoredCaughtFish {
-  fishId: string;
-  caughtAt: string;
-  quantity: number;
-}
-
-interface StoredPlayerState extends Omit<PlayerState, 'inventory'> {
-  inventory: StoredCaughtFish[];
-}
-
-const loadStoredPlayer = (): PlayerState | null => {
-  try {
-    const raw = localStorage.getItem(PLAYER_STORAGE_KEY);
-    if (!raw) return null;
-
-    const parsed = JSON.parse(raw) as Partial<StoredPlayerState>;
-    if (!parsed || typeof parsed !== 'object') return null;
-
-    return {
-      ...INITIAL_PLAYER_STATE,
-      ...parsed,
-      inventory: Array.isArray(parsed.inventory)
-        ? parsed.inventory.map((item) => ({
-            fishId: item.fishId,
-            caughtAt: new Date(item.caughtAt),
-            quantity: item.quantity,
-          }))
-        : [],
-      nickname: parsed.nickname ?? null,
-      avatarUrl: parsed.avatarUrl ?? null,
-      nftRods: Array.isArray(parsed.nftRods) ? parsed.nftRods : [],
-    };
-  } catch {
-    return null;
-  }
-};
-
-const storePlayerLocally = (player: PlayerState) => {
-  const serialized: StoredPlayerState = {
-    ...player,
-    inventory: player.inventory.map((item) => ({
-      fishId: item.fishId,
-      caughtAt: item.caughtAt instanceof Date ? item.caughtAt.toISOString() : new Date(item.caughtAt).toISOString(),
-      quantity: item.quantity,
-    })),
-  };
-
-  localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(serialized));
-};
-
 const mergePlayerState = (base: PlayerState, local: PlayerState): PlayerState => ({
   ...base,
   coins: local.coins,
   bait: local.bait,
+  dailyFreeBait: local.dailyFreeBait,
+  dailyFreeBaitResetAt: local.dailyFreeBaitResetAt,
+  bonusBaitGrantedTotal: Math.max(base.bonusBaitGrantedTotal, local.bonusBaitGrantedTotal),
   level: local.level,
   xp: local.xp,
   xpToNextLevel: local.xpToNextLevel,
@@ -103,13 +68,22 @@ const mergePlayerState = (base: PlayerState, local: PlayerState): PlayerState =>
 });
 
 const resolveInitialPlayer = (savedPlayer?: PlayerState | null) => {
-  const localPlayer = loadStoredPlayer();
+  const normalizedSavedPlayer = savedPlayer
+    ? normalizePlayerDailyFreeBait(savedPlayer, BAIT_BUCKETS_V2_ENABLED, DAILY_FREE_BAIT)
+    : null;
+  const localPlayer = loadStoredPlayer(INITIAL_PLAYER_STATE);
+  const normalizedLocalPlayer = localPlayer
+    ? applyServerBonusBaitSync(
+        normalizePlayerDailyFreeBait(localPlayer, BAIT_BUCKETS_V2_ENABLED, DAILY_FREE_BAIT),
+        normalizedSavedPlayer?.bonusBaitGrantedTotal ?? localPlayer.bonusBaitGrantedTotal,
+      )
+    : null;
 
-  if (savedPlayer && localPlayer) {
-    return mergePlayerState(savedPlayer, localPlayer);
+  if (normalizedSavedPlayer && normalizedLocalPlayer) {
+    return mergePlayerState(normalizedSavedPlayer, normalizedLocalPlayer);
   }
 
-  return savedPlayer || localPlayer || INITIAL_PLAYER_STATE;
+  return normalizedSavedPlayer || normalizedLocalPlayer || normalizePlayerDailyFreeBait(INITIAL_PLAYER_STATE, BAIT_BUCKETS_V2_ENABLED, DAILY_FREE_BAIT);
 };
 
 interface UseGameStateOptions {
@@ -146,14 +120,51 @@ export function useGameState(options?: UseGameStateOptions) {
   // Load saved player when it becomes available
   useEffect(() => {
     if (savedPlayer) {
-      setPlayer((prev) => mergePlayerState(savedPlayer, prev));
+      const normalizedSavedPlayer = normalizePlayerDailyFreeBait(savedPlayer, BAIT_BUCKETS_V2_ENABLED, DAILY_FREE_BAIT);
+      setPlayer((prev) => mergePlayerState(
+        normalizedSavedPlayer,
+        applyServerBonusBaitSync(
+          normalizePlayerDailyFreeBait(prev, BAIT_BUCKETS_V2_ENABLED, DAILY_FREE_BAIT),
+          normalizedSavedPlayer.bonusBaitGrantedTotal,
+        ),
+      ));
     }
   }, [savedPlayer]);
+
+  const syncDailyFreeBait = useCallback(() => {
+    if (!BAIT_BUCKETS_V2_ENABLED) return;
+
+    setPlayer((prev) => {
+      const next = normalizePlayerDailyFreeBait(prev, true, DAILY_FREE_BAIT);
+      if (
+        next.dailyFreeBait === prev.dailyFreeBait
+        && next.dailyFreeBaitResetAt === prev.dailyFreeBaitResetAt
+      ) {
+        return prev;
+      }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (initializedRef.current) return;
     initializedRef.current = true;
   }, []);
+
+  useEffect(() => {
+    syncDailyFreeBait();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        syncDailyFreeBait();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [syncDailyFreeBait]);
 
   // Debounced save
   useEffect(() => {
@@ -352,14 +363,25 @@ export function useGameState(options?: UseGameStateOptions) {
   }, [clearBiteTimers, applyMissXp]);
 
   const castRod = useCallback(async () => {
-    if (player.bait <= 0 || gameState !== 'idle') return;
+    const normalizedPlayer = normalizePlayerDailyFreeBait(player, BAIT_BUCKETS_V2_ENABLED, DAILY_FREE_BAIT);
+    const totalBait = normalizedPlayer.bait + normalizedPlayer.dailyFreeBait;
+    if (totalBait <= 0 || gameState !== 'idle') return;
 
     // Rate limiting
     const now = Date.now();
     if (now - lastCastTimeRef.current < MIN_CAST_INTERVAL) return;
     lastCastTimeRef.current = now;
 
-    setPlayer(prev => ({ ...prev, bait: prev.bait - 1 }));
+    setPlayer(prev => {
+      const next = normalizePlayerDailyFreeBait(prev, BAIT_BUCKETS_V2_ENABLED, DAILY_FREE_BAIT);
+      if (next.dailyFreeBait > 0) {
+        return { ...next, dailyFreeBait: next.dailyFreeBait - 1 };
+      }
+      if (next.bait > 0) {
+        return { ...next, bait: next.bait - 1 };
+      }
+      return next;
+    });
     setGameState('casting');
 
     await new Promise(resolve => setTimeout(resolve, 800));
@@ -393,7 +415,7 @@ export function useGameState(options?: UseGameStateOptions) {
     biteTimerRef.current = setTimeout(() => {
       onBiteTimeout();
     }, biteWindow);
-  }, [player.bait, gameState, calculateFishCatch, onBiteTimeout]);
+  }, [player, gameState, calculateFishCatch, onBiteTimeout]);
 
   const sellFish = useCallback((fishId: string) => {
     const fish = FISH_DATA.find(f => f.id === fishId);
@@ -466,6 +488,7 @@ export function useGameState(options?: UseGameStateOptions) {
   }, []);
 
   const claimDailyBonus = useCallback(() => {
+    if (LEGACY_DAILY_BONUS_DISABLED) return;
     if (player.dailyBonusClaimed) return;
 
     const bonusBait = 5 + Math.min(player.loginStreak, 7) * 2;

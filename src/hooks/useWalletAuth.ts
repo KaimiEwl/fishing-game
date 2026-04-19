@@ -1,12 +1,26 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAccount, useSignMessage, useDisconnect } from 'wagmi';
 import { supabase } from '@/integrations/supabase/client';
-import { XP_PER_LEVEL } from '@/types/game';
+import { type PlayerState, XP_PER_LEVEL } from '@/types/game';
+import {
+  BAIT_BUCKETS_V2_ENABLED,
+  DAILY_FREE_BAIT,
+  REFERRAL_BAIT_ENABLED,
+} from '@/lib/baitEconomy';
+import {
+  applyServerBonusBaitSync,
+  loadStoredPlayer,
+  normalizePlayerDailyFreeBait,
+  storePlayerLocally,
+} from '@/lib/playerStorage';
 
 interface PlayerRecord {
   wallet_address: string;
   coins: number;
   bait: number;
+  daily_free_bait?: number;
+  daily_free_bait_reset_at?: string | null;
+  bonus_bait_granted_total?: number;
   level: number;
   xp: number;
   xp_to_next: number;
@@ -18,9 +32,17 @@ interface PlayerRecord {
   nft_rods: number[];
   nickname: string | null;
   avatar_url: string | null;
+  referrer_wallet_address?: string | null;
 }
 
 const SESSION_KEY = 'monadfish_session';
+const REFERRAL_STORAGE_KEY = 'hook_loot_pending_referrer_v1';
+
+function normalizeWalletAddress(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  return /^0x[a-fA-F0-9]{40}$/.test(trimmed) ? trimmed.toLowerCase() : null;
+}
 
 function getStoredSession(): { address: string; token: string } | null {
   try {
@@ -38,10 +60,29 @@ function clearStoredSession() {
   localStorage.removeItem(SESSION_KEY);
 }
 
+function getPendingReferrer(): string | null {
+  try {
+    return normalizeWalletAddress(localStorage.getItem(REFERRAL_STORAGE_KEY));
+  } catch {
+    return null;
+  }
+}
+
+function storePendingReferrer(referrerWalletAddress: string) {
+  localStorage.setItem(REFERRAL_STORAGE_KEY, referrerWalletAddress);
+}
+
+function clearPendingReferrer() {
+  localStorage.removeItem(REFERRAL_STORAGE_KEY);
+}
+
 function mapPlayerRecord(p: PlayerRecord): PlayerState {
   return {
     coins: p.coins,
     bait: p.bait,
+    dailyFreeBait: p.daily_free_bait ?? 0,
+    dailyFreeBaitResetAt: p.daily_free_bait_reset_at ?? null,
+    bonusBaitGrantedTotal: p.bonus_bait_granted_total ?? 0,
     level: p.level,
     xp: p.xp,
     xpToNextLevel: p.xp_to_next || p.level * XP_PER_LEVEL,
@@ -68,6 +109,41 @@ export function useWalletAuth() {
   const sessionTokenRef = useRef<string | null>(null);
   const restoredRef = useRef(false);
 
+  const syncLocalPlayerFromServer = useCallback((playerRecord: PlayerRecord) => {
+    const mappedPlayer = normalizePlayerDailyFreeBait(
+      mapPlayerRecord(playerRecord),
+      BAIT_BUCKETS_V2_ENABLED,
+      DAILY_FREE_BAIT,
+    );
+    const localPlayer = loadStoredPlayer(mappedPlayer);
+    const normalizedLocalPlayer = localPlayer
+      ? normalizePlayerDailyFreeBait(localPlayer, BAIT_BUCKETS_V2_ENABLED, DAILY_FREE_BAIT)
+      : mappedPlayer;
+
+    const nextStoredPlayer = applyServerBonusBaitSync({
+      ...normalizedLocalPlayer,
+      nickname: normalizedLocalPlayer.nickname ?? mappedPlayer.nickname,
+      avatarUrl: normalizedLocalPlayer.avatarUrl ?? mappedPlayer.avatarUrl,
+      nftRods: Array.from(new Set([...mappedPlayer.nftRods, ...normalizedLocalPlayer.nftRods])).sort((a, b) => a - b),
+    }, mappedPlayer.bonusBaitGrantedTotal);
+
+    storePlayerLocally(nextStoredPlayer);
+    return nextStoredPlayer;
+  }, []);
+
+  useEffect(() => {
+    if (!REFERRAL_BAIT_ENABLED) return;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    const pendingReferrer = normalizeWalletAddress(
+      searchParams.get('ref') ?? searchParams.get('referrer'),
+    );
+
+    if (pendingReferrer) {
+      storePendingReferrer(pendingReferrer);
+    }
+  }, []);
+
   // Try to restore session from localStorage on page refresh
   const tryRestoreSession = useCallback(async (addr: string) => {
     const stored = getStoredSession();
@@ -84,23 +160,29 @@ export function useWalletAuth() {
       const nextToken = data.session_token || stored.token;
       sessionTokenRef.current = nextToken;
       storeSession(addr, nextToken);
-      setSavedPlayer(mapPlayerRecord(data.player as PlayerRecord));
+      setSavedPlayer(syncLocalPlayerFromServer(data.player as PlayerRecord));
       return true;
     } catch {
       return false;
     }
-  }, []);
+  }, [syncLocalPlayerFromServer]);
 
   const verifyWallet = useCallback(async () => {
     if (!address || isVerifying) return;
     
     setIsVerifying(true);
     try {
+      const pendingReferrer = REFERRAL_BAIT_ENABLED ? getPendingReferrer() : null;
       const message = `Hook & Loot: Sign to verify your wallet\nAddress: ${address}\nTimestamp: ${Date.now()}`;
       const signature = await signMessageAsync({ account: address, message });
       
       const { data, error } = await supabase.functions.invoke('verify-wallet', {
-        body: { wallet_address: address, signature, message },
+        body: {
+          wallet_address: address,
+          signature,
+          message,
+          referrer_wallet_address: pendingReferrer,
+        },
       });
 
       if (error) throw error;
@@ -111,7 +193,16 @@ export function useWalletAuth() {
       storeSession(address, token);
       
       if (data.player) {
-        setSavedPlayer(mapPlayerRecord(data.player as PlayerRecord));
+        const playerRecord = data.player as PlayerRecord;
+        const mappedPlayer = syncLocalPlayerFromServer(data.player as PlayerRecord);
+        setSavedPlayer(mappedPlayer);
+
+        if (
+          pendingReferrer
+          && (playerRecord.referrer_wallet_address != null || pendingReferrer === address.toLowerCase())
+        ) {
+          clearPendingReferrer();
+        }
       }
     } catch (err) {
       console.error('Wallet verification failed:', err);
@@ -119,7 +210,7 @@ export function useWalletAuth() {
     } finally {
       setIsVerifying(false);
     }
-  }, [address, isVerifying, signMessageAsync, disconnect]);
+  }, [address, isVerifying, signMessageAsync, disconnect, syncLocalPlayerFromServer]);
 
   // Auto-restore or auto-verify when wallet connects
   useEffect(() => {

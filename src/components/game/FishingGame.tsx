@@ -15,6 +15,7 @@ import { useWalletAuth } from '@/hooks/useWalletAuth';
 import { useBackgroundMusic } from '@/hooks/useBackgroundMusic';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { getVisibleBaitTotal } from '@/lib/baitEconomy';
 import { cn } from '@/lib/utils';
 import { publicAsset } from '@/lib/assets';
 import {
@@ -126,6 +127,7 @@ const FishingGame: React.FC = () => {
 
     return Math.floor(5 * (1 + nftBonus / 100));
   }, [player.equippedRod, player.nftRods]);
+  const totalBait = useMemo(() => getVisibleBaitTotal(player), [player]);
 
   const saveCurrentLeaderboardEntry = useCallback((name: string, score: number, dishesDelta = 0) => {
     setLeaderboardEntries((entries) => {
@@ -413,7 +415,8 @@ const FishingGame: React.FC = () => {
               ) : activeTab === 'shop' ? (
                 <ShopScreen
                   coins={player.coins}
-                  bait={player.bait}
+                  bait={totalBait}
+                  dailyFreeBait={player.dailyFreeBait}
                   rodLevel={player.rodLevel}
                   nftRods={player.nftRods}
                   onBuyBait={handleBuyBait}
@@ -501,7 +504,8 @@ const FishingGame: React.FC = () => {
             <GameControls
               gameState={gameState}
               lastResult={lastResult}
-              hasBait={player.bait > 0}
+              hasBait={totalBait > 0}
+              totalBait={totalBait}
               onCast={castRod}
               onReelIn={reelIn}
               rodLevel={player.equippedRod}

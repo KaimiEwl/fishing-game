@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import SettingsDialog from './SettingsDialog';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
+import { getVisibleBaitTotal } from '@/lib/baitEconomy';
 import PlayerStatItem from '@/components/PlayerStatItem';
 import PlayerFishInfoRow from '@/components/PlayerFishInfoRow';
 import PlayerLevelAvatar from '@/components/PlayerLevelAvatar';
@@ -30,6 +31,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({
 }) => {
   const xpPercentage = (player.xp / player.xpToNextLevel) * 100;
   const totalFishCount = player.inventory.reduce((sum, fish) => sum + fish.quantity, 0);
+  const totalBait = getVisibleBaitTotal(player);
   const isMobile = useIsMobile();
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -138,10 +140,15 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({
 
             <div className="mt-3 grid grid-cols-2 gap-2">
               <PlayerStatItem compact icon={<CoinIcon size="sm" />} label="Coins" value={player.coins} />
-              <PlayerStatItem compact icon={<Worm className="h-4 w-4 text-zinc-200" />} label="Bait" value={player.bait} />
+              <PlayerStatItem compact icon={<Worm className="h-4 w-4 text-zinc-200" />} label="Bait" value={totalBait} />
               <PlayerStatItem compact icon={<Trophy className="h-4 w-4 text-zinc-200" />} label="Catches" value={player.totalCatches} />
               <PlayerStatItem compact icon={<Package className="h-4 w-4 text-zinc-200" />} label="Inventory" value={totalFishCount} />
             </div>
+            {player.dailyFreeBait > 0 && (
+              <p className="mt-2 text-xs font-medium text-zinc-400">
+                {player.dailyFreeBait} daily free + {Math.max(0, player.bait)} reserve
+              </p>
+            )}
           </Card>
         </div>
       )}

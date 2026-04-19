@@ -69,8 +69,11 @@ export type Database = {
         Row: {
           avatar_url: string | null
           bait: number
+          bonus_bait_granted_total: number
           coins: number
           created_at: string
+          daily_free_bait: number
+          daily_free_bait_reset_at: string | null
           equipped_rod: number
           id: string
           inventory: Json
@@ -79,18 +82,25 @@ export type Database = {
           login_streak: number
           nft_rods: Json
           nickname: string | null
+          referral_reward_granted: boolean
+          referrer_wallet_address: string | null
+          rewarded_referral_count: number
           rod_level: number
           total_catches: number
           updated_at: string
           wallet_address: string
+          wallet_bait_bonus_claimed: boolean
           xp: number
           xp_to_next: number
         }
         Insert: {
           avatar_url?: string | null
           bait?: number
+          bonus_bait_granted_total?: number
           coins?: number
           created_at?: string
+          daily_free_bait?: number
+          daily_free_bait_reset_at?: string | null
           equipped_rod?: number
           id?: string
           inventory?: Json
@@ -99,18 +109,25 @@ export type Database = {
           login_streak?: number
           nft_rods?: Json
           nickname?: string | null
+          referral_reward_granted?: boolean
+          referrer_wallet_address?: string | null
+          rewarded_referral_count?: number
           rod_level?: number
           total_catches?: number
           updated_at?: string
           wallet_address: string
+          wallet_bait_bonus_claimed?: boolean
           xp?: number
           xp_to_next?: number
         }
         Update: {
           avatar_url?: string | null
           bait?: number
+          bonus_bait_granted_total?: number
           coins?: number
           created_at?: string
+          daily_free_bait?: number
+          daily_free_bait_reset_at?: string | null
           equipped_rod?: number
           id?: string
           inventory?: Json
@@ -119,10 +136,14 @@ export type Database = {
           login_streak?: number
           nft_rods?: Json
           nickname?: string | null
+          referral_reward_granted?: boolean
+          referrer_wallet_address?: string | null
+          rewarded_referral_count?: number
           rod_level?: number
           total_catches?: number
           updated_at?: string
           wallet_address?: string
+          wallet_bait_bonus_claimed?: boolean
           xp?: number
           xp_to_next?: number
         }

@@ -9,13 +9,44 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+const DAILY_FREE_BAIT = 30;
+const WALLET_BAIT_BONUS = 10;
+const REFERRAL_BAIT_BONUS = 10;
+const MAX_REWARDED_REFERRALS = 10;
+
+const readFlag = (value: string | undefined, fallback: boolean) => {
+  if (!value) return fallback;
+
+  const normalized = value.trim().toLowerCase();
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+  if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+  return fallback;
+};
+
+const BAIT_BUCKETS_V2_ENABLED = readFlag(Deno.env.get('BAIT_BUCKETS_V2_ENABLED'), true);
+const WALLET_BAIT_BONUS_ENABLED = readFlag(Deno.env.get('WALLET_BAIT_BONUS_ENABLED'), true);
+const REFERRAL_BAIT_ENABLED = readFlag(Deno.env.get('REFERRAL_BAIT_ENABLED'), true);
+
+const normalizeWalletAddress = (value: string | null | undefined) => {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  return /^0x[a-fA-F0-9]{40}$/.test(trimmed) ? trimmed.toLowerCase() : null;
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { wallet_address, signature, message, player_data, session_token } = await req.json();
+    const {
+      wallet_address,
+      signature,
+      message,
+      player_data,
+      session_token,
+      referrer_wallet_address,
+    } = await req.json();
 
     if (!wallet_address) {
       return new Response(
@@ -24,11 +55,38 @@ serve(async (req) => {
       );
     }
 
-    const normalizedAddress = wallet_address.toLowerCase();
+    const normalizedAddress = normalizeWalletAddress(wallet_address);
+    const normalizedReferrer = normalizeWalletAddress(referrer_wallet_address);
+    if (!normalizedAddress) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid wallet address' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
+
+    const loadProcessedPlayer = async (referrer: string | null = null) => {
+      const { data, error } = await supabase
+        .rpc('process_wallet_login', {
+          _wallet_address: normalizedAddress,
+          _daily_free_bait: DAILY_FREE_BAIT,
+          _wallet_bait_bonus: WALLET_BAIT_BONUS,
+          _referral_bait_bonus: REFERRAL_BAIT_BONUS,
+          _max_rewarded_referrals: MAX_REWARDED_REFERRALS,
+          _apply_daily_reset: BAIT_BUCKETS_V2_ENABLED,
+          _apply_wallet_bonus: WALLET_BAIT_BONUS_ENABLED,
+          _apply_referral: REFERRAL_BAIT_ENABLED,
+          _referrer_wallet_address: referrer,
+        })
+        .single();
+
+      if (error) throw error;
+      return data;
+    };
 
     // This endpoint is auth/session-only. Economy state must not be accepted from the client.
     if (player_data) {
@@ -46,11 +104,7 @@ serve(async (req) => {
         );
       }
 
-      const { data: player } = await supabase
-        .from('players')
-        .select('*')
-        .eq('wallet_address', normalizedAddress)
-        .single();
+      const player = await loadProcessedPlayer();
 
       if (!player) {
         return new Response(
@@ -97,38 +151,15 @@ serve(async (req) => {
 
     const { data: existing } = await supabase
       .from('players')
-      .select('*')
+      .select('id')
       .eq('wallet_address', normalizedAddress)
-      .single();
+      .maybeSingle();
 
-    if (existing) {
-      const { data: updated, error } = await supabase
-        .from('players')
-        .update({ last_login: new Date().toISOString() })
-        .eq('wallet_address', normalizedAddress)
-        .select()
-        .single();
-
-      if (error) throw error;
-      const sessionToken = await createSessionToken(normalizedAddress);
-
-      return new Response(
-        JSON.stringify({ player: updated, isNew: false, session_token: sessionToken }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
-    }
-
-    const { data: newPlayer, error } = await supabase
-      .from('players')
-      .insert({ wallet_address: normalizedAddress })
-      .select()
-      .single();
-
-    if (error) throw error;
+    const newPlayer = await loadProcessedPlayer(normalizedReferrer);
     const sessionToken = await createSessionToken(normalizedAddress);
 
     return new Response(
-      JSON.stringify({ player: newPlayer, isNew: true, session_token: sessionToken }),
+      JSON.stringify({ player: newPlayer, isNew: !existing, session_token: sessionToken }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (error) {

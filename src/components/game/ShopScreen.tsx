@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ROD_BONUSES } from '@/types/game';
+import { BAIT_PACKAGES } from '@/lib/baitEconomy';
 import { publicAsset } from '@/lib/assets';
 import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
 import CoinIcon from './CoinIcon';
@@ -12,18 +13,12 @@ import GameScreenShell from './GameScreenShell';
 interface ShopScreenProps {
   coins: number;
   bait: number;
+  dailyFreeBait?: number;
   rodLevel: number;
   nftRods?: number[];
   onBuyBait: (amount: number, cost: number) => void;
   onBuyRod: (level: number, cost: number) => void;
 }
-
-const BAIT_PACKAGES = [
-  { amount: 5, cost: 25, label: 'Small bait pack', icon: Worm },
-  { amount: 10, cost: 45, label: 'Double bait pack', icon: Worm },
-  { amount: 25, cost: 100, label: 'Big bait pack', icon: Worm },
-  { amount: 50, cost: 180, label: 'Bulk bait box', icon: Package },
-];
 
 const ROD_UPGRADES = [
   { level: 1, cost: 2500, name: 'Bamboo Rod', bonus: 5, image: ROD_DISPLAY_INFO[1].image, bobber: 'Green bobber', bobberColor: '#22aa44' },
@@ -35,6 +30,7 @@ const ROD_UPGRADES = [
 const ShopScreen: React.FC<ShopScreenProps> = ({
   coins,
   bait,
+  dailyFreeBait = 0,
   rodLevel,
   nftRods = [],
   onBuyBait,
@@ -56,10 +52,14 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
         <TabsContent value="bait" className="mt-4 min-h-0 flex-1 overflow-y-auto">
           <div className="mb-3 rounded-lg border border-cyan-300/20 bg-black/80 p-3 text-sm font-semibold text-cyan-50/85 shadow-lg shadow-black/25">
             Current bait supply: <span className="font-bold text-cyan-100">{bait}</span>
+            {dailyFreeBait > 0 && (
+              <span className="mt-1 block text-xs font-medium text-cyan-100/70">
+                {dailyFreeBait} daily free + {Math.max(0, bait - dailyFreeBait)} reserve
+              </span>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {BAIT_PACKAGES.map((pkg) => {
-              const BaitIcon = pkg.icon;
               return (
                 <Button
                   key={pkg.amount}
@@ -69,9 +69,13 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                   onClick={() => onBuyBait(pkg.amount, pkg.cost)}
                   aria-label={pkg.label}
                 >
-                  <BaitIcon className="h-7 w-7 text-cyan-100" />
+                  {pkg.amount >= 50 ? (
+                    <Package className="h-7 w-7 text-cyan-100" />
+                  ) : (
+                    <Worm className="h-7 w-7 text-cyan-100" />
+                  )}
                   <span className="font-bold">{pkg.amount} bait</span>
-                <span className="flex items-center gap-1 text-amber-200"><CoinIcon size="sm" /> {pkg.cost}</span>
+                  <span className="flex items-center gap-1 text-amber-200"><CoinIcon size="sm" /> {pkg.cost}</span>
                 </Button>
               );
             })}

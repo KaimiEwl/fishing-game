@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ROD_BONUSES } from '@/types/game';
+import { BAIT_PACKAGES } from '@/lib/baitEconomy';
 import CoinIcon from './CoinIcon';
 import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
 import { Check, Package, ShipWheel, ShoppingBag, Store, Worm } from 'lucide-react';
@@ -17,18 +18,12 @@ import { Check, Package, ShipWheel, ShoppingBag, Store, Worm } from 'lucide-reac
 interface ShopDialogProps {
   coins: number;
   bait: number;
+  dailyFreeBait?: number;
   rodLevel: number;
   nftRods?: number[];
   onBuyBait: (amount: number, cost: number) => void;
   onBuyRod: (level: number, cost: number) => void;
 }
-
-const BAIT_PACKAGES = [
-  { amount: 5, cost: 25, label: 'Small bait pack', icon: Worm },
-  { amount: 10, cost: 45, label: 'Double bait pack', icon: Worm },
-  { amount: 25, cost: 100, label: 'Big bait pack', icon: Worm },
-  { amount: 50, cost: 180, label: 'Bulk bait box', icon: Package },
-];
 
 const ROD_UPGRADES = [
   { level: 1, cost: 200, name: 'Bamboo Rod', bonus: 5, image: ROD_DISPLAY_INFO[1].image, bobber: 'Green bobber', bobberColor: '#22aa44' },
@@ -40,6 +35,7 @@ const ROD_UPGRADES = [
 const ShopDialog: React.FC<ShopDialogProps> = ({
   coins,
   bait,
+  dailyFreeBait = 0,
   rodLevel,
   nftRods = [],
   onBuyBait,
@@ -73,26 +69,34 @@ const ShopDialog: React.FC<ShopDialogProps> = ({
             <TabsTrigger value="rods" className="gap-1.5"><ShipWheel className="h-4 w-4" /> Rods</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="bait" className="mt-4">
-            <div className="text-sm text-muted-foreground mb-3">
-              Current bait supply: <span className="text-primary font-bold">{bait}</span>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {BAIT_PACKAGES.map((pkg) => {
-                const BaitIcon = pkg.icon;
-                return (
-                  <Button
-                    key={pkg.amount}
+        <TabsContent value="bait" className="mt-4">
+          <div className="text-sm text-muted-foreground mb-3">
+            Current bait supply: <span className="text-primary font-bold">{bait}</span>
+            {dailyFreeBait > 0 && (
+              <span className="mt-1 block text-xs">
+                {dailyFreeBait} daily free + {Math.max(0, bait - dailyFreeBait)} reserve
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {BAIT_PACKAGES.map((pkg) => {
+              return (
+                <Button
+                  key={pkg.amount}
                     variant="outline"
                     className="h-auto flex-col py-4 gap-2 rounded-lg hover:border-primary/50"
                     disabled={coins < pkg.cost}
-                    onClick={() => onBuyBait(pkg.amount, pkg.cost)}
-                    aria-label={pkg.label}
-                  >
-                    <BaitIcon className="h-6 w-6 text-primary" />
-                    <span className="font-bold">{pkg.amount} bait</span>
-                    <span className="text-amber-500 flex items-center gap-1"><CoinIcon size="sm" /> {pkg.cost}</span>
-                  </Button>
+                  onClick={() => onBuyBait(pkg.amount, pkg.cost)}
+                  aria-label={pkg.label}
+                >
+                  {pkg.amount >= 50 ? (
+                    <Package className="h-6 w-6 text-primary" />
+                  ) : (
+                    <Worm className="h-6 w-6 text-primary" />
+                  )}
+                  <span className="font-bold">{pkg.amount} bait</span>
+                  <span className="text-amber-500 flex items-center gap-1"><CoinIcon size="sm" /> {pkg.cost}</span>
+                </Button>
                 );
               })}
             </div>
