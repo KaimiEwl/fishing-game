@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -47,6 +47,8 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
   const [uploading, setUploading] = useState(false);
   const [nicknameOpen, setNicknameOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingWalletModalRef = useRef<(() => void) | null>(null);
+  const walletModalTimerRef = useRef<number | null>(null);
 
   const nicknameAlreadySet = !!nickname && nickname.length > 0;
 
@@ -74,11 +76,30 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
     setSoundMuted(newMuted);
   };
 
+  useEffect(() => {
+    if (open || !pendingWalletModalRef.current) {
+      return undefined;
+    }
+
+    walletModalTimerRef.current = window.setTimeout(() => {
+      pendingWalletModalRef.current?.();
+      pendingWalletModalRef.current = null;
+      walletModalTimerRef.current = null;
+    }, 240);
+
+    return () => {
+      if (walletModalTimerRef.current !== null) {
+        window.clearTimeout(walletModalTimerRef.current);
+        walletModalTimerRef.current = null;
+      }
+    };
+  }, [open]);
+
   const handleWalletModalOpen = (openModal?: (() => void) | null) => {
+    if (!openModal) return;
+
+    pendingWalletModalRef.current = openModal;
     setOpen(false);
-    window.setTimeout(() => {
-      openModal?.();
-    }, 80);
   };
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
