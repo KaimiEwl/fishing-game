@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAccount, useSignMessage, useDisconnect } from 'wagmi';
 import { supabase } from '@/integrations/supabase/client';
-import type { PlayerState } from '@/types/game';
 import { XP_PER_LEVEL } from '@/types/game';
 
 interface PlayerRecord {
@@ -150,19 +149,12 @@ export function useWalletAuth() {
     return () => { cancelled = true; };
   }, [isConnected, address, isVerified, isVerifying, verifyWallet, tryRestoreSession]);
 
-  const saveProgress = useCallback(async (player: PlayerState) => {
-    void player;
-    void address;
-    void isVerified;
-  }, [address, isVerified]);
-
   return {
     address,
     isConnected,
     isVerified,
     isVerifying,
     savedPlayer,
-    saveProgress,
     disconnect,
   };
 }

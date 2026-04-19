@@ -200,6 +200,8 @@ const FishingGame: React.FC = () => {
   }, [activeTab, refreshLeaderboard]);
 
   useEffect(() => {
+    if (activeTab !== 'leaderboard') return;
+
     const handleWindowFocus = () => {
       void refreshLeaderboard();
     };
@@ -224,7 +226,7 @@ const FishingGame: React.FC = () => {
       window.removeEventListener('focus', handleWindowFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [refreshLeaderboard]);
+  }, [activeTab, refreshLeaderboard]);
 
   useEffect(() => {
     if (!assetsReady) return;

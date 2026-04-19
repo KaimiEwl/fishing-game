@@ -51,6 +51,15 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
   const walletModalTimerRef = useRef<number | null>(null);
 
   const nicknameAlreadySet = !!nickname && nickname.length > 0;
+  const avatarFallback = nickname
+    ? nickname
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? '')
+        .join('')
+    : 'HL';
 
   const { data: balanceData } = useBalance({
     address: walletAddress as `0x${string}` | undefined,
@@ -220,7 +229,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
               <div className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-3">
                 <Avatar className="h-12 w-12">
                   {avatarUrl ? <AvatarImage src={avatarUrl} alt="Avatar" /> : null}
-                  <AvatarFallback className="bg-zinc-900 text-lg text-cyan-100">MF</AvatarFallback>
+                  <AvatarFallback className="bg-zinc-900 text-lg text-cyan-100">{avatarFallback}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
                   <input

@@ -96,7 +96,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
               </div>
               <h2 className="mt-5 text-2xl font-black text-white drop-shadow-md">Daily prize cube</h2>
               <p className="mt-2 text-base text-white/70 leading-relaxed">
-                {completedCount}/{tasks.length} tasks complete. {availableWheelRolls > 0 ? `${availableWheelRolls} cube rolls ready.` : allTasksComplete ? 'Daily rolls are being prepared.' : 'Complete all tasks to earn 3 cube rolls.'}
+                {completedCount}/{tasks.length} tasks complete. {availableWheelRolls > 0 ? `${availableWheelRolls} cube rolls ready.` : allTasksComplete ? 'Today\'s cube rolls are finished. Come back tomorrow.' : 'Complete all tasks to earn 3 cube rolls.'}
               </p>
             </div>
 
