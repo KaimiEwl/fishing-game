@@ -151,23 +151,9 @@ export function useWalletAuth() {
   }, [isConnected, address, isVerified, isVerifying, verifyWallet, tryRestoreSession]);
 
   const saveProgress = useCallback(async (player: PlayerState) => {
-    if (!address || !isVerified || !sessionTokenRef.current) return;
-    
-    try {
-      const { data } = await supabase.functions.invoke('verify-wallet', {
-        body: {
-          wallet_address: address,
-          session_token: sessionTokenRef.current,
-          player_data: player,
-        },
-      });
-      if (data?.session_token) {
-        sessionTokenRef.current = data.session_token;
-        storeSession(address, data.session_token);
-      }
-    } catch (err) {
-      console.error('Failed to save progress:', err);
-    }
+    void player;
+    void address;
+    void isVerified;
   }, [address, isVerified]);
 
   return {

@@ -208,22 +208,31 @@ export function useGameProgress() {
   const claimTask = useCallback((id: DailyTaskId, onReward: (coins: number) => void) => {
     const task = DAILY_TASKS.find((item) => item.id === id);
     if (!task) return false;
-    const current = state.tasks[id];
-    if (!current || current.claimed || current.progress < task.target) return false;
+    let rewardGranted = false;
 
-    setState((prev) => ({
-      ...prev,
-      tasks: {
-        ...prev.tasks,
-        [id]: {
-          ...prev.tasks[id],
-          claimed: true,
+    setState((prev) => {
+      const current = prev.tasks[id];
+      if (!current || current.claimed || current.progress < task.target) {
+        return prev;
+      }
+
+      rewardGranted = true;
+      return {
+        ...prev,
+        tasks: {
+          ...prev.tasks,
+          [id]: {
+            ...prev.tasks[id],
+            claimed: true,
+          },
         },
-      },
-    }));
+      };
+    });
+
+    if (!rewardGranted) return false;
     onReward(task.rewardCoins);
     return true;
-  }, [state.tasks]);
+  }, []);
 
   const spinWheel = useCallback((onReward: (prize: WheelPrize) => void, selectedPrize?: WheelPrize) => {
     let awardedPrize: WheelPrize | null = null;

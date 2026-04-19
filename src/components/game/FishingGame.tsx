@@ -33,12 +33,6 @@ import {
   FISH_GOT_AWAY_PANEL_SRC,
 } from '@/lib/rodAssets';
 import travelIconSrc from '@/assets/map_travel_icon_cutout.png';
-import mapTreasureVaultSrc from '@/assets/map_treasure_vault_cutout.png';
-import mapSkullCoveSrc from '@/assets/map_skull_cove_cutout.png';
-import mapCoralCastleSrc from '@/assets/map_coral_castle_cutout.png';
-import mapVolcanoGrillSrc from '@/assets/map_volcano_grill_cutout.png';
-import mapIslandMarketSrc from '@/assets/map_island_market_cutout.png';
-import mapWheelPierSrc from '@/assets/map_wheel_pier_cutout.png';
 import {
   deleteGlobalLeaderboardEntry,
   getLeaderboardPlayerId,
@@ -52,15 +46,6 @@ import {
 import { NFT_ROD_DATA, type DailyTaskId, type GameTab, type GrillLeaderboardEntry, type GrillRecipe, type WheelPrize } from '@/types/game';
 
 const TRAVEL_ICON_SRC = travelIconSrc;
-
-const MAP_LOCATION_ASSETS = [
-  mapTreasureVaultSrc,
-  mapSkullCoveSrc,
-  mapCoralCastleSrc,
-  mapVolcanoGrillSrc,
-  mapIslandMarketSrc,
-  mapWheelPierSrc,
-];
 
 const setBootLoaderState = (progress: number, label?: string) => {
   const bootWindow = window as Window & {
@@ -79,7 +64,7 @@ const hideBootLoader = () => {
 };
 
 const FishingGame: React.FC = () => {
-  const { isConnected, isVerified, savedPlayer, saveProgress, address } = useWalletAuth();
+  const { isConnected, isVerified, savedPlayer, address } = useWalletAuth();
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<GameTab>('fish');
   const [assetsReady, setAssetsReady] = useState(false);
@@ -114,9 +99,7 @@ const FishingGame: React.FC = () => {
     setAvatarUrl,
   } = useGameState({
     savedPlayer: isVerified ? savedPlayer : undefined,
-    onSave: isVerified ? saveProgress : undefined,
     onFishCaught: gameProgress.recordFishCatch,
-    saveReady: isVerified,
   });
 
   const sounds = useSoundEffects();
@@ -176,7 +159,6 @@ const FishingGame: React.FC = () => {
       setMainSceneAssets(assets);
       warmPreloadAssets([
         ...WARM_PRELOAD_ASSET_URLS,
-        ...MAP_LOCATION_ASSETS,
         FISH_GOT_AWAY_PANEL_SRC,
       ]);
 
@@ -359,10 +341,7 @@ const FishingGame: React.FC = () => {
       return prize;
     }
 
-    // Temporary cube test mode: let the prize flow work before daily gates are re-enabled.
-    applyCubeReward(selectedPrize);
-    sounds.playLevelUpSound();
-    return selectedPrize;
+    return null;
   };
 
   const handleCookRecipe = (recipe: GrillRecipe) => {

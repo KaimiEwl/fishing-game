@@ -84,20 +84,46 @@ const storePlayerLocally = (player: PlayerState) => {
   localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(serialized));
 };
 
+const mergePlayerState = (base: PlayerState, local: PlayerState): PlayerState => ({
+  ...base,
+  coins: local.coins,
+  bait: local.bait,
+  level: local.level,
+  xp: local.xp,
+  xpToNextLevel: local.xpToNextLevel,
+  rodLevel: local.rodLevel,
+  equippedRod: local.equippedRod,
+  inventory: local.inventory,
+  totalCatches: local.totalCatches,
+  dailyBonusClaimed: local.dailyBonusClaimed,
+  loginStreak: local.loginStreak,
+  nftRods: Array.from(new Set([...base.nftRods, ...local.nftRods])).sort((a, b) => a - b),
+  nickname: local.nickname ?? base.nickname,
+  avatarUrl: local.avatarUrl ?? base.avatarUrl,
+});
+
+const resolveInitialPlayer = (savedPlayer?: PlayerState | null) => {
+  const localPlayer = loadStoredPlayer();
+
+  if (savedPlayer && localPlayer) {
+    return mergePlayerState(savedPlayer, localPlayer);
+  }
+
+  return savedPlayer || localPlayer || INITIAL_PLAYER_STATE;
+};
+
 interface UseGameStateOptions {
   savedPlayer?: PlayerState | null;
   onSave?: (player: PlayerState) => void;
   onFishCaught?: (fish: Fish) => void;
-  saveReady?: boolean;
 }
 
 export function useGameState(options?: UseGameStateOptions) {
   const savedPlayer = options?.savedPlayer;
   const onSave = options?.onSave;
   const onFishCaught = options?.onFishCaught;
-  const saveReady = options?.saveReady;
   const [player, setPlayer] = useState<PlayerState>(
-    savedPlayer || loadStoredPlayer() || INITIAL_PLAYER_STATE
+    resolveInitialPlayer(savedPlayer)
   );
   const [gameState, setGameState] = useState<GameState>('idle');
   const [lastResult, setLastResult] = useState<GameResult | null>(null);
@@ -120,12 +146,9 @@ export function useGameState(options?: UseGameStateOptions) {
   // Load saved player when it becomes available
   useEffect(() => {
     if (savedPlayer) {
-      setPlayer(savedPlayer);
+      setPlayer((prev) => mergePlayerState(savedPlayer, prev));
     }
-
-    if (initializedRef.current || !saveReady) return;
-    initializedRef.current = true;
-  }, [saveReady, savedPlayer]);
+  }, [savedPlayer]);
 
   useEffect(() => {
     if (initializedRef.current) return;
