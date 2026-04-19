@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MonadFishCanvas from './MonadFishCanvas';
 import PlayerPanel from './PlayerPanel';
 import GameControls from './GameControls';
@@ -6,12 +6,6 @@ import InventoryDialog from './InventoryDialog';
 import BuyCoinsDialog from './BuyCoinsDialog';
 import BoostDialog from './BoostDialog';
 import BottomNav from './BottomNav';
-import TasksScreen from './TasksScreen';
-import ShopScreen from './ShopScreen';
-import GrillScreen from './GrillScreen';
-import WheelScreen from './WheelScreen';
-import LeaderboardScreen from './LeaderboardScreen';
-import MapScreen from './MapScreen';
 import LeaderboardNameDialog from './LeaderboardNameDialog';
 import LevelUpCelebration from './LevelUpCelebration';
 import GameLoadingScreen from './GameLoadingScreen';
@@ -46,6 +40,12 @@ import {
 import { NFT_ROD_DATA, type DailyTaskId, type GameTab, type GrillLeaderboardEntry, type GrillRecipe, type WheelPrize } from '@/types/game';
 
 const TRAVEL_ICON_SRC = travelIconSrc;
+const TasksScreen = lazy(() => import('./TasksScreen'));
+const ShopScreen = lazy(() => import('./ShopScreen'));
+const GrillScreen = lazy(() => import('./GrillScreen'));
+const WheelScreen = lazy(() => import('./WheelScreen'));
+const LeaderboardScreen = lazy(() => import('./LeaderboardScreen'));
+const MapScreen = lazy(() => import('./MapScreen'));
 
 const setBootLoaderState = (progress: number, label?: string) => {
   const bootWindow = window as Window & {
@@ -62,6 +62,15 @@ const hideBootLoader = () => {
 
   bootWindow.__hideBootLoader?.();
 };
+
+const ScreenLoadingFallback: React.FC = () => (
+  <div className="flex h-full items-center justify-center bg-[#05060b] px-6 text-center">
+    <div className="rounded-2xl border border-cyan-300/15 bg-black/65 px-6 py-5 text-cyan-100 shadow-2xl backdrop-blur-md">
+      <div className="text-sm font-black uppercase tracking-[0.18em] text-cyan-200/80">Loading</div>
+      <div className="mt-2 text-base font-semibold text-white/90">Preparing screen...</div>
+    </div>
+  </div>
+);
 
 const FishingGame: React.FC = () => {
   const { isConnected, isVerified, savedPlayer, address } = useWalletAuth();
@@ -390,58 +399,62 @@ const FishingGame: React.FC = () => {
               rodLevel={player.equippedRod}
               assets={mainSceneAssets}
             />
-          ) : activeTab === 'tasks' ? (
-            <TasksScreen
-              coins={player.coins}
-              tasks={gameProgress.dailyTasks}
-              allTasksComplete={gameProgress.allTasksComplete}
-              availableWheelRolls={gameProgress.availableWheelRolls}
-              onClaimTask={handleClaimTask}
-              onOpenWheel={() => setActiveTab('wheel')}
-            />
-          ) : activeTab === 'shop' ? (
-            <ShopScreen
-              coins={player.coins}
-              bait={player.bait}
-              rodLevel={player.rodLevel}
-              nftRods={player.nftRods}
-              onBuyBait={handleBuyBait}
-              onBuyRod={handleBuyRod}
-            />
-          ) : activeTab === 'grill' ? (
-            <GrillScreen
-              inventory={player.inventory}
-              coins={player.coins}
-              grillScore={gameProgress.grillScore}
-              onCook={handleCookRecipe}
-            />
-          ) : activeTab === 'wheel' ? (
-            <WheelScreen
-              coins={player.coins}
-              availableRolls={gameProgress.availableWheelRolls}
-              dailyWheelRolls={gameProgress.dailyWheelRolls}
-              paidWheelRolls={gameProgress.paidWheelRolls}
-              allTasksComplete={gameProgress.allTasksComplete}
-              walletAddress={address}
-              onSpin={handleSpinWheel}
-              onBuySpin={gameProgress.addPaidWheelRolls}
-              onOpenTasks={() => setActiveTab('tasks')}
-            />
-          ) : activeTab === 'map' ? (
-            <MapScreen
-              coins={player.coins}
-              onBack={() => setActiveTab('fish')}
-            />
           ) : (
-            <LeaderboardScreen
-              coins={player.coins}
-              grillScore={gameProgress.grillScore}
-              entries={leaderboardEntries}
-              currentPlayerId={leaderboardPlayerId}
-              isConnected={isConnected}
-              walletAddress={address}
-              nickname={player.nickname}
-            />
+            <Suspense fallback={<ScreenLoadingFallback />}>
+              {activeTab === 'tasks' ? (
+                <TasksScreen
+                  coins={player.coins}
+                  tasks={gameProgress.dailyTasks}
+                  allTasksComplete={gameProgress.allTasksComplete}
+                  availableWheelRolls={gameProgress.availableWheelRolls}
+                  onClaimTask={handleClaimTask}
+                  onOpenWheel={() => setActiveTab('wheel')}
+                />
+              ) : activeTab === 'shop' ? (
+                <ShopScreen
+                  coins={player.coins}
+                  bait={player.bait}
+                  rodLevel={player.rodLevel}
+                  nftRods={player.nftRods}
+                  onBuyBait={handleBuyBait}
+                  onBuyRod={handleBuyRod}
+                />
+              ) : activeTab === 'grill' ? (
+                <GrillScreen
+                  inventory={player.inventory}
+                  coins={player.coins}
+                  grillScore={gameProgress.grillScore}
+                  onCook={handleCookRecipe}
+                />
+              ) : activeTab === 'wheel' ? (
+                <WheelScreen
+                  coins={player.coins}
+                  availableRolls={gameProgress.availableWheelRolls}
+                  dailyWheelRolls={gameProgress.dailyWheelRolls}
+                  paidWheelRolls={gameProgress.paidWheelRolls}
+                  allTasksComplete={gameProgress.allTasksComplete}
+                  walletAddress={address}
+                  onSpin={handleSpinWheel}
+                  onBuySpin={gameProgress.addPaidWheelRolls}
+                  onOpenTasks={() => setActiveTab('tasks')}
+                />
+              ) : activeTab === 'map' ? (
+                <MapScreen
+                  coins={player.coins}
+                  onBack={() => setActiveTab('fish')}
+                />
+              ) : (
+                <LeaderboardScreen
+                  coins={player.coins}
+                  grillScore={gameProgress.grillScore}
+                  entries={leaderboardEntries}
+                  currentPlayerId={leaderboardPlayerId}
+                  isConnected={isConnected}
+                  walletAddress={address}
+                  nickname={player.nickname}
+                />
+              )}
+            </Suspense>
           )}
 
           {isFishingScreen && (
