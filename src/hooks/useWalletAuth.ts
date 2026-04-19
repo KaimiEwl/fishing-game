@@ -5,6 +5,7 @@ import { type PlayerState, XP_PER_LEVEL } from '@/types/game';
 import {
   BAIT_BUCKETS_V2_ENABLED,
   DAILY_FREE_BAIT,
+  MAX_REWARDED_REFERRALS_PER_INVITER,
   REFERRAL_BAIT_ENABLED,
 } from '@/lib/baitEconomy';
 import {
@@ -33,6 +34,14 @@ interface PlayerRecord {
   nickname: string | null;
   avatar_url: string | null;
   referrer_wallet_address?: string | null;
+  rewarded_referral_count?: number;
+}
+
+export interface ReferralSummary {
+  rewardedReferralCount: number;
+  maxRewardedReferrals: number;
+  referrerWalletAddress: string | null;
+  referralLink: string | null;
 }
 
 const SESSION_KEY = 'monadfish_session';
@@ -76,6 +85,15 @@ function clearPendingReferrer() {
   localStorage.removeItem(REFERRAL_STORAGE_KEY);
 }
 
+function buildReferralLink(walletAddress: string | null | undefined): string | null {
+  const normalizedAddress = normalizeWalletAddress(walletAddress);
+  if (!normalizedAddress) return null;
+
+  const referralUrl = new URL(import.meta.env.BASE_URL || '/', window.location.origin);
+  referralUrl.searchParams.set('ref', normalizedAddress);
+  return referralUrl.toString();
+}
+
 function mapPlayerRecord(p: PlayerRecord): PlayerState {
   return {
     coins: p.coins,
@@ -106,8 +124,24 @@ export function useWalletAuth() {
   const [isVerified, setIsVerified] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [savedPlayer, setSavedPlayer] = useState<PlayerState | null>(null);
+  const [referralSummary, setReferralSummary] = useState<ReferralSummary | null>(null);
   const sessionTokenRef = useRef<string | null>(null);
   const restoredRef = useRef(false);
+
+  const syncReferralSummary = useCallback((playerRecord: PlayerRecord) => {
+    if (!REFERRAL_BAIT_ENABLED) {
+      setReferralSummary(null);
+      return;
+    }
+
+    const referralLink = buildReferralLink(playerRecord.wallet_address ?? address);
+    setReferralSummary({
+      rewardedReferralCount: playerRecord.rewarded_referral_count ?? 0,
+      maxRewardedReferrals: MAX_REWARDED_REFERRALS_PER_INVITER,
+      referrerWalletAddress: playerRecord.referrer_wallet_address ?? null,
+      referralLink,
+    });
+  }, [address]);
 
   const syncLocalPlayerFromServer = useCallback((playerRecord: PlayerRecord) => {
     const mappedPlayer = normalizePlayerDailyFreeBait(
@@ -160,12 +194,14 @@ export function useWalletAuth() {
       const nextToken = data.session_token || stored.token;
       sessionTokenRef.current = nextToken;
       storeSession(addr, nextToken);
-      setSavedPlayer(syncLocalPlayerFromServer(data.player as PlayerRecord));
+      const playerRecord = data.player as PlayerRecord;
+      setSavedPlayer(syncLocalPlayerFromServer(playerRecord));
+      syncReferralSummary(playerRecord);
       return true;
     } catch {
       return false;
     }
-  }, [syncLocalPlayerFromServer]);
+  }, [syncLocalPlayerFromServer, syncReferralSummary]);
 
   const verifyWallet = useCallback(async () => {
     if (!address || isVerifying) return;
@@ -196,6 +232,7 @@ export function useWalletAuth() {
         const playerRecord = data.player as PlayerRecord;
         const mappedPlayer = syncLocalPlayerFromServer(data.player as PlayerRecord);
         setSavedPlayer(mappedPlayer);
+        syncReferralSummary(playerRecord);
 
         if (
           pendingReferrer
@@ -210,7 +247,7 @@ export function useWalletAuth() {
     } finally {
       setIsVerifying(false);
     }
-  }, [address, isVerifying, signMessageAsync, disconnect, syncLocalPlayerFromServer]);
+  }, [address, isVerifying, signMessageAsync, disconnect, syncLocalPlayerFromServer, syncReferralSummary]);
 
   // Auto-restore or auto-verify when wallet connects
   useEffect(() => {
@@ -232,6 +269,7 @@ export function useWalletAuth() {
     if (!isConnected) {
       setIsVerified(false);
       setSavedPlayer(null);
+      setReferralSummary(null);
       sessionTokenRef.current = null;
       restoredRef.current = false;
       clearStoredSession();
@@ -246,6 +284,7 @@ export function useWalletAuth() {
     isVerified,
     isVerifying,
     savedPlayer,
+    referralSummary,
     disconnect,
   };
 }

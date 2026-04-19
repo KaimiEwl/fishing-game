@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { PlayerState, FISH_DATA } from '@/types/game';
+import type { ReferralSummary } from '@/hooks/useWalletAuth';
 import CoinIcon from './CoinIcon';
 import { Card } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -20,6 +21,7 @@ interface PlayerPanelProps {
   isConnected?: boolean;
   walletAddress?: string;
   onAvatarUploaded?: (url: string) => void;
+  referralSummary?: ReferralSummary | null;
 }
 
 const PlayerPanel: React.FC<PlayerPanelProps> = ({
@@ -28,6 +30,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({
   isConnected = false,
   walletAddress,
   onAvatarUploaded,
+  referralSummary,
 }) => {
   const xpPercentage = (player.xp / player.xpToNextLevel) * 100;
   const totalFishCount = player.inventory.reduce((sum, fish) => sum + fish.quantity, 0);
@@ -79,6 +82,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({
           walletAddress={walletAddress}
           avatarUrl={player.avatarUrl}
           onAvatarUploaded={onAvatarUploaded}
+          referralSummary={referralSummary}
         />
 
         <button

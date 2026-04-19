@@ -74,7 +74,7 @@ const ScreenLoadingFallback: React.FC = () => (
 );
 
 const FishingGame: React.FC = () => {
-  const { isConnected, isVerified, savedPlayer, address } = useWalletAuth();
+  const { isConnected, isVerified, savedPlayer, address, referralSummary } = useWalletAuth();
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<GameTab>('fish');
   const [assetsReady, setAssetsReady] = useState(false);
@@ -497,6 +497,7 @@ const FishingGame: React.FC = () => {
               isConnected={isConnected}
               walletAddress={address}
               onAvatarUploaded={setAvatarUrl}
+              referralSummary={referralSummary}
             />
           )}
 

@@ -11,13 +11,15 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Camera, Check, ChevronDown, LogOut, Settings, Volume2, VolumeX } from 'lucide-react';
+import { Camera, Check, ChevronDown, Copy, LogOut, Settings, Volume2, VolumeX } from 'lucide-react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useBalance } from 'wagmi';
 import { Link } from 'react-router-dom';
 import { isSoundMuted, setSoundMuted } from '@/hooks/useSoundEffects';
+import type { ReferralSummary } from '@/hooks/useWalletAuth';
 import { supabase } from '@/integrations/supabase/client';
 import type { TablesUpdate } from '@/integrations/supabase/types';
+import { REFERRAL_BAIT_ENABLED } from '@/lib/baitEconomy';
 import { cn } from '@/lib/utils';
 
 interface SettingsDialogProps {
@@ -27,6 +29,7 @@ interface SettingsDialogProps {
   walletAddress?: string;
   avatarUrl?: string | null;
   onAvatarUploaded?: (url: string) => void;
+  referralSummary?: ReferralSummary | null;
 }
 
 const NICKNAME_REGEX = /^[\p{L}0-9_-]{2,20}$/u;
@@ -38,6 +41,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
   walletAddress,
   avatarUrl,
   onAvatarUploaded,
+  referralSummary,
 }) => {
   const [open, setOpen] = useState(false);
   const [nickInput, setNickInput] = useState(nickname);
@@ -46,9 +50,12 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
   const [muted, setMuted] = useState(isSoundMuted());
   const [uploading, setUploading] = useState(false);
   const [nicknameOpen, setNicknameOpen] = useState(false);
+  const [copiedReferral, setCopiedReferral] = useState(false);
+  const [copyError, setCopyError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingWalletModalRef = useRef<(() => void) | null>(null);
   const walletModalTimerRef = useRef<number | null>(null);
+  const referralCopyTimerRef = useRef<number | null>(null);
 
   const nicknameAlreadySet = !!nickname && nickname.length > 0;
   const avatarFallback = nickname
@@ -65,6 +72,40 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
     address: walletAddress as `0x${string}` | undefined,
     query: { enabled: !!walletAddress },
   });
+
+  const handleCopyReferralLink = async () => {
+    const referralLink = referralSummary?.referralLink;
+    if (!referralLink) return;
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(referralLink);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = referralLink;
+        textarea.setAttribute('readonly', 'true');
+        textarea.style.position = 'absolute';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+
+      setCopyError('');
+      setCopiedReferral(true);
+      if (referralCopyTimerRef.current !== null) {
+        window.clearTimeout(referralCopyTimerRef.current);
+      }
+      referralCopyTimerRef.current = window.setTimeout(() => {
+        setCopiedReferral(false);
+        referralCopyTimerRef.current = null;
+      }, 1800);
+    } catch (error) {
+      console.error('Referral link copy failed:', error);
+      setCopyError('Copy failed. Please copy the link manually.');
+    }
+  };
 
   const handleSaveNick = () => {
     if (nicknameAlreadySet) return;
@@ -103,6 +144,13 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
       }
     };
   }, [open]);
+
+  useEffect(() => () => {
+    if (referralCopyTimerRef.current !== null) {
+      window.clearTimeout(referralCopyTimerRef.current);
+      referralCopyTimerRef.current = null;
+    }
+  }, []);
 
   const handleWalletModalOpen = (openModal?: (() => void) | null) => {
     if (!openModal) return;
@@ -222,6 +270,73 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
               </ConnectButton.Custom>
             )}
           </div>
+
+          {REFERRAL_BAIT_ENABLED && (
+            <div className="space-y-2">
+              <p className="text-base font-bold text-zinc-100 sm:text-sm sm:font-medium">Referral</p>
+              <div className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-3">
+                {isConnected ? (
+                  <>
+                    <p className="text-sm font-semibold text-zinc-100">
+                      Invite friends and earn +10 bait per successful wallet connect.
+                    </p>
+                    <div className="mt-3 flex items-center justify-between rounded-lg border border-cyan-300/12 bg-black/70 px-3 py-2">
+                      <div>
+                        <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-cyan-100/75">Rewarded referrals</p>
+                        <p className="mt-1 text-lg font-black text-zinc-100">
+                          {referralSummary?.rewardedReferralCount ?? 0}
+                          <span className="ml-1 text-sm font-bold text-zinc-400">/ {referralSummary?.maxRewardedReferrals ?? 10}</span>
+                        </p>
+                      </div>
+                      <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-cyan-100">
+                        +10 bait
+                      </span>
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                      <Input
+                        value={referralSummary?.referralLink ?? 'Preparing referral link...'}
+                        readOnly
+                        className="h-11 flex-1 border-zinc-800 bg-black text-zinc-100 placeholder:text-zinc-500"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => void handleCopyReferralLink()}
+                        disabled={!referralSummary?.referralLink}
+                        className="h-11 gap-2 border-zinc-800 bg-black px-4 text-zinc-100 hover:bg-zinc-900 disabled:text-zinc-500"
+                      >
+                        {copiedReferral ? (
+                          <>
+                            <Check className="h-4 w-4" />
+                            Copied
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-4 w-4" />
+                            Copy link
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    {copyError ? (
+                      <p className="mt-2 text-xs font-medium text-red-300">{copyError}</p>
+                    ) : (
+                      <p className="mt-2 text-xs font-medium text-zinc-400">
+                        Share this link. Rewards stop after 10 successful referrals.
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-semibold text-zinc-100">Connect wallet to unlock referrals.</p>
+                    <p className="mt-1 text-xs font-medium text-zinc-400">
+                      Invite friends and earn +10 bait per successful wallet connect.
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
           {isConnected && (
             <div className="space-y-2">
