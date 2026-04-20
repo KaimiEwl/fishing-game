@@ -47,6 +47,8 @@ export interface GameResult {
 export type GameTab = 'fish' | 'tasks' | 'shop' | 'grill' | 'wheel' | 'leaderboard' | 'map';
 
 export type DailyTaskId = 'catch_10' | 'rare_1' | 'grill_1';
+export type SpecialTaskId = 'earn_1000';
+export type TaskId = DailyTaskId | SpecialTaskId;
 
 export interface DailyTask {
   id: DailyTaskId;
@@ -54,9 +56,24 @@ export interface DailyTask {
   description: string;
   target: number;
   rewardCoins: number;
+  rewardBait?: never;
+}
+
+export interface SpecialTask {
+  id: SpecialTaskId;
+  title: string;
+  description: string;
+  target: number;
+  rewardCoins?: number;
+  rewardBait?: number;
 }
 
 export interface DailyTaskProgress extends DailyTask {
+  progress: number;
+  claimed: boolean;
+}
+
+export interface SpecialTaskProgress extends SpecialTask {
   progress: number;
   claimed: boolean;
 }
@@ -212,6 +229,16 @@ export const DAILY_TASKS: DailyTask[] = [
     description: 'Make any grilled dish today.',
     target: 1,
     rewardCoins: 750,
+  },
+];
+
+export const SPECIAL_TASKS: SpecialTask[] = [
+  {
+    id: 'earn_1000',
+    title: 'Earn 1000 gold',
+    description: 'Collect 1000 gold from gameplay rewards.',
+    target: 1000,
+    rewardBait: 10,
   },
 ];
 

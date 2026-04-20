@@ -482,7 +482,7 @@ export function useGameState(options?: UseGameStateOptions) {
     const fish = FISH_DATA.find(f => f.id === fishId);
     const inventoryItem = player.inventory.find(f => f.fishId === fishId);
     
-    if (!fish || !inventoryItem || inventoryItem.quantity <= 0) return;
+    if (!fish || !inventoryItem || inventoryItem.quantity <= 0) return 0;
 
     const nftB = getNftBonus(player.equippedRod, player.nftRods);
     const sellPrice = Math.floor(fish.price * (1 + nftB.sellBonus / 100));
@@ -511,6 +511,7 @@ export function useGameState(options?: UseGameStateOptions) {
 
       return nextPlayer;
     });
+    return sellPrice;
   }, [player.inventory, player.equippedRod, player.nftRods, getNftBonus, queueAuditEvent]);
 
   const consumeFish = useCallback((ingredients: Record<string, number>) => {
@@ -611,6 +612,16 @@ export function useGameState(options?: UseGameStateOptions) {
     }));
   }, []);
 
+  const addBait = useCallback((amount: number) => {
+    if (amount <= 0) return;
+
+    setPlayer(prev => ({
+      ...prev,
+      bait: prev.bait + amount,
+      bonusBaitGrantedTotal: prev.bonusBaitGrantedTotal + amount,
+    }));
+  }, []);
+
   const dismissLevelUp = useCallback(() => {
     setLevelUpInfo(null);
   }, []);
@@ -650,6 +661,7 @@ export function useGameState(options?: UseGameStateOptions) {
     buyRod,
     equipRod,
     addCoins,
+    addBait,
     grantFishReward,
     claimDailyBonus,
     dismissLevelUp,

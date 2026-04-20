@@ -3,7 +3,6 @@ import MonadFishCanvas from './MonadFishCanvas';
 import PlayerPanel from './PlayerPanel';
 import GameControls from './GameControls';
 import InventoryDialog from './InventoryDialog';
-import BuyCoinsDialog from './BuyCoinsDialog';
 import BoostDialog from './BoostDialog';
 import BottomNav from './BottomNav';
 import LeaderboardNameDialog from './LeaderboardNameDialog';
@@ -43,7 +42,7 @@ import {
   saveGlobalLeaderboardEntry,
   upsertLeaderboardEntry,
 } from '@/lib/leaderboard';
-import { DAILY_TASKS, NFT_ROD_DATA, type DailyTaskId, type GameTab, type GrillLeaderboardEntry, type GrillRecipe, type WheelPrize } from '@/types/game';
+import { DAILY_TASKS, NFT_ROD_DATA, SPECIAL_TASKS, type GameTab, type GrillLeaderboardEntry, type GrillRecipe, type TaskId, type WheelPrize } from '@/types/game';
 
 const TRAVEL_ICON_SRC = travelIconSrc;
 const TasksScreen = lazy(() => import('./TasksScreen'));
@@ -118,6 +117,7 @@ const FishingGame: React.FC = () => {
     buyRod,
     equipRod,
     addCoins,
+    addBait,
     grantFishReward,
     dismissLevelUp,
     mintNftRod,
@@ -345,15 +345,21 @@ const FishingGame: React.FC = () => {
   };
 
   const handleSellFish = (fishId: string) => {
-    sellFish(fishId);
+    const sellPrice = sellFish(fishId);
+    if (sellPrice > 0) {
+      gameProgress.recordCoinsEarned(sellPrice);
+    }
     sounds.playSellSound();
   };
 
-  const handleClaimTask = (taskId: DailyTaskId) => {
-    const task = DAILY_TASKS.find((item) => item.id === taskId);
+  const handleClaimTask = (taskId: TaskId) => {
+    const task = DAILY_TASKS.find((item) => item.id === taskId) ?? SPECIAL_TASKS.find((item) => item.id === taskId);
     const beforeState = toPlayerAuditSnapshot(player);
 
-    if (gameProgress.claimTask(taskId, addCoins)) {
+    if (gameProgress.claimTask(taskId, ({ coins = 0, bait = 0 }) => {
+      if (coins > 0) addCoins(coins);
+      if (bait > 0) addBait(bait);
+    })) {
       if (task && address && isVerified) {
         void logPlayerAuditEvent({
           walletAddress: address,
@@ -361,11 +367,13 @@ const FishingGame: React.FC = () => {
           beforeState,
           afterState: {
             ...beforeState,
-            coins: beforeState.coins + task.rewardCoins,
+            coins: beforeState.coins + (task.rewardCoins ?? 0),
+            bait: beforeState.bait + (task.rewardBait ?? 0),
           },
           metadata: {
             taskId,
-            rewardCoins: task.rewardCoins,
+            rewardCoins: task.rewardCoins ?? 0,
+            rewardBait: task.rewardBait ?? 0,
           },
         });
       }
@@ -398,6 +406,7 @@ const FishingGame: React.FC = () => {
           metadata.quantity = prize.quantity ?? 1;
         } else {
           metadata.coins = prize.coins ?? 0;
+          gameProgress.recordCoinsEarned(prize.coins ?? 0);
           afterState = {
             ...beforeState,
             coins: beforeState.coins + (prize.coins ?? 0),
@@ -482,7 +491,8 @@ const FishingGame: React.FC = () => {
               {activeTab === 'tasks' ? (
                 <TasksScreen
                   coins={player.coins}
-                  tasks={gameProgress.dailyTasks}
+                  dailyTasks={gameProgress.dailyTasks}
+                  specialTasks={gameProgress.specialTasks}
                   allTasksComplete={gameProgress.allTasksComplete}
                   availableWheelRolls={gameProgress.availableWheelRolls}
                   onClaimTask={handleClaimTask}
@@ -493,10 +503,13 @@ const FishingGame: React.FC = () => {
                   coins={player.coins}
                   bait={totalBait}
                   dailyFreeBait={player.dailyFreeBait}
+                  walletAddress={address}
                   rodLevel={player.rodLevel}
                   nftRods={player.nftRods}
                   onBuyBait={handleBuyBait}
                   onBuyRod={handleBuyRod}
+                  onCoinsAdded={addCoins}
+                  onNftMinted={mintNftRod}
                 />
               ) : activeTab === 'grill' ? (
                 <GrillScreen
@@ -538,21 +551,6 @@ const FishingGame: React.FC = () => {
 
           {isFishingScreen && (
             <div className="absolute right-[2.5%] top-[12.5%] z-20 flex flex-col items-center gap-3 sm:right-[2.25%] sm:top-[13.5%]">
-              <button
-                type="button"
-                onClick={() => setActiveTab('map')}
-                className="group relative w-24 overflow-visible bg-transparent outline-none transition-all duration-200 hover:scale-105 focus-visible:scale-105 active:scale-95 sm:w-32 lg:w-36"
-                aria-label="Open travel map"
-              >
-                <img
-                  src={TRAVEL_ICON_SRC}
-                  alt=""
-                  className="block w-full object-contain drop-shadow-[0_16px_30px_rgba(0,0,0,0.42)] transition-transform duration-300 group-hover:scale-[1.03]"
-                />
-                <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 rounded-lg border border-yellow-200/75 bg-yellow-300 px-2 py-0.5 text-[9px] font-black uppercase tracking-normal text-black shadow-lg sm:bottom-2 sm:text-[10px]">
-                  Travel
-                </span>
-              </button>
               <BoostDialog walletAddress={address} />
               <InventoryDialog
                 inventory={player.inventory}
@@ -595,7 +593,7 @@ const FishingGame: React.FC = () => {
             />
           )}
 
-          {isFishingScreen && isConnected && (
+          {isFishingScreen && (
             <div
               className="absolute left-3 z-20 flex max-w-[calc(100vw-1.5rem)] flex-col items-start gap-2 sm:left-5 sm:flex-row"
               style={{
@@ -604,13 +602,21 @@ const FishingGame: React.FC = () => {
                   : 'calc(var(--bottom-nav-clearance,0px) + 1.1rem)',
               }}
             >
-              <BuyCoinsDialog
-                walletAddress={address}
-                onCoinsAdded={addCoins}
-                rodLevel={player.rodLevel}
-                nftRods={player.nftRods}
-                onNftMinted={mintNftRod}
-              />
+              <button
+                type="button"
+                onClick={() => setActiveTab('map')}
+                className="group relative w-24 overflow-visible bg-transparent outline-none transition-all duration-200 hover:scale-105 focus-visible:scale-105 active:scale-95 sm:w-28"
+                aria-label="Open travel map"
+              >
+                <img
+                  src={TRAVEL_ICON_SRC}
+                  alt=""
+                  className="block w-full object-contain drop-shadow-[0_16px_30px_rgba(0,0,0,0.42)] transition-transform duration-300 group-hover:scale-[1.03]"
+                />
+                <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 rounded-lg border border-yellow-200/75 bg-yellow-300 px-2 py-0.5 text-[9px] font-black uppercase tracking-normal text-black shadow-lg sm:bottom-2 sm:text-[10px]">
+                  Travel
+                </span>
+              </button>
             </div>
           )}
 

@@ -8,16 +8,20 @@ import { BAIT_PACKAGES } from '@/lib/baitEconomy';
 import { publicAsset } from '@/lib/assets';
 import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
 import CoinIcon from './CoinIcon';
+import BuyCoinsDialog from './BuyCoinsDialog';
 import GameScreenShell from './GameScreenShell';
 
 interface ShopScreenProps {
   coins: number;
   bait: number;
   dailyFreeBait?: number;
+  walletAddress?: string;
   rodLevel: number;
   nftRods?: number[];
   onBuyBait: (amount: number, cost: number) => void;
   onBuyRod: (level: number, cost: number) => void;
+  onCoinsAdded: (amount: number) => void;
+  onNftMinted: (rodLevel: number) => void;
 }
 
 const ROD_UPGRADES = [
@@ -31,10 +35,13 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
   coins,
   bait,
   dailyFreeBait = 0,
+  walletAddress,
   rodLevel,
   nftRods = [],
   onBuyBait,
   onBuyRod,
+  onCoinsAdded,
+  onNftMinted,
 }) => {
   return (
     <GameScreenShell
@@ -50,6 +57,17 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
         </TabsList>
 
         <TabsContent value="bait" className="mt-4 min-h-0 flex-1 overflow-y-auto">
+          {walletAddress && (
+            <div className="mb-3 flex justify-start">
+              <BuyCoinsDialog
+                walletAddress={walletAddress}
+                onCoinsAdded={onCoinsAdded}
+                rodLevel={rodLevel}
+                nftRods={nftRods}
+                onNftMinted={onNftMinted}
+              />
+            </div>
+          )}
           <div className="mb-3 rounded-lg border border-cyan-300/20 bg-black/80 p-3 text-sm font-semibold text-cyan-50/85 shadow-lg shadow-black/25">
             Current bait supply: <span className="font-bold text-cyan-100">{bait}</span>
             {dailyFreeBait > 0 && (
