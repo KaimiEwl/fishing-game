@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { PlayerState, FISH_DATA } from '@/types/game';
 import type { ReferralSummary } from '@/hooks/useWalletAuth';
+import type { PlayerInboxMessage } from '@/hooks/usePlayerMessages';
 import CoinIcon from './CoinIcon';
 import { Card } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -22,6 +23,10 @@ interface PlayerPanelProps {
   walletAddress?: string;
   onAvatarUploaded?: (url: string) => void;
   referralSummary?: ReferralSummary | null;
+  inboxMessages?: PlayerInboxMessage[];
+  unreadMessageCount?: number;
+  inboxLoading?: boolean;
+  onMarkMessageRead?: (messageId: string) => void;
 }
 
 const PlayerPanel: React.FC<PlayerPanelProps> = ({
@@ -31,6 +36,10 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({
   walletAddress,
   onAvatarUploaded,
   referralSummary,
+  inboxMessages = [],
+  unreadMessageCount = 0,
+  inboxLoading = false,
+  onMarkMessageRead,
 }) => {
   const xpPercentage = (player.xp / player.xpToNextLevel) * 100;
   const totalFishCount = player.inventory.reduce((sum, fish) => sum + fish.quantity, 0);
@@ -83,6 +92,10 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({
           avatarUrl={player.avatarUrl}
           onAvatarUploaded={onAvatarUploaded}
           referralSummary={referralSummary}
+          inboxMessages={inboxMessages}
+          unreadMessageCount={unreadMessageCount}
+          inboxLoading={inboxLoading}
+          onMarkMessageRead={onMarkMessageRead}
         />
 
         <button

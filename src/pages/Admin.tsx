@@ -1,8 +1,29 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAccount } from 'wagmi';
 import { useNavigate } from 'react-router-dom';
-import { Users, Coins, TrendingUp, Activity, Search, Pencil, Trash2, Shield, ArrowLeft } from 'lucide-react';
-import { useAdmin, type AdminPlayer, type AdminStats } from '@/hooks/useAdmin';
+import {
+  Activity,
+  ArrowLeft,
+  Eye,
+  MessageSquare,
+  Pencil,
+  Search,
+  Shield,
+  Trash2,
+  TrendingUp,
+  Users,
+  Coins,
+} from 'lucide-react';
+import {
+  useAdmin,
+  type AdminPlayer,
+  type AdminPlayerDetails,
+  type AdminPlayerActivityEntry,
+  type AdminPlayerMessage,
+  type AdminStats,
+} from '@/hooks/useAdmin';
+import AdminPlayerDetailSheet from '@/components/AdminPlayerDetailSheet';
+import AdminPlayerMessageCenter from '@/components/AdminPlayerMessageCenter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -16,23 +37,40 @@ import AdminSortableHead from '@/components/AdminSortableHead';
 import AdminStatCard from '@/components/AdminStatCard';
 import AdminTopList from '@/components/AdminTopList';
 import { getErrorMessage } from '@/lib/errorUtils';
+import { cn } from '@/lib/utils';
 
 const ROD_NAMES = ['Starter', 'Bamboo', 'Carbon', 'Pro', 'Legendary'];
 
+type AdminTab = 'overview' | 'players' | 'messages';
+
 type EditablePlayerForm = Pick<
   AdminPlayer,
-  'coins' | 'bait' | 'level' | 'xp' | 'rod_level' | 'equipped_rod' | 'login_streak'
+  'coins' | 'bait' | 'daily_free_bait' | 'level' | 'xp' | 'rod_level' | 'equipped_rod' | 'login_streak'
 > & {
   nickname: string;
 };
 
+const formatWallet = (value: string) => `${value.slice(0, 6)}...${value.slice(-4)}`;
+
 export default function Admin() {
   const { address } = useAccount();
-  const { isAdmin, loading, checkAdmin, listPlayers, updatePlayer, deletePlayer, getStats } =
-    useAdmin(address);
+  const {
+    isAdmin,
+    loading,
+    checkAdmin,
+    listPlayers,
+    getPlayerDetails,
+    listPlayerActivity,
+    listPlayerMessages,
+    sendPlayerMessage,
+    updatePlayer,
+    deletePlayer,
+    getStats,
+  } = useAdmin(address);
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [players, setPlayers] = useState<AdminPlayer[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -40,12 +78,20 @@ export default function Admin() {
   const [sortBy, setSortBy] = useState('created_at');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [selectedPlayer, setSelectedPlayer] = useState<AdminPlayer | null>(null);
+  const [selectedPlayerDetails, setSelectedPlayerDetails] = useState<AdminPlayerDetails | null>(null);
+  const [selectedPlayerActivity, setSelectedPlayerActivity] = useState<AdminPlayerActivityEntry[]>([]);
+  const [selectedPlayerMessages, setSelectedPlayerMessages] = useState<AdminPlayerMessage[]>([]);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [messageSending, setMessageSending] = useState(false);
   const [editPlayer, setEditPlayer] = useState<AdminPlayer | null>(null);
   const [editForm, setEditForm] = useState<EditablePlayerForm | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    checkAdmin();
+    void checkAdmin();
   }, [checkAdmin]);
 
   const fetchPlayers = useCallback(async () => {
@@ -73,12 +119,44 @@ export default function Admin() {
     }
   }, [getStats, toast]);
 
+  const loadSelectedPlayerContext = useCallback(async (player: AdminPlayer, openDetails = false) => {
+    setSelectedPlayer(player);
+    setSelectedPlayerDetails(null);
+    setSelectedPlayerActivity([]);
+    setSelectedPlayerMessages([]);
+    setDetailsLoading(true);
+    setMessagesLoading(true);
+
+    try {
+      const [details, activity, messages] = await Promise.all([
+        getPlayerDetails(player.id),
+        listPlayerActivity(player.id, 50),
+        listPlayerMessages(player.id, 50),
+      ]);
+
+      setSelectedPlayerDetails(details);
+      setSelectedPlayerActivity(activity);
+      setSelectedPlayerMessages(messages);
+
+      if (openDetails) {
+        setDetailOpen(true);
+      }
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
+    } finally {
+      setDetailsLoading(false);
+      setMessagesLoading(false);
+    }
+  }, [getPlayerDetails, listPlayerActivity, listPlayerMessages, toast]);
+
   useEffect(() => {
     if (isAdmin) {
-      fetchPlayers();
-      fetchStats();
+      void fetchPlayers();
+      void fetchStats();
     }
   }, [fetchPlayers, fetchStats, isAdmin]);
+
+  const totalPages = Math.ceil(total / 20);
 
   const handleSort = (column: string) => {
     if (sortBy === column) {
@@ -95,6 +173,7 @@ export default function Admin() {
     setEditForm({
       coins: player.coins,
       bait: player.bait,
+      daily_free_bait: player.daily_free_bait,
       level: player.level,
       xp: player.xp,
       rod_level: player.rod_level,
@@ -109,19 +188,29 @@ export default function Admin() {
     setEditForm(null);
   };
 
+  const syncUpdatedPlayer = useCallback((updatedPlayer: AdminPlayer) => {
+    setPlayers((current) => current.map((player) => player.id === updatedPlayer.id ? updatedPlayer : player));
+    setSelectedPlayer((current) => current?.id === updatedPlayer.id ? updatedPlayer : current);
+  }, []);
+
   const handleSave = async () => {
     if (!editPlayer || !editForm) return;
 
     setSaving(true);
     try {
-      await updatePlayer(editPlayer.id, {
+      const updatedPlayer = await updatePlayer(editPlayer.id, {
         ...editForm,
         xp_to_next: editForm.level * 100,
         nickname: editForm.nickname || null,
       });
+      syncUpdatedPlayer(updatedPlayer);
       toast({ title: 'Saved' });
       resetEditState();
-      fetchPlayers();
+      await fetchPlayers();
+      await fetchStats();
+      if (selectedPlayer?.id === updatedPlayer.id) {
+        await loadSelectedPlayerContext(updatedPlayer, false);
+      }
     } catch (error: unknown) {
       toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
@@ -129,18 +218,67 @@ export default function Admin() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleQuickGrant = useCallback(async (
+    player: AdminPlayer,
+    field: 'coins' | 'bait' | 'daily_free_bait',
+    amount: number,
+  ) => {
+    try {
+      const currentValue = player[field] ?? 0;
+      const updatedPlayer = await updatePlayer(player.id, {
+        [field]: Number(currentValue) + amount,
+      });
+      syncUpdatedPlayer(updatedPlayer);
+      await fetchStats();
+      await loadSelectedPlayerContext(updatedPlayer, false);
+      toast({ title: 'Grant applied', description: `${amount} ${field.replaceAll('_', ' ')} granted.` });
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
+    }
+  }, [fetchStats, loadSelectedPlayerContext, syncUpdatedPlayer, toast, updatePlayer]);
+
+  const handleDelete = async (player: AdminPlayer) => {
     if (!confirm('Delete player?')) return;
 
     try {
-      await deletePlayer(id);
+      await deletePlayer(player.id);
+      setPlayers((current) => current.filter((entry) => entry.id !== player.id));
+      if (selectedPlayer?.id === player.id) {
+        setSelectedPlayer(null);
+        setSelectedPlayerDetails(null);
+        setSelectedPlayerActivity([]);
+        setSelectedPlayerMessages([]);
+        setDetailOpen(false);
+      }
       toast({ title: 'Deleted' });
-      fetchPlayers();
-      fetchStats();
+      await fetchPlayers();
+      await fetchStats();
     } catch (error: unknown) {
       toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
+
+  const handleSendMessage = async (title: string, body: string) => {
+    if (!selectedPlayer) return;
+
+    setMessageSending(true);
+    try {
+      await sendPlayerMessage(selectedPlayer.id, title, body);
+      const nextMessages = await listPlayerMessages(selectedPlayer.id, 50);
+      setSelectedPlayerMessages(nextMessages);
+      toast({ title: 'Message sent', description: 'The player will see it in Inbox.' });
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
+    } finally {
+      setMessageSending(false);
+    }
+  };
+
+  const messageListTitle = useMemo(() => (
+    selectedPlayer
+      ? `${selectedPlayer.nickname || formatWallet(selectedPlayer.wallet_address)}`
+      : 'No player selected'
+  ), [selectedPlayer]);
 
   if (loading) {
     return (
@@ -163,8 +301,6 @@ export default function Admin() {
     );
   }
 
-  const totalPages = Math.ceil(total / 20);
-
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="mx-auto max-w-7xl space-y-6">
@@ -178,13 +314,14 @@ export default function Admin() {
           </Button>
         </div>
 
-        <Tabs defaultValue="stats">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="stats">Stats</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as AdminTab)}>
+          <TabsList className="grid w-full max-w-xl grid-cols-3">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="players">Players</TabsTrigger>
+            <TabsTrigger value="messages">Messages</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="stats" className="space-y-6">
+          <TabsContent value="overview" className="space-y-6">
             {stats && (
               <>
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
@@ -209,7 +346,7 @@ export default function Admin() {
                             <div className="h-5 flex-1 overflow-hidden rounded-full bg-muted">
                               <div
                                 className="h-full rounded-full bg-primary transition-all"
-                                style={{ width: `${((count as number) / stats.totalPlayers) * 100}%` }}
+                                style={{ width: `${stats.totalPlayers > 0 ? ((count as number) / stats.totalPlayers) * 100 : 0}%` }}
                               />
                             </div>
                             <span className="w-10 text-right text-sm font-medium">{count as number}</span>
@@ -233,7 +370,7 @@ export default function Admin() {
                             <div className="h-5 flex-1 overflow-hidden rounded-full bg-muted">
                               <div
                                 className="h-full rounded-full bg-accent-foreground transition-all"
-                                style={{ width: `${((count as number) / stats.totalPlayers) * 100}%` }}
+                                style={{ width: `${stats.totalPlayers > 0 ? ((count as number) / stats.totalPlayers) * 100 : 0}%` }}
                               />
                             </div>
                             <span className="w-10 text-right text-sm font-medium">{count as number}</span>
@@ -258,7 +395,7 @@ export default function Admin() {
               <div className="relative max-w-sm flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search wallet address..."
+                  placeholder="Search wallet or nickname..."
                   value={search}
                   onChange={(event) => {
                     setSearch(event.target.value);
@@ -267,7 +404,7 @@ export default function Admin() {
                   className="pl-9"
                 />
               </div>
-              <Button variant="outline" onClick={fetchPlayers}>
+              <Button variant="outline" onClick={() => void fetchPlayers()}>
                 Refresh
               </Button>
             </div>
@@ -285,12 +422,12 @@ export default function Admin() {
                       <AdminSortableHead label="Catches" column="total_catches" current={sortBy} direction={sortDir} onSort={handleSort} />
                       <TableHead>Rod</TableHead>
                       <AdminSortableHead label="Created" column="created_at" current={sortBy} direction={sortDir} onSort={handleSort} />
-                      <TableHead className="w-20">Actions</TableHead>
+                      <TableHead className="w-40">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {players.map((player) => (
-                      <TableRow key={player.id}>
+                      <TableRow key={player.id} className={cn(selectedPlayer?.id === player.id && 'bg-primary/5')}>
                         <TableCell className="text-sm font-medium">
                           {player.nickname || <span className="italic text-muted-foreground">-</span>}
                         </TableCell>
@@ -299,7 +436,7 @@ export default function Admin() {
                         </TableCell>
                         <TableCell>{player.level}</TableCell>
                         <TableCell>{player.coins.toLocaleString()}</TableCell>
-                        <TableCell>{player.bait}</TableCell>
+                        <TableCell>{(player.bait + player.daily_free_bait).toLocaleString()}</TableCell>
                         <TableCell>{player.total_catches}</TableCell>
                         <TableCell>{ROD_NAMES[player.rod_level] || player.rod_level}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">
@@ -307,10 +444,23 @@ export default function Admin() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
+                            <Button size="icon" variant="ghost" onClick={() => void loadSelectedPlayerContext(player, true)}>
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => {
+                                setActiveTab('messages');
+                                void loadSelectedPlayerContext(player, false);
+                              }}
+                            >
+                              <MessageSquare className="h-4 w-4" />
+                            </Button>
                             <Button size="icon" variant="ghost" onClick={() => openEdit(player)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            <Button size="icon" variant="ghost" onClick={() => handleDelete(player.id)}>
+                            <Button size="icon" variant="ghost" onClick={() => void handleDelete(player)}>
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           </div>
@@ -353,7 +503,77 @@ export default function Admin() {
               </div>
             )}
           </TabsContent>
+
+          <TabsContent value="messages" className="space-y-4">
+            <div className="grid gap-4 lg:grid-cols-[18rem,1fr]">
+              <Card className="border-zinc-800 bg-zinc-950">
+                <CardHeader>
+                  <CardTitle className="text-base text-zinc-100">Select player</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+                    <Input
+                      placeholder="Search wallet or nickname..."
+                      value={search}
+                      onChange={(event) => {
+                        setSearch(event.target.value);
+                        setPage(1);
+                      }}
+                      className="border-zinc-800 bg-black pl-9 text-zinc-100"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    {players.map((player) => (
+                      <button
+                        key={player.id}
+                        type="button"
+                        onClick={() => void loadSelectedPlayerContext(player, false)}
+                        className={cn(
+                          'w-full rounded-lg border px-3 py-3 text-left transition-colors',
+                          selectedPlayer?.id === player.id
+                            ? 'border-cyan-300/25 bg-cyan-300/10 text-zinc-100'
+                            : 'border-zinc-800 bg-black text-zinc-200 hover:border-zinc-700 hover:bg-zinc-900',
+                        )}
+                      >
+                        <p className="truncate text-sm font-semibold">{player.nickname || formatWallet(player.wallet_address)}</p>
+                        <p className="mt-1 font-mono text-[11px] text-zinc-400">{player.wallet_address}</p>
+                      </button>
+                    ))}
+                    {players.length === 0 && (
+                      <p className="text-sm text-zinc-400">No players found for the current search.</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="space-y-3">
+                <div className="rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3">
+                  <p className="text-sm font-semibold text-zinc-100">{messageListTitle}</p>
+                  <p className="mt-1 text-xs text-zinc-400">
+                    Send a personal in-game inbox message. Messages are visible in Settings - Inbox.
+                  </p>
+                </div>
+                <AdminPlayerMessageCenter
+                  player={selectedPlayer}
+                  messages={selectedPlayerMessages}
+                  loading={messagesLoading}
+                  sending={messageSending}
+                  onSend={handleSendMessage}
+                />
+              </div>
+            </div>
+          </TabsContent>
         </Tabs>
+
+        <AdminPlayerDetailSheet
+          open={detailOpen}
+          onOpenChange={setDetailOpen}
+          details={selectedPlayerDetails}
+          activity={selectedPlayerActivity}
+          loading={detailsLoading}
+          onQuickGrant={handleQuickGrant}
+        />
 
         <Dialog open={!!editPlayer} onOpenChange={resetEditState}>
           <DialogContent>
@@ -380,7 +600,8 @@ export default function Admin() {
                   <AdminEditField label="Level" value={editForm.level} onChange={(value) => setEditForm((current) => (current ? { ...current, level: Number(value) } : current))} />
                   <AdminEditField label="XP" value={editForm.xp} onChange={(value) => setEditForm((current) => (current ? { ...current, xp: Number(value) } : current))} />
                   <AdminEditField label="Coins" value={editForm.coins} onChange={(value) => setEditForm((current) => (current ? { ...current, coins: Number(value) } : current))} />
-                  <AdminEditField label="Bait" value={editForm.bait} onChange={(value) => setEditForm((current) => (current ? { ...current, bait: Number(value) } : current))} />
+                  <AdminEditField label="Reserve bait" value={editForm.bait} onChange={(value) => setEditForm((current) => (current ? { ...current, bait: Number(value) } : current))} />
+                  <AdminEditField label="Daily bait" value={editForm.daily_free_bait} onChange={(value) => setEditForm((current) => (current ? { ...current, daily_free_bait: Number(value) } : current))} />
                   <AdminEditField label="Max rod" value={editForm.rod_level} onChange={(value) => setEditForm((current) => (current ? { ...current, rod_level: Number(value) } : current))} />
                   <AdminEditField label="Equipped rod" value={editForm.equipped_rod} onChange={(value) => setEditForm((current) => (current ? { ...current, equipped_rod: Number(value) } : current))} />
                   <AdminEditField label="Login streak" value={editForm.login_streak} onChange={(value) => setEditForm((current) => (current ? { ...current, login_streak: Number(value) } : current))} />
@@ -391,7 +612,7 @@ export default function Admin() {
               <Button variant="outline" onClick={resetEditState}>
                 Cancel
               </Button>
-              <Button onClick={handleSave} disabled={saving}>
+              <Button onClick={() => void handleSave()} disabled={saving}>
                 {saving ? 'Saving...' : 'Save'}
               </Button>
             </DialogFooter>

@@ -11,6 +11,7 @@ import GameLoadingScreen from './GameLoadingScreen';
 import { useGameState } from '@/hooks/useGameState';
 import { useGameProgress } from '@/hooks/useGameProgress';
 import { useWalletAuth } from '@/hooks/useWalletAuth';
+import { usePlayerMessages } from '@/hooks/usePlayerMessages';
 import { useBackgroundMusic } from '@/hooks/useBackgroundMusic';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -79,6 +80,12 @@ const ScreenLoadingFallback: React.FC = () => (
 
 const FishingGame: React.FC = () => {
   const { isConnected, isVerified, savedPlayer, address, referralSummary } = useWalletAuth();
+  const {
+    messages: inboxMessages,
+    unreadCount: unreadMessageCount,
+    loading: inboxLoading,
+    markMessageRead,
+  } = usePlayerMessages(address, isConnected && isVerified);
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<GameTab>('fish');
   const [assetsReady, setAssetsReady] = useState(false);
@@ -582,6 +589,12 @@ const FishingGame: React.FC = () => {
               walletAddress={address}
               onAvatarUploaded={setAvatarUrl}
               referralSummary={referralSummary}
+              inboxMessages={inboxMessages}
+              unreadMessageCount={unreadMessageCount}
+              inboxLoading={inboxLoading}
+              onMarkMessageRead={(messageId) => {
+                void markMessageRead(messageId);
+              }}
             />
           )}
 

@@ -1,10 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
-
-const SESSION_KEY = 'monadfish_session';
+import { getStoredWalletSession } from '@/lib/walletSession';
 
 export type AdminPlayer = Tables<'players'>;
+export type AdminPlayerMessage = Tables<'player_messages'>;
 
 export interface AdminPlayerListResponse {
   players: AdminPlayer[];
@@ -25,6 +25,42 @@ export interface AdminStats {
   topByCatches: AdminPlayer[];
 }
 
+export interface AdminPlayerActivityEntry {
+  id: string;
+  event_type: string;
+  event_source: string;
+  before_state: Record<string, unknown>;
+  after_state: Record<string, unknown>;
+  delta_state: Record<string, unknown>;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface AdminInventorySummaryEntry {
+  fish_id: string;
+  quantity: number;
+}
+
+export interface AdminPlayerGrillSummary {
+  score: number;
+  dishes: number;
+  updated_at: string;
+}
+
+export interface AdminPlayerReferralSummary {
+  referrer_wallet_address: string | null;
+  rewarded_referral_count: number;
+  wallet_bait_bonus_claimed: boolean;
+}
+
+export interface AdminPlayerDetails {
+  player: AdminPlayer;
+  grill_summary: AdminPlayerGrillSummary | null;
+  inventory_summary: AdminInventorySummaryEntry[];
+  referral_summary: AdminPlayerReferralSummary;
+  suspicious_flags: string[];
+}
+
 interface AdminCheckResponse {
   is_admin: boolean;
 }
@@ -41,17 +77,21 @@ interface AdminStatsResponse {
   stats: AdminStats;
 }
 
-const getStoredSessionToken = (walletAddress: string) => {
-  try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as { address?: string; token?: string };
-    if (!parsed.address || !parsed.token) return null;
-    return parsed.address.toLowerCase() === walletAddress.toLowerCase() ? parsed.token : null;
-  } catch {
-    return null;
-  }
-};
+interface AdminPlayerDetailsResponse {
+  player: AdminPlayer;
+  grill_summary: AdminPlayerGrillSummary | null;
+  inventory_summary: AdminInventorySummaryEntry[];
+  referral_summary: AdminPlayerReferralSummary;
+  suspicious_flags: string[];
+}
+
+interface AdminPlayerActivityResponse {
+  activity: AdminPlayerActivityEntry[];
+}
+
+interface AdminPlayerMessagesResponse {
+  messages: AdminPlayerMessage[];
+}
 
 export function useAdmin(walletAddress: string | undefined) {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
@@ -59,15 +99,18 @@ export function useAdmin(walletAddress: string | undefined) {
 
   const callAdmin = useCallback(async <T>(action: string, params: Record<string, unknown> = {}) => {
     if (!walletAddress) throw new Error('No wallet');
-    const sessionToken = getStoredSessionToken(walletAddress);
-    if (!sessionToken) throw new Error('Wallet session expired. Reconnect in the game first.');
+    const session = getStoredWalletSession();
+    if (!session || session.address.toLowerCase() !== walletAddress.toLowerCase()) {
+      throw new Error('Wallet session expired. Reconnect in the game first.');
+    }
+
     const { data, error } = await supabase.functions.invoke('admin', {
       body: {
         action,
         wallet_address: walletAddress.toLowerCase(),
-        session_token: sessionToken,
+        session_token: session.token,
         ...params,
-      }
+      },
     });
     if (error) throw error;
     if (data?.error) throw new Error(data.error);
@@ -75,7 +118,10 @@ export function useAdmin(walletAddress: string | undefined) {
   }, [walletAddress]);
 
   const checkAdmin = useCallback(async () => {
-    if (!walletAddress) { setIsAdmin(false); return false; }
+    if (!walletAddress) {
+      setIsAdmin(false);
+      return false;
+    }
     try {
       setLoading(true);
       await callAdmin<AdminCheckResponse>('check_admin');
@@ -87,10 +133,46 @@ export function useAdmin(walletAddress: string | undefined) {
     } finally {
       setLoading(false);
     }
-  }, [walletAddress, callAdmin]);
+  }, [callAdmin, walletAddress]);
 
-  const listPlayers = useCallback(async (params: { search?: string; sort_by?: string; sort_dir?: string; page?: number; per_page?: number } = {}) => {
-    return callAdmin<AdminPlayerListResponse>('list_players', params);
+  const listPlayers = useCallback(async (
+    params: { search?: string; sort_by?: string; sort_dir?: string; page?: number; per_page?: number } = {},
+  ) => callAdmin<AdminPlayerListResponse>('list_players', params), [callAdmin]);
+
+  const getPlayerDetails = useCallback(async (playerId: string) => {
+    const data = await callAdmin<AdminPlayerDetailsResponse>('get_player_details', { player_id: playerId });
+    return {
+      player: data.player,
+      grill_summary: data.grill_summary,
+      inventory_summary: data.inventory_summary,
+      referral_summary: data.referral_summary,
+      suspicious_flags: data.suspicious_flags,
+    } satisfies AdminPlayerDetails;
+  }, [callAdmin]);
+
+  const listPlayerActivity = useCallback(async (playerId: string, limit = 25) => {
+    const data = await callAdmin<AdminPlayerActivityResponse>('list_player_activity', {
+      player_id: playerId,
+      limit,
+    });
+    return data.activity;
+  }, [callAdmin]);
+
+  const listPlayerMessages = useCallback(async (playerId: string, limit = 25) => {
+    const data = await callAdmin<AdminPlayerMessagesResponse>('list_player_messages', {
+      player_id: playerId,
+      limit,
+    });
+    return data.messages;
+  }, [callAdmin]);
+
+  const sendPlayerMessage = useCallback(async (playerId: string, title: string, body: string) => {
+    const data = await callAdmin<{ message: AdminPlayerMessage }>('send_player_message', {
+      player_id: playerId,
+      title,
+      body,
+    });
+    return data.message;
   }, [callAdmin]);
 
   const updatePlayer = useCallback(async (playerId: string, updates: Record<string, unknown>) => {
@@ -107,5 +189,17 @@ export function useAdmin(walletAddress: string | undefined) {
     return data.stats;
   }, [callAdmin]);
 
-  return { isAdmin, loading, checkAdmin, listPlayers, updatePlayer, deletePlayer, getStats };
+  return {
+    isAdmin,
+    loading,
+    checkAdmin,
+    listPlayers,
+    getPlayerDetails,
+    listPlayerActivity,
+    listPlayerMessages,
+    sendPlayerMessage,
+    updatePlayer,
+    deletePlayer,
+    getStats,
+  };
 }

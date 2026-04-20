@@ -17,10 +17,12 @@ import { useBalance } from 'wagmi';
 import { Link } from 'react-router-dom';
 import { isSoundMuted, setSoundMuted } from '@/hooks/useSoundEffects';
 import type { ReferralSummary } from '@/hooks/useWalletAuth';
+import type { PlayerInboxMessage } from '@/hooks/usePlayerMessages';
 import { supabase } from '@/integrations/supabase/client';
 import type { TablesUpdate } from '@/integrations/supabase/types';
 import { REFERRAL_BAIT_ENABLED } from '@/lib/baitEconomy';
 import { cn } from '@/lib/utils';
+import PlayerInboxPanel from '@/components/PlayerInboxPanel';
 
 interface SettingsDialogProps {
   isConnected: boolean;
@@ -30,6 +32,10 @@ interface SettingsDialogProps {
   avatarUrl?: string | null;
   onAvatarUploaded?: (url: string) => void;
   referralSummary?: ReferralSummary | null;
+  inboxMessages?: PlayerInboxMessage[];
+  unreadMessageCount?: number;
+  inboxLoading?: boolean;
+  onMarkMessageRead?: (messageId: string) => void;
 }
 
 const NICKNAME_REGEX = /^[\p{L}0-9_-]{2,20}$/u;
@@ -42,6 +48,10 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
   avatarUrl,
   onAvatarUploaded,
   referralSummary,
+  inboxMessages = [],
+  unreadMessageCount = 0,
+  inboxLoading = false,
+  onMarkMessageRead,
 }) => {
   const [open, setOpen] = useState(false);
   const [nickInput, setNickInput] = useState(nickname);
@@ -335,6 +345,18 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
                   </>
                 )}
               </div>
+            </div>
+          )}
+
+          {isConnected && onMarkMessageRead && (
+            <div className="space-y-2">
+              <p className="text-base font-bold text-zinc-100 sm:text-sm sm:font-medium">Inbox</p>
+              <PlayerInboxPanel
+                messages={inboxMessages}
+                unreadCount={unreadMessageCount}
+                loading={inboxLoading}
+                onMarkRead={onMarkMessageRead}
+              />
             </div>
           )}
 

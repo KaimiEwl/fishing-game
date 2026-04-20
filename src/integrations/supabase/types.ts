@@ -149,6 +149,47 @@ export type Database = {
         }
         Relationships: []
       }
+      player_messages: {
+        Row: {
+          body: string
+          created_at: string
+          created_by_wallet: string
+          delivered_at: string
+          id: string
+          player_id: string
+          read_at: string | null
+          title: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          created_by_wallet: string
+          delivered_at?: string
+          id?: string
+          player_id: string
+          read_at?: string | null
+          title: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by_wallet?: string
+          delivered_at?: string
+          id?: string
+          player_id?: string
+          read_at?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_messages_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
