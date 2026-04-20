@@ -39,9 +39,9 @@ jobs:
       - name: Build
         env:
           VITE_BASE_PATH: /${{ github.event.repository.name }}/
-          VITE_SUPABASE_PROJECT_ID: ${{ vars.VITE_SUPABASE_PROJECT_ID || secrets.VITE_SUPABASE_PROJECT_ID }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PROJECT_ID: oyhyoqnhqifcwjyputif
+          VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im95aHlvcW5ocWlmY3dqeXB1dGlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2MjU0NTAsImV4cCI6MjA5MjIwMTQ1MH0._pQj3OsEukijZgmFMBHepZYvKLmqR0oBldf8taUJu98
+          VITE_SUPABASE_URL: https://oyhyoqnhqifcwjyputif.supabase.co
         run: npm run build
 
       - name: Add SPA fallback

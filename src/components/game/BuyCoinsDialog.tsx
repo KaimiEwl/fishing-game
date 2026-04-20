@@ -104,7 +104,7 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({ walletAddress, onCoinsA
 
       toast.info('Transaction sent, verifying...');
 
-      const { data, error } = await supabase.functions.invoke('mint-nft-rod', {
+      const { data, error } = await supabase.functions.invoke('verify-purchase', {
         body: {
           tx_hash: txHash,
           wallet_address: walletAddress,

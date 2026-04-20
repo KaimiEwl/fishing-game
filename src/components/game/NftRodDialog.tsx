@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { NFT_ROD_DATA, ROD_BONUSES } from '@/types/game';
 import { supabase } from '@/integrations/supabase/client';
-import { useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
+import { useSendTransaction } from 'wagmi';
 import { parseEther } from 'viem';
 import { toast } from 'sonner';
 import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
@@ -53,7 +53,7 @@ const NftRodDialog: React.FC<NftRodDialogProps> = ({
 
       toast.info('Transaction sent, verifying...');
 
-      const { data, error } = await supabase.functions.invoke('mint-nft-rod', {
+      const { data, error } = await supabase.functions.invoke('verify-purchase', {
         body: {
           tx_hash: txHash,
           wallet_address: walletAddress,

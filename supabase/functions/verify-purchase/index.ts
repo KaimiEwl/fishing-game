@@ -13,6 +13,13 @@ const MONAD_RPC = 'https://rpc.monad.xyz';
 const RECEIVER_ADDRESS = '0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D';
 // Exchange rate: 0.1 MON = 100 coins → 1 MON = 1000 coins
 const COINS_PER_MON = 1000;
+const NFT_ROD_MINT_COSTS: Record<number, string> = {
+  0: '0.05',
+  1: '0.1',
+  2: '0.2',
+  3: '0.5',
+  4: '1.0',
+};
 
 interface RpcTransactionReceipt {
   status?: string;
@@ -24,11 +31,19 @@ serve(async (req) => {
   }
 
   try {
-    const { tx_hash, wallet_address, expected_coins, expected_mon } = await req.json();
+    const { tx_hash, wallet_address, expected_coins, expected_mon, rod_level } = await req.json();
+    const isNftRodMint = Number.isInteger(rod_level);
 
-    if (!tx_hash || !wallet_address || !expected_coins || !expected_mon) {
+    if (!tx_hash || !wallet_address || !expected_mon || (!isNftRodMint && !expected_coins)) {
       return new Response(
         JSON.stringify({ success: false, error: 'Missing required fields' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (isNftRodMint && !(rod_level in NFT_ROD_MINT_COSTS)) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid rod level' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -94,10 +109,10 @@ serve(async (req) => {
       }
 
       // Use the retried receipt
-      return await processReceipt(retryData.result, wallet_address, expected_coins, expected_mon, tx_hash);
+      return await processReceipt(retryData.result, wallet_address, expected_coins, expected_mon, tx_hash, rod_level);
     }
 
-    return await processReceipt(receipt, wallet_address, expected_coins, expected_mon, tx_hash);
+    return await processReceipt(receipt, wallet_address, expected_coins, expected_mon, tx_hash, rod_level);
   } catch (err) {
     console.error('verify-purchase error:', err);
     return new Response(
@@ -112,7 +127,8 @@ async function processReceipt(
   wallet_address: string,
   expected_coins: number,
   expected_mon: string,
-  tx_hash: string
+  tx_hash: string,
+  rod_level?: number,
 ) {
   // Check transaction was successful
   if (receipt.status !== '0x1') {
@@ -162,7 +178,10 @@ async function processReceipt(
 
   // Verify value (convert hex wei to ether and compare)
   const valueBigInt = BigInt(tx.value);
-  const expectedWei = BigInt(Math.round(parseFloat(expected_mon) * 1e18));
+  const expectedMonAmount = Number.isInteger(rod_level)
+    ? NFT_ROD_MINT_COSTS[rod_level!]
+    : expected_mon;
+  const expectedWei = BigInt(Math.round(parseFloat(expectedMonAmount) * 1e18));
   
   // Allow 1% tolerance for gas adjustments
   const minExpected = expectedWei * 99n / 100n;
@@ -173,12 +192,44 @@ async function processReceipt(
     );
   }
 
-  // Credit coins to player
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  // Calculate actual coins based on value sent
+  if (Number.isInteger(rod_level)) {
+    const { data: player } = await supabase
+      .from('players')
+      .select('nft_rods')
+      .eq('wallet_address', wallet_address.toLowerCase())
+      .single();
+
+    if (!player) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Player not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const currentNftRods = Array.isArray(player.nft_rods) ? (player.nft_rods as number[]) : [];
+    if (currentNftRods.includes(rod_level!)) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'NFT rod already minted' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const updatedNftRods = [...currentNftRods, rod_level!].sort((a, b) => a - b);
+    await supabase
+      .from('players')
+      .update({ nft_rods: updatedNftRods })
+      .eq('wallet_address', wallet_address.toLowerCase());
+
+    return new Response(
+      JSON.stringify({ success: true, nft_rods: updatedNftRods, rod_level }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
   const actualMon = Number(valueBigInt) / 1e18;
   const coinsToCredit = Math.floor(actualMon * COINS_PER_MON);
 

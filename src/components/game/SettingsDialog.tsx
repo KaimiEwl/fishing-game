@@ -322,7 +322,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
                       <p className="mt-2 text-xs font-medium text-red-300">{copyError}</p>
                     ) : (
                       <p className="mt-2 text-xs font-medium text-zinc-400">
-                        Share this link. Rewards stop after 10 successful referrals.
+                        Each invited wallet is locked to the first valid referrer link. Rewards stop after 10 successful referrals.
                       </p>
                     )}
                   </>
@@ -330,7 +330,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
                   <>
                     <p className="text-sm font-semibold text-zinc-100">Connect wallet to unlock referrals.</p>
                     <p className="mt-1 text-xs font-medium text-zinc-400">
-                      Invite friends and earn +10 bait per successful wallet connect.
+                      Each invited wallet gives +10 bait after the invited wallet is connected.
                     </p>
                   </>
                 )}
