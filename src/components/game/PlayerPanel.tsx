@@ -10,6 +10,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import SettingsDialog from './SettingsDialog';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useAdminAccess } from '@/hooks/useAdminAccess';
 import { cn } from '@/lib/utils';
 import { getVisibleBaitTotal } from '@/lib/baitEconomy';
 import PlayerStatItem from '@/components/PlayerStatItem';
@@ -20,6 +21,7 @@ interface PlayerPanelProps {
   player: PlayerState;
   onSetNickname?: (nickname: string) => void;
   isConnected?: boolean;
+  isVerified?: boolean;
   walletAddress?: string;
   onAvatarUploaded?: (url: string) => void;
   referralSummary?: ReferralSummary | null;
@@ -33,6 +35,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({
   player,
   onSetNickname,
   isConnected = false,
+  isVerified = false,
   walletAddress,
   onAvatarUploaded,
   referralSummary,
@@ -46,6 +49,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({
   const totalBait = getVisibleBaitTotal(player);
   const isMobile = useIsMobile();
   const [isExpanded, setIsExpanded] = useState(false);
+  const isAdmin = useAdminAccess(walletAddress, isConnected && isVerified);
 
   return (
     <>
@@ -96,6 +100,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({
           unreadMessageCount={unreadMessageCount}
           inboxLoading={inboxLoading}
           onMarkMessageRead={onMarkMessageRead}
+          showAdminPanelEntry={isAdmin === true}
         />
 
         <button

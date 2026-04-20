@@ -586,6 +586,7 @@ const FishingGame: React.FC = () => {
               player={player}
               onSetNickname={isConnected ? setNickname : undefined}
               isConnected={isConnected}
+              isVerified={isVerified}
               walletAddress={address}
               onAvatarUploaded={setAvatarUrl}
               referralSummary={referralSummary}

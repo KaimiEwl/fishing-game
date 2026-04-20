@@ -14,7 +14,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Camera, Check, ChevronDown, Copy, LogOut, Settings, Volume2, VolumeX } from 'lucide-react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useBalance } from 'wagmi';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { isSoundMuted, setSoundMuted } from '@/hooks/useSoundEffects';
 import type { ReferralSummary } from '@/hooks/useWalletAuth';
 import type { PlayerInboxMessage } from '@/hooks/usePlayerMessages';
@@ -36,6 +36,7 @@ interface SettingsDialogProps {
   unreadMessageCount?: number;
   inboxLoading?: boolean;
   onMarkMessageRead?: (messageId: string) => void;
+  showAdminPanelEntry?: boolean;
 }
 
 const NICKNAME_REGEX = /^[\p{L}0-9_-]{2,20}$/u;
@@ -52,7 +53,9 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
   unreadMessageCount = 0,
   inboxLoading = false,
   onMarkMessageRead,
+  showAdminPanelEntry = false,
 }) => {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [nickInput, setNickInput] = useState(nickname);
   const [error, setError] = useState('');
@@ -66,6 +69,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
   const pendingWalletModalRef = useRef<(() => void) | null>(null);
   const walletModalTimerRef = useRef<number | null>(null);
   const referralCopyTimerRef = useRef<number | null>(null);
+  const adminNavigateTimerRef = useRef<number | null>(null);
 
   const nicknameAlreadySet = !!nickname && nickname.length > 0;
   const avatarFallback = nickname
@@ -160,6 +164,10 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
       window.clearTimeout(referralCopyTimerRef.current);
       referralCopyTimerRef.current = null;
     }
+    if (adminNavigateTimerRef.current !== null) {
+      window.clearTimeout(adminNavigateTimerRef.current);
+      adminNavigateTimerRef.current = null;
+    }
   }, []);
 
   const handleWalletModalOpen = (openModal?: (() => void) | null) => {
@@ -203,6 +211,17 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleOpenAdminPanel = () => {
+    setOpen(false);
+    if (adminNavigateTimerRef.current !== null) {
+      window.clearTimeout(adminNavigateTimerRef.current);
+    }
+    adminNavigateTimerRef.current = window.setTimeout(() => {
+      navigate('/admin');
+      adminNavigateTimerRef.current = null;
+    }, 180);
   };
 
   return (
@@ -357,6 +376,21 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
                 loading={inboxLoading}
                 onMarkRead={onMarkMessageRead}
               />
+            </div>
+          )}
+
+          {showAdminPanelEntry && (
+            <div className="space-y-2">
+              <p className="text-base font-bold text-zinc-100 sm:text-sm sm:font-medium">Admin</p>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleOpenAdminPanel}
+                className="h-11 w-full justify-between border border-red-400/30 bg-red-950/40 px-4 text-red-100 hover:bg-red-950/70"
+              >
+                <span>Open admin tools</span>
+                <span className="font-black uppercase tracking-[0.12em] text-red-200">Admin Panel</span>
+              </Button>
             </div>
           )}
 
