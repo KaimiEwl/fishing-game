@@ -42,7 +42,7 @@ import {
   saveGlobalLeaderboardEntry,
   upsertLeaderboardEntry,
 } from '@/lib/leaderboard';
-import { DAILY_TASKS, NFT_ROD_DATA, SPECIAL_TASKS, type GameTab, type GrillLeaderboardEntry, type GrillRecipe, type TaskId, type WheelPrize } from '@/types/game';
+import { DAILY_TASKS, GRILL_RECIPES, NFT_ROD_DATA, SPECIAL_TASKS, type GameTab, type GrillLeaderboardEntry, type GrillRecipe, type TaskId, type WheelPrize } from '@/types/game';
 
 const TRAVEL_ICON_SRC = travelIconSrc;
 const TasksScreen = lazy(() => import('./TasksScreen'));
@@ -145,6 +145,16 @@ const FishingGame: React.FC = () => {
     return Math.floor(5 * (1 + nftBonus / 100));
   }, [player.equippedRod, player.nftRods]);
   const totalBait = useMemo(() => getVisibleBaitTotal(player), [player]);
+  const pendingTaskCount = useMemo(() => (
+    [...gameProgress.dailyTasks, ...gameProgress.specialTasks].filter((task) => !task.claimed).length
+  ), [gameProgress.dailyTasks, gameProgress.specialTasks]);
+  const availableGrillCount = useMemo(() => (
+    GRILL_RECIPES.filter((recipe) => (
+      Object.entries(recipe.ingredients).every(([fishId, amount]) => (
+        (player.inventory.find((item) => item.fishId === fishId)?.quantity ?? 0) >= amount
+      ))
+    )).length
+  ), [player.inventory]);
 
   const saveCurrentLeaderboardEntry = useCallback((name: string, score: number, dishesDelta = 0) => {
     setLeaderboardEntries((entries) => {
@@ -644,6 +654,8 @@ const FishingGame: React.FC = () => {
               activeTab={activeTab}
               onTabChange={setActiveTab}
               wheelReady={gameProgress.wheelReady}
+              tasksBadgeCount={pendingTaskCount}
+              grillBadgeCount={availableGrillCount}
             />
           </div>
         </div>

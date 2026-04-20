@@ -7,6 +7,8 @@ interface BottomNavProps {
   activeTab: GameTab;
   onTabChange: (tab: GameTab) => void;
   wheelReady: boolean;
+  tasksBadgeCount?: number;
+  grillBadgeCount?: number;
 }
 
 const navItems: Array<{ id: GameTab; label: string; glow: string }> = [
@@ -22,6 +24,8 @@ const BottomNav: React.FC<BottomNavProps> = ({
   activeTab,
   onTabChange,
   wheelReady,
+  tasksBadgeCount = 0,
+  grillBadgeCount = 0,
 }) => {
   return (
     <nav className="relative z-40 px-2 pb-[max(0.45rem,env(safe-area-inset-bottom))] pt-1 sm:px-4 sm:pt-2">
@@ -60,6 +64,16 @@ const BottomNav: React.FC<BottomNavProps> = ({
                   aria-label={item.label}
                 >
                   <span className="sr-only">{item.label}</span>
+                  {item.id === 'tasks' && tasksBadgeCount > 0 && (
+                    <span className="absolute right-[7%] top-[7%] inline-flex min-h-5 min-w-5 items-center justify-center rounded-full border border-lime-200/80 bg-lime-400 px-1 text-[10px] font-black leading-none text-black shadow-[0_0_12px_rgba(163,230,53,0.6)]">
+                      {tasksBadgeCount > 99 ? '99+' : tasksBadgeCount}
+                    </span>
+                  )}
+                  {item.id === 'grill' && grillBadgeCount > 0 && (
+                    <span className="absolute right-[7%] top-[7%] inline-flex min-h-5 min-w-5 items-center justify-center rounded-full border border-amber-200/80 bg-amber-400 px-1 text-[10px] font-black leading-none text-black shadow-[0_0_12px_rgba(251,191,36,0.55)]">
+                      {grillBadgeCount > 99 ? '99+' : grillBadgeCount}
+                    </span>
+                  )}
                   {item.id === 'wheel' && wheelReady && (
                     <span className="absolute right-[10%] top-[10%] h-2.5 w-2.5 rounded-full bg-cyan-200 shadow-[0_0_10px_rgba(34,211,238,0.9)]" />
                   )}
