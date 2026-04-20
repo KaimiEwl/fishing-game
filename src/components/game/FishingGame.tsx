@@ -615,7 +615,7 @@ const FishingGame: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setActiveTab('map')}
-                className="group relative w-24 overflow-visible bg-transparent outline-none transition-all duration-200 hover:scale-105 focus-visible:scale-105 active:scale-95 sm:w-28"
+                className="group relative w-20 overflow-visible bg-transparent outline-none transition-all duration-200 hover:scale-105 focus-visible:scale-105 active:scale-95 sm:w-24"
                 aria-label="Open travel map"
               >
                 <img
