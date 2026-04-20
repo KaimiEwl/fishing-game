@@ -198,10 +198,24 @@ export default function Admin() {
 
     setSaving(true);
     try {
-      const updatedPlayer = await updatePlayer(editPlayer.id, {
-        ...editForm,
+      const nextUpdates: Record<string, unknown> = {
+        coins: editForm.coins,
+        bait: editForm.bait,
+        daily_free_bait: editForm.daily_free_bait,
+        level: editForm.level,
+        xp: editForm.xp,
+        rod_level: editForm.rod_level,
+        equipped_rod: editForm.equipped_rod,
+        login_streak: editForm.login_streak,
         xp_to_next: editForm.level * 100,
-        nickname: editForm.nickname || null,
+      };
+
+      if (Object.prototype.hasOwnProperty.call(editPlayer, 'nickname')) {
+        nextUpdates.nickname = editForm.nickname || null;
+      }
+
+      const updatedPlayer = await updatePlayer(editPlayer.id, {
+        ...nextUpdates,
       });
       syncUpdatedPlayer(updatedPlayer);
       toast({ title: 'Saved' });
@@ -583,19 +597,21 @@ export default function Admin() {
             {editPlayer && editForm && (
               <div className="space-y-4">
                 <p className="font-mono text-sm text-muted-foreground">{editPlayer.wallet_address}</p>
-                <div>
-                  <label className="text-xs text-muted-foreground">Nickname</label>
-                  <Input
-                    value={editForm.nickname}
-                    onChange={(event) =>
-                      setEditForm((current) =>
-                        current ? { ...current, nickname: event.target.value } : current,
-                      )
-                    }
-                    maxLength={20}
-                    placeholder="No nickname"
-                  />
-                </div>
+                {Object.prototype.hasOwnProperty.call(editPlayer, 'nickname') && (
+                  <div>
+                    <label className="text-xs text-muted-foreground">Nickname</label>
+                    <Input
+                      value={editForm.nickname}
+                      onChange={(event) =>
+                        setEditForm((current) =>
+                          current ? { ...current, nickname: event.target.value } : current,
+                        )
+                      }
+                      maxLength={20}
+                      placeholder="No nickname"
+                    />
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-3">
                   <AdminEditField label="Level" value={editForm.level} onChange={(value) => setEditForm((current) => (current ? { ...current, level: Number(value) } : current))} />
                   <AdminEditField label="XP" value={editForm.xp} onChange={(value) => setEditForm((current) => (current ? { ...current, xp: Number(value) } : current))} />

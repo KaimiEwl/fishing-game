@@ -112,7 +112,20 @@ export function useAdmin(walletAddress: string | undefined) {
         ...params,
       },
     });
-    if (error) throw error;
+    if (error) {
+      const errorWithContext = error as { context?: { clone?: () => Response } };
+      if (errorWithContext.context?.clone) {
+        try {
+          const payload = await errorWithContext.context.clone().json() as { error?: string };
+          if (typeof payload.error === 'string' && payload.error.trim()) {
+            throw new Error(payload.error);
+          }
+        } catch {
+          // Keep the original error when the response body is not readable JSON.
+        }
+      }
+      throw error;
+    }
     if (data?.error) throw new Error(data.error);
     return data as T;
   }, [walletAddress]);

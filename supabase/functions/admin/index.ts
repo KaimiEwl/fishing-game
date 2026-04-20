@@ -143,7 +143,7 @@ serve(async (req) => {
         let query = supabase.from("players").select("*", { count: "exact" });
 
         if (search) {
-          query = query.or(`wallet_address.ilike.%${search}%,nickname.ilike.%${search}%`);
+          query = query.or(`wallet_address.ilike.%${search}%`);
         }
 
         const { data, count, error } = await query
@@ -281,6 +281,9 @@ serve(async (req) => {
 
         const safeUpdates: Record<string, unknown> = {};
         for (const field of PLAYER_UPDATE_FIELDS) {
+          if (field === "nickname") {
+            continue;
+          }
           if (field in updates) {
             safeUpdates[field] = (updates as Record<string, unknown>)[field];
           }
