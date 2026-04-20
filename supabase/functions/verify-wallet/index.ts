@@ -53,6 +53,13 @@ interface PlayerLoginState {
   referral_reward_granted: boolean;
 }
 
+interface ReferralRewardSummary {
+  invitedWalletAddress: string | null;
+  invitedPlayerName: string | null;
+  rewardBait: number;
+  createdAt: string;
+}
+
 const buildNewPlayerBaseline = (walletAddress: string): PlayerLoginState => ({
   wallet_address: walletAddress,
   coins: 100,
@@ -113,6 +120,52 @@ serve(async (req) => {
 
       if (error) throw error;
       return (data as PlayerLoginState | null);
+    };
+
+    const fetchLatestReferralReward = async (
+      walletAddress: string,
+    ): Promise<ReferralRewardSummary | null> => {
+      if (!REFERRAL_BAIT_ENABLED) return null;
+
+      const { data, error } = await supabase
+        .from('player_audit_logs')
+        .select('created_at, metadata')
+        .eq('wallet_address', walletAddress)
+        .eq('event_type', 'referral_bait_reward')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!data) return null;
+
+      const metadata = (data.metadata ?? {}) as Record<string, unknown>;
+      const invitedWalletAddress = normalizeWalletAddress(
+        typeof metadata.invitedWalletAddress === 'string'
+          ? metadata.invitedWalletAddress
+          : null,
+      );
+
+      let invitedPlayerName: string | null = null;
+      if (invitedWalletAddress) {
+        const { data: invitedPlayer, error: invitedError } = await supabase
+          .from('players')
+          .select('nickname')
+          .eq('wallet_address', invitedWalletAddress)
+          .maybeSingle();
+
+        if (invitedError) throw invitedError;
+        invitedPlayerName = invitedPlayer?.nickname?.trim() || null;
+      }
+
+      return {
+        invitedWalletAddress,
+        invitedPlayerName,
+        rewardBait: typeof metadata.rewardBait === 'number'
+          ? metadata.rewardBait
+          : REFERRAL_BAIT_BONUS,
+        createdAt: data.created_at,
+      };
     };
 
     const loadProcessedPlayer = async (referrer: string | null = null) => {
@@ -255,11 +308,17 @@ serve(async (req) => {
         beforeInviter: null,
         afterInviter: null,
       });
+      const latestReferralReward = await fetchLatestReferralReward(normalizedAddress);
 
       const refreshedToken = await createSessionToken(normalizedAddress);
 
       return new Response(
-        JSON.stringify({ player, isNew: false, session_token: refreshedToken }),
+        JSON.stringify({
+          player,
+          isNew: false,
+          session_token: refreshedToken,
+          latest_referral_reward: latestReferralReward,
+        }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
@@ -313,10 +372,16 @@ serve(async (req) => {
       beforeInviter,
       afterInviter,
     });
+    const latestReferralReward = await fetchLatestReferralReward(normalizedAddress);
     const sessionToken = await createSessionToken(normalizedAddress);
 
     return new Response(
-      JSON.stringify({ player: newPlayer, isNew: !beforePlayer, session_token: sessionToken }),
+      JSON.stringify({
+        player: newPlayer,
+        isNew: !beforePlayer,
+        session_token: sessionToken,
+        latest_referral_reward: latestReferralReward,
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (error) {

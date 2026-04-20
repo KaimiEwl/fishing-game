@@ -19,6 +19,7 @@ import {
   getStoredWalletSession,
   storeWalletSession,
 } from '@/lib/walletSession';
+import { useToast } from '@/hooks/use-toast';
 
 interface PlayerRecord {
   wallet_address: string;
@@ -40,6 +41,13 @@ interface PlayerRecord {
   avatar_url: string | null;
   referrer_wallet_address?: string | null;
   rewarded_referral_count?: number;
+}
+
+interface ReferralRewardNotification {
+  invitedWalletAddress: string | null;
+  invitedPlayerName: string | null;
+  rewardBait: number;
+  createdAt: string;
 }
 
 export interface ReferralSummary {
@@ -108,6 +116,7 @@ export function useWalletAuth() {
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const { disconnect } = useDisconnect();
+  const { toast } = useToast();
   
   const [isVerified, setIsVerified] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -115,6 +124,17 @@ export function useWalletAuth() {
   const [referralSummary, setReferralSummary] = useState<ReferralSummary | null>(null);
   const sessionTokenRef = useRef<string | null>(null);
   const restoredRef = useRef(false);
+  const refreshInFlightRef = useRef(false);
+  const savedPlayerRef = useRef<PlayerState | null>(null);
+  const referralSummaryRef = useRef<ReferralSummary | null>(null);
+
+  useEffect(() => {
+    savedPlayerRef.current = savedPlayer;
+  }, [savedPlayer]);
+
+  useEffect(() => {
+    referralSummaryRef.current = referralSummary;
+  }, [referralSummary]);
 
   const syncReferralSummary = useCallback((playerRecord: PlayerRecord) => {
     if (!REFERRAL_BAIT_ENABLED) {
@@ -153,6 +173,41 @@ export function useWalletAuth() {
     return nextStoredPlayer;
   }, []);
 
+  const showReferralRewardToast = useCallback((reward: ReferralRewardNotification | null | undefined) => {
+    if (!reward) return;
+
+    const referralLabel = reward.invitedPlayerName?.trim()
+      || (reward.invitedWalletAddress
+        ? `${reward.invitedWalletAddress.slice(0, 6)}...${reward.invitedWalletAddress.slice(-4)}`
+        : 'your referral');
+
+    toast({
+      title: `+${reward.rewardBait} bait received`,
+      description: `You received +${reward.rewardBait} bait for referral ${referralLabel}.`,
+    });
+  }, [toast]);
+
+  const applyVerifiedPlayerPayload = useCallback((
+    playerRecord: PlayerRecord,
+    latestReferralReward?: ReferralRewardNotification | null,
+  ) => {
+    const previousRewardedCount = referralSummaryRef.current?.rewardedReferralCount ?? 0;
+    const previousBonusGranted = savedPlayerRef.current?.bonusBaitGrantedTotal ?? 0;
+    const nextStoredPlayer = syncLocalPlayerFromServer(playerRecord);
+    setSavedPlayer(nextStoredPlayer);
+    syncReferralSummary(playerRecord);
+
+    if (
+      REFERRAL_BAIT_ENABLED
+      && (playerRecord.rewarded_referral_count ?? 0) > previousRewardedCount
+      && (playerRecord.bonus_bait_granted_total ?? 0) > previousBonusGranted
+    ) {
+      showReferralRewardToast(latestReferralReward);
+    }
+
+    return nextStoredPlayer;
+  }, [showReferralRewardToast, syncLocalPlayerFromServer, syncReferralSummary]);
+
   useEffect(() => {
     if (!REFERRAL_BAIT_ENABLED) return;
 
@@ -183,13 +238,53 @@ export function useWalletAuth() {
       sessionTokenRef.current = nextToken;
       storeWalletSession(addr, nextToken);
       const playerRecord = data.player as PlayerRecord;
-      setSavedPlayer(syncLocalPlayerFromServer(playerRecord));
-      syncReferralSummary(playerRecord);
+      applyVerifiedPlayerPayload(
+        playerRecord,
+        (data.latest_referral_reward as ReferralRewardNotification | null | undefined) ?? null,
+      );
       return true;
     } catch {
       return false;
     }
-  }, [syncLocalPlayerFromServer, syncReferralSummary]);
+  }, [applyVerifiedPlayerPayload]);
+
+  const refreshVerifiedSession = useCallback(async () => {
+    if (
+      !address
+      || !isConnected
+      || !isVerified
+      || isVerifying
+      || refreshInFlightRef.current
+      || !sessionTokenRef.current
+    ) {
+      return false;
+    }
+
+    refreshInFlightRef.current = true;
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-wallet', {
+        body: {
+          wallet_address: address,
+          session_token: sessionTokenRef.current,
+        },
+      });
+
+      if (error || !data?.player) return false;
+
+      const nextToken = data.session_token || sessionTokenRef.current;
+      sessionTokenRef.current = nextToken;
+      storeWalletSession(address, nextToken);
+      applyVerifiedPlayerPayload(
+        data.player as PlayerRecord,
+        (data.latest_referral_reward as ReferralRewardNotification | null | undefined) ?? null,
+      );
+      return true;
+    } catch {
+      return false;
+    } finally {
+      refreshInFlightRef.current = false;
+    }
+  }, [address, applyVerifiedPlayerPayload, isConnected, isVerified, isVerifying]);
 
   const verifyWallet = useCallback(async () => {
     if (!address || isVerifying) return;
@@ -218,9 +313,10 @@ export function useWalletAuth() {
       
       if (data.player) {
         const playerRecord = data.player as PlayerRecord;
-        const mappedPlayer = syncLocalPlayerFromServer(data.player as PlayerRecord);
-        setSavedPlayer(mappedPlayer);
-        syncReferralSummary(playerRecord);
+        applyVerifiedPlayerPayload(
+          playerRecord,
+          (data.latest_referral_reward as ReferralRewardNotification | null | undefined) ?? null,
+        );
 
         if (
           pendingReferrer
@@ -235,7 +331,36 @@ export function useWalletAuth() {
     } finally {
       setIsVerifying(false);
     }
-  }, [address, isVerifying, signMessageAsync, disconnect, syncLocalPlayerFromServer, syncReferralSummary]);
+  }, [address, applyVerifiedPlayerPayload, isVerifying, signMessageAsync, disconnect]);
+
+  useEffect(() => {
+    if (!isConnected || !address || !isVerified) return;
+
+    const handleWindowFocus = () => {
+      void refreshVerifiedSession();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void refreshVerifiedSession();
+      }
+    };
+
+    const pollInterval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void refreshVerifiedSession();
+      }
+    }, 30000);
+
+    window.addEventListener('focus', handleWindowFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(pollInterval);
+      window.removeEventListener('focus', handleWindowFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [address, isConnected, isVerified, refreshVerifiedSession]);
 
   // Auto-restore or auto-verify when wallet connects
   useEffect(() => {
