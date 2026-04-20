@@ -11,6 +11,7 @@ import {
 import {
   applyServerBonusBaitSync,
   loadStoredPlayer,
+  mergeSyncedPlayerState,
   normalizePlayerDailyFreeBait,
   storePlayerLocally,
 } from '@/lib/playerStorage';
@@ -160,14 +161,16 @@ export function useWalletAuth() {
     const localPlayer = loadStoredPlayer(mappedPlayer);
     const normalizedLocalPlayer = localPlayer
       ? normalizePlayerDailyFreeBait(localPlayer, BAIT_BUCKETS_V2_ENABLED, DAILY_FREE_BAIT)
+      : null;
+
+    const mergedPlayer = normalizedLocalPlayer
+      ? mergeSyncedPlayerState(mappedPlayer, normalizedLocalPlayer)
       : mappedPlayer;
 
-    const nextStoredPlayer = applyServerBonusBaitSync({
-      ...normalizedLocalPlayer,
-      nickname: normalizedLocalPlayer.nickname ?? mappedPlayer.nickname,
-      avatarUrl: normalizedLocalPlayer.avatarUrl ?? mappedPlayer.avatarUrl,
-      nftRods: Array.from(new Set([...mappedPlayer.nftRods, ...normalizedLocalPlayer.nftRods])).sort((a, b) => a - b),
-    }, mappedPlayer.bonusBaitGrantedTotal);
+    const nextStoredPlayer = applyServerBonusBaitSync(
+      mergedPlayer,
+      mappedPlayer.bonusBaitGrantedTotal,
+    );
 
     storePlayerLocally(nextStoredPlayer);
     return nextStoredPlayer;

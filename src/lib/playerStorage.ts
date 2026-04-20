@@ -74,6 +74,30 @@ export const applyServerBonusBaitSync = (
   };
 };
 
+export const mergeSyncedPlayerState = (
+  serverPlayer: PlayerState,
+  localPlayer: PlayerState,
+): PlayerState => ({
+  ...serverPlayer,
+  coins: Math.max(serverPlayer.coins, localPlayer.coins),
+  bait: Math.max(serverPlayer.bait, localPlayer.bait),
+  dailyFreeBait: Math.max(serverPlayer.dailyFreeBait, localPlayer.dailyFreeBait),
+  dailyFreeBaitResetAt: serverPlayer.dailyFreeBaitResetAt ?? localPlayer.dailyFreeBaitResetAt,
+  bonusBaitGrantedTotal: Math.max(serverPlayer.bonusBaitGrantedTotal, localPlayer.bonusBaitGrantedTotal),
+  level: Math.max(serverPlayer.level, localPlayer.level),
+  xp: Math.max(serverPlayer.xp, localPlayer.xp),
+  xpToNextLevel: Math.max(serverPlayer.xpToNextLevel, localPlayer.xpToNextLevel),
+  rodLevel: Math.max(serverPlayer.rodLevel, localPlayer.rodLevel),
+  equippedRod: Math.max(serverPlayer.equippedRod, localPlayer.equippedRod),
+  inventory: localPlayer.inventory,
+  totalCatches: Math.max(serverPlayer.totalCatches, localPlayer.totalCatches),
+  dailyBonusClaimed: localPlayer.dailyBonusClaimed,
+  loginStreak: Math.max(serverPlayer.loginStreak, localPlayer.loginStreak),
+  nftRods: Array.from(new Set([...serverPlayer.nftRods, ...localPlayer.nftRods])).sort((a, b) => a - b),
+  nickname: localPlayer.nickname ?? serverPlayer.nickname,
+  avatarUrl: localPlayer.avatarUrl ?? serverPlayer.avatarUrl,
+});
+
 export const deserializeStoredPlayer = (raw: string, fallback: PlayerState): PlayerState | null => {
   try {
     const parsed = JSON.parse(raw) as Partial<StoredPlayerState>;

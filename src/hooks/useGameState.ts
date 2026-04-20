@@ -18,6 +18,7 @@ import {
 import {
   applyServerBonusBaitSync,
   loadStoredPlayer,
+  mergeSyncedPlayerState,
   normalizePlayerDailyFreeBait,
   storePlayerLocally,
 } from '@/lib/playerStorage';
@@ -50,26 +51,8 @@ const MIN_CAST_INTERVAL = 4000; // minimum 4s between casts
 const BITE_WINDOW_MIN = 1500; // ms
 const BITE_WINDOW_MAX = 2500; // ms
 
-const mergePlayerState = (base: PlayerState, local: PlayerState): PlayerState => ({
-  ...base,
-  coins: local.coins,
-  bait: local.bait,
-  dailyFreeBait: local.dailyFreeBait,
-  dailyFreeBaitResetAt: local.dailyFreeBaitResetAt,
-  bonusBaitGrantedTotal: Math.max(base.bonusBaitGrantedTotal, local.bonusBaitGrantedTotal),
-  level: local.level,
-  xp: local.xp,
-  xpToNextLevel: local.xpToNextLevel,
-  rodLevel: local.rodLevel,
-  equippedRod: local.equippedRod,
-  inventory: local.inventory,
-  totalCatches: local.totalCatches,
-  dailyBonusClaimed: local.dailyBonusClaimed,
-  loginStreak: local.loginStreak,
-  nftRods: Array.from(new Set([...base.nftRods, ...local.nftRods])).sort((a, b) => a - b),
-  nickname: local.nickname ?? base.nickname,
-  avatarUrl: local.avatarUrl ?? base.avatarUrl,
-});
+const mergePlayerState = (base: PlayerState, local: PlayerState): PlayerState =>
+  mergeSyncedPlayerState(base, local);
 
 const resolveInitialPlayer = (savedPlayer?: PlayerState | null) => {
   const normalizedSavedPlayer = savedPlayer
