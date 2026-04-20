@@ -14,6 +14,11 @@ import {
   normalizePlayerDailyFreeBait,
   storePlayerLocally,
 } from '@/lib/playerStorage';
+import {
+  clearStoredWalletSession,
+  getStoredWalletSession,
+  storeWalletSession,
+} from '@/lib/walletSession';
 
 interface PlayerRecord {
   wallet_address: string;
@@ -44,29 +49,12 @@ export interface ReferralSummary {
   referralLink: string | null;
 }
 
-const SESSION_KEY = 'monadfish_session';
 const REFERRAL_STORAGE_KEY = 'hook_loot_pending_referrer_v1';
 
 function normalizeWalletAddress(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
   if (!trimmed) return null;
   return /^0x[a-fA-F0-9]{40}$/.test(trimmed) ? trimmed.toLowerCase() : null;
-}
-
-function getStoredSession(): { address: string; token: string } | null {
-  try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch { return null; }
-}
-
-function storeSession(address: string, token: string) {
-  localStorage.setItem(SESSION_KEY, JSON.stringify({ address, token }));
-}
-
-function clearStoredSession() {
-  localStorage.removeItem(SESSION_KEY);
 }
 
 function getPendingReferrer(): string | null {
@@ -180,7 +168,7 @@ export function useWalletAuth() {
 
   // Try to restore session from localStorage on page refresh
   const tryRestoreSession = useCallback(async (addr: string) => {
-    const stored = getStoredSession();
+    const stored = getStoredWalletSession();
     if (!stored || stored.address.toLowerCase() !== addr.toLowerCase()) return false;
 
     try {
@@ -193,7 +181,7 @@ export function useWalletAuth() {
       setIsVerified(true);
       const nextToken = data.session_token || stored.token;
       sessionTokenRef.current = nextToken;
-      storeSession(addr, nextToken);
+      storeWalletSession(addr, nextToken);
       const playerRecord = data.player as PlayerRecord;
       setSavedPlayer(syncLocalPlayerFromServer(playerRecord));
       syncReferralSummary(playerRecord);
@@ -226,7 +214,7 @@ export function useWalletAuth() {
       const token = data.session_token || address.toLowerCase();
       setIsVerified(true);
       sessionTokenRef.current = token;
-      storeSession(address, token);
+      storeWalletSession(address, token);
       
       if (data.player) {
         const playerRecord = data.player as PlayerRecord;
@@ -272,7 +260,7 @@ export function useWalletAuth() {
       setReferralSummary(null);
       sessionTokenRef.current = null;
       restoredRef.current = false;
-      clearStoredSession();
+      clearStoredWalletSession();
     }
 
     return () => { cancelled = true; };

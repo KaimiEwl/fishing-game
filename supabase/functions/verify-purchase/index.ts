@@ -1,5 +1,10 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  fetchPlayerAuditSnapshot,
+  insertPlayerAuditLog,
+  sanitizeAuditSnapshot,
+} from '../_shared/playerAudit.ts';
 
 const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || '*';
 const corsHeaders = {
@@ -20,6 +25,17 @@ const NFT_ROD_MINT_COSTS: Record<number, string> = {
   3: '0.5',
   4: '1.0',
 };
+
+const readFlag = (value: string | undefined, fallback: boolean) => {
+  if (!value) return fallback;
+
+  const normalized = value.trim().toLowerCase();
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+  if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+  return fallback;
+};
+
+const PLAYER_AUDIT_LOGS_ENABLED = readFlag(Deno.env.get('PLAYER_AUDIT_LOGS_ENABLED'), true);
 
 interface RpcTransactionReceipt {
   status?: string;
@@ -195,12 +211,14 @@ async function processReceipt(
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase = createClient(supabaseUrl, supabaseKey);
+  const normalizedWallet = wallet_address.toLowerCase();
+  const playerAuditBefore = await fetchPlayerAuditSnapshot(supabase, normalizedWallet);
 
   if (Number.isInteger(rod_level)) {
     const { data: player } = await supabase
       .from('players')
       .select('nft_rods')
-      .eq('wallet_address', wallet_address.toLowerCase())
+      .eq('wallet_address', normalizedWallet)
       .single();
 
     if (!player) {
@@ -222,7 +240,23 @@ async function processReceipt(
     await supabase
       .from('players')
       .update({ nft_rods: updatedNftRods })
-      .eq('wallet_address', wallet_address.toLowerCase());
+      .eq('wallet_address', normalizedWallet);
+
+    if (PLAYER_AUDIT_LOGS_ENABLED) {
+      await insertPlayerAuditLog(supabase, {
+        walletAddress: normalizedWallet,
+        eventType: 'nft_rod_minted',
+        eventSource: 'server',
+        beforeState: playerAuditBefore,
+        afterState: playerAuditBefore,
+        metadata: {
+          txHash: tx_hash,
+          rodLevel: rod_level,
+          previousNftRods: currentNftRods,
+          updatedNftRods,
+        },
+      });
+    }
 
     return new Response(
       JSON.stringify({ success: true, nft_rods: updatedNftRods, rod_level }),
@@ -237,7 +271,7 @@ async function processReceipt(
   const { data: player } = await supabase
     .from('players')
     .select('coins')
-    .eq('wallet_address', wallet_address.toLowerCase())
+    .eq('wallet_address', normalizedWallet)
     .single();
 
   if (player) {
@@ -245,7 +279,27 @@ async function processReceipt(
     await supabase
       .from('players')
       .update({ coins: newCoins })
-      .eq('wallet_address', wallet_address.toLowerCase());
+      .eq('wallet_address', normalizedWallet);
+
+    if (PLAYER_AUDIT_LOGS_ENABLED) {
+      await insertPlayerAuditLog(supabase, {
+        walletAddress: normalizedWallet,
+        eventType: 'coin_purchase_verified',
+        eventSource: 'server',
+        beforeState: playerAuditBefore,
+        afterState: sanitizeAuditSnapshot({
+          ...playerAuditBefore,
+          coins: newCoins,
+        }),
+        metadata: {
+          txHash: tx_hash,
+          expectedCoins: expected_coins,
+          expectedMon: expected_mon,
+          actualMon,
+          coinsCredited: coinsToCredit,
+        },
+      });
+    }
   }
 
   return new Response(

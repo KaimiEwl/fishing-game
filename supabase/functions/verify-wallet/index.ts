@@ -2,6 +2,10 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { hashMessage, recoverAddress } from "npm:viem@2.21.0";
 import { createSessionToken, verifySessionToken } from "../_shared/session.ts";
+import {
+  insertPlayerAuditLog,
+  sanitizeAuditSnapshot,
+} from "../_shared/playerAudit.ts";
 
 const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || '*';
 const corsHeaders = {
@@ -26,12 +30,43 @@ const readFlag = (value: string | undefined, fallback: boolean) => {
 const BAIT_BUCKETS_V2_ENABLED = readFlag(Deno.env.get('BAIT_BUCKETS_V2_ENABLED'), true);
 const WALLET_BAIT_BONUS_ENABLED = readFlag(Deno.env.get('WALLET_BAIT_BONUS_ENABLED'), true);
 const REFERRAL_BAIT_ENABLED = readFlag(Deno.env.get('REFERRAL_BAIT_ENABLED'), true);
+const PLAYER_AUDIT_LOGS_ENABLED = readFlag(Deno.env.get('PLAYER_AUDIT_LOGS_ENABLED'), true);
 
 const normalizeWalletAddress = (value: string | null | undefined) => {
   const trimmed = value?.trim();
   if (!trimmed) return null;
   return /^0x[a-fA-F0-9]{40}$/.test(trimmed) ? trimmed.toLowerCase() : null;
 };
+
+interface PlayerLoginState {
+  wallet_address: string;
+  coins: number;
+  bait: number;
+  daily_free_bait: number;
+  xp: number;
+  total_catches: number;
+  rod_level: number;
+  equipped_rod: number;
+  wallet_bait_bonus_claimed: boolean;
+  referrer_wallet_address: string | null;
+  rewarded_referral_count: number;
+  referral_reward_granted: boolean;
+}
+
+const buildNewPlayerBaseline = (walletAddress: string): PlayerLoginState => ({
+  wallet_address: walletAddress,
+  coins: 100,
+  bait: 10,
+  daily_free_bait: DAILY_FREE_BAIT,
+  xp: 0,
+  total_catches: 0,
+  rod_level: 0,
+  equipped_rod: 0,
+  wallet_bait_bonus_claimed: false,
+  referrer_wallet_address: null,
+  rewarded_referral_count: 0,
+  referral_reward_granted: false,
+});
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -69,6 +104,17 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
+    const fetchPlayerLoginState = async (walletAddress: string) => {
+      const { data, error } = await supabase
+        .from('players')
+        .select('wallet_address, coins, bait, daily_free_bait, xp, total_catches, rod_level, equipped_rod, wallet_bait_bonus_claimed, referrer_wallet_address, rewarded_referral_count, referral_reward_granted')
+        .eq('wallet_address', walletAddress)
+        .maybeSingle();
+
+      if (error) throw error;
+      return (data as PlayerLoginState | null);
+    };
+
     const loadProcessedPlayer = async (referrer: string | null = null) => {
       const { data, error } = await supabase
         .rpc('process_wallet_login', {
@@ -88,6 +134,95 @@ serve(async (req) => {
       return data;
     };
 
+    const logWalletSideEffects = async ({
+      beforePlayer,
+      afterPlayer,
+      beforeInviter,
+      afterInviter,
+    }: {
+      beforePlayer: PlayerLoginState | null;
+      afterPlayer: PlayerLoginState;
+      beforeInviter: PlayerLoginState | null;
+      afterInviter: PlayerLoginState | null;
+    }) => {
+      if (!PLAYER_AUDIT_LOGS_ENABLED) return;
+
+      const playerBaseline = beforePlayer ?? buildNewPlayerBaseline(normalizedAddress);
+
+      if (
+        BAIT_BUCKETS_V2_ENABLED
+        && afterPlayer.daily_free_bait === DAILY_FREE_BAIT
+        && playerBaseline.daily_free_bait !== afterPlayer.daily_free_bait
+      ) {
+        await insertPlayerAuditLog(supabase, {
+          walletAddress: normalizedAddress,
+          eventType: 'daily_free_bait_reset',
+          eventSource: 'server',
+          beforeState: sanitizeAuditSnapshot(playerBaseline),
+          afterState: sanitizeAuditSnapshot(afterPlayer),
+          metadata: {
+            resetBucket: 'daily_free_bait',
+            resetValue: DAILY_FREE_BAIT,
+          },
+        });
+      }
+
+      if (
+        WALLET_BAIT_BONUS_ENABLED
+        && !playerBaseline.wallet_bait_bonus_claimed
+        && afterPlayer.wallet_bait_bonus_claimed
+      ) {
+        await insertPlayerAuditLog(supabase, {
+          walletAddress: normalizedAddress,
+          eventType: 'wallet_connect_bait_bonus',
+          eventSource: 'server',
+          beforeState: sanitizeAuditSnapshot(playerBaseline),
+          afterState: sanitizeAuditSnapshot(afterPlayer),
+          metadata: {
+            bonusBait: WALLET_BAIT_BONUS,
+          },
+        });
+      }
+
+      if (
+        REFERRAL_BAIT_ENABLED
+        && playerBaseline.referrer_wallet_address == null
+        && afterPlayer.referrer_wallet_address != null
+      ) {
+        await insertPlayerAuditLog(supabase, {
+          walletAddress: normalizedAddress,
+          eventType: 'referrer_attached',
+          eventSource: 'server',
+          beforeState: sanitizeAuditSnapshot(playerBaseline),
+          afterState: sanitizeAuditSnapshot(afterPlayer),
+          metadata: {
+            referrerWalletAddress: afterPlayer.referrer_wallet_address,
+          },
+        });
+      }
+
+      if (
+        REFERRAL_BAIT_ENABLED
+        && beforeInviter
+        && afterInviter
+        && afterInviter.bait > beforeInviter.bait
+        && afterInviter.rewarded_referral_count > beforeInviter.rewarded_referral_count
+      ) {
+        await insertPlayerAuditLog(supabase, {
+          walletAddress: beforeInviter.wallet_address,
+          eventType: 'referral_bait_reward',
+          eventSource: 'server',
+          beforeState: sanitizeAuditSnapshot(beforeInviter),
+          afterState: sanitizeAuditSnapshot(afterInviter),
+          metadata: {
+            invitedWalletAddress: normalizedAddress,
+            rewardBait: REFERRAL_BAIT_BONUS,
+            rewardedReferralCount: afterInviter.rewarded_referral_count,
+          },
+        });
+      }
+    };
+
     // This endpoint is auth/session-only. Economy state must not be accepted from the client.
     if (player_data) {
       return new Response(
@@ -104,6 +239,7 @@ serve(async (req) => {
         );
       }
 
+      const beforePlayer = await fetchPlayerLoginState(normalizedAddress);
       const player = await loadProcessedPlayer();
 
       if (!player) {
@@ -112,6 +248,13 @@ serve(async (req) => {
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
+
+      await logWalletSideEffects({
+        beforePlayer,
+        afterPlayer: player as PlayerLoginState,
+        beforeInviter: null,
+        afterInviter: null,
+      });
 
       const refreshedToken = await createSessionToken(normalizedAddress);
 
@@ -149,17 +292,31 @@ serve(async (req) => {
       );
     }
 
-    const { data: existing } = await supabase
-      .from('players')
-      .select('id')
-      .eq('wallet_address', normalizedAddress)
-      .maybeSingle();
+    const beforePlayer = await fetchPlayerLoginState(normalizedAddress);
+    const beforeInviter = normalizedReferrer && normalizedReferrer !== normalizedAddress
+      ? await fetchPlayerLoginState(normalizedReferrer)
+      : null;
 
     const newPlayer = await loadProcessedPlayer(normalizedReferrer);
+    if (!newPlayer) {
+      return new Response(
+        JSON.stringify({ error: 'Player not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+    const afterInviter = beforeInviter
+      ? await fetchPlayerLoginState(beforeInviter.wallet_address)
+      : null;
+    await logWalletSideEffects({
+      beforePlayer,
+      afterPlayer: newPlayer as PlayerLoginState,
+      beforeInviter,
+      afterInviter,
+    });
     const sessionToken = await createSessionToken(normalizedAddress);
 
     return new Response(
-      JSON.stringify({ player: newPlayer, isNew: !existing, session_token: sessionToken }),
+      JSON.stringify({ player: newPlayer, isNew: !beforePlayer, session_token: sessionToken }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (error) {

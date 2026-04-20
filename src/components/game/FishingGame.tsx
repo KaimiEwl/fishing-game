@@ -16,6 +16,11 @@ import { useBackgroundMusic } from '@/hooks/useBackgroundMusic';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { getVisibleBaitTotal } from '@/lib/baitEconomy';
+import {
+  logPlayerAuditEvent,
+  type PlayerAuditEventPayload,
+  toPlayerAuditSnapshot,
+} from '@/lib/playerAudit';
 import { cn } from '@/lib/utils';
 import { publicAsset } from '@/lib/assets';
 import {
@@ -38,7 +43,7 @@ import {
   saveGlobalLeaderboardEntry,
   upsertLeaderboardEntry,
 } from '@/lib/leaderboard';
-import { NFT_ROD_DATA, type DailyTaskId, type GameTab, type GrillLeaderboardEntry, type GrillRecipe, type WheelPrize } from '@/types/game';
+import { DAILY_TASKS, NFT_ROD_DATA, type DailyTaskId, type GameTab, type GrillLeaderboardEntry, type GrillRecipe, type WheelPrize } from '@/types/game';
 
 const TRAVEL_ICON_SRC = travelIconSrc;
 const TasksScreen = lazy(() => import('./TasksScreen'));
@@ -86,6 +91,17 @@ const FishingGame: React.FC = () => {
   const [pendingLeaderboardScore, setPendingLeaderboardScore] = useState(0);
   const [pendingLeaderboardDishes, setPendingLeaderboardDishes] = useState(0);
   const gameProgress = useGameProgress();
+  const logAuditEvent = useCallback((event: PlayerAuditEventPayload) => {
+    if (!address || !isVerified) return;
+
+    void logPlayerAuditEvent({
+      walletAddress: address,
+      eventType: event.eventType,
+      beforeState: event.beforeState,
+      afterState: event.afterState,
+      metadata: event.metadata,
+    });
+  }, [address, isVerified]);
 
   const {
     player,
@@ -110,6 +126,7 @@ const FishingGame: React.FC = () => {
   } = useGameState({
     savedPlayer: isVerified ? savedPlayer : undefined,
     onFishCaught: gameProgress.recordFishCatch,
+    onAuditEvent: logAuditEvent,
   });
 
   const sounds = useSoundEffects();
@@ -333,12 +350,31 @@ const FishingGame: React.FC = () => {
   };
 
   const handleClaimTask = (taskId: DailyTaskId) => {
+    const task = DAILY_TASKS.find((item) => item.id === taskId);
+    const beforeState = toPlayerAuditSnapshot(player);
+
     if (gameProgress.claimTask(taskId, addCoins)) {
+      if (task && address && isVerified) {
+        void logPlayerAuditEvent({
+          walletAddress: address,
+          eventType: 'daily_task_claimed',
+          beforeState,
+          afterState: {
+            ...beforeState,
+            coins: beforeState.coins + task.rewardCoins,
+          },
+          metadata: {
+            taskId,
+            rewardCoins: task.rewardCoins,
+          },
+        });
+      }
       sounds.playBuySound();
     }
   };
 
   const handleSpinWheel = (selectedPrize: WheelPrize): WheelPrize | null => {
+    const beforeState = toPlayerAuditSnapshot(player);
     const applyCubeReward = (reward: WheelPrize) => {
       if (reward.type === 'fish' && reward.fishId) {
         grantFishReward(reward.fishId, reward.quantity ?? 1);
@@ -350,6 +386,32 @@ const FishingGame: React.FC = () => {
 
     const prize = gameProgress.spinWheel(applyCubeReward, selectedPrize);
     if (prize) {
+      if (address && isVerified) {
+        const metadata: Record<string, unknown> = {
+          prizeId: prize.id,
+          prizeType: prize.type,
+        };
+        let afterState = beforeState;
+
+        if (prize.type === 'fish') {
+          metadata.fishId = prize.fishId;
+          metadata.quantity = prize.quantity ?? 1;
+        } else {
+          metadata.coins = prize.coins ?? 0;
+          afterState = {
+            ...beforeState,
+            coins: beforeState.coins + (prize.coins ?? 0),
+          };
+        }
+
+        void logPlayerAuditEvent({
+          walletAddress: address,
+          eventType: prize.type === 'fish' ? 'cube_fish_reward' : 'cube_coin_reward',
+          beforeState,
+          afterState,
+          metadata,
+        });
+      }
       sounds.playLevelUpSound();
       return prize;
     }
@@ -358,9 +420,23 @@ const FishingGame: React.FC = () => {
   };
 
   const handleCookRecipe = (recipe: GrillRecipe) => {
+    const beforeState = toPlayerAuditSnapshot(player);
     if (!consumeFish(recipe.ingredients)) return false;
     const nextGrillScore = gameProgress.grillScore + recipe.score;
     gameProgress.recordGrillDish(recipe.score);
+    if (address && isVerified) {
+      void logPlayerAuditEvent({
+        walletAddress: address,
+        eventType: 'grill_recipe_cooked',
+        beforeState,
+        afterState: beforeState,
+        metadata: {
+          recipeId: recipe.id,
+          score: recipe.score,
+          ingredients: recipe.ingredients,
+        },
+      });
+    }
     if (hasCustomLeaderboardName(currentLeaderboardEntry?.name)) {
       saveCurrentLeaderboardEntry(currentLeaderboardEntry.name, nextGrillScore, 1);
     } else {

@@ -21,6 +21,10 @@ import {
   normalizePlayerDailyFreeBait,
   storePlayerLocally,
 } from '@/lib/playerStorage';
+import {
+  type PlayerAuditEventPayload,
+  toPlayerAuditSnapshot,
+} from '@/lib/playerAudit';
 
 const INITIAL_PLAYER_STATE: PlayerState = {
   coins: 100,
@@ -90,12 +94,14 @@ interface UseGameStateOptions {
   savedPlayer?: PlayerState | null;
   onSave?: (player: PlayerState) => void;
   onFishCaught?: (fish: Fish) => void;
+  onAuditEvent?: (event: PlayerAuditEventPayload) => void;
 }
 
 export function useGameState(options?: UseGameStateOptions) {
   const savedPlayer = options?.savedPlayer;
   const onSave = options?.onSave;
   const onFishCaught = options?.onFishCaught;
+  const onAuditEvent = options?.onAuditEvent;
   const [player, setPlayer] = useState<PlayerState>(
     resolveInitialPlayer(savedPlayer)
   );
@@ -111,11 +117,19 @@ export function useGameState(options?: UseGameStateOptions) {
   const biteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const biteCountdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const gameStateRef = useRef<GameState>('idle');
+  const pendingAuditEventsRef = useRef<PlayerAuditEventPayload[]>([]);
 
   // Keep ref in sync
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
+
+  useEffect(() => {
+    if (!onAuditEvent || pendingAuditEventsRef.current.length === 0) return;
+
+    const events = pendingAuditEventsRef.current.splice(0, pendingAuditEventsRef.current.length);
+    events.forEach((event) => onAuditEvent(event));
+  }, [player, onAuditEvent]);
 
   // Load saved player when it becomes available
   useEffect(() => {
@@ -228,8 +242,13 @@ export function useGameState(options?: UseGameStateOptions) {
     if (biteCountdownRef.current) { clearInterval(biteCountdownRef.current); biteCountdownRef.current = null; }
   }, []);
 
+  const queueAuditEvent = useCallback((event: PlayerAuditEventPayload) => {
+    pendingAuditEventsRef.current.push(event);
+  }, []);
+
   const applyFishReward = useCallback((caughtFish: Fish) => {
     setPlayer(prev => {
+      const beforeSnapshot = toPlayerAuditSnapshot(prev);
       const nftB = getNftBonus(prev.equippedRod, prev.nftRods);
       const xpGain = Math.floor((caughtFish.xp + 5) * (1 + nftB.xpBonus / 100));
       const newXp = prev.xp + xpGain;
@@ -258,7 +277,7 @@ export function useGameState(options?: UseGameStateOptions) {
           )
         : [...prev.inventory, { fishId: caughtFish.id, caughtAt: new Date(), quantity: 1 }];
 
-      return {
+      const nextPlayer = {
         ...prev,
         xp: remainingXp,
         xpToNextLevel: xpToNext,
@@ -267,9 +286,24 @@ export function useGameState(options?: UseGameStateOptions) {
         inventory: newInventory,
         totalCatches: prev.totalCatches + 1
       };
+
+      queueAuditEvent({
+        eventType: 'fish_caught',
+        beforeState: beforeSnapshot,
+        afterState: toPlayerAuditSnapshot(nextPlayer),
+        metadata: {
+          fishId: caughtFish.id,
+          rarity: caughtFish.rarity,
+          sellPrice: caughtFish.price,
+          xpGain,
+          quantity: 1,
+        },
+      });
+
+      return nextPlayer;
     });
     onFishCaught?.(caughtFish);
-  }, [getNftBonus, onFishCaught]);
+  }, [getNftBonus, onFishCaught, queueAuditEvent]);
 
   const grantFishReward = useCallback((fishId: string, quantity = 1) => {
     const rewardedFish = FISH_DATA.find((fish) => fish.id === fishId);
@@ -296,6 +330,7 @@ export function useGameState(options?: UseGameStateOptions) {
 
   const applyMissXp = useCallback(() => {
     setPlayer(prev => {
+      const beforeSnapshot = toPlayerAuditSnapshot(prev);
       const nftB = getNftBonus(prev.equippedRod, prev.nftRods);
       const xpGain = Math.floor(5 * (1 + nftB.xpBonus / 100));
       const newXp = prev.xp + xpGain;
@@ -315,15 +350,26 @@ export function useGameState(options?: UseGameStateOptions) {
         setLevelUpInfo({ newLevel, coinsReward: bonusCoins });
       }
 
-      return {
+      const nextPlayer = {
         ...prev,
         xp: remainingXp,
         xpToNextLevel: xpToNext,
         level: newLevel,
         coins: prev.coins + bonusCoins
       };
+
+      queueAuditEvent({
+        eventType: 'fish_escaped',
+        beforeState: beforeSnapshot,
+        afterState: toPlayerAuditSnapshot(nextPlayer),
+        metadata: {
+          xpGain,
+        },
+      });
+
+      return nextPlayer;
     });
-  }, [getNftBonus]);
+  }, [getNftBonus, queueAuditEvent]);
 
   // reelIn — player reaction during biting state
   const reelIn = useCallback(async () => {
@@ -374,11 +420,26 @@ export function useGameState(options?: UseGameStateOptions) {
 
     setPlayer(prev => {
       const next = normalizePlayerDailyFreeBait(prev, BAIT_BUCKETS_V2_ENABLED, DAILY_FREE_BAIT);
+      const beforeSnapshot = toPlayerAuditSnapshot(next);
       if (next.dailyFreeBait > 0) {
-        return { ...next, dailyFreeBait: next.dailyFreeBait - 1 };
+        const afterState = { ...next, dailyFreeBait: next.dailyFreeBait - 1 };
+        queueAuditEvent({
+          eventType: 'cast_started',
+          beforeState: beforeSnapshot,
+          afterState: toPlayerAuditSnapshot(afterState),
+          metadata: { spentBucket: 'daily_free_bait' },
+        });
+        return afterState;
       }
       if (next.bait > 0) {
-        return { ...next, bait: next.bait - 1 };
+        const afterState = { ...next, bait: next.bait - 1 };
+        queueAuditEvent({
+          eventType: 'cast_started',
+          beforeState: beforeSnapshot,
+          afterState: toPlayerAuditSnapshot(afterState),
+          metadata: { spentBucket: 'bait' },
+        });
+        return afterState;
       }
       return next;
     });
@@ -415,7 +476,7 @@ export function useGameState(options?: UseGameStateOptions) {
     biteTimerRef.current = setTimeout(() => {
       onBiteTimeout();
     }, biteWindow);
-  }, [player, gameState, calculateFishCatch, onBiteTimeout]);
+  }, [player, gameState, calculateFishCatch, onBiteTimeout, queueAuditEvent]);
 
   const sellFish = useCallback((fishId: string) => {
     const fish = FISH_DATA.find(f => f.id === fishId);
@@ -426,16 +487,31 @@ export function useGameState(options?: UseGameStateOptions) {
     const nftB = getNftBonus(player.equippedRod, player.nftRods);
     const sellPrice = Math.floor(fish.price * (1 + nftB.sellBonus / 100));
 
-    setPlayer(prev => ({
-      ...prev,
-      coins: prev.coins + sellPrice,
-      inventory: prev.inventory.map(f =>
-        f.fishId === fishId
-          ? { ...f, quantity: f.quantity - 1 }
-          : f
-      ).filter(f => f.quantity > 0)
-    }));
-  }, [player.inventory, player.equippedRod, player.nftRods, getNftBonus]);
+    setPlayer(prev => {
+      const nextPlayer = {
+        ...prev,
+        coins: prev.coins + sellPrice,
+        inventory: prev.inventory.map(f =>
+          f.fishId === fishId
+            ? { ...f, quantity: f.quantity - 1 }
+            : f
+        ).filter(f => f.quantity > 0)
+      };
+
+      queueAuditEvent({
+        eventType: 'fish_sold',
+        beforeState: toPlayerAuditSnapshot(prev),
+        afterState: toPlayerAuditSnapshot(nextPlayer),
+        metadata: {
+          fishId,
+          sellPrice,
+          quantity: 1,
+        },
+      });
+
+      return nextPlayer;
+    });
+  }, [player.inventory, player.equippedRod, player.nftRods, getNftBonus, queueAuditEvent]);
 
   const consumeFish = useCallback((ingredients: Record<string, number>) => {
     const canCook = Object.entries(ingredients).every(([fishId, quantity]) => {
@@ -459,26 +535,52 @@ export function useGameState(options?: UseGameStateOptions) {
   const buyBait = useCallback((amount: number, cost: number) => {
     if (player.coins < cost) return;
     
-    setPlayer(prev => ({
-      ...prev,
-      coins: prev.coins - cost,
-      bait: prev.bait + amount
-    }));
-  }, [player.coins]);
+    setPlayer(prev => {
+      const nextPlayer = {
+        ...prev,
+        coins: prev.coins - cost,
+        bait: prev.bait + amount
+      };
+
+      queueAuditEvent({
+        eventType: 'bait_bought_with_coins',
+        beforeState: toPlayerAuditSnapshot(prev),
+        afterState: toPlayerAuditSnapshot(nextPlayer),
+        metadata: {
+          baitAmount: amount,
+          coinCost: cost,
+        },
+      });
+
+      return nextPlayer;
+    });
+  }, [player.coins, queueAuditEvent]);
 
   const buyRod = useCallback((level: number, cost: number) => {
     if (player.coins < cost) return;
     
     setPlayer(prev => {
       if (prev.rodLevel >= level) return prev;
-      return {
+      const nextPlayer = {
         ...prev,
         coins: prev.coins - cost,
         rodLevel: level,
         equippedRod: level
       };
+
+      queueAuditEvent({
+        eventType: 'rod_bought_with_coins',
+        beforeState: toPlayerAuditSnapshot(prev),
+        afterState: toPlayerAuditSnapshot(nextPlayer),
+        metadata: {
+          rodLevel: level,
+          coinCost: cost,
+        },
+      });
+
+      return nextPlayer;
     });
-  }, [player.coins]);
+  }, [player.coins, queueAuditEvent]);
 
   const equipRod = useCallback((level: number) => {
     setPlayer(prev => {
