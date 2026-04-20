@@ -605,7 +605,7 @@ const FishingGame: React.FC = () => {
 
           {isFishingScreen && (
             <div
-              className="absolute left-3 z-20 flex max-w-[calc(100vw-1.5rem)] flex-col items-start gap-2 sm:left-5 sm:flex-row"
+              className="absolute right-3 z-20 flex max-w-[calc(100vw-1.5rem)] flex-col items-end gap-2 sm:right-5 sm:flex-row"
               style={{
                 bottom: isMobile
                   ? 'calc(var(--bottom-nav-clearance,0px) + 4rem)'
