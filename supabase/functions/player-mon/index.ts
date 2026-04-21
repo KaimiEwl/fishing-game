@@ -5,6 +5,7 @@ import {
   computeMonBalanceSummary,
   MIN_WITHDRAW_MON,
 } from "../_shared/monRewards.ts";
+import { enforceRateLimit } from "../_shared/rateLimit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -47,6 +48,13 @@ serve(async (req) => {
     if (!sessionToken || !(await verifySessionToken(sessionToken, walletAddress))) {
       return jsonResponse({ error: "Invalid session" }, 401);
     }
+
+    await enforceRateLimit(supabase, {
+      actionKey: `player_mon.${action || "unknown"}`,
+      subjectKey: walletAddress,
+      windowSeconds: 60,
+      maxHits: 90,
+    });
 
     const { data: player, error: playerError } = await supabase
       .from("players")

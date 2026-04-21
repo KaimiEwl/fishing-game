@@ -26,6 +26,7 @@ interface AdminPlayerDetailSheetProps {
   activity: AdminPlayerActivityEntry[];
   loading?: boolean;
   onQuickGrant: (player: AdminPlayer, field: 'coins' | 'bait' | 'daily_free_bait', amount: number) => void;
+  onGrantMon: (player: AdminPlayer, amountMon: number, adminNote?: string) => void;
 }
 
 const formatWallet = (value: string) => `${value.slice(0, 6)}...${value.slice(-4)}`;
@@ -48,6 +49,7 @@ const AdminPlayerDetailSheet: React.FC<AdminPlayerDetailSheetProps> = ({
   activity,
   loading = false,
   onQuickGrant,
+  onGrantMon,
 }) => {
   const player = details?.player ?? null;
   const totalBait = player ? player.bait + player.daily_free_bait : 0;
@@ -184,7 +186,7 @@ const AdminPlayerDetailSheet: React.FC<AdminPlayerDetailSheetProps> = ({
                       <CardHeader>
                         <CardTitle className="text-base text-zinc-100">Quick grants</CardTitle>
                       </CardHeader>
-                      <CardContent className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                      <CardContent className="grid grid-cols-1 gap-2 sm:grid-cols-5">
                         <Button
                           variant="outline"
                           className="h-auto border-zinc-800 bg-black py-3 text-left text-zinc-100 hover:bg-zinc-900"
@@ -211,6 +213,24 @@ const AdminPlayerDetailSheet: React.FC<AdminPlayerDetailSheetProps> = ({
                           <Fish className="mb-2 h-4 w-4 text-emerald-300" />
                           <span className="block text-xs text-zinc-400">Grant</span>
                           <span className="font-semibold">+10 daily bait</span>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="h-auto border-zinc-800 bg-black py-3 text-left text-zinc-100 hover:bg-zinc-900"
+                          onClick={() => onGrantMon(player, 1, 'Manual admin test grant')}
+                        >
+                          <Coins className="mb-2 h-4 w-4 text-emerald-300" />
+                          <span className="block text-xs text-zinc-400">Grant</span>
+                          <span className="font-semibold">+1 MON</span>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="h-auto border-zinc-800 bg-black py-3 text-left text-zinc-100 hover:bg-zinc-900"
+                          onClick={() => onGrantMon(player, 5, 'Manual weekly reward test grant')}
+                        >
+                          <Coins className="mb-2 h-4 w-4 text-cyan-200" />
+                          <span className="block text-xs text-zinc-400">Grant</span>
+                          <span className="font-semibold">+5 MON</span>
                         </Button>
                       </CardContent>
                     </Card>

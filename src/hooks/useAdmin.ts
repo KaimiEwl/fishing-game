@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
 import { normalizeMonAmount } from '@/lib/monRewards';
+import { SOCIAL_TASKS, type SocialTaskId, type SocialTaskStatus } from '@/lib/taskRegistry';
 import { getStoredWalletSession } from '@/lib/walletSession';
 
 export type AdminPlayer = Tables<'players'>;
@@ -78,6 +79,39 @@ export interface AdminWithdrawSummary {
   pending_amount_mon: number;
 }
 
+export interface AdminWeeklyPayoutPreviewEntry {
+  rank: number;
+  walletAddress: string;
+  name: string;
+  score: number;
+  dishes: number;
+  amountMon: number;
+}
+
+export interface AdminWeeklyPayoutBatch {
+  id: string;
+  weekKey: string;
+  totalAmountMon: number;
+  createdByWallet: string;
+  createdAt: string;
+  appliedAt: string;
+  payouts: AdminWeeklyPayoutPreviewEntry[];
+}
+
+export interface AdminSocialTaskVerification {
+  id: string;
+  playerId: string;
+  walletAddress: string;
+  playerNickname: string | null;
+  taskId: SocialTaskId;
+  taskTitle: string;
+  status: SocialTaskStatus;
+  proofUrl: string | null;
+  verifiedByWallet: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AdminPlayerDetails {
   player: AdminPlayer;
   grill_summary: AdminPlayerGrillSummary | null;
@@ -139,6 +173,100 @@ interface AdminWithdrawRequestsResponse {
 interface AdminWithdrawSummaryResponse {
   summary: AdminWithdrawSummary;
 }
+
+interface AdminWeeklyPayoutPreviewRow {
+  rank: number;
+  wallet_address: string;
+  name: string;
+  score: number;
+  dishes: number;
+  amount_mon: string | number;
+}
+
+interface AdminWeeklyPayoutPreviewResponse {
+  week_key: string;
+  already_applied: boolean;
+  preview: AdminWeeklyPayoutPreviewRow[];
+  existing_batch: {
+    id: string;
+    week_key: string;
+    total_amount_mon: string | number;
+    created_at: string;
+    applied_at: string;
+  } | null;
+}
+
+interface AdminWeeklyPayoutBatchRow {
+  id: string;
+  week_key: string;
+  payouts: AdminWeeklyPayoutPreviewRow[];
+  total_amount_mon: string | number;
+  created_by_wallet: string;
+  created_at: string;
+  applied_at: string;
+}
+
+interface AdminWeeklyPayoutBatchesResponse {
+  batches: AdminWeeklyPayoutBatchRow[];
+}
+
+interface AdminWeeklyPayoutApplyResponse {
+  batch: AdminWeeklyPayoutBatchRow;
+}
+
+interface AdminSocialTaskVerificationRow {
+  id: string;
+  player_id: string;
+  wallet_address: string;
+  player_nickname: string | null;
+  task_id: SocialTaskId;
+  status: SocialTaskStatus;
+  proof_url: string | null;
+  verified_by_wallet: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface AdminSocialTaskVerificationListResponse {
+  verifications: AdminSocialTaskVerificationRow[];
+}
+
+interface AdminSocialTaskVerificationUpdateResponse {
+  verification: AdminSocialTaskVerificationRow;
+}
+
+const mapWeeklyPayoutPreviewEntry = (entry: AdminWeeklyPayoutPreviewRow): AdminWeeklyPayoutPreviewEntry => ({
+  rank: entry.rank,
+  walletAddress: entry.wallet_address,
+  name: entry.name,
+  score: entry.score,
+  dishes: entry.dishes,
+  amountMon: normalizeMonAmount(entry.amount_mon),
+});
+
+const mapWeeklyPayoutBatch = (batch: AdminWeeklyPayoutBatchRow): AdminWeeklyPayoutBatch => ({
+  id: batch.id,
+  weekKey: batch.week_key,
+  totalAmountMon: normalizeMonAmount(batch.total_amount_mon),
+  createdByWallet: batch.created_by_wallet,
+  createdAt: batch.created_at,
+  appliedAt: batch.applied_at,
+  payouts: (batch.payouts ?? []).map(mapWeeklyPayoutPreviewEntry),
+});
+
+const mapSocialTaskVerification = (verification: AdminSocialTaskVerificationRow): AdminSocialTaskVerification => ({
+  id: verification.id,
+  playerId: verification.player_id,
+  walletAddress: verification.wallet_address,
+  playerNickname: verification.player_nickname,
+  taskId: verification.task_id,
+  taskTitle: SOCIAL_TASKS.find((task) => task.id === verification.task_id)?.title ?? verification.task_id,
+  status: verification.status,
+  proofUrl: verification.proof_url,
+  verifiedByWallet: verification.verified_by_wallet,
+  createdAt: verification.created_at,
+  updatedAt: verification.updated_at,
+});
 
 export function useAdmin(walletAddress: string | undefined) {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
@@ -295,6 +423,70 @@ export function useAdmin(walletAddress: string | undefined) {
     return data.stats;
   }, [callAdmin]);
 
+  const grantMonReward = useCallback(async (
+    playerId: string,
+    amountMon: number,
+    adminNote?: string,
+    sourceRef?: string,
+  ) => {
+    await callAdmin<{ success: boolean }>('grant_mon_reward', {
+      player_id: playerId,
+      amount_mon: amountMon,
+      admin_note: adminNote,
+      source_ref: sourceRef,
+    });
+  }, [callAdmin]);
+
+  const previewWeeklyPayouts = useCallback(async () => {
+    const data = await callAdmin<AdminWeeklyPayoutPreviewResponse>('preview_weekly_payouts');
+    return {
+      weekKey: data.week_key,
+      alreadyApplied: data.already_applied,
+      preview: (data.preview ?? []).map(mapWeeklyPayoutPreviewEntry),
+      existingBatch: data.existing_batch
+        ? {
+          id: data.existing_batch.id,
+          weekKey: data.existing_batch.week_key,
+          totalAmountMon: normalizeMonAmount(data.existing_batch.total_amount_mon),
+          createdAt: data.existing_batch.created_at,
+          appliedAt: data.existing_batch.applied_at,
+        }
+        : null,
+    };
+  }, [callAdmin]);
+
+  const applyWeeklyPayouts = useCallback(async () => {
+    const data = await callAdmin<AdminWeeklyPayoutApplyResponse>('apply_weekly_payouts');
+    return mapWeeklyPayoutBatch(data.batch);
+  }, [callAdmin]);
+
+  const listWeeklyPayoutBatches = useCallback(async (limit = 12) => {
+    const data = await callAdmin<AdminWeeklyPayoutBatchesResponse>('list_weekly_payout_batches', { limit });
+    return (data.batches ?? []).map(mapWeeklyPayoutBatch);
+  }, [callAdmin]);
+
+  const listSocialTaskVerifications = useCallback(async (
+    params: { status?: SocialTaskStatus | 'all'; limit?: number } = {},
+  ) => {
+    const data = await callAdmin<AdminSocialTaskVerificationListResponse>('list_social_task_verifications', params);
+    return (data.verifications ?? []).map(mapSocialTaskVerification);
+  }, [callAdmin]);
+
+  const setSocialTaskVerification = useCallback(async (
+    playerId: string,
+    taskId: SocialTaskId,
+    status: SocialTaskStatus,
+    proofUrl?: string,
+  ) => {
+    const data = await callAdmin<AdminSocialTaskVerificationUpdateResponse>('set_social_task_verification', {
+      player_id: playerId,
+      task_id: taskId,
+      status,
+      proof_url: proofUrl,
+    });
+    return mapSocialTaskVerification(data.verification);
+  }, [callAdmin]);
+
   return {
     isAdmin,
     loading,
@@ -309,6 +501,12 @@ export function useAdmin(walletAddress: string | undefined) {
     approveWithdrawRequest,
     rejectWithdrawRequest,
     markWithdrawPaid,
+    grantMonReward,
+    previewWeeklyPayouts,
+    applyWeeklyPayouts,
+    listWeeklyPayoutBatches,
+    listSocialTaskVerifications,
+    setSocialTaskVerification,
     updatePlayer,
     deletePlayer,
     getStats,

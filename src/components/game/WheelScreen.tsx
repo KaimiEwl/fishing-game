@@ -29,7 +29,20 @@ interface WheelScreenProps {
   paidWheelRolls: number;
   dailyTaskClaimsMet: boolean;
   walletAddress?: string;
-  onSpin: (prize: WheelPrize) => WheelPrize | null;
+  onRequestRoll?: () => Promise<{
+    id?: string;
+    cube_faces: WheelPrize[][];
+    target_face_index: number;
+    target_tile_index: number;
+    prize: WheelPrize;
+  } | null> | {
+    id?: string;
+    cube_faces: WheelPrize[][];
+    target_face_index: number;
+    target_tile_index: number;
+    prize: WheelPrize;
+  } | null;
+  onResolveReward: (prize: WheelPrize, rollId?: string) => Promise<WheelPrize | null> | WheelPrize | null;
   onBuySpin: (amount: number) => void;
   onOpenTasks: () => void;
   onSpinStartSound?: () => void;
@@ -90,6 +103,7 @@ interface PendingTarget {
   faceIndex: number;
   tileIndex: number;
   prize: WheelPrize;
+  rollId?: string;
 }
 
 const CUBE_TILE_PATH = Array.from({ length: 5 }, (_, row) => {
@@ -208,7 +222,8 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
   paidWheelRolls,
   dailyTaskClaimsMet,
   walletAddress,
-  onSpin,
+  onRequestRoll,
+  onResolveReward,
   onBuySpin,
   onOpenTasks,
   onSpinStartSound,
@@ -258,6 +273,8 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     const colorIndex = Math.max(WHEEL_PRIZES.findIndex((prizeItem) => prizeItem.id === item.id), 0);
     const accent = item.type === 'fish' && fish
       ? RARITY_COLORS[fish.rarity]
+      : item.type === 'mon'
+        ? '#14f195'
       : item.secret
         ? '#f8fafc'
         : CUBE_TILE_COLORS[colorIndex % CUBE_TILE_COLORS.length];
@@ -292,6 +309,13 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
             <FishIcon fish={fish} size="xs" />
             <span className="text-[7px] font-black text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.7)] sm:text-[8px]">
               x{item.quantity ?? 1}
+            </span>
+          </div>
+        ) : item.type === 'mon' ? (
+          <div className="flex flex-col items-center justify-center gap-0.5">
+            <span className="text-[9px] font-black tracking-[0.08em] text-black/90 sm:text-[10px]">MON</span>
+            <span className="text-[7px] font-black text-black/80 sm:text-[8px]">
+              {item.mon ?? 1}
             </span>
           </div>
         ) : (
@@ -337,12 +361,22 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
       setHighlightedTileIndex(currentTileIndex);
 
       if (step >= totalSteps) {
-        const result = onSpin(target.prize) ?? target.prize;
-        setPhase('idle');
-        setHighlightedFaceIndex(target.faceIndex);
-        onRewardSound?.();
-        toast.success(`You won: ${result.label}`);
-        spinLockRef.current = false;
+        void (async () => {
+          try {
+            const result = await onResolveReward(target.prize, target.rollId) ?? target.prize;
+            setPhase('idle');
+            setHighlightedFaceIndex(target.faceIndex);
+            onRewardSound?.();
+            toast.success(`You won: ${result.label}`);
+          } catch (error) {
+            console.error('Cube reward resolve failed:', error);
+            toast.error(error instanceof Error ? error.message : 'Could not apply cube reward.');
+            setPhase('idle');
+            setHighlightedFaceIndex(target.faceIndex);
+          } finally {
+            spinLockRef.current = false;
+          }
+        })();
         return;
       }
 
@@ -413,7 +447,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     showRollRequirementPrompt();
   };
 
-  const handleSpin = () => {
+  const handleSpin = async () => {
     if (spinning || selecting || spinLockRef.current) return;
     if (!hasDailyRolls && !hasPaidRolls) {
       showRollRequirementPrompt();
@@ -423,10 +457,27 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     clearTimers();
     spinLockRef.current = true;
 
-    const nextFaces = createCubeFaces();
-    const faceIndex = Math.floor(Math.random() * CUBE_SIDES.length);
-    const tileIndex = Math.floor(Math.random() * FACE_TILE_COUNT);
-    const targetPrize = nextFaces[faceIndex][tileIndex];
+    let nextFaces = createCubeFaces();
+    let faceIndex = Math.floor(Math.random() * CUBE_SIDES.length);
+    let tileIndex = Math.floor(Math.random() * FACE_TILE_COUNT);
+    let targetPrize = nextFaces[faceIndex][tileIndex];
+    let rollId: string | undefined;
+
+    try {
+      const serverRoll = await onRequestRoll?.();
+      if (serverRoll) {
+        nextFaces = serverRoll.cube_faces;
+        faceIndex = serverRoll.target_face_index;
+        tileIndex = serverRoll.target_tile_index;
+        targetPrize = serverRoll.prize;
+        rollId = serverRoll.id;
+      }
+    } catch (error) {
+      console.error('Cube roll request failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Could not roll the cube.');
+      spinLockRef.current = false;
+      return;
+    }
 
     setCubeFaces(nextFaces);
     setHighlightedFaceIndex(null);
@@ -434,7 +485,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     setPhase('spinning');
     setRotationTransitionEnabled(true);
     onSpinStartSound?.();
-    pendingTargetRef.current = { faceIndex, tileIndex, prize: targetPrize };
+    pendingTargetRef.current = { faceIndex, tileIndex, prize: targetPrize, rollId };
     settleStartedRef.current = false;
     setRotation((current) => getNextRotation(current, faceIndex));
 

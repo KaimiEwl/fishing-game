@@ -6,6 +6,7 @@ import {
   insertPlayerAuditLog,
   sanitizeAuditSnapshot,
 } from "../_shared/playerAudit.ts";
+import { enforceRateLimit } from "../_shared/rateLimit.ts";
 
 const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || '*';
 const corsHeaders = {
@@ -115,6 +116,13 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
+
+    await enforceRateLimit(supabase, {
+      actionKey: 'verify_wallet',
+      subjectKey: normalizedAddress,
+      windowSeconds: 60,
+      maxHits: 24,
+    });
 
     const fetchPlayerLoginState = async (walletAddress: string) => {
       const { data, error } = await supabase

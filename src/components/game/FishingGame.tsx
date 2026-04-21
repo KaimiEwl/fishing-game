@@ -1,4 +1,5 @@
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import MonadFishCanvas from './MonadFishCanvas';
 import PlayerPanel from './PlayerPanel';
 import GameControls from './GameControls';
@@ -12,6 +13,7 @@ import { useGameState } from '@/hooks/useGameState';
 import { useGameProgress } from '@/hooks/useGameProgress';
 import { useWalletAuth } from '@/hooks/useWalletAuth';
 import { usePlayerMessages } from '@/hooks/usePlayerMessages';
+import { usePlayerActions } from '@/hooks/usePlayerActions';
 import { useBackgroundMusic } from '@/hooks/useBackgroundMusic';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -88,6 +90,7 @@ const FishingGame: React.FC = () => {
     referralSummary,
     saveProgress,
     saveGameProgress,
+    syncServerPlayerRecord,
   } = useWalletAuth();
   const {
     messages: inboxMessages,
@@ -109,6 +112,7 @@ const FishingGame: React.FC = () => {
     savedProgress: isVerified ? savedGameProgress : undefined,
     onSave: isVerified ? saveGameProgress : undefined,
   });
+  const playerActions = usePlayerActions(address, isConnected && isVerified);
   const { syncReferralTask } = gameProgress;
   const logAuditEvent = useCallback((event: PlayerAuditEventPayload) => {
     if (!address || !isVerified) return;
@@ -121,6 +125,9 @@ const FishingGame: React.FC = () => {
       metadata: event.metadata,
     });
   }, [address, isVerified]);
+  const applyServerPlayerSnapshot = useCallback((playerRecord: Parameters<typeof syncServerPlayerRecord>[0]) => {
+    syncServerPlayerRecord(playerRecord);
+  }, [syncServerPlayerRecord]);
 
   const {
     player,
@@ -195,6 +202,32 @@ const FishingGame: React.FC = () => {
       return nextEntries;
     });
   }, [address, leaderboardPlayerId]);
+  const syncServerLeaderboardEntry = useCallback((entry: {
+    id: string;
+    name: string;
+    score: number;
+    dishes: number;
+    wallet_address?: string | null;
+    updated_at?: string;
+  }) => {
+    setLeaderboardEntries((entries) => upsertLeaderboardEntry({
+      entries,
+      id: entry.id,
+      name: entry.name,
+      score: entry.score,
+      dishesDelta: Math.max(0, entry.dishes - (entries.find((item) => item.id === entry.id)?.dishes ?? 0)),
+      walletAddress: entry.wallet_address ?? address,
+    }).map((item) => (
+      item.id === entry.id
+        ? {
+          ...item,
+          updatedAt: entry.updated_at ?? item.updatedAt,
+          dishes: entry.dishes,
+          score: entry.score,
+        }
+        : item
+    )));
+  }, [address]);
 
   const refreshLeaderboard = useCallback(async () => {
     const remoteEntries = await loadGlobalLeaderboardEntries();
@@ -389,16 +422,38 @@ const FishingGame: React.FC = () => {
     sounds.playSellSound();
   };
 
-  const handleSellCookedDish = (recipeId: string) => {
+  const handleSellCookedDish = async (recipeId: string) => {
+    if (isVerified) {
+      try {
+        const result = await playerActions.sellCookedDish(recipeId);
+        applyServerPlayerSnapshot(result.player);
+        sounds.playSellSound();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Could not sell dish.');
+      }
+      return;
+    }
+
     const sellPrice = sellCookedDish(recipeId);
     if (sellPrice <= 0) return;
     sounds.playSellSound();
   };
 
-  const handleClaimTask = (taskId: TaskId) => {
+  const handleClaimTask = async (taskId: TaskId) => {
     const task = DAILY_TASKS.find((item) => item.id === taskId) ?? SPECIAL_TASKS.find((item) => item.id === taskId);
-    const beforeState = toPlayerAuditSnapshot(player);
 
+    if (isVerified) {
+      try {
+        const result = await playerActions.claimTaskReward(taskId);
+        applyServerPlayerSnapshot(result.player);
+        sounds.playBuySound();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Could not claim task reward.');
+      }
+      return;
+    }
+
+    const beforeState = toPlayerAuditSnapshot(player);
     if (gameProgress.claimTask(taskId, ({ coins = 0, bait = 0 }) => {
       if (coins > 0) addCoins(coins);
       if (bait > 0) addBait(bait);
@@ -424,53 +479,89 @@ const FishingGame: React.FC = () => {
     }
   };
 
-  const handleSpinWheel = (selectedPrize: WheelPrize): WheelPrize | null => {
+  const handleRequestCubeRoll = async () => {
+    if (!isVerified) return null;
+
+    const result = await playerActions.rollCube();
+    applyServerPlayerSnapshot(result.player);
+    return result.roll;
+  };
+
+  const handleResolveCubeReward = async (selectedPrize: WheelPrize, rollId?: string): Promise<WheelPrize | null> => {
+    if (isVerified) {
+      if (!rollId) throw new Error('Missing cube roll id.');
+      const result = await playerActions.applyCubeReward(rollId);
+      applyServerPlayerSnapshot(result.player);
+      sounds.playLevelUpSound();
+      return result.prize;
+    }
+
     const beforeState = toPlayerAuditSnapshot(player);
-    const applyCubeReward = (reward: WheelPrize) => {
+    const applyCubeRewardLocal = (reward: WheelPrize) => {
       if (reward.type === 'fish' && reward.fishId) {
         grantFishReward(reward.fishId, reward.quantity ?? 1);
+        return;
+      }
+      if (reward.type === 'mon') {
         return;
       }
 
       addCoins(reward.coins ?? 0);
     };
 
-    const prize = gameProgress.spinWheel(applyCubeReward, selectedPrize);
-    if (prize) {
-      if (address && isVerified) {
-        const metadata: Record<string, unknown> = {
-          prizeId: prize.id,
-          prizeType: prize.type,
+    const prize = gameProgress.spinWheel(applyCubeRewardLocal, selectedPrize);
+    if (prize && address && isVerified) {
+      const metadata: Record<string, unknown> = {
+        prizeId: prize.id,
+        prizeType: prize.type,
+      };
+      let afterState = beforeState;
+
+      if (prize.type === 'fish') {
+        metadata.fishId = prize.fishId;
+        metadata.quantity = prize.quantity ?? 1;
+      } else if (prize.type === 'mon') {
+        metadata.mon = prize.mon ?? 0;
+      } else {
+        metadata.coins = prize.coins ?? 0;
+        afterState = {
+          ...beforeState,
+          coins: beforeState.coins + (prize.coins ?? 0),
         };
-        let afterState = beforeState;
-
-        if (prize.type === 'fish') {
-          metadata.fishId = prize.fishId;
-          metadata.quantity = prize.quantity ?? 1;
-        } else {
-          metadata.coins = prize.coins ?? 0;
-          afterState = {
-            ...beforeState,
-            coins: beforeState.coins + (prize.coins ?? 0),
-          };
-        }
-
-        void logPlayerAuditEvent({
-          walletAddress: address,
-          eventType: prize.type === 'fish' ? 'cube_fish_reward' : 'cube_coin_reward',
-          beforeState,
-          afterState,
-          metadata,
-        });
       }
-      sounds.playLevelUpSound();
-      return prize;
+
+      void logPlayerAuditEvent({
+        walletAddress: address,
+        eventType: prize.type === 'fish' ? 'cube_fish_reward' : prize.type === 'mon' ? 'cube_mon_reward' : 'cube_coin_reward',
+        beforeState,
+        afterState,
+        metadata,
+      });
     }
 
-    return null;
+    if (prize) {
+      sounds.playLevelUpSound();
+    }
+
+    return prize;
   };
 
-  const handleCookRecipe = (recipe: GrillRecipe) => {
+  const handleCookRecipe = async (recipe: GrillRecipe) => {
+    if (isVerified) {
+      try {
+        const result = await playerActions.cookRecipe(recipe.id);
+        applyServerPlayerSnapshot(result.player);
+        if (result.leaderboard_entry) {
+          syncServerLeaderboardEntry(result.leaderboard_entry);
+        }
+        sounds.playSellSound();
+        return true;
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Could not cook recipe.');
+        return false;
+      }
+    }
+
     const beforeState = toPlayerAuditSnapshot(player);
     if (!cookRecipe(recipe)) return false;
     const nextGrillScore = gameProgress.grillScore + recipe.score;
@@ -501,6 +592,20 @@ const FishingGame: React.FC = () => {
 
   const handleSaveLeaderboardName = (name: string) => {
     const score = Math.max(pendingLeaderboardScore, gameProgress.grillScore);
+    if (isVerified) {
+      void playerActions.updateGrillLeaderboard(name, score, pendingLeaderboardDishes)
+        .then((result) => {
+          syncServerLeaderboardEntry(result.leaderboard_entry);
+          setLeaderboardNameOpen(false);
+          setPendingLeaderboardDishes(0);
+          setPendingLeaderboardScore(0);
+        })
+        .catch((error) => {
+          toast.error(error instanceof Error ? error.message : 'Could not save leaderboard name.');
+        });
+      return;
+    }
+
     saveCurrentLeaderboardEntry(name, score, pendingLeaderboardDishes);
     setLeaderboardNameOpen(false);
     setPendingLeaderboardDishes(0);
@@ -568,7 +673,8 @@ const FishingGame: React.FC = () => {
                   paidWheelRolls={gameProgress.paidWheelRolls}
                   dailyTaskClaimsMet={gameProgress.dailyTaskClaimsMet}
                   walletAddress={address}
-                  onSpin={handleSpinWheel}
+                  onRequestRoll={handleRequestCubeRoll}
+                  onResolveReward={handleResolveCubeReward}
                   onBuySpin={gameProgress.addPaidWheelRolls}
                   onOpenTasks={() => setActiveTab('tasks')}
                   onSpinStartSound={sounds.playCubeSpinSound}

@@ -22,7 +22,7 @@ import {
 } from '@/lib/walletSession';
 import { useToast } from '@/hooks/use-toast';
 
-interface PlayerRecord {
+export interface PlayerRecord {
   wallet_address: string;
   coins: number;
   bait: number;
@@ -558,6 +558,7 @@ export function useWalletAuth() {
     referralSummary,
     saveProgress,
     saveGameProgress,
+    syncServerPlayerRecord: (playerRecord: PlayerRecord) => applyVerifiedPlayerPayload(playerRecord),
     disconnect,
   };
 }

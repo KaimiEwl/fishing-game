@@ -11,7 +11,7 @@ interface GrillScreenProps {
   coins: number;
   inventory: CaughtFish[];
   grillScore: number;
-  onCook: (recipe: GrillRecipe) => boolean;
+  onCook: (recipe: GrillRecipe) => Promise<boolean> | boolean;
 }
 
 const COOKING_ANIMATION_MS = 1650;
@@ -49,20 +49,22 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
     });
 
     cookingTimerRef.current = window.setTimeout(() => {
-      const cooked = onCook(recipe);
-      if (!cooked) {
-        setCookPhase('idle');
-        setActiveRecipe(null);
-        setCookProgress(0);
-        return;
-      }
+      void (async () => {
+        const cooked = await onCook(recipe);
+        if (!cooked) {
+          setCookPhase('idle');
+          setActiveRecipe(null);
+          setCookProgress(0);
+          return;
+        }
 
-      setCookPhase('result');
-      setCookProgress(0);
-      resultTimerRef.current = window.setTimeout(() => {
-        setCookPhase('idle');
-        setActiveRecipe(null);
-      }, COOKING_RESULT_MS);
+        setCookPhase('result');
+        setCookProgress(0);
+        resultTimerRef.current = window.setTimeout(() => {
+          setCookPhase('idle');
+          setActiveRecipe(null);
+        }, COOKING_RESULT_MS);
+      })();
     }, COOKING_ANIMATION_MS);
   };
 

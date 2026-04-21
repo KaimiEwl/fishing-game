@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifySessionToken } from "../_shared/session.ts";
+import { enforceRateLimit } from "../_shared/rateLimit.ts";
 
 const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || '*';
 const corsHeaders = {
@@ -10,6 +11,13 @@ const corsHeaders = {
 
 const DAILY_FREE_BAIT = 30;
 const BAIT_BUCKETS_V2_ENABLED = true;
+const MAX_PROGRESS_SAVE_COINS_DELTA = 100000;
+const MAX_PROGRESS_SAVE_BAIT_DELTA = 1000;
+const MAX_PROGRESS_SAVE_CATCH_DELTA = 500;
+const MAX_PROGRESS_SAVE_INVENTORY_DELTA = 500;
+const MAX_PROGRESS_SAVE_COOKED_DISH_DELTA = 200;
+const MAX_PROGRESS_SAVE_GRILL_SCORE_DELTA = 20000;
+const MAX_PROGRESS_SAVE_PAID_ROLL_DELTA = 50;
 const DAILY_TASK_IDS = ['check_in', 'catch_10', 'rare_1', 'grill_1', 'spend_1000'] as const;
 const SPECIAL_TASK_IDS = ['invite_friend'] as const;
 
@@ -167,7 +175,13 @@ const sanitizeTaskStateMap = (value: unknown, ids: readonly string[]) => {
 const sanitizeWheelPrize = (value: unknown) => {
   if (!value || typeof value !== 'object') return null;
   const prize = value as Record<string, unknown>;
-  const type = prize.type === 'fish' ? 'fish' : prize.type === 'coins' ? 'coins' : null;
+  const type = prize.type === 'fish'
+    ? 'fish'
+    : prize.type === 'coins'
+      ? 'coins'
+      : prize.type === 'mon'
+        ? 'mon'
+        : null;
   const id = typeof prize.id === 'string' ? prize.id.trim() : '';
   const label = typeof prize.label === 'string' ? prize.label.trim() : '';
   if (!type || !id || !label) return null;
@@ -179,6 +193,7 @@ const sanitizeWheelPrize = (value: unknown) => {
     coins: type === 'coins' ? clampInt(prize.coins, 0, 0, 1_000_000_000) : undefined,
     fishId: type === 'fish' && typeof prize.fishId === 'string' ? prize.fishId.trim() : undefined,
     quantity: prize.quantity == null ? undefined : clampInt(prize.quantity, 1, 1, 99999),
+    mon: type === 'mon' ? Number(prize.mon ?? 0) : undefined,
     secret: Boolean(prize.secret),
   };
 };
@@ -301,6 +316,10 @@ const formatErrorMessage = (error: unknown) => {
   return 'Could not save progress';
 };
 
+const sumStackQuantity = (items: Array<{ quantity: number }>) => (
+  items.reduce((sum, item) => sum + item.quantity, 0)
+);
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -334,6 +353,13 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
+
+    await enforceRateLimit(supabase, {
+      actionKey: 'save_player_progress',
+      subjectKey: normalizedWalletAddress,
+      windowSeconds: 60,
+      maxHits: 60,
+    });
 
     const { data: currentPlayer, error: currentPlayerError } = await supabase
       .from('players')
@@ -394,10 +420,33 @@ serve(async (req) => {
       ? currentGameProgress
       : sanitizeGameProgress(game_progress, currentGameProgress.date);
 
+    const requestedCoins = clampInt(clientPayload.coins, currentPlayerRow.coins, 0, 1_000_000_000);
+    const requestedBait = clampInt(clientPayload.bait, currentPlayerRow.bait, 0, 1_000_000_000);
+    const requestedCatches = clampInt(clientPayload.total_catches, currentPlayerRow.total_catches, 0, 1_000_000_000);
+    const inventoryDelta = Math.max(0, sumStackQuantity(sanitizedInventory) - sumStackQuantity(currentInventory));
+    const cookedDishDelta = Math.max(0, sumStackQuantity(sanitizedCookedDishes) - sumStackQuantity(currentCookedDishes));
+    const grillScoreDelta = Math.max(0, nextGameProgress.grillScore - currentGameProgress.grillScore);
+    const paidRollDelta = Math.max(0, nextGameProgress.paidWheelRolls - currentGameProgress.paidWheelRolls);
+
+    if (
+      requestedCoins - currentPlayerRow.coins > MAX_PROGRESS_SAVE_COINS_DELTA
+      || requestedBait - currentPlayerRow.bait > MAX_PROGRESS_SAVE_BAIT_DELTA
+      || requestedCatches - currentPlayerRow.total_catches > MAX_PROGRESS_SAVE_CATCH_DELTA
+      || inventoryDelta > MAX_PROGRESS_SAVE_INVENTORY_DELTA
+      || cookedDishDelta > MAX_PROGRESS_SAVE_COOKED_DISH_DELTA
+      || grillScoreDelta > MAX_PROGRESS_SAVE_GRILL_SCORE_DELTA
+      || paidRollDelta > MAX_PROGRESS_SAVE_PAID_ROLL_DELTA
+    ) {
+      return new Response(
+        JSON.stringify({ error: 'Progress payload exceeded guarded sync limits. Refresh the wallet session and try again.' }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
     const updatePayload = {
       coins: isStaleBase
-        ? Math.max(currentPlayerRow.coins, clampInt(clientPayload.coins, currentPlayerRow.coins, 0, 1_000_000_000))
-        : clampInt(clientPayload.coins, currentPlayerRow.coins, 0, 1_000_000_000),
+        ? Math.max(currentPlayerRow.coins, requestedCoins)
+        : requestedCoins,
       bait: isStaleBase ? Math.max(currentPlayerRow.bait, nextBait) : nextBait,
       daily_free_bait: isStaleBase
         ? Math.min(currentPlayerRow.daily_free_bait, nextDailyFreeBait)
@@ -423,8 +472,8 @@ serve(async (req) => {
         ? mergeStacksByMax(currentCookedDishes, sanitizedCookedDishes, 'recipeId')
         : sanitizedCookedDishes,
       total_catches: isStaleBase
-        ? Math.max(currentPlayerRow.total_catches, clampInt(clientPayload.total_catches, currentPlayerRow.total_catches, 0, 1_000_000_000))
-        : clampInt(clientPayload.total_catches, currentPlayerRow.total_catches, 0, 1_000_000_000),
+        ? Math.max(currentPlayerRow.total_catches, requestedCatches)
+        : requestedCatches,
       login_streak: isStaleBase
         ? Math.max(currentPlayerRow.login_streak, clampInt(clientPayload.login_streak, currentPlayerRow.login_streak, 1, 9999))
         : clampInt(clientPayload.login_streak, currentPlayerRow.login_streak, 1, 9999),

@@ -55,6 +55,7 @@ export type GameTab = 'fish' | 'tasks' | 'shop' | 'grill' | 'wheel' | 'leaderboa
 
 export type DailyTaskId = 'check_in' | 'catch_10' | 'rare_1' | 'grill_1' | 'spend_1000';
 export type SpecialTaskId = 'invite_friend';
+export type SocialTaskId = 'twitter_follow' | 'twitter_repost' | 'twitter_like' | 'discord_join' | 'telegram_join';
 export type TaskId = DailyTaskId | SpecialTaskId;
 
 export interface DailyTask {
@@ -75,6 +76,13 @@ export interface SpecialTask {
   rewardBait?: number;
 }
 
+export interface SocialTask {
+  id: SocialTaskId;
+  title: string;
+  description: string;
+  verificationMode: 'manual' | 'automatic';
+}
+
 export interface DailyTaskProgress extends DailyTask {
   progress: number;
   claimed: boolean;
@@ -85,13 +93,16 @@ export interface SpecialTaskProgress extends SpecialTask {
   claimed: boolean;
 }
 
+export type SocialTaskStatus = 'available' | 'pending_verification' | 'verified' | 'claimed';
+
 export interface WheelPrize {
   id: string;
   label: string;
-  type: 'coins' | 'fish';
+  type: 'coins' | 'fish' | 'mon';
   coins?: number;
   fishId?: string;
   quantity?: number;
+  mon?: number;
   secret?: boolean;
 }
 
@@ -276,6 +287,39 @@ export const SPECIAL_TASKS: SpecialTask[] = [
     description: 'Get your first rewarded referral after your friend connects a wallet.',
     target: 1,
     rewardCoins: 1000,
+  },
+];
+
+export const SOCIAL_TASKS: SocialTask[] = [
+  {
+    id: 'twitter_follow',
+    title: 'Follow on X',
+    description: 'Social task scaffold for future X follow verification.',
+    verificationMode: 'manual',
+  },
+  {
+    id: 'twitter_repost',
+    title: 'Repost on X',
+    description: 'Social task scaffold for future repost verification.',
+    verificationMode: 'manual',
+  },
+  {
+    id: 'twitter_like',
+    title: 'Like on X',
+    description: 'Social task scaffold for future like verification.',
+    verificationMode: 'manual',
+  },
+  {
+    id: 'discord_join',
+    title: 'Join Discord',
+    description: 'Social task scaffold for future Discord verification.',
+    verificationMode: 'manual',
+  },
+  {
+    id: 'telegram_join',
+    title: 'Join Telegram',
+    description: 'Social task scaffold for future Telegram verification.',
+    verificationMode: 'manual',
   },
 ];
 

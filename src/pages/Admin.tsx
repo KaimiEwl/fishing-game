@@ -21,14 +21,20 @@ import {
   type AdminPlayerDetails,
   type AdminPlayerActivityEntry,
   type AdminPlayerMessage,
+  type AdminSocialTaskVerification,
   type AdminStats,
+  type AdminWeeklyPayoutBatch,
+  type AdminWeeklyPayoutPreviewEntry,
   type AdminWithdrawRequest,
   type AdminWithdrawSummary,
+  type SocialTaskStatus,
   type WithdrawRequestStatus,
 } from '@/hooks/useAdmin';
 import AdminPlayerDetailSheet from '@/components/AdminPlayerDetailSheet';
 import AdminPlayerMessageCenter from '@/components/AdminPlayerMessageCenter';
+import AdminSocialTaskCenter from '@/components/AdminSocialTaskCenter';
 import AdminWithdrawRequestCenter from '@/components/AdminWithdrawRequestCenter';
+import AdminWeeklyPayoutCenter from '@/components/AdminWeeklyPayoutCenter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -46,7 +52,7 @@ import { cn } from '@/lib/utils';
 
 const ROD_NAMES = ['Starter', 'Bamboo', 'Carbon', 'Pro', 'Legendary'];
 
-type AdminTab = 'overview' | 'players' | 'messages' | 'withdrawals';
+type AdminTab = 'overview' | 'players' | 'messages' | 'withdrawals' | 'weekly' | 'social';
 
 type EditablePlayerForm = Pick<
   AdminPlayer,
@@ -73,6 +79,12 @@ export default function Admin() {
     approveWithdrawRequest,
     rejectWithdrawRequest,
     markWithdrawPaid,
+    grantMonReward,
+    previewWeeklyPayouts,
+    applyWeeklyPayouts,
+    listWeeklyPayoutBatches,
+    listSocialTaskVerifications,
+    setSocialTaskVerification,
     updatePlayer,
     deletePlayer,
     getStats,
@@ -95,12 +107,22 @@ export default function Admin() {
   const [withdrawRequests, setWithdrawRequests] = useState<AdminWithdrawRequest[]>([]);
   const [withdrawSummary, setWithdrawSummary] = useState<AdminWithdrawSummary | null>(null);
   const [withdrawFilter, setWithdrawFilter] = useState<WithdrawRequestStatus | 'all'>('pending');
+  const [weeklyPreview, setWeeklyPreview] = useState<AdminWeeklyPayoutPreviewEntry[]>([]);
+  const [weeklyPreviewWeekKey, setWeeklyPreviewWeekKey] = useState<string | null>(null);
+  const [weeklyAlreadyApplied, setWeeklyAlreadyApplied] = useState(false);
+  const [weeklyBatches, setWeeklyBatches] = useState<AdminWeeklyPayoutBatch[]>([]);
+  const [socialVerifications, setSocialVerifications] = useState<AdminSocialTaskVerification[]>([]);
+  const [socialFilter, setSocialFilter] = useState<SocialTaskStatus | 'all'>('all');
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [messageSending, setMessageSending] = useState(false);
   const [withdrawsLoading, setWithdrawsLoading] = useState(false);
   const [processingWithdrawId, setProcessingWithdrawId] = useState<string | null>(null);
+  const [weeklyLoading, setWeeklyLoading] = useState(false);
+  const [weeklyApplying, setWeeklyApplying] = useState(false);
+  const [socialLoading, setSocialLoading] = useState(false);
+  const [socialProcessingId, setSocialProcessingId] = useState<string | null>(null);
   const [editPlayer, setEditPlayer] = useState<AdminPlayer | null>(null);
   const [editForm, setEditForm] = useState<EditablePlayerForm | null>(null);
   const [saving, setSaving] = useState(false);
@@ -158,6 +180,39 @@ export default function Admin() {
     }
   }, [listWithdrawRequests, toast, withdrawFilter]);
 
+  const fetchWeeklyData = useCallback(async () => {
+    setWeeklyLoading(true);
+    try {
+      const [previewData, batches] = await Promise.all([
+        previewWeeklyPayouts(),
+        listWeeklyPayoutBatches(12),
+      ]);
+      setWeeklyPreviewWeekKey(previewData.weekKey);
+      setWeeklyPreview(previewData.preview);
+      setWeeklyAlreadyApplied(previewData.alreadyApplied);
+      setWeeklyBatches(batches);
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
+    } finally {
+      setWeeklyLoading(false);
+    }
+  }, [listWeeklyPayoutBatches, previewWeeklyPayouts, toast]);
+
+  const fetchSocialData = useCallback(async () => {
+    setSocialLoading(true);
+    try {
+      const data = await listSocialTaskVerifications({
+        status: socialFilter,
+        limit: 100,
+      });
+      setSocialVerifications(data);
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
+    } finally {
+      setSocialLoading(false);
+    }
+  }, [listSocialTaskVerifications, socialFilter, toast]);
+
   const loadSelectedPlayerContext = useCallback(async (player: AdminPlayer, openDetails = false) => {
     setSelectedPlayer(player);
     setSelectedPlayerDetails(null);
@@ -202,6 +257,18 @@ export default function Admin() {
       void fetchWithdrawSummary();
     }
   }, [activeTab, fetchWithdrawRequests, fetchWithdrawSummary, isAdmin]);
+
+  useEffect(() => {
+    if (isAdmin && activeTab === 'weekly') {
+      void fetchWeeklyData();
+    }
+  }, [activeTab, fetchWeeklyData, isAdmin]);
+
+  useEffect(() => {
+    if (isAdmin && activeTab === 'social') {
+      void fetchSocialData();
+    }
+  }, [activeTab, fetchSocialData, isAdmin]);
 
   const totalPages = Math.ceil(total / 20);
 
@@ -298,6 +365,19 @@ export default function Admin() {
     }
   }, [fetchStats, loadSelectedPlayerContext, syncUpdatedPlayer, toast, updatePlayer]);
 
+  const handleGrantMon = useCallback(async (player: AdminPlayer, amountMon: number, adminNote?: string) => {
+    try {
+      await grantMonReward(player.id, amountMon, adminNote);
+      toast({
+        title: 'MON granted',
+        description: `${amountMon} MON granted to ${player.nickname || formatWallet(player.wallet_address)}.`,
+      });
+      await fetchWithdrawSummary();
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
+    }
+  }, [fetchWithdrawSummary, grantMonReward, toast]);
+
   const handleDelete = async (player: AdminPlayer) => {
     if (!confirm('Delete player?')) return;
 
@@ -377,6 +457,41 @@ export default function Admin() {
     }
   };
 
+  const handleApplyWeeklyPayouts = async () => {
+    setWeeklyApplying(true);
+    try {
+      await applyWeeklyPayouts();
+      toast({ title: 'Weekly payout applied' });
+      await fetchWeeklyData();
+      await fetchWithdrawSummary();
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
+    } finally {
+      setWeeklyApplying(false);
+    }
+  };
+
+  const handleSetSocialVerification = async (
+    verification: AdminSocialTaskVerification,
+    status: AdminSocialTaskVerification['status'],
+  ) => {
+    setSocialProcessingId(verification.id);
+    try {
+      await setSocialTaskVerification(
+        verification.playerId,
+        verification.taskId,
+        status,
+        verification.proofUrl ?? undefined,
+      );
+      toast({ title: 'Social task updated', description: `${verification.taskTitle} -> ${status.replaceAll('_', ' ')}` });
+      await fetchSocialData();
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
+    } finally {
+      setSocialProcessingId(null);
+    }
+  };
+
   const messageListTitle = useMemo(() => (
     selectedPlayer
       ? `${selectedPlayer.nickname || formatWallet(selectedPlayer.wallet_address)}`
@@ -418,13 +533,21 @@ export default function Admin() {
         </div>
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as AdminTab)}>
-          <TabsList className="grid w-full max-w-2xl grid-cols-4">
+          <TabsList className="grid w-full max-w-4xl grid-cols-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="players">Players</TabsTrigger>
             <TabsTrigger value="messages">Messages</TabsTrigger>
             <TabsTrigger value="withdrawals" className="gap-2">
               <ArrowUpRight className="h-4 w-4" />
               Withdrawals
+            </TabsTrigger>
+            <TabsTrigger value="weekly" className="gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Weekly
+            </TabsTrigger>
+            <TabsTrigger value="social" className="gap-2">
+              <MessageSquare className="h-4 w-4" />
+              Social
             </TabsTrigger>
           </TabsList>
 
@@ -689,6 +812,39 @@ export default function Admin() {
               onMarkPaid={handleMarkWithdrawPaid}
             />
           </TabsContent>
+
+          <TabsContent value="weekly" className="space-y-4">
+            <AdminWeeklyPayoutCenter
+              weekKey={weeklyPreviewWeekKey}
+              preview={weeklyPreview}
+              batches={weeklyBatches}
+              alreadyApplied={weeklyAlreadyApplied}
+              loading={weeklyLoading}
+              applying={weeklyApplying}
+              onRefresh={() => {
+                void fetchWeeklyData();
+              }}
+              onApply={() => {
+                void handleApplyWeeklyPayouts();
+              }}
+            />
+          </TabsContent>
+
+          <TabsContent value="social" className="space-y-4">
+            <AdminSocialTaskCenter
+              verifications={socialVerifications}
+              filter={socialFilter}
+              loading={socialLoading}
+              processingVerificationId={socialProcessingId}
+              onFilterChange={setSocialFilter}
+              onRefresh={() => {
+                void fetchSocialData();
+              }}
+              onSetStatus={(verification, status) => {
+                void handleSetSocialVerification(verification, status);
+              }}
+            />
+          </TabsContent>
         </Tabs>
 
         <AdminPlayerDetailSheet
@@ -698,6 +854,7 @@ export default function Admin() {
           activity={selectedPlayerActivity}
           loading={detailsLoading}
           onQuickGrant={handleQuickGrant}
+          onGrantMon={handleGrantMon}
         />
 
         <Dialog open={!!editPlayer} onOpenChange={resetEditState}>

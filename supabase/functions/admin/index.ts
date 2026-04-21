@@ -2,6 +2,10 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifySessionToken } from "../_shared/session.ts";
 import { toMonAmount } from "../_shared/monRewards.ts";
+import { grantPlayerReward } from "../_shared/rewards.ts";
+import { previewWeeklyGrillPayouts, getCurrentWeeklyPayoutKey } from "../_shared/weeklyPayouts.ts";
+import { enforceRateLimit } from "../_shared/rateLimit.ts";
+import { SOCIAL_TASK_IDS, type SocialTaskId, type SocialTaskStatus } from "../_shared/taskRegistry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -44,6 +48,29 @@ type AuditLogRow = {
 };
 
 type WithdrawRequestStatus = "pending" | "approved" | "rejected" | "paid";
+
+type WeeklyPayoutBatchRow = {
+  id: string;
+  week_key: string;
+  payouts: unknown;
+  total_amount_mon: string | number | null;
+  created_by_wallet: string;
+  created_at: string;
+  applied_at: string;
+};
+
+type SocialTaskVerificationRow = {
+  id: string;
+  player_id: string;
+  wallet_address: string;
+  task_id: string;
+  status: SocialTaskStatus;
+  proof_url: string | null;
+  verified_by_wallet: string | null;
+  created_at: string;
+  updated_at: string;
+  player_nickname?: string | null;
+};
 
 type WithdrawRequestRow = {
   id: string;
@@ -122,6 +149,9 @@ const normalizeNullableText = (value: unknown, maxLength: number) => {
 const isWithdrawRequestStatus = (value: string): value is WithdrawRequestStatus =>
   ["pending", "approved", "rejected", "paid"].includes(value);
 
+const isSocialTaskStatus = (value: string): value is SocialTaskStatus =>
+  ["available", "pending_verification", "verified", "claimed"].includes(value);
+
 const mapWithdrawRequestRow = (
   request: WithdrawRequestRow,
   playerNameById: Map<string, string | null>,
@@ -161,6 +191,13 @@ serve(async (req) => {
       return jsonResponse({ error: "Unauthorized" }, 403);
     }
 
+    await enforceRateLimit(supabase, {
+      actionKey: `admin.${action || "unknown"}`,
+      subjectKey: walletAddress,
+      windowSeconds: 60,
+      maxHits: 180,
+    });
+
     switch (action) {
       case "check_admin":
         return jsonResponse({ is_admin: true });
@@ -176,7 +213,7 @@ serve(async (req) => {
         let query = supabase.from("players").select("*", { count: "exact" });
 
         if (search) {
-          query = query.or(`wallet_address.ilike.%${search}%`);
+          query = query.or(`wallet_address.ilike.%${search}%,nickname.ilike.%${search}%`);
         }
 
         const { data, count, error } = await query
@@ -447,6 +484,213 @@ serve(async (req) => {
         if (error) throw error;
 
         return jsonResponse({ request: { ...data, amount_mon: toMonAmount(data.amount_mon) } });
+      }
+
+      case "grant_mon_reward": {
+        const playerId = normalizeText(body.player_id);
+        const amountMon = toMonAmount(body.amount_mon);
+        const sourceRef = normalizeNullableText(body.source_ref, 255);
+        const adminNote = normalizeNullableText(body.admin_note, 1000);
+
+        if (!playerId) return badRequest("Missing player");
+        if (amountMon <= 0) return badRequest("MON amount must be positive");
+
+        const { data: player, error: playerError } = await supabase
+          .from("players")
+          .select("wallet_address")
+          .eq("id", playerId)
+          .single();
+        if (playerError) throw playerError;
+
+        await grantPlayerReward(supabase, {
+          walletAddress: player.wallet_address,
+          reward: { mon: amountMon },
+          sourceType: "admin_manual_grant",
+          sourceRef,
+          eventType: "admin_mon_grant",
+          metadata: {
+            playerId,
+            grantedByWallet: walletAddress,
+          },
+          createdByWallet: walletAddress,
+          adminNote,
+        });
+
+        return jsonResponse({ success: true });
+      }
+
+      case "preview_weekly_payouts": {
+        const weekKey = getCurrentWeeklyPayoutKey();
+        const payouts = await previewWeeklyGrillPayouts(supabase);
+        const { data: existingBatch, error: batchError } = await supabase
+          .from("weekly_grill_payout_batches")
+          .select("id, week_key, total_amount_mon, created_at, applied_at")
+          .eq("week_key", weekKey)
+          .maybeSingle();
+        if (batchError) throw batchError;
+
+        return jsonResponse({
+          week_key: weekKey,
+          already_applied: Boolean(existingBatch),
+          preview: payouts,
+          existing_batch: existingBatch
+            ? {
+              ...existingBatch,
+              total_amount_mon: toMonAmount(existingBatch.total_amount_mon),
+            }
+            : null,
+        });
+      }
+
+      case "apply_weekly_payouts": {
+        const weekKey = getCurrentWeeklyPayoutKey();
+        const { data: existingBatch, error: existingBatchError } = await supabase
+          .from("weekly_grill_payout_batches")
+          .select("id")
+          .eq("week_key", weekKey)
+          .maybeSingle();
+        if (existingBatchError) throw existingBatchError;
+        if (existingBatch) {
+          return badRequest("Weekly payout for this week was already applied");
+        }
+
+        const payouts = await previewWeeklyGrillPayouts(supabase);
+        if (payouts.length === 0) {
+          return badRequest("No eligible leaderboard entries for weekly payout");
+        }
+
+        for (const payout of payouts) {
+          await grantPlayerReward(supabase, {
+            walletAddress: payout.wallet_address,
+            reward: { mon: payout.amount_mon },
+            sourceType: "weekly_grill_top",
+            sourceRef: `${weekKey}:${payout.rank}`,
+            eventType: "weekly_grill_top_reward",
+            metadata: {
+              weekKey,
+              rank: payout.rank,
+              leaderboardScore: payout.score,
+              dishes: payout.dishes,
+            },
+            createdByWallet: walletAddress,
+            adminNote: `Weekly grill payout ${weekKey}`,
+          });
+        }
+
+        const totalAmountMon = payouts.reduce((sum, payout) => sum + payout.amount_mon, 0);
+        const { data: batch, error: batchError } = await supabase
+          .from("weekly_grill_payout_batches")
+          .insert({
+            week_key: weekKey,
+            payouts,
+            total_amount_mon: totalAmountMon,
+            created_by_wallet: walletAddress,
+          })
+          .select("id, week_key, payouts, total_amount_mon, created_by_wallet, created_at, applied_at")
+          .single();
+        if (batchError) throw batchError;
+
+        return jsonResponse({
+          batch: {
+            ...batch,
+            total_amount_mon: toMonAmount(batch.total_amount_mon),
+          },
+        });
+      }
+
+      case "list_weekly_payout_batches": {
+        const limit = toPositiveInt(body.limit, 20, 100);
+        const { data, error } = await supabase
+          .from("weekly_grill_payout_batches")
+          .select("id, week_key, payouts, total_amount_mon, created_by_wallet, created_at, applied_at")
+          .order("applied_at", { ascending: false })
+          .limit(limit);
+        if (error) throw error;
+
+        return jsonResponse({
+          batches: ((data ?? []) as WeeklyPayoutBatchRow[]).map((batch) => ({
+            ...batch,
+            total_amount_mon: toMonAmount(batch.total_amount_mon),
+          })),
+        });
+      }
+
+      case "list_social_task_verifications": {
+        const limit = toPositiveInt(body.limit, 50, 200);
+        const status = normalizeText(body.status);
+        let query = supabase
+          .from("social_task_verifications")
+          .select("id, player_id, wallet_address, task_id, status, proof_url, verified_by_wallet, created_at, updated_at")
+          .order("updated_at", { ascending: false })
+          .limit(limit);
+
+        if (isSocialTaskStatus(status)) {
+          query = query.eq("status", status);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        const verifications = (data ?? []) as SocialTaskVerificationRow[];
+        const playerIds = Array.from(new Set(verifications.map((entry) => entry.player_id)));
+        const playerNameById = new Map<string, string | null>();
+
+        if (playerIds.length > 0) {
+          const { data: players, error: playersError } = await supabase
+            .from("players")
+            .select("id, nickname")
+            .in("id", playerIds);
+          if (playersError) throw playersError;
+
+          for (const player of players ?? []) {
+            playerNameById.set(player.id, player.nickname ?? null);
+          }
+        }
+
+        return jsonResponse({
+          verifications: verifications.map((verification) => ({
+            ...verification,
+            player_nickname: playerNameById.get(verification.player_id) ?? null,
+          })),
+        });
+      }
+
+      case "set_social_task_verification": {
+        const playerId = normalizeText(body.player_id);
+        const taskId = normalizeText(body.task_id);
+        const status = normalizeText(body.status);
+        const proofUrl = normalizeNullableText(body.proof_url, 2048);
+
+        if (!playerId) return badRequest("Missing player");
+        if (!SOCIAL_TASK_IDS.includes(taskId as SocialTaskId)) return badRequest("Unknown social task");
+        if (!isSocialTaskStatus(status)) return badRequest("Unknown social task status");
+
+        const { data: player, error: playerError } = await supabase
+          .from("players")
+          .select("wallet_address")
+          .eq("id", playerId)
+          .single();
+        if (playerError) throw playerError;
+
+        const { data, error } = await supabase
+          .from("social_task_verifications")
+          .upsert({
+            player_id: playerId,
+            wallet_address: player.wallet_address,
+            task_id: taskId,
+            status,
+            proof_url: proofUrl,
+            verified_by_wallet: status === "verified" || status === "claimed" ? walletAddress : null,
+          }, {
+            onConflict: "player_id,task_id",
+          })
+          .select("id, player_id, wallet_address, task_id, status, proof_url, verified_by_wallet, created_at, updated_at")
+          .single();
+        if (error) throw error;
+
+        return jsonResponse({
+          verification: data as SocialTaskVerificationRow,
+        });
       }
 
       case "send_player_message": {
