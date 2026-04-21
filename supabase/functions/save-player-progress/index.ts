@@ -19,7 +19,7 @@ const MAX_PROGRESS_SAVE_COOKED_DISH_DELTA = 200;
 const MAX_PROGRESS_SAVE_GRILL_SCORE_DELTA = 20000;
 const MAX_PROGRESS_SAVE_PAID_ROLL_DELTA = 50;
 const DAILY_TASK_IDS = ['check_in', 'catch_10', 'rare_1', 'grill_1', 'spend_1000'] as const;
-const SPECIAL_TASK_IDS = ['invite_friend'] as const;
+const SPECIAL_TASK_IDS = ['invite_friend', 'wallet_check_in'] as const;
 
 interface InventoryEntry {
   fishId: string;

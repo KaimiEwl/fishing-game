@@ -87,6 +87,7 @@ const emptyTasks = {
 };
 
 const emptySpecialTasks = {
+  wallet_check_in: { progress: 0, claimed: false },
   invite_friend: { progress: 0, claimed: false },
 };
 

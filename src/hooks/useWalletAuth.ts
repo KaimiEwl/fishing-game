@@ -96,6 +96,60 @@ function buildReferralLink(walletAddress: string | null | undefined): string | n
   return referralUrl.toString();
 }
 
+function mapInventory(value: unknown): PlayerState['inventory'] {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+
+    const fishId = typeof (item as Record<string, unknown>).fishId === 'string'
+      ? (item as Record<string, unknown>).fishId.trim()
+      : '';
+    const quantity = typeof (item as Record<string, unknown>).quantity === 'number'
+      ? (item as Record<string, unknown>).quantity
+      : Number((item as Record<string, unknown>).quantity ?? 0);
+    const caughtAtRaw = (item as Record<string, unknown>).caughtAt;
+    const caughtAt = caughtAtRaw instanceof Date ? caughtAtRaw : new Date(String(caughtAtRaw ?? ''));
+
+    if (!fishId || !Number.isFinite(quantity) || quantity <= 0 || Number.isNaN(caughtAt.getTime())) {
+      return [];
+    }
+
+    return [{
+      fishId,
+      quantity: Math.max(0, Math.floor(quantity)),
+      caughtAt,
+    }];
+  });
+}
+
+function mapCookedDishes(value: unknown): PlayerState['cookedDishes'] {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+
+    const recipeId = typeof (item as Record<string, unknown>).recipeId === 'string'
+      ? (item as Record<string, unknown>).recipeId.trim()
+      : '';
+    const quantity = typeof (item as Record<string, unknown>).quantity === 'number'
+      ? (item as Record<string, unknown>).quantity
+      : Number((item as Record<string, unknown>).quantity ?? 0);
+    const createdAtRaw = (item as Record<string, unknown>).createdAt;
+    const createdAt = createdAtRaw instanceof Date ? createdAtRaw : new Date(String(createdAtRaw ?? ''));
+
+    if (!recipeId || !Number.isFinite(quantity) || quantity <= 0 || Number.isNaN(createdAt.getTime())) {
+      return [];
+    }
+
+    return [{
+      recipeId,
+      quantity: Math.max(0, Math.floor(quantity)),
+      createdAt,
+    }];
+  });
+}
+
 function mapPlayerRecord(p: PlayerRecord): PlayerState {
   return {
     coins: p.coins,
@@ -108,8 +162,8 @@ function mapPlayerRecord(p: PlayerRecord): PlayerState {
     xpToNextLevel: p.xp_to_next || p.level * XP_PER_LEVEL,
     rodLevel: p.rod_level,
     equippedRod: p.equipped_rod ?? p.rod_level,
-    inventory: (p.inventory || []) as PlayerState['inventory'],
-    cookedDishes: (p.cooked_dishes || []) as PlayerState['cookedDishes'],
+    inventory: mapInventory(p.inventory),
+    cookedDishes: mapCookedDishes(p.cooked_dishes),
     totalCatches: p.total_catches,
     dailyBonusClaimed: false,
     loginStreak: p.login_streak || 1,

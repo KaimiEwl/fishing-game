@@ -1,5 +1,12 @@
 # STATUS
 
+## Wallet-bound progress hardening
+- Cross-device wallet sync was hardened on the client side: `mergeSyncedPlayerState` no longer lets any non-empty stale local `inventory` or `cookedDishes` override richer server state. Inventory and cooked dishes now merge by stack key with max quantity preservation instead of the old `local wins if non-empty` rule.
+- Server player rows are now normalized into proper `PlayerState` arrays with parsed `Date` objects for `inventory.caughtAt` and `cookedDishes.createdAt` before client merge logic runs, reducing type drift between local and server snapshots.
+- A new live smoke script was added at `scripts/ops/smoke-live-progress-persistence.mjs` plus `npm run ops:smoke:progress`. It verifies wallet-bound persistence for coins, bait, daily free bait, XP, rod progression, inventory, cooked dishes, NFT rods, nickname/avatar, daily tasks, special tasks, wheel rolls, grill score, and dishes count, then simulates a stale-device overwrite attempt to confirm newer progress is not lowered.
+- The current code now keeps both special tasks in server save sanitization: `invite_friend` and `wallet_check_in`.
+- Important live finding: the newly added progress smoke currently fails against the already deployed working Supabase because the live `save-player-progress` function still strips `wallet_check_in` from `specialTasks`. The repo code is fixed, but the working project still needs a fresh `save-player-progress` deploy before that specific special-task persistence is truly live.
+
 ## VPS blank-screen hotfix
 - Fixed the first production blank-screen issue on `https://www.hookloot.xyz`: the VPS and domain were serving the app bundle correctly, but the client could get stuck behind the fixed `GameLoadingScreen` overlay when critical main-scene preload never resolved.
 - `FishingGame` now has a `5s` fail-open boot timeout for the main scene preload. If the critical preload stalls, the app promotes itself to ready state instead of keeping the screen at `0-4%` forever.

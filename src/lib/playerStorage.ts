@@ -81,6 +81,40 @@ export const applyServerBonusBaitSync = (
   };
 };
 
+const mergeStacksByMax = <T extends { quantity: number }>(
+  currentStacks: T[],
+  nextStacks: T[],
+  getKey: (item: T) => string,
+  mergeDates: (currentItem: T, nextItem: T) => T,
+) => {
+  const merged = new Map<string, T>();
+
+  for (const item of currentStacks) {
+    merged.set(getKey(item), item);
+  }
+
+  for (const item of nextStacks) {
+    const key = getKey(item);
+    const existing = merged.get(key);
+    if (!existing) {
+      merged.set(key, item);
+      continue;
+    }
+
+    const preferred = existing.quantity >= item.quantity ? existing : item;
+    const alternate = preferred === existing ? item : existing;
+    merged.set(key, mergeDates(preferred, alternate));
+  }
+
+  return Array.from(merged.values()).filter((item) => item.quantity > 0);
+};
+
+const toTimeValue = (value: string | Date) => {
+  const parsed = value instanceof Date ? value : new Date(value);
+  const timestamp = parsed.getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+};
+
 export const mergeSyncedPlayerState = (
   serverPlayer: PlayerState,
   localPlayer: PlayerState,
@@ -96,8 +130,28 @@ export const mergeSyncedPlayerState = (
   xpToNextLevel: Math.max(serverPlayer.xpToNextLevel, localPlayer.xpToNextLevel),
   rodLevel: Math.max(serverPlayer.rodLevel, localPlayer.rodLevel),
   equippedRod: Math.max(serverPlayer.equippedRod, localPlayer.equippedRod),
-  inventory: localPlayer.inventory.length > 0 ? localPlayer.inventory : serverPlayer.inventory,
-  cookedDishes: localPlayer.cookedDishes.length > 0 ? localPlayer.cookedDishes : serverPlayer.cookedDishes,
+  inventory: mergeStacksByMax(
+    serverPlayer.inventory,
+    localPlayer.inventory,
+    (item) => item.fishId,
+    (preferred, alternate) => ({
+      ...preferred,
+      caughtAt: toTimeValue(preferred.caughtAt) >= toTimeValue(alternate.caughtAt)
+        ? preferred.caughtAt
+        : alternate.caughtAt,
+    }),
+  ),
+  cookedDishes: mergeStacksByMax(
+    serverPlayer.cookedDishes,
+    localPlayer.cookedDishes,
+    (item) => item.recipeId,
+    (preferred, alternate) => ({
+      ...preferred,
+      createdAt: toTimeValue(preferred.createdAt) >= toTimeValue(alternate.createdAt)
+        ? preferred.createdAt
+        : alternate.createdAt,
+    }),
+  ),
   totalCatches: Math.max(serverPlayer.totalCatches, localPlayer.totalCatches),
   dailyBonusClaimed: localPlayer.dailyBonusClaimed,
   loginStreak: Math.max(serverPlayer.loginStreak, localPlayer.loginStreak),
