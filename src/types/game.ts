@@ -95,6 +95,22 @@ export interface WheelPrize {
   secret?: boolean;
 }
 
+export type DailyTaskStateMap = Record<DailyTaskId, { progress: number; claimed: boolean }>;
+export type SpecialTaskStateMap = Record<SpecialTaskId, { progress: number; claimed: boolean }>;
+
+export interface GameProgressSnapshot {
+  date: string;
+  tasks: DailyTaskStateMap;
+  specialTasks: SpecialTaskStateMap;
+  wheelSpun: boolean;
+  wheelPrize: WheelPrize | null;
+  dailyWheelRolls: number;
+  dailyRollRewardGranted: boolean;
+  paidWheelRolls: number;
+  grillScore: number;
+  dishesToday: number;
+}
+
 export interface GrillRecipe {
   id: string;
   name: string;

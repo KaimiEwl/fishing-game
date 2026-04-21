@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   DAILY_TASKS,
   FISH_DATA,
@@ -7,27 +7,16 @@ import {
   type DailyTaskId,
   type DailyTaskProgress,
   type Fish,
+  type GameProgressSnapshot,
   type SpecialTaskId,
   type SpecialTaskProgress,
   type TaskId,
   type WheelPrize,
 } from '@/types/game';
 
-type DailyTaskMap = Record<DailyTaskId, { progress: number; claimed: boolean }>;
-type SpecialTaskMap = Record<SpecialTaskId, { progress: number; claimed: boolean }>;
-
-interface GameProgressState {
-  date: string;
-  tasks: DailyTaskMap;
-  specialTasks: SpecialTaskMap;
-  wheelSpun: boolean;
-  wheelPrize: WheelPrize | null;
-  dailyWheelRolls: number;
-  dailyRollRewardGranted: boolean;
-  paidWheelRolls: number;
-  grillScore: number;
-  dishesToday: number;
-}
+type GameProgressState = GameProgressSnapshot;
+type DailyTaskMap = GameProgressState['tasks'];
+type SpecialTaskMap = GameProgressState['specialTasks'];
 
 const STORAGE_KEY = 'monadfish_progress_v1';
 const RARE_RANK = new Set(['rare', 'epic', 'legendary', 'mythical', 'secret']);
@@ -66,6 +55,11 @@ const createInitialState = (): GameProgressState => ({
   grillScore: 0,
   dishesToday: 0,
 });
+
+interface UseGameProgressOptions {
+  savedProgress?: GameProgressState | null;
+  onSave?: (progress: GameProgressState) => void;
+}
 
 const normalizeWheelPrize = (prize: WheelPrize | null | undefined): WheelPrize | null => {
   if (!prize) return null;
@@ -106,54 +100,111 @@ const applyDailyRollReward = (prev: GameProgressState, tasks: DailyTaskMap) => {
   };
 };
 
+const normalizeState = (parsed?: Partial<GameProgressState> | null): GameProgressState => {
+  const baseState = createInitialState();
+  if (!parsed) return baseState;
+
+  const specialTasks = {
+    ...createSpecialTasks(),
+    ...(parsed.specialTasks ?? {}),
+  };
+
+  if (parsed.date !== todayKey()) {
+    return {
+      ...baseState,
+      specialTasks,
+      grillScore: Math.max(0, Number(parsed.grillScore || 0)),
+      paidWheelRolls: Math.max(0, Number(parsed.paidWheelRolls || 0)),
+    };
+  }
+
+  const tasks = {
+    ...createTasks(),
+    ...(parsed.tasks ?? {}),
+  };
+  const rewardState = applyDailyRollReward({
+    ...baseState,
+    ...parsed,
+    tasks,
+    specialTasks,
+    wheelPrize: normalizeWheelPrize(parsed.wheelPrize as WheelPrize | null | undefined),
+    paidWheelRolls: Math.max(0, Number(parsed.paidWheelRolls || 0)),
+    dailyWheelRolls: Math.max(0, Number(parsed.dailyWheelRolls || 0)),
+    dailyRollRewardGranted: Boolean(parsed.dailyRollRewardGranted),
+  }, tasks);
+
+  return {
+    ...baseState,
+    ...parsed,
+    tasks,
+    specialTasks,
+    wheelPrize: normalizeWheelPrize(parsed.wheelPrize as WheelPrize | null | undefined),
+    dailyWheelRolls: rewardState.dailyWheelRolls,
+    dailyRollRewardGranted: rewardState.dailyRollRewardGranted,
+    paidWheelRolls: Math.max(0, Number(parsed.paidWheelRolls || 0)),
+    grillScore: Math.max(0, Number(parsed.grillScore || 0)),
+    dishesToday: Math.max(0, Number(parsed.dishesToday || 0)),
+  };
+};
+
+const mergeState = (serverState: GameProgressState, localState: GameProgressState): GameProgressState => {
+  if (serverState.date !== localState.date) {
+    const newerState = serverState.date >= localState.date ? serverState : localState;
+    const olderState = newerState === serverState ? localState : serverState;
+    return normalizeState({
+      ...newerState,
+      grillScore: Math.max(serverState.grillScore, localState.grillScore),
+      paidWheelRolls: Math.max(serverState.paidWheelRolls, localState.paidWheelRolls),
+      dailyWheelRolls: Math.max(serverState.dailyWheelRolls, localState.dailyWheelRolls),
+      dailyRollRewardGranted: newerState.dailyRollRewardGranted || olderState.dailyRollRewardGranted,
+      specialTasks: {
+        ...olderState.specialTasks,
+        ...newerState.specialTasks,
+      },
+    });
+  }
+
+  const tasks = Object.fromEntries(
+    DAILY_TASKS.map((task) => {
+      const serverTask = serverState.tasks[task.id];
+      const localTask = localState.tasks[task.id];
+      return [task.id, {
+        progress: Math.max(serverTask?.progress ?? 0, localTask?.progress ?? 0),
+        claimed: Boolean(serverTask?.claimed || localTask?.claimed),
+      }];
+    }),
+  ) as DailyTaskMap;
+
+  const specialTasks = Object.fromEntries(
+    SPECIAL_TASKS.map((task) => {
+      const serverTask = serverState.specialTasks[task.id];
+      const localTask = localState.specialTasks[task.id];
+      return [task.id, {
+        progress: Math.max(serverTask?.progress ?? 0, localTask?.progress ?? 0),
+        claimed: Boolean(serverTask?.claimed || localTask?.claimed),
+      }];
+    }),
+  ) as SpecialTaskMap;
+
+  return normalizeState({
+    ...serverState,
+    tasks,
+    specialTasks,
+    wheelSpun: serverState.wheelSpun || localState.wheelSpun,
+    wheelPrize: localState.wheelPrize ?? serverState.wheelPrize,
+    dailyWheelRolls: Math.max(serverState.dailyWheelRolls, localState.dailyWheelRolls),
+    dailyRollRewardGranted: serverState.dailyRollRewardGranted || localState.dailyRollRewardGranted,
+    paidWheelRolls: Math.max(serverState.paidWheelRolls, localState.paidWheelRolls),
+    grillScore: Math.max(serverState.grillScore, localState.grillScore),
+    dishesToday: Math.max(serverState.dishesToday, localState.dishesToday),
+  });
+};
+
 const loadState = (): GameProgressState => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return createInitialState();
-
-    const parsed = JSON.parse(raw) as Partial<GameProgressState>;
-    const baseState = createInitialState();
-    const specialTasks = {
-      ...createSpecialTasks(),
-      ...(parsed.specialTasks ?? {}),
-    };
-
-    if (parsed.date !== todayKey()) {
-      return {
-        ...baseState,
-        specialTasks,
-        grillScore: Math.max(0, Number(parsed.grillScore || 0)),
-        paidWheelRolls: Math.max(0, Number(parsed.paidWheelRolls || 0)),
-      };
-    }
-
-    const tasks = {
-      ...createTasks(),
-      ...(parsed.tasks ?? {}),
-    };
-    const rewardState = applyDailyRollReward({
-      ...baseState,
-      ...parsed,
-      tasks,
-      specialTasks,
-      wheelPrize: normalizeWheelPrize(parsed.wheelPrize as WheelPrize | null | undefined),
-      paidWheelRolls: Math.max(0, Number(parsed.paidWheelRolls || 0)),
-      dailyWheelRolls: Math.max(0, Number(parsed.dailyWheelRolls || 0)),
-      dailyRollRewardGranted: Boolean(parsed.dailyRollRewardGranted),
-    }, tasks);
-
-    return {
-      ...baseState,
-      ...parsed,
-      tasks,
-      specialTasks,
-      wheelPrize: normalizeWheelPrize(parsed.wheelPrize as WheelPrize | null | undefined),
-      dailyWheelRolls: rewardState.dailyWheelRolls,
-      dailyRollRewardGranted: rewardState.dailyRollRewardGranted,
-      paidWheelRolls: Math.max(0, Number(parsed.paidWheelRolls || 0)),
-      grillScore: Math.max(0, Number(parsed.grillScore || 0)),
-      dishesToday: Math.max(0, Number(parsed.dishesToday || 0)),
-    };
+    return normalizeState(JSON.parse(raw) as Partial<GameProgressState>);
   } catch {
     return createInitialState();
   }
@@ -166,12 +217,42 @@ export const pickWheelPrize = () => {
     : WHEEL_PRIZES[Math.floor(Math.random() * (WHEEL_PRIZES.length - 1))];
 };
 
-export function useGameProgress() {
+export function useGameProgress(options?: UseGameProgressOptions) {
+  const savedProgress = options?.savedProgress;
+  const onSave = options?.onSave;
   const [state, setState] = useState<GameProgressState>(() => loadState());
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initializedRef = useRef(false);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
+
+  useEffect(() => {
+    if (savedProgress) {
+      setState((prev) => mergeState(
+        normalizeState(savedProgress),
+        normalizeState(prev),
+      ));
+    }
+  }, [savedProgress]);
+
+  useEffect(() => {
+    initializedRef.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (!initializedRef.current || !onSave) return;
+
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      onSave(state);
+    }, 2000);
+
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [onSave, state]);
 
   const updateTask = useCallback((id: DailyTaskId, amount: number) => {
     setState((prev) => {

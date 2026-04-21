@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAccount, useSignMessage, useDisconnect } from 'wagmi';
 import { supabase } from '@/integrations/supabase/client';
-import { type PlayerState, XP_PER_LEVEL } from '@/types/game';
+import { type GameProgressSnapshot, type PlayerState, XP_PER_LEVEL } from '@/types/game';
 import {
   BAIT_BUCKETS_V2_ENABLED,
   DAILY_FREE_BAIT,
@@ -35,6 +35,8 @@ interface PlayerRecord {
   rod_level: number;
   equipped_rod: number;
   inventory: unknown[];
+  cooked_dishes?: unknown[];
+  game_progress?: GameProgressSnapshot | null;
   total_catches: number;
   login_streak: number;
   nft_rods: number[];
@@ -42,6 +44,7 @@ interface PlayerRecord {
   avatar_url: string | null;
   referrer_wallet_address?: string | null;
   rewarded_referral_count?: number;
+  updated_at?: string;
 }
 
 interface ReferralRewardNotification {
@@ -104,7 +107,7 @@ function mapPlayerRecord(p: PlayerRecord): PlayerState {
     rodLevel: p.rod_level,
     equippedRod: p.equipped_rod ?? p.rod_level,
     inventory: (p.inventory || []) as PlayerState['inventory'],
-    cookedDishes: [],
+    cookedDishes: (p.cooked_dishes || []) as PlayerState['cookedDishes'],
     totalCatches: p.total_catches,
     dailyBonusClaimed: false,
     loginStreak: p.login_streak || 1,
@@ -113,6 +116,61 @@ function mapPlayerRecord(p: PlayerRecord): PlayerState {
     avatarUrl: p.avatar_url || null,
   };
 }
+
+function serializePlayerProgress(player: PlayerState) {
+  return {
+    coins: player.coins,
+    bait: player.bait,
+    daily_free_bait: player.dailyFreeBait,
+    daily_free_bait_reset_at: player.dailyFreeBaitResetAt,
+    bonus_bait_granted_total: player.bonusBaitGrantedTotal,
+    level: player.level,
+    xp: player.xp,
+    xp_to_next: player.xpToNextLevel,
+    rod_level: player.rodLevel,
+    equipped_rod: player.equippedRod,
+    inventory: [...player.inventory]
+      .map((item) => ({
+        fishId: item.fishId,
+        caughtAt: item.caughtAt instanceof Date ? item.caughtAt.toISOString() : new Date(item.caughtAt).toISOString(),
+        quantity: item.quantity,
+      }))
+      .sort((a, b) => a.fishId.localeCompare(b.fishId)),
+    cooked_dishes: [...player.cookedDishes]
+      .map((item) => ({
+        recipeId: item.recipeId,
+        createdAt: item.createdAt instanceof Date ? item.createdAt.toISOString() : new Date(item.createdAt).toISOString(),
+        quantity: item.quantity,
+      }))
+      .sort((a, b) => a.recipeId.localeCompare(b.recipeId)),
+    total_catches: player.totalCatches,
+    login_streak: player.loginStreak,
+    nft_rods: [...player.nftRods].sort((a, b) => a - b),
+    nickname: player.nickname,
+    avatar_url: player.avatarUrl,
+  };
+}
+
+function getPlayerProgressDigest(player: PlayerState) {
+  return JSON.stringify(serializePlayerProgress(player));
+}
+
+function getGameProgressDigest(progress: GameProgressSnapshot) {
+  return JSON.stringify(progress);
+}
+
+interface WalletSaveBundle {
+  player?: PlayerState;
+  gameProgress?: GameProgressSnapshot;
+}
+
+const mergeSaveBundle = (
+  current: WalletSaveBundle | null,
+  next: WalletSaveBundle,
+): WalletSaveBundle => ({
+  player: next.player ?? current?.player,
+  gameProgress: next.gameProgress ?? current?.gameProgress,
+});
 
 export function useWalletAuth() {
   const { address, isConnected } = useAccount();
@@ -123,10 +181,16 @@ export function useWalletAuth() {
   const [isVerified, setIsVerified] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [savedPlayer, setSavedPlayer] = useState<PlayerState | null>(null);
+  const [savedGameProgress, setSavedGameProgress] = useState<GameProgressSnapshot | null>(null);
   const [referralSummary, setReferralSummary] = useState<ReferralSummary | null>(null);
   const sessionTokenRef = useRef<string | null>(null);
   const restoredRef = useRef(false);
   const refreshInFlightRef = useRef(false);
+  const saveInFlightRef = useRef(false);
+  const queuedSaveRef = useRef<WalletSaveBundle | null>(null);
+  const lastSavedPlayerDigestRef = useRef<string | null>(null);
+  const lastSavedGameProgressDigestRef = useRef<string | null>(null);
+  const serverUpdatedAtRef = useRef<string | null>(null);
   const savedPlayerRef = useRef<PlayerState | null>(null);
   const referralSummaryRef = useRef<ReferralSummary | null>(null);
 
@@ -198,7 +262,16 @@ export function useWalletAuth() {
     const previousRewardedCount = referralSummaryRef.current?.rewardedReferralCount ?? 0;
     const previousBonusGranted = savedPlayerRef.current?.bonusBaitGrantedTotal ?? 0;
     const nextStoredPlayer = syncLocalPlayerFromServer(playerRecord);
+    const nextSavedGameProgress = playerRecord.game_progress && typeof playerRecord.game_progress === 'object'
+      ? playerRecord.game_progress as GameProgressSnapshot
+      : null;
+    serverUpdatedAtRef.current = playerRecord.updated_at ?? null;
+    lastSavedPlayerDigestRef.current = getPlayerProgressDigest(nextStoredPlayer);
+    lastSavedGameProgressDigestRef.current = nextSavedGameProgress
+      ? getGameProgressDigest(nextSavedGameProgress)
+      : null;
     setSavedPlayer(nextStoredPlayer);
+    setSavedGameProgress(nextSavedGameProgress);
     syncReferralSummary(playerRecord);
 
     if (
@@ -211,6 +284,80 @@ export function useWalletAuth() {
 
     return nextStoredPlayer;
   }, [showReferralRewardToast, syncLocalPlayerFromServer, syncReferralSummary]);
+
+  const persistWalletState = useCallback(async (bundle: WalletSaveBundle) => {
+    if (!address || !isConnected || !isVerified || !sessionTokenRef.current) {
+      return false;
+    }
+
+    const nextPlayerDigest = bundle.player ? getPlayerProgressDigest(bundle.player) : null;
+    const nextGameProgressDigest = bundle.gameProgress ? getGameProgressDigest(bundle.gameProgress) : null;
+    const shouldSavePlayer = !!bundle.player && nextPlayerDigest !== lastSavedPlayerDigestRef.current;
+    const shouldSaveGameProgress = !!bundle.gameProgress && nextGameProgressDigest !== lastSavedGameProgressDigestRef.current;
+
+    if (!shouldSavePlayer && !shouldSaveGameProgress) {
+      return true;
+    }
+
+    if (saveInFlightRef.current) {
+      queuedSaveRef.current = mergeSaveBundle(queuedSaveRef.current, bundle);
+      return true;
+    }
+
+    saveInFlightRef.current = true;
+    try {
+      const { data, error } = await supabase.functions.invoke('save-player-progress', {
+        body: {
+          wallet_address: address,
+          session_token: sessionTokenRef.current,
+          base_updated_at: serverUpdatedAtRef.current,
+          player_data: shouldSavePlayer && bundle.player ? serializePlayerProgress(bundle.player) : undefined,
+          game_progress: shouldSaveGameProgress ? bundle.gameProgress : undefined,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.player) {
+        applyVerifiedPlayerPayload(data.player as PlayerRecord);
+      } else {
+        if (shouldSavePlayer && nextPlayerDigest) {
+          lastSavedPlayerDigestRef.current = nextPlayerDigest;
+        }
+        if (shouldSaveGameProgress && nextGameProgressDigest) {
+          lastSavedGameProgressDigestRef.current = nextGameProgressDigest;
+          setSavedGameProgress(bundle.gameProgress ?? null);
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Wallet progress save failed:', error);
+      queuedSaveRef.current = mergeSaveBundle(queuedSaveRef.current, bundle);
+      return false;
+    } finally {
+      saveInFlightRef.current = false;
+
+      const queuedBundle = queuedSaveRef.current;
+      if (queuedBundle) {
+        queuedSaveRef.current = null;
+        if (
+          (queuedBundle.player && getPlayerProgressDigest(queuedBundle.player) !== lastSavedPlayerDigestRef.current)
+          || (queuedBundle.gameProgress && getGameProgressDigest(queuedBundle.gameProgress) !== lastSavedGameProgressDigestRef.current)
+        ) {
+          void persistWalletState(queuedBundle);
+        }
+      }
+    }
+  }, [address, applyVerifiedPlayerPayload, isConnected, isVerified]);
+
+  const saveProgress = useCallback((player: PlayerState) => (
+    persistWalletState({ player })
+  ), [persistWalletState]);
+
+  const saveGameProgress = useCallback((gameProgress: GameProgressSnapshot) => (
+    persistWalletState({ gameProgress })
+  ), [persistWalletState]);
 
   useEffect(() => {
     if (!REFERRAL_BAIT_ENABLED) return;
@@ -386,8 +533,14 @@ export function useWalletAuth() {
     if (!isConnected) {
       setIsVerified(false);
       setSavedPlayer(null);
+      setSavedGameProgress(null);
       setReferralSummary(null);
       sessionTokenRef.current = null;
+      serverUpdatedAtRef.current = null;
+      lastSavedPlayerDigestRef.current = null;
+      lastSavedGameProgressDigestRef.current = null;
+      queuedSaveRef.current = null;
+      saveInFlightRef.current = false;
       restoredRef.current = false;
       clearStoredWalletSession();
     }
@@ -401,7 +554,10 @@ export function useWalletAuth() {
     isVerified,
     isVerifying,
     savedPlayer,
+    savedGameProgress,
     referralSummary,
+    saveProgress,
+    saveGameProgress,
     disconnect,
   };
 }

@@ -71,9 +71,11 @@ export type Database = {
           bait: number
           bonus_bait_granted_total: number
           coins: number
+          cooked_dishes: Json
           created_at: string
           daily_free_bait: number
           daily_free_bait_reset_at: string | null
+          game_progress: Json
           equipped_rod: number
           id: string
           inventory: Json
@@ -98,9 +100,11 @@ export type Database = {
           bait?: number
           bonus_bait_granted_total?: number
           coins?: number
+          cooked_dishes?: Json
           created_at?: string
           daily_free_bait?: number
           daily_free_bait_reset_at?: string | null
+          game_progress?: Json
           equipped_rod?: number
           id?: string
           inventory?: Json
@@ -125,9 +129,11 @@ export type Database = {
           bait?: number
           bonus_bait_granted_total?: number
           coins?: number
+          cooked_dishes?: Json
           created_at?: string
           daily_free_bait?: number
           daily_free_bait_reset_at?: string | null
+          game_progress?: Json
           equipped_rod?: number
           id?: string
           inventory?: Json

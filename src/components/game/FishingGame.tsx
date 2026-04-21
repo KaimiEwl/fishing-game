@@ -79,7 +79,16 @@ const ScreenLoadingFallback: React.FC = () => (
 );
 
 const FishingGame: React.FC = () => {
-  const { isConnected, isVerified, savedPlayer, address, referralSummary } = useWalletAuth();
+  const {
+    isConnected,
+    isVerified,
+    savedPlayer,
+    savedGameProgress,
+    address,
+    referralSummary,
+    saveProgress,
+    saveGameProgress,
+  } = useWalletAuth();
   const {
     messages: inboxMessages,
     unreadCount: unreadMessageCount,
@@ -96,7 +105,10 @@ const FishingGame: React.FC = () => {
   const [leaderboardNameOpen, setLeaderboardNameOpen] = useState(false);
   const [pendingLeaderboardScore, setPendingLeaderboardScore] = useState(0);
   const [pendingLeaderboardDishes, setPendingLeaderboardDishes] = useState(0);
-  const gameProgress = useGameProgress();
+  const gameProgress = useGameProgress({
+    savedProgress: isVerified ? savedGameProgress : undefined,
+    onSave: isVerified ? saveGameProgress : undefined,
+  });
   const { syncReferralTask } = gameProgress;
   const logAuditEvent = useCallback((event: PlayerAuditEventPayload) => {
     if (!address || !isVerified) return;
@@ -134,6 +146,7 @@ const FishingGame: React.FC = () => {
     setAvatarUrl,
   } = useGameState({
     savedPlayer: isVerified ? savedPlayer : undefined,
+    onSave: isVerified ? saveProgress : undefined,
     onFishCaught: gameProgress.recordFishCatch,
     onAuditEvent: logAuditEvent,
   });
