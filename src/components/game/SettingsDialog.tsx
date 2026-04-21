@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Camera, Check, ChevronDown, Copy, LogOut, Settings, Volume2, VolumeX } from 'lucide-react';
+import { Camera, Check, ChevronDown, Copy, LogOut, Mail, Settings, Volume2, VolumeX } from 'lucide-react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useBalance } from 'wagmi';
 import { Link, useNavigate } from 'react-router-dom';
@@ -247,21 +247,39 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          variant="outline"
-          size="icon"
-          className="relative h-11 w-11 rounded-full border border-cyan-300/20 bg-black/85 text-cyan-100 shadow-md outline-none backdrop-blur-md transition-all hover:scale-105 hover:border-cyan-300/40 hover:bg-zinc-950 active:scale-95 sm:h-8 sm:w-8"
-          aria-label="Settings"
-        >
-          <Settings className="h-5 w-5 sm:h-4 sm:w-4" />
-          {showAdminPanelEntry && adminPendingWithdrawCount > 0 && (
-            <span className="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full border border-red-300/40 bg-red-500 px-1 text-[10px] font-black text-white shadow-[0_0_12px_rgba(239,68,68,0.45)]">
-              {adminPendingWithdrawCount > 99 ? '99+' : adminPendingWithdrawCount}
-            </span>
-          )}
-        </Button>
-      </DialogTrigger>
+      <div className="flex items-center gap-1.5">
+        {unreadMessageCount > 0 && (
+          <DialogTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="relative h-11 w-11 rounded-full border border-amber-300/30 bg-black/85 text-amber-100 shadow-md outline-none backdrop-blur-md transition-all hover:scale-105 hover:border-amber-300/55 hover:bg-zinc-950 active:scale-95 sm:h-8 sm:w-8"
+              aria-label="Unread inbox messages"
+            >
+              <Mail className="h-5 w-5 sm:h-4 sm:w-4" />
+              <span className="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full border border-amber-200/50 bg-amber-400 px-1 text-[10px] font-black text-black shadow-[0_0_12px_rgba(251,191,36,0.45)]">
+                {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
+              </span>
+            </Button>
+          </DialogTrigger>
+        )}
+
+        <DialogTrigger asChild>
+          <Button
+            variant="outline"
+            size="icon"
+            className="relative h-11 w-11 rounded-full border border-cyan-300/20 bg-black/85 text-cyan-100 shadow-md outline-none backdrop-blur-md transition-all hover:scale-105 hover:border-cyan-300/40 hover:bg-zinc-950 active:scale-95 sm:h-8 sm:w-8"
+            aria-label="Settings"
+          >
+            <Settings className="h-5 w-5 sm:h-4 sm:w-4" />
+            {showAdminPanelEntry && adminPendingWithdrawCount > 0 && (
+              <span className="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full border border-red-300/40 bg-red-500 px-1 text-[10px] font-black text-white shadow-[0_0_12px_rgba(239,68,68,0.45)]">
+                {adminPendingWithdrawCount > 99 ? '99+' : adminPendingWithdrawCount}
+              </span>
+            )}
+          </Button>
+        </DialogTrigger>
+      </div>
 
       <DialogContent className="max-w-[calc(100vw-1rem)] border border-cyan-300/15 bg-black/95 text-zinc-100 shadow-2xl backdrop-blur-md sm:max-w-sm">
         <DialogHeader>
