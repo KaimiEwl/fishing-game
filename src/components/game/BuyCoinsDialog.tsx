@@ -15,7 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { NFT_ROD_DATA } from '@/types/game';
 import CoinIcon from './CoinIcon';
-import { Check, Gem } from 'lucide-react';
+import { Check, Coins, ShipWheel } from 'lucide-react';
 import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
 import { getErrorMessage, isUserRejectedError } from '@/lib/errorUtils';
 
@@ -137,24 +137,24 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({ walletAddress, onCoinsA
         <Button
           variant="outline"
           className="h-12 min-w-12 gap-2 rounded-lg border border-cyan-300/20 bg-black/85 px-3 text-cyan-100 shadow-lg backdrop-blur-md hover:border-cyan-300/40 hover:bg-zinc-950 sm:h-14 sm:min-w-[8.25rem]"
-          aria-label="Buy with MON"
+          aria-label="Buy gold with MON"
         >
-          <Gem className="h-5 w-5 sm:h-6 sm:w-6" />
-          <span className="hidden text-sm font-bold sm:inline">Buy MON</span>
+          <Coins className="h-5 w-5 sm:h-6 sm:w-6" />
+          <span className="hidden text-sm font-bold sm:inline">Buy Gold</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[calc(100svh-1rem)] max-w-[calc(100vw-1rem)] border border-cyan-300/15 bg-black/95 text-zinc-100 shadow-2xl backdrop-blur-md sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl text-zinc-100">
-            <Gem className="h-5 w-5 text-cyan-100" />
-            Buy with MON
+            <Coins className="h-5 w-5 text-cyan-100" />
+            Buy Gold with MON
           </DialogTitle>
         </DialogHeader>
 
         <Tabs defaultValue="coins" className="w-full">
           <TabsList className="grid w-full grid-cols-2 bg-zinc-950">
             <TabsTrigger value="coins" className="flex items-center gap-1 data-[state=active]:bg-black data-[state=active]:text-cyan-100"><CoinIcon size="sm" /> Coins</TabsTrigger>
-            <TabsTrigger value="nft" className="gap-1.5 data-[state=active]:bg-black data-[state=active]:text-cyan-100"><Gem className="h-4 w-4" /> NFT Rods</TabsTrigger>
+            <TabsTrigger value="nft" className="gap-1.5 data-[state=active]:bg-black data-[state=active]:text-cyan-100"><ShipWheel className="h-4 w-4" /> NFT Rods</TabsTrigger>
           </TabsList>
 
           <TabsContent value="coins" className="mt-4">
@@ -173,7 +173,7 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({ walletAddress, onCoinsA
                     onClick={() => handlePurchase(pkg)}
                   >
                     <div className="flex items-center gap-3">
-                    {pkg.premium ? <Gem className="h-7 w-7 text-cyan-100" /> : <CoinIcon size="xl" />}
+                      {pkg.premium ? <Coins className="h-7 w-7 text-cyan-100" /> : <CoinIcon size="xl" />}
                       <span className="font-bold text-lg">{pkg.coins} coins</span>
                     </div>
                     <span className="font-mono font-bold text-cyan-100">

@@ -6,9 +6,11 @@ import {
   Fish,
   FISH_DATA, 
   CATCH_CHANCE,
+  GRILL_RECIPES,
   ROD_BONUSES,
   XP_PER_LEVEL,
-  NFT_ROD_DATA
+  NFT_ROD_DATA,
+  type GrillRecipe,
 } from '@/types/game';
 import {
   BAIT_BUCKETS_V2_ENABLED,
@@ -39,6 +41,7 @@ const INITIAL_PLAYER_STATE: PlayerState = {
   rodLevel: 0,
   equippedRod: 0,
   inventory: [],
+  cookedDishes: [],
   totalCatches: 0,
   dailyBonusClaimed: false,
   loginStreak: 1,
@@ -516,8 +519,58 @@ export function useGameState(options?: UseGameStateOptions) {
     return true;
   }, [player.inventory]);
 
+  const cookRecipe = useCallback((recipe: GrillRecipe) => {
+    const canCook = Object.entries(recipe.ingredients).every(([fishId, quantity]) => {
+      const inventoryItem = player.inventory.find(f => f.fishId === fishId);
+      return inventoryItem && inventoryItem.quantity >= quantity;
+    });
+
+    if (!canCook) return false;
+
+    setPlayer(prev => ({
+      ...prev,
+      inventory: prev.inventory.map(item => ({
+        ...item,
+        quantity: item.quantity - (recipe.ingredients[item.fishId] || 0),
+      })).filter(item => item.quantity > 0),
+      cookedDishes: (() => {
+        const existingDish = prev.cookedDishes.find((item) => item.recipeId === recipe.id);
+        if (existingDish) {
+          return prev.cookedDishes.map((item) => (
+            item.recipeId === recipe.id
+              ? { ...item, quantity: item.quantity + 1, createdAt: new Date() }
+              : item
+          ));
+        }
+
+        return [...prev.cookedDishes, { recipeId: recipe.id, quantity: 1, createdAt: new Date() }];
+      })(),
+    }));
+
+    return true;
+  }, [player.inventory]);
+
+  const sellCookedDish = useCallback((recipeId: string) => {
+    const recipe = GRILL_RECIPES.find((item) => item.id === recipeId);
+    const ownedDish = player.cookedDishes.find((item) => item.recipeId === recipeId);
+
+    if (!recipe || !ownedDish || ownedDish.quantity <= 0) return 0;
+
+    setPlayer((prev) => ({
+      ...prev,
+      coins: prev.coins + recipe.score,
+      cookedDishes: prev.cookedDishes.map((item) => (
+        item.recipeId === recipeId
+          ? { ...item, quantity: item.quantity - 1 }
+          : item
+      )).filter((item) => item.quantity > 0),
+    }));
+
+    return recipe.score;
+  }, [player.cookedDishes]);
+
   const buyBait = useCallback((amount: number, cost: number) => {
-    if (player.coins < cost) return;
+    if (player.coins < cost) return false;
     
     setPlayer(prev => {
       const nextPlayer = {
@@ -538,10 +591,12 @@ export function useGameState(options?: UseGameStateOptions) {
 
       return nextPlayer;
     });
+    return true;
   }, [player.coins, queueAuditEvent]);
 
   const buyRod = useCallback((level: number, cost: number) => {
-    if (player.coins < cost) return;
+    if (player.coins < cost) return false;
+    if (player.rodLevel >= level) return false;
     
     setPlayer(prev => {
       if (prev.rodLevel >= level) return prev;
@@ -564,7 +619,8 @@ export function useGameState(options?: UseGameStateOptions) {
 
       return nextPlayer;
     });
-  }, [player.coins, queueAuditEvent]);
+    return true;
+  }, [player.coins, player.rodLevel, queueAuditEvent]);
 
   const equipRod = useCallback((level: number) => {
     setPlayer(prev => {
@@ -640,6 +696,8 @@ export function useGameState(options?: UseGameStateOptions) {
     reelIn,
     sellFish,
     consumeFish,
+    cookRecipe,
+    sellCookedDish,
     buyBait,
     buyRod,
     equipRod,

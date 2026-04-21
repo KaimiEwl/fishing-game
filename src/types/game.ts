@@ -23,6 +23,7 @@ export interface PlayerState {
   rodLevel: number; // Max owned rod level
   equippedRod: number; // Currently equipped rod level
   inventory: CaughtFish[];
+  cookedDishes: CookedDishStack[];
   totalCatches: number;
   dailyBonusClaimed: boolean;
   loginStreak: number;
@@ -37,6 +38,12 @@ export interface CaughtFish {
   quantity: number;
 }
 
+export interface CookedDishStack {
+  recipeId: string;
+  quantity: number;
+  createdAt: Date;
+}
+
 export type GameState = 'idle' | 'casting' | 'waiting' | 'biting' | 'catching' | 'result';
 
 export interface GameResult {
@@ -46,8 +53,8 @@ export interface GameResult {
 
 export type GameTab = 'fish' | 'tasks' | 'shop' | 'grill' | 'wheel' | 'leaderboard' | 'map';
 
-export type DailyTaskId = 'catch_10' | 'rare_1' | 'grill_1';
-export type SpecialTaskId = 'earn_1000';
+export type DailyTaskId = 'check_in' | 'catch_10' | 'rare_1' | 'grill_1' | 'spend_1000';
+export type SpecialTaskId = 'invite_friend';
 export type TaskId = DailyTaskId | SpecialTaskId;
 
 export interface DailyTask {
@@ -55,8 +62,8 @@ export interface DailyTask {
   title: string;
   description: string;
   target: number;
-  rewardCoins: number;
-  rewardBait?: never;
+  rewardCoins?: number;
+  rewardBait?: number;
 }
 
 export interface SpecialTask {
@@ -210,35 +217,49 @@ export const RARITY_NAMES: Record<FishRarity, string> = {
 
 export const DAILY_TASKS: DailyTask[] = [
   {
+    id: 'check_in',
+    title: 'Daily check-in',
+    description: 'Open the game and claim your daily check-in reward.',
+    target: 1,
+    rewardCoins: 100,
+  },
+  {
     id: 'catch_10',
     title: 'Catch 10 fish',
     description: 'Land 10 fish today.',
     target: 10,
-    rewardCoins: 500,
+    rewardCoins: 100,
   },
   {
     id: 'rare_1',
     title: 'Catch 1 rare fish',
     description: 'Catch any rare, epic, legendary, mythical, or secret fish today.',
     target: 1,
-    rewardCoins: 1000,
+    rewardCoins: 100,
   },
   {
     id: 'grill_1',
     title: 'Cook 1 dish',
     description: 'Make any grilled dish today.',
     target: 1,
-    rewardCoins: 750,
+    rewardCoins: 100,
+  },
+  {
+    id: 'spend_1000',
+    title: 'Spend 1000 gold',
+    description: 'Spend 1000 gold in the shop today.',
+    target: 1000,
+    rewardBait: 10,
   },
 ];
 
 export const SPECIAL_TASKS: SpecialTask[] = [
   {
-    id: 'earn_1000',
-    title: 'Earn 1000 gold',
-    description: 'Collect 1000 gold from gameplay rewards.',
-    target: 1000,
-    rewardBait: 10,
+    id: 'invite_friend',
+    title: 'Invite a friend',
+    description: 'Get your first rewarded referral after your friend connects a wallet.',
+    target: 1,
+    rewardCoins: 1000,
   },
 ];
 

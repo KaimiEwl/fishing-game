@@ -69,7 +69,7 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
   return (
     <GameScreenShell
       title="Grill"
-      subtitle="Cook fish into dishes. Grill score becomes the leaderboard score."
+      subtitle="Cook fish into dishes. Score goes to the leaderboard and dishes stay in your inventory."
       coins={coins}
       backgroundImage={publicAsset('assets/bg_grill.jpg')}
       contentScrollable
@@ -136,7 +136,7 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
               />
             </div>
             <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-sm text-zinc-400">
-              Stronger fish make stronger dishes. Cook once, save a name, and your score stays on the leaderboard.
+              Stronger fish make stronger dishes. Cooking adds leaderboard score and puts the dish into inventory so you can sell it later for gold.
             </div>
           </div>
         </aside>

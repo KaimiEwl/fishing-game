@@ -136,6 +136,8 @@ export function useBackgroundMusic() {
       if (document.visibilityState === 'visible') {
         syncMute();
         void startMusic();
+      } else {
+        state.gain.gain.value = 0;
       }
     };
 

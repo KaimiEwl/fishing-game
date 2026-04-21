@@ -104,6 +104,7 @@ function mapPlayerRecord(p: PlayerRecord): PlayerState {
     rodLevel: p.rod_level,
     equippedRod: p.equipped_rod ?? p.rod_level,
     inventory: (p.inventory || []) as PlayerState['inventory'],
+    cookedDishes: [],
     totalCatches: p.total_catches,
     dailyBonusClaimed: false,
     loginStreak: p.login_streak || 1,

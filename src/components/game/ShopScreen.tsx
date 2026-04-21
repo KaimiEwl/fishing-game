@@ -46,7 +46,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
   return (
     <GameScreenShell
       title="Shop"
-      subtitle="Buy bait and rods without leaving the app menu."
+      subtitle="Buy bait, rods, and gold with MON without leaving the app menu."
       coins={coins}
       backgroundImage={publicAsset('assets/bg_shop.jpg')}
     >
@@ -58,14 +58,17 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
 
         <TabsContent value="bait" className="mt-4 min-h-0 flex-1 overflow-y-auto">
           {walletAddress && (
-            <div className="mb-3 flex justify-start">
-              <BuyCoinsDialog
-                walletAddress={walletAddress}
-                onCoinsAdded={onCoinsAdded}
-                rodLevel={rodLevel}
-                nftRods={nftRods}
-                onNftMinted={onNftMinted}
-              />
+            <div className="mb-3 rounded-lg border border-cyan-300/20 bg-black/80 p-3 text-sm font-semibold text-cyan-50/85 shadow-lg shadow-black/25">
+              <div className="mb-2 text-cyan-100">Buy gold with MON</div>
+              <div className="flex justify-start">
+                <BuyCoinsDialog
+                  walletAddress={walletAddress}
+                  onCoinsAdded={onCoinsAdded}
+                  rodLevel={rodLevel}
+                  nftRods={nftRods}
+                  onNftMinted={onNftMinted}
+                />
+              </div>
             </div>
           )}
           <div className="mb-3 rounded-lg border border-cyan-300/20 bg-black/80 p-3 text-sm font-semibold text-cyan-50/85 shadow-lg shadow-black/25">

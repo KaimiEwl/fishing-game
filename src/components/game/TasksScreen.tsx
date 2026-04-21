@@ -11,7 +11,7 @@ interface TasksScreenProps {
   coins: number;
   dailyTasks: DailyTaskProgress[];
   specialTasks: SpecialTaskProgress[];
-  allTasksComplete: boolean;
+  dailyTaskClaimsMet: boolean;
   availableWheelRolls: number;
   onClaimTask: (id: TaskId) => void;
   onOpenWheel: () => void;
@@ -21,12 +21,13 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   coins,
   dailyTasks,
   specialTasks,
-  allTasksComplete,
+  dailyTaskClaimsMet,
   availableWheelRolls,
   onClaimTask,
   onOpenWheel,
 }) => {
   const completedCount = dailyTasks.filter((task) => task.progress >= task.target).length;
+  const claimedCount = dailyTasks.filter((task) => task.claimed).length;
   const renderTaskList = (tasks: Array<DailyTaskProgress | SpecialTaskProgress>) => (
     <div className="grid gap-3">
       {tasks.map((task) => {
@@ -95,7 +96,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   return (
     <GameScreenShell
       title="Daily Tasks"
-      subtitle="Finish daily goals, check special objectives, and earn 3 cube rolls."
+      subtitle="Claim daily rewards, clear special objectives, and unlock 3 cube rolls."
       coins={coins}
       backgroundImage={publicAsset('assets/bg_tasks.jpg')}
       contentScrollable
@@ -110,6 +111,9 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
             {renderTaskList(dailyTasks)}
           </TabsContent>
           <TabsContent value="special" className="mt-3">
+            <div className="mb-3 rounded-xl border border-cyan-300/15 bg-black/60 p-4 text-sm text-white/70 shadow-lg shadow-black/20 backdrop-blur-md">
+              Connect your wallet and invite a friend to unlock referral rewards, future MON features, and synced progress.
+            </div>
             {renderTaskList(specialTasks)}
           </TabsContent>
         </Tabs>
@@ -122,7 +126,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
               </div>
               <h2 className="mt-5 text-2xl font-black text-white drop-shadow-md">Daily prize cube</h2>
               <p className="mt-2 text-base text-white/70 leading-relaxed">
-                {completedCount}/{dailyTasks.length} tasks complete. {availableWheelRolls > 0 ? `${availableWheelRolls} cube rolls ready.` : allTasksComplete ? 'Today\'s cube rolls are finished. Come back tomorrow.' : 'Complete all daily tasks to earn 3 cube rolls.'}
+                {claimedCount}/{dailyTasks.length} claimed rewards. {availableWheelRolls > 0 ? `${availableWheelRolls} cube rolls ready.` : dailyTaskClaimsMet ? 'Today\'s cube rolls are finished. Come back tomorrow.' : `Claim any 3 daily tasks to unlock cube rolls. ${completedCount}/${dailyTasks.length} are ready so far.`}
               </p>
             </div>
 

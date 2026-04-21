@@ -10,7 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useSendTransaction } from 'wagmi';
 import { parseEther } from 'viem';
-import { Gem, Rocket, Zap } from 'lucide-react';
+import { Coins, Rocket, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { BOOST_ICON_SRC } from '@/lib/rodAssets';
 import { isUserRejectedError } from '@/lib/errorUtils';
@@ -121,7 +121,7 @@ const BoostDialog: React.FC<BoostDialogProps> = ({ walletAddress }) => {
                       <p className="text-sm text-zinc-400">{pkg.description}</p>
                     </div>
                     <span className="inline-flex items-center gap-1 rounded-lg border border-cyan-300/15 bg-zinc-950 px-2.5 py-1 text-sm font-bold text-cyan-100">
-                      <Gem className="h-4 w-4" />
+                      <Coins className="h-4 w-4" />
                       {pkg.monAmount} MON
                     </span>
                   </div>

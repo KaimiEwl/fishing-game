@@ -8,8 +8,15 @@ interface StoredCaughtFish {
   quantity: number;
 }
 
-interface StoredPlayerState extends Omit<PlayerState, 'inventory'> {
+interface StoredCookedDish {
+  recipeId: string;
+  createdAt: string;
+  quantity: number;
+}
+
+interface StoredPlayerState extends Omit<PlayerState, 'inventory' | 'cookedDishes'> {
   inventory: StoredCaughtFish[];
+  cookedDishes: StoredCookedDish[];
 }
 
 export const getUtcDayResetIso = (date = new Date()) => {
@@ -90,6 +97,7 @@ export const mergeSyncedPlayerState = (
   rodLevel: Math.max(serverPlayer.rodLevel, localPlayer.rodLevel),
   equippedRod: Math.max(serverPlayer.equippedRod, localPlayer.equippedRod),
   inventory: localPlayer.inventory,
+  cookedDishes: localPlayer.cookedDishes,
   totalCatches: Math.max(serverPlayer.totalCatches, localPlayer.totalCatches),
   dailyBonusClaimed: localPlayer.dailyBonusClaimed,
   loginStreak: Math.max(serverPlayer.loginStreak, localPlayer.loginStreak),
@@ -110,6 +118,13 @@ export const deserializeStoredPlayer = (raw: string, fallback: PlayerState): Pla
         ? parsed.inventory.map((item) => ({
             fishId: item.fishId,
             caughtAt: new Date(item.caughtAt),
+            quantity: item.quantity,
+          }))
+        : [],
+      cookedDishes: Array.isArray(parsed.cookedDishes)
+        ? parsed.cookedDishes.map((item) => ({
+            recipeId: item.recipeId,
+            createdAt: new Date(item.createdAt),
             quantity: item.quantity,
           }))
         : [],
@@ -143,6 +158,11 @@ export const storePlayerLocally = (player: PlayerState) => {
     inventory: player.inventory.map((item) => ({
       fishId: item.fishId,
       caughtAt: item.caughtAt instanceof Date ? item.caughtAt.toISOString() : new Date(item.caughtAt).toISOString(),
+      quantity: item.quantity,
+    })),
+    cookedDishes: player.cookedDishes.map((item) => ({
+      recipeId: item.recipeId,
+      createdAt: item.createdAt instanceof Date ? item.createdAt.toISOString() : new Date(item.createdAt).toISOString(),
       quantity: item.quantity,
     })),
   };

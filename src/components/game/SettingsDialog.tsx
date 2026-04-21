@@ -264,7 +264,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
                       >
                         <LogOut className="h-3 w-3" />
                       </Button>
-                    </div>
+                  </div>
                     {balanceData && (
                       <div className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm">
                         <span className="text-zinc-300">Balance:</span>
@@ -273,27 +273,35 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
                         </span>
                       </div>
                     )}
+                    <p className="text-xs font-medium text-zinc-400">
+                      Connected wallets unlock referrals, future MON rewards, and cross-device progress.
+                    </p>
                   </div>
                 )}
               </ConnectButton.Custom>
             ) : (
               <ConnectButton.Custom>
                 {({ openConnectModal }) => (
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={() => handleWalletModalOpen(openConnectModal)}
-                      className="h-11 flex-1 gap-2 border border-cyan-300/25 bg-zinc-950 text-cyan-100 hover:bg-black"
-                      style={{ background: 'linear-gradient(135deg, #020617, #083344)' }}
-                    >
-                      Sign In
-                    </Button>
-                    <Button
-                      onClick={() => handleWalletModalOpen(openConnectModal)}
-                      variant="outline"
-                      className="h-11 flex-1 gap-2 border-zinc-800 bg-black text-zinc-100 hover:bg-zinc-950"
-                    >
-                      Sign Up
-                    </Button>
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => handleWalletModalOpen(openConnectModal)}
+                        className="h-11 flex-1 gap-2 border border-cyan-300/25 bg-zinc-950 text-cyan-100 hover:bg-black"
+                        style={{ background: 'linear-gradient(135deg, #020617, #083344)' }}
+                      >
+                        Sign In
+                      </Button>
+                      <Button
+                        onClick={() => handleWalletModalOpen(openConnectModal)}
+                        variant="outline"
+                        className="h-11 flex-1 gap-2 border-zinc-800 bg-black text-zinc-100 hover:bg-zinc-950"
+                      >
+                        Sign Up
+                      </Button>
+                    </div>
+                    <p className="text-xs font-medium text-zinc-400">
+                      Connect wallet to unlock referrals, future MON rewards, and synced progress on every device.
+                    </p>
                   </div>
                 )}
               </ConnectButton.Custom>

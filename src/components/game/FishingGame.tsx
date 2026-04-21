@@ -97,6 +97,7 @@ const FishingGame: React.FC = () => {
   const [pendingLeaderboardScore, setPendingLeaderboardScore] = useState(0);
   const [pendingLeaderboardDishes, setPendingLeaderboardDishes] = useState(0);
   const gameProgress = useGameProgress();
+  const { syncReferralTask } = gameProgress;
   const logAuditEvent = useCallback((event: PlayerAuditEventPayload) => {
     if (!address || !isVerified) return;
 
@@ -119,7 +120,8 @@ const FishingGame: React.FC = () => {
     castRod,
     reelIn,
     sellFish,
-    consumeFish,
+    cookRecipe,
+    sellCookedDish,
     buyBait,
     buyRod,
     equipRod,
@@ -351,21 +353,32 @@ const FishingGame: React.FC = () => {
     }
   }, [currentLeaderboardEntry?.name, gameProgress.grillScore, leaderboardNameOpen]);
 
+  useEffect(() => {
+    syncReferralTask(referralSummary?.rewardedReferralCount ?? 0);
+  }, [syncReferralTask, referralSummary?.rewardedReferralCount]);
+
   const handleBuyBait = (amount: number, cost: number) => {
-    buyBait(amount, cost);
+    const purchased = buyBait(amount, cost);
+    if (!purchased) return;
+    gameProgress.recordCoinsSpent(cost);
     sounds.playBuySound();
   };
 
   const handleBuyRod = (level: number, cost: number) => {
-    buyRod(level, cost);
+    const purchased = buyRod(level, cost);
+    if (!purchased) return;
+    gameProgress.recordCoinsSpent(cost);
     sounds.playBuySound();
   };
 
   const handleSellFish = (fishId: string) => {
     const sellPrice = sellFish(fishId);
-    if (sellPrice > 0) {
-      gameProgress.recordCoinsEarned(sellPrice);
-    }
+    sounds.playSellSound();
+  };
+
+  const handleSellCookedDish = (recipeId: string) => {
+    const sellPrice = sellCookedDish(recipeId);
+    if (sellPrice <= 0) return;
     sounds.playSellSound();
   };
 
@@ -423,7 +436,6 @@ const FishingGame: React.FC = () => {
           metadata.quantity = prize.quantity ?? 1;
         } else {
           metadata.coins = prize.coins ?? 0;
-          gameProgress.recordCoinsEarned(prize.coins ?? 0);
           afterState = {
             ...beforeState,
             coins: beforeState.coins + (prize.coins ?? 0),
@@ -447,7 +459,7 @@ const FishingGame: React.FC = () => {
 
   const handleCookRecipe = (recipe: GrillRecipe) => {
     const beforeState = toPlayerAuditSnapshot(player);
-    if (!consumeFish(recipe.ingredients)) return false;
+    if (!cookRecipe(recipe)) return false;
     const nextGrillScore = gameProgress.grillScore + recipe.score;
     gameProgress.recordGrillDish(recipe.score);
     if (address && isVerified) {
@@ -510,7 +522,7 @@ const FishingGame: React.FC = () => {
                   coins={player.coins}
                   dailyTasks={gameProgress.dailyTasks}
                   specialTasks={gameProgress.specialTasks}
-                  allTasksComplete={gameProgress.allTasksComplete}
+                  dailyTaskClaimsMet={gameProgress.dailyTaskClaimsMet}
                   availableWheelRolls={gameProgress.availableWheelRolls}
                   onClaimTask={handleClaimTask}
                   onOpenWheel={() => setActiveTab('wheel')}
@@ -541,11 +553,14 @@ const FishingGame: React.FC = () => {
                   availableRolls={gameProgress.availableWheelRolls}
                   dailyWheelRolls={gameProgress.dailyWheelRolls}
                   paidWheelRolls={gameProgress.paidWheelRolls}
-                  allTasksComplete={gameProgress.allTasksComplete}
+                  dailyTaskClaimsMet={gameProgress.dailyTaskClaimsMet}
                   walletAddress={address}
                   onSpin={handleSpinWheel}
                   onBuySpin={gameProgress.addPaidWheelRolls}
                   onOpenTasks={() => setActiveTab('tasks')}
+                  onSpinStartSound={sounds.playCubeSpinSound}
+                  onRevealSound={sounds.playCubeRevealSound}
+                  onRewardSound={sounds.playCubeRewardSound}
                 />
               ) : activeTab === 'map' ? (
                 <MapScreen
@@ -571,11 +586,13 @@ const FishingGame: React.FC = () => {
               <BoostDialog walletAddress={address} />
               <InventoryDialog
                 inventory={player.inventory}
+                cookedDishes={player.cookedDishes}
                 rodLevel={player.rodLevel}
                 equippedRod={player.equippedRod}
                 nftRods={player.nftRods}
                 onEquipRod={equipRod}
                 onSellFish={handleSellFish}
+                onSellCookedDish={handleSellCookedDish}
                 triggerVariant="shortcut"
               />
             </div>

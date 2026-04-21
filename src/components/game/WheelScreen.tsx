@@ -27,11 +27,14 @@ interface WheelScreenProps {
   availableRolls: number;
   dailyWheelRolls: number;
   paidWheelRolls: number;
-  allTasksComplete: boolean;
+  dailyTaskClaimsMet: boolean;
   walletAddress?: string;
   onSpin: (prize: WheelPrize) => WheelPrize | null;
   onBuySpin: (amount: number) => void;
   onOpenTasks: () => void;
+  onSpinStartSound?: () => void;
+  onRevealSound?: () => void;
+  onRewardSound?: () => void;
 }
 
 const CUBE_TILE_COLORS = [
@@ -183,7 +186,7 @@ const PROMPT_CONFIG: Record<PromptType, {
 }> = {
   tasks: {
     title: 'Finish daily tasks first',
-    description: 'Complete your daily tasks to unlock 3 cube rolls.',
+    description: 'Claim any 3 daily tasks to unlock 3 cube rolls.',
     actionLabel: 'Go to Tasks',
   },
   tomorrow: {
@@ -203,11 +206,14 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
   availableRolls,
   dailyWheelRolls,
   paidWheelRolls,
-  allTasksComplete,
+  dailyTaskClaimsMet,
   walletAddress,
   onSpin,
   onBuySpin,
   onOpenTasks,
+  onSpinStartSound,
+  onRevealSound,
+  onRewardSound,
 }) => {
   const [phase, setPhase] = useState<SpinPhase>('idle');
   const [cubeFaces, setCubeFaces] = useState<CubeFaces>(() => createCubeFaces());
@@ -334,6 +340,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
         const result = onSpin(target.prize) ?? target.prize;
         setPhase('idle');
         setHighlightedFaceIndex(target.faceIndex);
+        onRewardSound?.();
         toast.success(`You won: ${result.label}`);
         spinLockRef.current = false;
         return;
@@ -354,11 +361,12 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     settleStartedRef.current = true;
     const target = pendingTargetRef.current;
     pendingTargetRef.current = null;
+    onRevealSound?.();
     snapToFace(target.faceIndex, () => startFaceSelection(target));
   };
 
   const showRollRequirementPrompt = () => {
-    if (allTasksComplete) {
+    if (dailyTaskClaimsMet) {
       setPromptType('tomorrow');
       return;
     }
@@ -425,6 +433,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     setHighlightedTileIndex(null);
     setPhase('spinning');
     setRotationTransitionEnabled(true);
+    onSpinStartSound?.();
     pendingTargetRef.current = { faceIndex, tileIndex, prize: targetPrize };
     settleStartedRef.current = false;
     setRotation((current) => getNextRotation(current, faceIndex));
@@ -462,7 +471,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
           <>
             <GameScreenShell
               title="Daily Prize Cube"
-              subtitle="Finish daily tasks to unlock 3 cube rolls. Buy extra rolls with MON any time."
+              subtitle="Claim any 3 daily tasks to unlock 3 cube rolls. Buy extra rolls with MON any time."
               coins={coins}
               backgroundImage={publicAsset('assets/bg_wheel_v4.jpg')}
             >

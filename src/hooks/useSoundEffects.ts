@@ -173,6 +173,25 @@ export function useSoundEffects() {
     playTone(1568, 0.4, 'sine', 0.06, undefined, 0.65);
   }, []);
 
+  const playCubeSpinSound = useCallback(() => {
+    playTone(180, 0.3, 'sawtooth', 0.05, 260);
+    playTone(240, 0.35, 'triangle', 0.04, 340, 0.08);
+    playNoise(0.18, 0.025, 0.12);
+  }, []);
+
+  const playCubeRevealSound = useCallback(() => {
+    playTone(620, 0.12, 'triangle', 0.08);
+    playTone(840, 0.16, 'sine', 0.07, undefined, 0.08);
+    playTone(1080, 0.18, 'triangle', 0.06, undefined, 0.16);
+  }, []);
+
+  const playCubeRewardSound = useCallback(() => {
+    playTone(784, 0.12, 'sine', 0.12);
+    playTone(988, 0.12, 'sine', 0.1, undefined, 0.1);
+    playTone(1319, 0.16, 'triangle', 0.12, undefined, 0.2);
+    playTone(1760, 0.24, 'triangle', 0.08, undefined, 0.28);
+  }, []);
+
   return {
     playCastSound,
     playSplashSound,
@@ -182,5 +201,8 @@ export function useSoundEffects() {
     playBuySound,
     playSellSound,
     playLevelUpSound,
+    playCubeSpinSound,
+    playCubeRevealSound,
+    playCubeRewardSound,
   };
 }

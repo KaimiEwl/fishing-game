@@ -17,7 +17,7 @@ const WelcomeScreen: React.FC = () => {
           <span className="mb-4 block text-7xl drop-shadow-lg">🎣</span>
           <GameTitleBanner className="mx-auto mb-3 w-full max-w-[21rem]" />
           <p className="text-lg font-medium tracking-wide text-muted-foreground">
-            Arcade fishing with wallet saves
+            Arcade fishing with wallet rewards
           </p>
         </div>
 
@@ -29,7 +29,7 @@ const WelcomeScreen: React.FC = () => {
           </div>
           <p className="text-sm leading-relaxed text-foreground/70">
             Catch fish, sell your haul, upgrade your rod, and level up. Connect your wallet and
-            your progress will be saved to your connected profile.
+            unlock referrals, future MON rewards, and cross-device progress on your connected profile.
           </p>
         </div>
 

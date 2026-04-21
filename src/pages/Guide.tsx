@@ -1,4 +1,4 @@
-import { Fish, Flame, Gem, Map, Shield, Sparkles, Trophy, Wallet } from 'lucide-react';
+import { Box, Fish, Flame, Map, Shield, Sparkles, Trophy, Wallet } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { usePageScroll } from '@/hooks/usePageScroll';
 import ContentPageShell, { ContentPageBackLink } from '@/components/ContentPageShell';
@@ -19,8 +19,8 @@ const sections = [
     bullets: [
       'Cast the line and react during the bite window.',
       'Catch fish, earn coins and XP, and unlock stronger rods.',
-      'Use the inventory to sell fish or save them for grill recipes.',
-      'Complete daily tasks to unlock extra rewards and the cube flow.',
+      'Use the inventory to sell fish or save them for grill recipes and cooked dishes.',
+      'Claim any 3 daily task rewards to unlock the cube flow each day.',
     ],
   },
   {
@@ -39,6 +39,7 @@ const sections = [
     icon: Flame,
     bullets: [
       'Cook recipes from your caught fish to earn grill score.',
+      'Each cooked dish is also stored in inventory and can be sold later for gold.',
       'The leaderboard is shared between devices after your named profile syncs.',
       'Bigger dishes and better fish matter more than raw catch count.',
     ],
@@ -46,7 +47,7 @@ const sections = [
   {
     id: 'cube',
     title: 'Cube and Bonuses',
-    icon: Gem,
+    icon: Box,
     bullets: [
       'The prize cube reveals either coin rewards or fish rewards.',
       'Boost and paid cube spins use MON and stay separate from normal fishing progression.',
