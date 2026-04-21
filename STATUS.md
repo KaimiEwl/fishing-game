@@ -1,5 +1,8 @@
 # STATUS
 
+## Cube MON tile visibility
+- `MON` prize cells on the cube are now visually emphasized even before reveal with a brighter emerald treatment and an explicit `1 MON` label rendered directly on the tile so players can immediately spot the winning MON cells on cube faces.
+
 ## Admin player list accuracy
 - `/admin -> Players` now marks wallets with admin access using an `Admin` / `Superadmin` badge in the nickname column instead of leaving them visually indistinguishable from regular players.
 - `Catches` in the admin player list now falls back to counted `fish_caught` audit events when `players.total_catches` is still `0`, so the table no longer shows false zeroes for players whose progress sync lagged behind their live catch history.

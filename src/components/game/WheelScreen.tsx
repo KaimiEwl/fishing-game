@@ -270,6 +270,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
   ) => {
     const fish = getFishByReward(item);
     const isHighlighted = highlightedFaceIndex === sideIndex && highlightedTileIndex === tileIndex;
+    const isMonTile = item.type === 'mon';
     const colorIndex = Math.max(WHEEL_PRIZES.findIndex((prizeItem) => prizeItem.id === item.id), 0);
     const accent = item.type === 'fish' && fish
       ? RARITY_COLORS[fish.rarity]
@@ -285,11 +286,15 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
         className={`relative flex min-w-0 items-center justify-center overflow-hidden rounded-[4px] border text-[8px] font-black leading-none text-black transition-all duration-200 sm:text-[10px] ${
           isHighlighted
             ? 'z-20 scale-[1.16] border-white ring-4 ring-cyan-100/90 shadow-[0_0_26px_rgba(34,211,238,0.95),0_0_44px_rgba(255,255,255,0.65)]'
+            : isMonTile
+              ? 'border-emerald-100/90 ring-1 ring-emerald-100/85 shadow-[0_0_0_1px_rgba(16,185,129,0.25),0_0_16px_rgba(20,241,149,0.45)]'
             : 'border-black/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.58),0_5px_10px_rgba(0,0,0,0.22)]'
         }`}
         style={{
           background: item.type === 'fish' && fish
             ? `linear-gradient(135deg, ${accent}40, ${accent}18)`
+            : isMonTile
+              ? 'radial-gradient(circle at top, rgba(236,253,245,0.98), rgba(52,211,153,0.94) 52%, rgba(5,150,105,0.98) 100%)'
             : item.secret
               ? 'linear-gradient(135deg, #f8fafc, #fde68a 45%, #f472b6)'
               : `linear-gradient(135deg, ${accent}, ${accent}bb)`,
@@ -312,10 +317,11 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
             </span>
           </div>
         ) : item.type === 'mon' ? (
-          <div className="flex flex-col items-center justify-center gap-0.5">
-            <span className="text-[9px] font-black tracking-[0.08em] text-black/90 sm:text-[10px]">MON</span>
-            <span className="text-[7px] font-black text-black/80 sm:text-[8px]">
-              {item.mon ?? 1}
+          <div className="relative flex h-full w-full items-center justify-center overflow-hidden px-0.5 text-center">
+            <span className="pointer-events-none absolute inset-x-[10%] top-[16%] h-[1px] bg-white/80" />
+            <span className="pointer-events-none absolute inset-x-[12%] bottom-[18%] h-[1px] bg-emerald-950/20" />
+            <span className="text-[8px] font-black tracking-[0.08em] text-emerald-950 drop-shadow-[0_1px_0_rgba(255,255,255,0.65)] sm:text-[10px]">
+              {item.mon ?? 1} MON
             </span>
           </div>
         ) : (
