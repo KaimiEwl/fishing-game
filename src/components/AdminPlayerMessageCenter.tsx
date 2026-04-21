@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Mail, Send } from 'lucide-react';
+import { CheckCircle2, Mail, Send, Users } from 'lucide-react';
 import type { AdminPlayer, AdminPlayerMessage } from '@/hooks/useAdmin';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,9 +11,12 @@ import { Textarea } from '@/components/ui/textarea';
 interface AdminPlayerMessageCenterProps {
   player: AdminPlayer | null;
   messages: AdminPlayerMessage[];
+  totalPlayers?: number;
   loading?: boolean;
   sending?: boolean;
+  broadcasting?: boolean;
   onSend: (title: string, body: string) => Promise<void> | void;
+  onSendBroadcast: (title: string, body: string) => Promise<void> | void;
 }
 
 const MESSAGE_TEMPLATES = [
@@ -45,9 +48,12 @@ const formatDateTime = (value: string) =>
 const AdminPlayerMessageCenter: React.FC<AdminPlayerMessageCenterProps> = ({
   player,
   messages,
+  totalPlayers = 0,
   loading = false,
   sending = false,
+  broadcasting = false,
   onSend,
+  onSendBroadcast,
 }) => {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -74,15 +80,15 @@ const AdminPlayerMessageCenter: React.FC<AdminPlayerMessageCenterProps> = ({
     setBody('');
   };
 
-  if (!player) {
-    return (
-      <Card className="border-zinc-800 bg-zinc-950">
-        <CardContent className="py-12 text-center text-sm text-zinc-400">
-          Select a player to view inbox history and send a personal message.
-        </CardContent>
-      </Card>
-    );
-  }
+  const handleBroadcast = async () => {
+    const nextTitle = title.trim();
+    const nextBody = body.trim();
+    if (!nextTitle || !nextBody) return;
+
+    await onSendBroadcast(nextTitle, nextBody);
+    setTitle('');
+    setBody('');
+  };
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1.05fr,0.95fr]">
@@ -98,32 +104,40 @@ const AdminPlayerMessageCenter: React.FC<AdminPlayerMessageCenterProps> = ({
         <CardContent>
           <ScrollArea className="h-[28rem] pr-3">
             <div className="space-y-3">
-              {messages.map((message) => (
-                <div key={message.id} className="rounded-lg border border-zinc-800 bg-black/60 px-3 py-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-zinc-100">{message.title}</p>
-                      <p className="mt-1 text-xs text-zinc-400">{formatDateTime(message.created_at)}</p>
+              {player ? (
+                <>
+                  {messages.map((message) => (
+                    <div key={message.id} className="rounded-lg border border-zinc-800 bg-black/60 px-3 py-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-zinc-100">{message.title}</p>
+                          <p className="mt-1 text-xs text-zinc-400">{formatDateTime(message.created_at)}</p>
+                        </div>
+                        {message.read_at ? (
+                          <Badge variant="outline" className="border-zinc-700 text-zinc-300">
+                            <CheckCircle2 className="mr-1 h-3 w-3" />
+                            Read
+                          </Badge>
+                        ) : (
+                          <Badge className="border-cyan-300/20 bg-cyan-300/10 text-cyan-100 hover:bg-cyan-300/10">
+                            <Mail className="mr-1 h-3 w-3" />
+                            Unread
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-zinc-200">{message.body}</p>
                     </div>
-                    {message.read_at ? (
-                      <Badge variant="outline" className="border-zinc-700 text-zinc-300">
-                        <CheckCircle2 className="mr-1 h-3 w-3" />
-                        Read
-                      </Badge>
-                    ) : (
-                      <Badge className="border-cyan-300/20 bg-cyan-300/10 text-cyan-100 hover:bg-cyan-300/10">
-                        <Mail className="mr-1 h-3 w-3" />
-                        Unread
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-zinc-200">{message.body}</p>
-                </div>
-              ))}
+                  ))}
 
-              {messages.length === 0 && (
+                  {messages.length === 0 && (
+                    <div className="rounded-lg border border-dashed border-zinc-800 px-4 py-10 text-center text-sm text-zinc-400">
+                      {loading ? 'Loading message history...' : 'No personal messages sent yet.'}
+                    </div>
+                  )}
+                </>
+              ) : (
                 <div className="rounded-lg border border-dashed border-zinc-800 px-4 py-10 text-center text-sm text-zinc-400">
-                  {loading ? 'Loading message history...' : 'No personal messages sent yet.'}
+                  Select a player to view personal inbox history. You can still send a broadcast to every player from the composer.
                 </div>
               )}
             </div>
@@ -133,9 +147,29 @@ const AdminPlayerMessageCenter: React.FC<AdminPlayerMessageCenterProps> = ({
 
       <Card className="border-zinc-800 bg-zinc-950">
         <CardHeader>
-          <CardTitle className="text-base text-zinc-100">Send personal message</CardTitle>
+          <CardTitle className="text-base text-zinc-100">Send inbox message</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="rounded-lg border border-zinc-800 bg-black/50 px-3 py-3 text-sm text-zinc-300">
+            {player ? (
+              <>
+                Personal target:{' '}
+                <span className="font-semibold text-zinc-100">
+                  {player.nickname || player.wallet_address}
+                </span>
+              </>
+            ) : (
+              <>No player selected. Use the broadcast action below to message all players.</>
+            )}
+          </div>
+
+          <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-3 text-sm text-amber-50">
+            Broadcast sends the same inbox message to all players currently stored in the game database.
+            <div className="mt-1 text-xs text-amber-100/80">
+              Current audience: {totalPlayers.toLocaleString()} player{totalPlayers === 1 ? '' : 's'}
+            </div>
+          </div>
+
           <div className="flex flex-wrap gap-2">
             {MESSAGE_TEMPLATES.map((template) => (
               <Button
@@ -172,15 +206,28 @@ const AdminPlayerMessageCenter: React.FC<AdminPlayerMessageCenterProps> = ({
             />
           </div>
 
-          <Button
-            type="button"
-            onClick={() => void handleSend()}
-            disabled={sending || !title.trim() || !body.trim()}
-            className="w-full gap-2"
-          >
-            <Send className="h-4 w-4" />
-            {sending ? 'Sending...' : 'Send message'}
-          </Button>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Button
+              type="button"
+              onClick={() => void handleSend()}
+              disabled={sending || !player || !title.trim() || !body.trim()}
+              className="w-full gap-2"
+            >
+              <Send className="h-4 w-4" />
+              {sending ? 'Sending...' : 'Send personal message'}
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void handleBroadcast()}
+              disabled={broadcasting || totalPlayers < 1 || !title.trim() || !body.trim()}
+              className="w-full gap-2 border-amber-500/40 bg-amber-500/10 text-amber-50 hover:bg-amber-500/20"
+            >
+              <Users className="h-4 w-4" />
+              {broadcasting ? 'Broadcasting...' : 'Send to all players'}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

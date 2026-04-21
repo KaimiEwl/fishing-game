@@ -78,6 +78,7 @@ export default function Admin() {
     listPlayerActivity,
     listPlayerMessages,
     sendPlayerMessage,
+    sendBroadcastMessage,
     listWithdrawRequests,
     getAdminWithdrawSummary,
     getSuspiciousSummary,
@@ -125,6 +126,7 @@ export default function Admin() {
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [messageSending, setMessageSending] = useState(false);
+  const [broadcastSending, setBroadcastSending] = useState(false);
   const [withdrawsLoading, setWithdrawsLoading] = useState(false);
   const [suspiciousLoading, setSuspiciousLoading] = useState(false);
   const [processingWithdrawId, setProcessingWithdrawId] = useState<string | null>(null);
@@ -455,6 +457,25 @@ export default function Admin() {
       toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setMessageSending(false);
+    }
+  };
+
+  const handleSendBroadcast = async (title: string, body: string) => {
+    setBroadcastSending(true);
+    try {
+      const deliveredCount = await sendBroadcastMessage(title, body);
+      if (selectedPlayer) {
+        const nextMessages = await listPlayerMessages(selectedPlayer.id, 50);
+        setSelectedPlayerMessages(nextMessages);
+      }
+      toast({
+        title: 'Broadcast sent',
+        description: `Inbox message delivered to ${deliveredCount.toLocaleString()} player${deliveredCount === 1 ? '' : 's'}.`,
+      });
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
+    } finally {
+      setBroadcastSending(false);
     }
   };
 
@@ -844,9 +865,12 @@ export default function Admin() {
                 <AdminPlayerMessageCenter
                   player={selectedPlayer}
                   messages={selectedPlayerMessages}
+                  totalPlayers={stats?.totalPlayers ?? total}
                   loading={messagesLoading}
                   sending={messageSending}
+                  broadcasting={broadcastSending}
                   onSend={handleSendMessage}
+                  onSendBroadcast={handleSendBroadcast}
                 />
               </div>
             </div>

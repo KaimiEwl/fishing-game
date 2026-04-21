@@ -175,6 +175,10 @@ interface AdminPlayerMessagesResponse {
   messages: AdminPlayerMessage[];
 }
 
+interface AdminBroadcastMessageResponse {
+  inserted_count: number;
+}
+
 interface AdminWithdrawRequestRow {
   id: string;
   player_id: string;
@@ -440,6 +444,14 @@ export function useAdmin(walletAddress: string | undefined) {
     return data.message;
   }, [callAdmin]);
 
+  const sendBroadcastMessage = useCallback(async (title: string, body: string) => {
+    const data = await callAdmin<AdminBroadcastMessageResponse>('send_broadcast_message', {
+      title,
+      body,
+    });
+    return data.inserted_count ?? 0;
+  }, [callAdmin]);
+
   const listWithdrawRequests = useCallback(async (
     params: { status?: WithdrawRequestStatus | 'all'; limit?: number } = {},
   ) => {
@@ -583,6 +595,7 @@ export function useAdmin(walletAddress: string | undefined) {
     listPlayerActivity,
     listPlayerMessages,
     sendPlayerMessage,
+    sendBroadcastMessage,
     listWithdrawRequests,
     getAdminWithdrawSummary,
     getSuspiciousSummary,

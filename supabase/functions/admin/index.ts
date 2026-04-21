@@ -1012,6 +1012,53 @@ serve(async (req) => {
         return jsonResponse({ message: data });
       }
 
+      case "send_broadcast_message": {
+        const title = normalizeText(body.title);
+        const messageBody = normalizeText(body.body);
+
+        if (!title) return badRequest("Missing title");
+        if (!messageBody) return badRequest("Missing body");
+        if (title.length > 120) return badRequest("Title is too long");
+        if (messageBody.length > 2000) return badRequest("Body is too long");
+
+        const batchSize = 500;
+        let offset = 0;
+        let insertedCount = 0;
+
+        while (true) {
+          const { data: players, error: playersError } = await supabase
+            .from("players")
+            .select("id")
+            .order("created_at", { ascending: true })
+            .range(offset, offset + batchSize - 1);
+          if (playersError) throw playersError;
+
+          const playerRows = players ?? [];
+          if (playerRows.length === 0) break;
+
+          const messageRows = playerRows.map((player) => ({
+            player_id: player.id,
+            title,
+            body: messageBody,
+            created_by_wallet: walletAddress,
+          }));
+
+          const { error: insertError } = await supabase
+            .from("player_messages")
+            .insert(messageRows);
+          if (insertError) throw insertError;
+
+          insertedCount += messageRows.length;
+
+          if (playerRows.length < batchSize) break;
+          offset += batchSize;
+        }
+
+        if (insertedCount === 0) return badRequest("No players found");
+
+        return jsonResponse({ inserted_count: insertedCount });
+      }
+
       case "update_player": {
         const playerId = normalizeText(body.player_id);
         const updates = body.updates;
