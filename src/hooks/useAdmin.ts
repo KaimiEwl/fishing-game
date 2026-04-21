@@ -5,6 +5,8 @@ import { normalizeMonAmount } from '@/lib/monRewards';
 import { SOCIAL_TASKS, type SocialTaskId, type SocialTaskStatus } from '@/lib/taskRegistry';
 import { getStoredWalletSession } from '@/lib/walletSession';
 
+const ADMIN_INVOKE_TIMEOUT_MS = 12000;
+
 export type AdminPlayer = Tables<'players'>;
 export type AdminPlayerMessage = Tables<'player_messages'>;
 
@@ -352,22 +354,35 @@ const mapSuspiciousPlayer = (player: AdminSuspiciousPlayerRow): AdminSuspiciousP
 export function useAdmin(walletAddress: string | undefined) {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
+  const storedSession = getStoredWalletSession();
+  const effectiveWalletAddress = walletAddress ?? storedSession?.address;
 
   const callAdmin = useCallback(async <T>(action: string, params: Record<string, unknown> = {}) => {
-    if (!walletAddress) throw new Error('No wallet');
+    if (!effectiveWalletAddress) throw new Error('No wallet');
+
     const session = getStoredWalletSession();
-    if (!session || session.address.toLowerCase() !== walletAddress.toLowerCase()) {
+    if (!session || session.address.toLowerCase() !== effectiveWalletAddress.toLowerCase()) {
       throw new Error('Wallet session expired. Reconnect in the game first.');
     }
 
-    const { data, error } = await supabase.functions.invoke('admin', {
+    const invokePromise = supabase.functions.invoke('admin', {
       body: {
         action,
-        wallet_address: walletAddress.toLowerCase(),
+        wallet_address: effectiveWalletAddress.toLowerCase(),
         session_token: session.token,
         ...params,
       },
     });
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      const timeoutId = window.setTimeout(() => {
+        reject(new Error('Admin request timed out. Reload the page and try again.'));
+      }, ADMIN_INVOKE_TIMEOUT_MS);
+
+      invokePromise.finally(() => window.clearTimeout(timeoutId));
+    });
+
+    const { data, error } = await Promise.race([invokePromise, timeoutPromise]);
     if (error) {
       const errorWithContext = error as { context?: { clone?: () => Response } };
       if (errorWithContext.context?.clone) {
@@ -384,10 +399,10 @@ export function useAdmin(walletAddress: string | undefined) {
     }
     if (data?.error) throw new Error(data.error);
     return data as T;
-  }, [walletAddress]);
+  }, [effectiveWalletAddress]);
 
   const checkAdmin = useCallback(async () => {
-    if (!walletAddress) {
+    if (!effectiveWalletAddress) {
       setIsAdmin(false);
       return false;
     }
@@ -402,7 +417,7 @@ export function useAdmin(walletAddress: string | undefined) {
     } finally {
       setLoading(false);
     }
-  }, [callAdmin, walletAddress]);
+  }, [callAdmin, effectiveWalletAddress]);
 
   const listPlayers = useCallback(async (
     params: { search?: string; sort_by?: string; sort_dir?: string; page?: number; per_page?: number } = {},
