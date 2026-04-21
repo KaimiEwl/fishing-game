@@ -26,9 +26,15 @@ if ([string]::IsNullOrWhiteSpace($AnonKey)) {
 
 $extraBody = @{}
 if (-not [string]::IsNullOrWhiteSpace($BodyJson)) {
-  $parsedBody = $BodyJson | ConvertFrom-Json -AsHashtable
-  if ($parsedBody) {
-    $extraBody = $parsedBody
+  $parsedBody = $BodyJson | ConvertFrom-Json
+  if ($parsedBody -is [System.Collections.IDictionary]) {
+    foreach ($entry in $parsedBody.GetEnumerator()) {
+      $extraBody[$entry.Key] = $entry.Value
+    }
+  } elseif ($parsedBody) {
+    foreach ($property in $parsedBody.PSObject.Properties) {
+      $extraBody[$property.Name] = $property.Value
+    }
   }
 }
 

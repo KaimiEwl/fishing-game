@@ -17,6 +17,7 @@ Browser session storage key:
 ## Helper scripts
 - `scripts/ops/make-session-token.mjs`
 - `scripts/ops/invoke-edge.ps1`
+- `scripts/ops/live-ops-report.ps1`
 - `scripts/ops/smoke-live-readonly.ps1`
 - `scripts/ops/smoke-live-mutation.mjs`
 
@@ -47,6 +48,24 @@ It checks:
 - weekly payout preview
 - suspicious summary + suspicious players
 - player MON summary
+
+## Live ops report
+This is a broader read-only snapshot for admin wallets. It returns one JSON report with the current live queues and review surfaces.
+
+```powershell
+.\scripts\ops\live-ops-report.ps1 `
+  -WalletAddress 0xYourAdminWallet `
+  -SessionToken "paste-session-token"
+```
+
+It includes:
+- admin auth result
+- withdraw summary
+- pending withdraw requests
+- weekly payout preview + recent weekly batches
+- suspicious summary + suspicious players
+- pending social verifications
+- verified social tasks ready to claim
 
 ## Full mutation smoke
 This script creates a temporary wallet player, runs the new reward-critical server actions, and cleans up after itself.
