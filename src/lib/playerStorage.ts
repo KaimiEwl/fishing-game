@@ -118,47 +118,56 @@ const toTimeValue = (value: string | Date) => {
 export const mergeSyncedPlayerState = (
   serverPlayer: PlayerState,
   localPlayer: PlayerState,
-): PlayerState => ({
-  ...serverPlayer,
-  coins: Math.max(serverPlayer.coins, localPlayer.coins),
-  bait: Math.max(serverPlayer.bait, localPlayer.bait),
-  dailyFreeBait: Math.max(serverPlayer.dailyFreeBait, localPlayer.dailyFreeBait),
-  dailyFreeBaitResetAt: serverPlayer.dailyFreeBaitResetAt ?? localPlayer.dailyFreeBaitResetAt,
-  bonusBaitGrantedTotal: Math.max(serverPlayer.bonusBaitGrantedTotal, localPlayer.bonusBaitGrantedTotal),
-  level: Math.max(serverPlayer.level, localPlayer.level),
-  xp: Math.max(serverPlayer.xp, localPlayer.xp),
-  xpToNextLevel: Math.max(serverPlayer.xpToNextLevel, localPlayer.xpToNextLevel),
-  rodLevel: Math.max(serverPlayer.rodLevel, localPlayer.rodLevel),
-  equippedRod: Math.max(serverPlayer.equippedRod, localPlayer.equippedRod),
-  inventory: mergeStacksByMax(
-    serverPlayer.inventory,
-    localPlayer.inventory,
-    (item) => item.fishId,
-    (preferred, alternate) => ({
-      ...preferred,
-      caughtAt: toTimeValue(preferred.caughtAt) >= toTimeValue(alternate.caughtAt)
-        ? preferred.caughtAt
-        : alternate.caughtAt,
-    }),
-  ),
-  cookedDishes: mergeStacksByMax(
-    serverPlayer.cookedDishes,
-    localPlayer.cookedDishes,
-    (item) => item.recipeId,
-    (preferred, alternate) => ({
-      ...preferred,
-      createdAt: toTimeValue(preferred.createdAt) >= toTimeValue(alternate.createdAt)
-        ? preferred.createdAt
-        : alternate.createdAt,
-    }),
-  ),
-  totalCatches: Math.max(serverPlayer.totalCatches, localPlayer.totalCatches),
-  dailyBonusClaimed: localPlayer.dailyBonusClaimed,
-  loginStreak: Math.max(serverPlayer.loginStreak, localPlayer.loginStreak),
-  nftRods: Array.from(new Set([...serverPlayer.nftRods, ...localPlayer.nftRods])).sort((a, b) => a - b),
-  nickname: localPlayer.nickname ?? serverPlayer.nickname,
-  avatarUrl: localPlayer.avatarUrl ?? serverPlayer.avatarUrl,
-});
+): PlayerState => {
+  const mergedBonusBaitGrantedTotal = Math.max(
+    serverPlayer.bonusBaitGrantedTotal,
+    localPlayer.bonusBaitGrantedTotal,
+  );
+  const serverNonBonusBait = Math.max(0, serverPlayer.bait - serverPlayer.bonusBaitGrantedTotal);
+  const localNonBonusBait = Math.max(0, localPlayer.bait - localPlayer.bonusBaitGrantedTotal);
+
+  return {
+    ...serverPlayer,
+    coins: Math.max(serverPlayer.coins, localPlayer.coins),
+    bait: Math.max(serverNonBonusBait, localNonBonusBait) + mergedBonusBaitGrantedTotal,
+    dailyFreeBait: Math.max(serverPlayer.dailyFreeBait, localPlayer.dailyFreeBait),
+    dailyFreeBaitResetAt: serverPlayer.dailyFreeBaitResetAt ?? localPlayer.dailyFreeBaitResetAt,
+    bonusBaitGrantedTotal: mergedBonusBaitGrantedTotal,
+    level: Math.max(serverPlayer.level, localPlayer.level),
+    xp: Math.max(serverPlayer.xp, localPlayer.xp),
+    xpToNextLevel: Math.max(serverPlayer.xpToNextLevel, localPlayer.xpToNextLevel),
+    rodLevel: Math.max(serverPlayer.rodLevel, localPlayer.rodLevel),
+    equippedRod: Math.max(serverPlayer.equippedRod, localPlayer.equippedRod),
+    inventory: mergeStacksByMax(
+      serverPlayer.inventory,
+      localPlayer.inventory,
+      (item) => item.fishId,
+      (preferred, alternate) => ({
+        ...preferred,
+        caughtAt: toTimeValue(preferred.caughtAt) >= toTimeValue(alternate.caughtAt)
+          ? preferred.caughtAt
+          : alternate.caughtAt,
+      }),
+    ),
+    cookedDishes: mergeStacksByMax(
+      serverPlayer.cookedDishes,
+      localPlayer.cookedDishes,
+      (item) => item.recipeId,
+      (preferred, alternate) => ({
+        ...preferred,
+        createdAt: toTimeValue(preferred.createdAt) >= toTimeValue(alternate.createdAt)
+          ? preferred.createdAt
+          : alternate.createdAt,
+      }),
+    ),
+    totalCatches: Math.max(serverPlayer.totalCatches, localPlayer.totalCatches),
+    dailyBonusClaimed: localPlayer.dailyBonusClaimed,
+    loginStreak: Math.max(serverPlayer.loginStreak, localPlayer.loginStreak),
+    nftRods: Array.from(new Set([...serverPlayer.nftRods, ...localPlayer.nftRods])).sort((a, b) => a - b),
+    nickname: localPlayer.nickname ?? serverPlayer.nickname,
+    avatarUrl: localPlayer.avatarUrl ?? serverPlayer.avatarUrl,
+  };
+};
 
 export const deserializeStoredPlayer = (raw: string, fallback: PlayerState): PlayerState | null => {
   try {

@@ -17,6 +17,7 @@
     "ops:smoke:readonly": "powershell -ExecutionPolicy Bypass -File ./scripts/ops/smoke-live-readonly.ps1",
     "ops:report": "powershell -ExecutionPolicy Bypass -File ./scripts/ops/live-ops-report.ps1",
     "ops:smoke:mutation": "node ./scripts/ops/smoke-live-mutation.mjs",
+    "ops:smoke:rewards": "node ./scripts/ops/smoke-live-reward-mechanics.mjs",
     "ops:smoke:progress": "node ./scripts/ops/smoke-live-progress-persistence.mjs",
     "preview": "vite preview"
   },

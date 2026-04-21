@@ -1,5 +1,12 @@
 # STATUS
 
+## Reward mechanics smoke and wallet bonus merge fix
+- Added a new live smoke script at `scripts/ops/smoke-live-reward-mechanics.mjs` plus `npm run ops:smoke:rewards`. It verifies the main reward-bearing loops on the working Supabase project without service-role access: first wallet verify, repeat verify, first and second referral payouts, duplicate-referral blocking on repeat invitee login/sign, daily task claim rewards, grill cook/sell rewards, and cube reward application idempotence.
+- Live smoke result for the current working backend: the suspected duplicate referral payout did **not** reproduce. A fresh inviter got exactly `+10` reserve bait per unique invited wallet, repeated login/sign of the same invitee did not pay twice, and the inviter reward count increased only once per new invitee.
+- Live smoke also confirmed the current baseline economy on wallet verify: a fresh verified wallet receives `20` reserve bait and `30` daily free bait on the server, so a new verified player should effectively have `50` total visible bait when both buckets are shown together.
+- Fixed a real client-side wallet sync risk in `mergeSyncedPlayerState`: reserve bait is now merged by separating non-bonus bait from server-granted bonus bait (`bonusBaitGrantedTotal`) before recombining, instead of blindly taking `Math.max(server.bait, local.bait)`. This prevents wallet/referral bonus bait from being silently lost when a guest already earned local reserve bait before attaching a wallet.
+- Fixed a companion client bug in `useGameState`: local guest-only bait rewards no longer increment `bonusBaitGrantedTotal`. That field is now reserved for server-issued bonus bait tracking instead of being polluted by ordinary local task rewards.
+
 ## VPS wallet/music/grill follow-up
 - Wallet attach flow was re-checked after the VPS/domain cutover: there is no hardcoded GitHub Pages origin in the wallet/session path, referral links now derive from the current `window.location.origin`, and the RainbowKit/Wagmi setup remains domain-agnostic in repo code.
 - Background music unlock on mobile is now more robust: the app no longer removes its first-interaction audio listeners before music has actually started, and it now retries on `pointerup`, `click`, and `touchend`, which is safer for mobile browsers that do not unlock WebAudio on the earliest touch event.

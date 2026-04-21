@@ -657,7 +657,6 @@ export function useGameState(options?: UseGameStateOptions) {
     setPlayer(prev => ({
       ...prev,
       bait: prev.bait + amount,
-      bonusBaitGrantedTotal: prev.bonusBaitGrantedTotal + amount,
     }));
   }, []);
 
