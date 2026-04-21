@@ -4,6 +4,7 @@
 - `Special -> Wallet streak check-in` is now a separate wallet-linked task instead of reusing the ordinary `Daily check-in`.
 - The flow now expects one verified micro-transaction (`0.0001 MON`) to the configured receiver address, then verifies it against Monad RPC through the existing backend action layer before marking today's special task ready.
 - The task card now shows the current consecutive-day streak, whether today is already checked in, and exposes an explicit `Check in with MON` action for verified wallets.
+- If no wallet is connected, the same task card now offers a live `Connect wallet to check in` CTA instead of only showing a disabled transaction button.
 - No new table was added for this feature: daily streak history is derived from `player_audit_logs` events of type `wallet_daily_check_in`, so it stays additive and queryable without a schema migration.
 
 ## Social task placeholder mode
