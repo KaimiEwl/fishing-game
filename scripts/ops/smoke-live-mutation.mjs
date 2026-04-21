@@ -227,6 +227,22 @@ try {
   });
   assert(Array.isArray(soldDish.player?.cooked_dishes) && soldDish.player.cooked_dishes.length === 0, 'Cooked dish not sold out');
 
+  const socialTasksBeforeSubmit = await invoke('player-actions', {
+    action: 'list_social_tasks',
+    wallet_address: playerWalletAddress,
+    session_token: playerVerify.session_token,
+  });
+  assert(Array.isArray(socialTasksBeforeSubmit.verifications), 'Social task list did not return verifications array');
+
+  const socialSubmit = await invoke('player-actions', {
+    action: 'submit_social_task_verification',
+    wallet_address: playerWalletAddress,
+    session_token: playerVerify.session_token,
+    task_id: 'twitter_follow',
+    proof_url: 'https://example.com/mock-follow-proof',
+  });
+  assert(socialSubmit.verification?.status === 'pending_verification', 'Social task submission did not enter pending state');
+
   const socialVerification = await invoke('admin', {
     action: 'set_social_task_verification',
     wallet_address: adminWalletAddress,
@@ -238,11 +254,19 @@ try {
   });
   assert(socialVerification.verification?.status === 'verified', 'Social verification update failed');
 
+  const socialClaim = await invoke('player-actions', {
+    action: 'claim_social_task_reward',
+    wallet_address: playerWalletAddress,
+    session_token: playerVerify.session_token,
+    task_id: 'twitter_follow',
+  });
+  assert(socialClaim.verification?.status === 'claimed', 'Social task reward was not marked claimed');
+
   const socialList = await invoke('admin', {
     action: 'list_social_task_verifications',
     wallet_address: adminWalletAddress,
     session_token: adminVerify.session_token,
-    status: 'verified',
+    status: 'claimed',
     limit: 20,
   });
   assert((socialList.verifications ?? []).some((entry) => entry.wallet_address === playerWalletAddress), 'Social verification not listed');

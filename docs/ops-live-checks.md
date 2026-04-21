@@ -74,7 +74,7 @@ It covers:
 - server task claim
 - server cube roll + reward apply
 - server grill cook + dish sell
-- social task admin verification scaffold
+- player social task submit -> admin verify -> player claim
 - MON summary
 - withdraw request -> approve -> paid
 - cleanup of temporary player rows
@@ -120,6 +120,16 @@ It covers:
    - coins/bait update from server response
    - leaderboard updates through `player-actions`
    - no client-side stale overwrite after refresh
+
+### Social tasks
+1. Open `Tasks -> Social` with a verified wallet
+2. Submit one task with an optional proof link
+3. Open `/admin -> Social` and mark it `verified`
+4. Go back to the player and claim it
+5. Confirm:
+   - `social_task_verifications` moves `pending_verification -> verified -> claimed`
+   - player-side refresh shows the updated state
+   - any configured reward comes from the backend response, not local state
 
 ## Live functions expected after the overnight pass
 - `admin`

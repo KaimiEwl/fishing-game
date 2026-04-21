@@ -8,9 +8,13 @@ import {
 import { enforceRateLimit } from "../_shared/rateLimit.ts";
 import {
   DAILY_TASKS,
+  SOCIAL_TASKS,
+  SOCIAL_TASK_IDS,
   SPECIAL_TASKS,
   getTaskDefinition,
   type DailyTaskId,
+  type SocialTaskId,
+  type SocialTaskStatus,
   type SpecialTaskId,
 } from "../_shared/taskRegistry.ts";
 import {
@@ -48,6 +52,17 @@ interface CookedDishEntry {
   quantity: number;
 }
 
+interface SocialTaskVerificationRow {
+  id: string;
+  player_id: string;
+  wallet_address: string;
+  task_id: SocialTaskId;
+  status: SocialTaskStatus;
+  proof_url: string | null;
+  verified_by_wallet: string | null;
+  updated_at: string;
+}
+
 interface PlayerRow {
   id: string;
   wallet_address: string;
@@ -82,6 +97,11 @@ const jsonResponse = (payload: unknown, status = 200) =>
 const badRequest = (message: string) => jsonResponse({ error: message }, 400);
 
 const normalizeText = (value: unknown) => typeof value === "string" ? value.trim() : "";
+
+const normalizeNullableText = (value: unknown, maxLength: number) => {
+  const normalized = normalizeText(value);
+  return normalized ? normalized.slice(0, maxLength) : null;
+};
 
 const normalizeWalletAddress = (value: unknown) => {
   const text = normalizeText(value);
@@ -257,6 +277,36 @@ const loadPlayer = async (supabase: ReturnType<typeof createClient>, walletAddre
   return data as PlayerRow;
 };
 
+const loadSocialTaskVerifications = async (
+  supabase: ReturnType<typeof createClient>,
+  playerId: string,
+) => {
+  const { data, error } = await supabase
+    .from("social_task_verifications")
+    .select("id, player_id, wallet_address, task_id, status, proof_url, verified_by_wallet, updated_at")
+    .eq("player_id", playerId)
+    .in("task_id", SOCIAL_TASK_IDS);
+
+  if (error) throw error;
+  return (data ?? []) as SocialTaskVerificationRow[];
+};
+
+const loadSocialTaskVerification = async (
+  supabase: ReturnType<typeof createClient>,
+  playerId: string,
+  taskId: SocialTaskId,
+) => {
+  const { data, error } = await supabase
+    .from("social_task_verifications")
+    .select("id, player_id, wallet_address, task_id, status, proof_url, verified_by_wallet, updated_at")
+    .eq("player_id", playerId)
+    .eq("task_id", taskId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data as SocialTaskVerificationRow | null;
+};
+
 const loadPendingCubeRoll = async (
   supabase: ReturnType<typeof createClient>,
   playerId: string,
@@ -341,6 +391,80 @@ serve(async (req) => {
     }
 
     switch (action) {
+      case "list_social_tasks": {
+        await enforceRateLimit(supabase, {
+          actionKey: "player_actions.list_social_tasks",
+          subjectKey: walletAddress,
+          windowSeconds: 60,
+          maxHits: 30,
+        });
+
+        const player = await loadPlayer(supabase, walletAddress);
+        const verifications = await loadSocialTaskVerifications(supabase, player.id);
+
+        return jsonResponse({
+          verifications,
+        });
+      }
+
+      case "submit_social_task_verification": {
+        await enforceRateLimit(supabase, {
+          actionKey: "player_actions.submit_social_task_verification",
+          subjectKey: walletAddress,
+          windowSeconds: 60,
+          maxHits: 12,
+        });
+
+        const taskId = normalizeText(body.task_id) as SocialTaskId;
+        if (!SOCIAL_TASK_IDS.includes(taskId)) {
+          return badRequest("Unknown social task");
+        }
+
+        const proofUrl = normalizeNullableText(body.proof_url, 2048);
+        const player = await loadPlayer(supabase, walletAddress);
+        const existingVerification = await loadSocialTaskVerification(supabase, player.id, taskId);
+
+        if (existingVerification?.status === "claimed") {
+          return badRequest("Social task was already claimed");
+        }
+
+        const beforeState = await fetchPlayerAuditSnapshot(supabase, walletAddress);
+        const nextStatus = existingVerification?.status === "verified"
+          ? "verified"
+          : "pending_verification";
+
+        const { data, error } = await supabase
+          .from("social_task_verifications")
+          .upsert({
+            player_id: player.id,
+            wallet_address: walletAddress,
+            task_id: taskId,
+            status: nextStatus,
+            proof_url: proofUrl,
+            verified_by_wallet: existingVerification?.verified_by_wallet ?? null,
+          }, { onConflict: "player_id,task_id" })
+          .select("id, player_id, wallet_address, task_id, status, proof_url, verified_by_wallet, updated_at")
+          .single();
+        if (error) throw error;
+
+        await insertPlayerAuditLog(supabase, {
+          walletAddress,
+          eventType: "social_task_submitted",
+          eventSource: "server",
+          beforeState,
+          afterState: sanitizeAuditSnapshot(player),
+          metadata: {
+            taskId,
+            status: nextStatus,
+            proofUrl,
+          },
+        });
+
+        return jsonResponse({
+          verification: data,
+        });
+      }
+
       case "roll_cube": {
         await enforceRateLimit(supabase, {
           actionKey: "player_actions.roll_cube",
@@ -591,6 +715,76 @@ serve(async (req) => {
         });
 
         return jsonResponse({ player: updatedPlayer });
+      }
+
+      case "claim_social_task_reward": {
+        await enforceRateLimit(supabase, {
+          actionKey: "player_actions.claim_social_task_reward",
+          subjectKey: walletAddress,
+          windowSeconds: 60,
+          maxHits: 12,
+        });
+
+        const taskId = normalizeText(body.task_id) as SocialTaskId;
+        const task = SOCIAL_TASKS.find((item) => item.id === taskId);
+        if (!task) {
+          return badRequest("Unknown social task");
+        }
+
+        const player = await loadPlayer(supabase, walletAddress);
+        const verification = await loadSocialTaskVerification(supabase, player.id, taskId);
+        if (!verification || verification.status !== "verified") {
+          return badRequest("Social task is not ready to claim");
+        }
+
+        let updatedPlayer = player;
+        if ((task.rewardCoins ?? 0) > 0 || (task.rewardBait ?? 0) > 0) {
+          await grantPlayerReward(supabase, {
+            walletAddress,
+            reward: {
+              coins: task.rewardCoins ?? 0,
+              bait: task.rewardBait ?? 0,
+            },
+            sourceType: "social_task_reward",
+            sourceRef: taskId,
+            eventType: "social_task_claimed",
+            metadata: {
+              taskId,
+              rewardCoins: task.rewardCoins ?? 0,
+              rewardBait: task.rewardBait ?? 0,
+            },
+          });
+          updatedPlayer = await loadPlayer(supabase, walletAddress);
+        } else {
+          const beforeState = await fetchPlayerAuditSnapshot(supabase, walletAddress);
+          await insertPlayerAuditLog(supabase, {
+            walletAddress,
+            eventType: "social_task_claimed",
+            eventSource: "server",
+            beforeState,
+            afterState: sanitizeAuditSnapshot(player),
+            metadata: {
+              taskId,
+              rewardCoins: 0,
+              rewardBait: 0,
+            },
+          });
+        }
+
+        const { data, error } = await supabase
+          .from("social_task_verifications")
+          .update({
+            status: "claimed",
+          })
+          .eq("id", verification.id)
+          .select("id, player_id, wallet_address, task_id, status, proof_url, verified_by_wallet, updated_at")
+          .single();
+        if (error) throw error;
+
+        return jsonResponse({
+          player: updatedPlayer,
+          verification: data,
+        });
       }
 
       case "cook_recipe": {

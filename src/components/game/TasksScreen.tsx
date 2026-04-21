@@ -1,8 +1,9 @@
-import React from 'react';
-import { Box, Check, Coins, Lock, Trophy, Worm } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { BadgeCheck, Box, Check, Clock3, Coins, ExternalLink, Lock, Send, Trophy, Worm } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { DailyTaskProgress, SpecialTaskProgress, TaskId } from '@/types/game';
+import type { DailyTaskProgress, SocialTaskId, SocialTaskProgress, SpecialTaskProgress, TaskId } from '@/types/game';
 import CoinIcon from './CoinIcon';
 import GameScreenShell from './GameScreenShell';
 import { publicAsset } from '@/lib/assets';
@@ -11,9 +12,15 @@ interface TasksScreenProps {
   coins: number;
   dailyTasks: DailyTaskProgress[];
   specialTasks: SpecialTaskProgress[];
+  socialTasks: SocialTaskProgress[];
   dailyTaskClaimsMet: boolean;
   availableWheelRolls: number;
+  socialTasksLoading?: boolean;
+  isWalletVerified: boolean;
   onClaimTask: (id: TaskId) => void;
+  onSubmitSocialTask: (id: SocialTaskId, proofUrl?: string) => void;
+  onClaimSocialTask: (id: SocialTaskId) => void;
+  onRefreshSocialTasks: () => void;
   onOpenWheel: () => void;
 }
 
@@ -21,13 +28,26 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   coins,
   dailyTasks,
   specialTasks,
+  socialTasks,
   dailyTaskClaimsMet,
   availableWheelRolls,
+  socialTasksLoading = false,
+  isWalletVerified,
   onClaimTask,
+  onSubmitSocialTask,
+  onClaimSocialTask,
+  onRefreshSocialTasks,
   onOpenWheel,
 }) => {
   const completedCount = dailyTasks.filter((task) => task.progress >= task.target).length;
   const claimedCount = dailyTasks.filter((task) => task.claimed).length;
+  const [proofDrafts, setProofDrafts] = useState<Record<string, string>>({});
+
+  const socialTaskCards = useMemo(() => socialTasks.map((task) => ({
+    ...task,
+    proofDraft: proofDrafts[task.id] ?? task.proofUrl ?? '',
+  })), [proofDrafts, socialTasks]);
+
   const renderTaskList = (tasks: Array<DailyTaskProgress | SpecialTaskProgress>) => (
     <div className="grid gap-3">
       {tasks.map((task) => {
@@ -93,6 +113,138 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
     </div>
   );
 
+  const renderSocialTaskList = () => (
+    <div className="grid gap-3">
+      {socialTaskCards.map((task) => {
+        const isPending = task.status === 'pending_verification';
+        const isVerifiedReady = task.status === 'verified';
+        const isClaimed = task.status === 'claimed';
+        const isAvailable = task.status === 'available';
+        const rewardLabel = task.rewardBait
+          ? `${task.rewardBait} bait`
+          : task.rewardCoins
+            ? `${task.rewardCoins} gold`
+            : 'Reward set later';
+
+        return (
+          <article key={task.id} className="rounded-xl border border-cyan-300/15 bg-black/60 p-4 shadow-lg shadow-black/20 backdrop-blur-md">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-lg font-bold text-white drop-shadow-sm">{task.title}</h2>
+                  <span className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-300">
+                    {task.verificationMode}
+                  </span>
+                </div>
+                <p className="mt-1 text-sm text-white/70">{task.description}</p>
+                <p className="mt-2 text-xs text-cyan-100/70">
+                  {isAvailable
+                    ? 'Submit this task for manual review. Admin can verify it later.'
+                    : isPending
+                      ? 'Waiting for admin verification.'
+                      : isVerifiedReady
+                        ? 'Verified. Reward can be claimed now.'
+                        : 'Reward already claimed.'}
+                </p>
+              </div>
+              <div className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-bold shadow-sm">
+                {task.rewardBait ? (
+                  <>
+                    <Worm className="h-4 w-4 text-lime-300" />
+                    <span className="text-lime-200">{rewardLabel}</span>
+                  </>
+                ) : task.rewardCoins ? (
+                  <>
+                    <CoinIcon size="md" />
+                    <span className="text-amber-300">{rewardLabel}</span>
+                  </>
+                ) : (
+                  <>
+                    <ExternalLink className="h-4 w-4 text-cyan-100" />
+                    <span className="text-cyan-100">{rewardLabel}</span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+              {isClaimed ? (
+                <span className="rounded-md border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-emerald-200">
+                  Claimed
+                </span>
+              ) : isVerifiedReady ? (
+                <span className="rounded-md border border-cyan-300/20 bg-cyan-300/10 px-2.5 py-1 text-cyan-100">
+                  Verified
+                </span>
+              ) : isPending ? (
+                <span className="rounded-md border border-yellow-400/20 bg-yellow-400/10 px-2.5 py-1 text-yellow-200">
+                  Pending verification
+                </span>
+              ) : (
+                <span className="rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-zinc-300">
+                  Available
+                </span>
+              )}
+              {task.updatedAt && (
+                <span className="text-white/50">Updated {new Date(task.updatedAt).toLocaleString()}</span>
+              )}
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-center">
+              <Input
+                value={task.proofDraft}
+                onChange={(event) => setProofDrafts((current) => ({
+                  ...current,
+                  [task.id]: event.target.value,
+                }))}
+                placeholder="Optional proof link for manual review"
+                disabled={!isWalletVerified || isClaimed}
+                className="border-zinc-800 bg-zinc-950 text-sm text-zinc-100 placeholder:text-zinc-500"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!isWalletVerified || isPending || isClaimed}
+                onClick={() => onSubmitSocialTask(task.id, task.proofDraft)}
+                className="h-11 rounded-xl border-zinc-800 bg-zinc-950 text-zinc-100 hover:bg-black disabled:text-zinc-600"
+              >
+                {isPending ? (
+                  <>
+                    <Clock3 className="mr-2 h-4 w-4" />
+                    Waiting
+                  </>
+                ) : (
+                  <>
+                    <Send className="mr-2 h-4 w-4" />
+                    Submit
+                  </>
+                )}
+              </Button>
+              <Button
+                type="button"
+                disabled={!isWalletVerified || !task.canClaim || isClaimed}
+                onClick={() => onClaimSocialTask(task.id)}
+                className="h-11 rounded-xl border border-cyan-300/25 bg-zinc-950 text-base font-bold text-cyan-100 shadow-lg shadow-black/30 transition-all hover:bg-black disabled:border-zinc-800 disabled:bg-zinc-950 disabled:text-zinc-600 disabled:shadow-none"
+              >
+                {isClaimed ? (
+                  <>
+                    <Check className="mr-2 h-4 w-4" />
+                    Claimed
+                  </>
+                ) : (
+                  <>
+                    <BadgeCheck className="mr-2 h-4 w-4" />
+                    Claim
+                  </>
+                )}
+              </Button>
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  );
+
   return (
     <GameScreenShell
       title="Daily Tasks"
@@ -103,9 +255,10 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
     >
       <div className="grid gap-3 pb-3 lg:grid-cols-[1fr_0.72fr] lg:items-start">
         <Tabs defaultValue="daily" className="min-w-0">
-          <TabsList className="grid w-full grid-cols-2 rounded-lg border border-cyan-300/15 bg-black/85 shadow-lg shadow-black/30">
+          <TabsList className="grid w-full grid-cols-3 rounded-lg border border-cyan-300/15 bg-black/85 shadow-lg shadow-black/30">
             <TabsTrigger value="daily" className="rounded-lg text-zinc-200 data-[state=active]:border data-[state=active]:border-cyan-300/25 data-[state=active]:bg-zinc-950 data-[state=active]:text-cyan-50">Daily</TabsTrigger>
             <TabsTrigger value="special" className="rounded-lg text-zinc-200 data-[state=active]:border data-[state=active]:border-cyan-300/25 data-[state=active]:bg-zinc-950 data-[state=active]:text-cyan-50">Special</TabsTrigger>
+            <TabsTrigger value="social" className="rounded-lg text-zinc-200 data-[state=active]:border data-[state=active]:border-cyan-300/25 data-[state=active]:bg-zinc-950 data-[state=active]:text-cyan-50">Social</TabsTrigger>
           </TabsList>
           <TabsContent value="daily" className="mt-3">
             {renderTaskList(dailyTasks)}
@@ -115,6 +268,35 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
               Connect your wallet and invite a friend to unlock referral rewards, future MON features, and synced progress.
             </div>
             {renderTaskList(specialTasks)}
+          </TabsContent>
+          <TabsContent value="social" className="mt-3">
+            <div className="mb-3 rounded-xl border border-cyan-300/15 bg-black/60 p-4 text-sm text-white/70 shadow-lg shadow-black/20 backdrop-blur-md">
+              {isWalletVerified
+                ? 'Social tasks use manual verification for now. Submit them here, let admin review them, then claim when verified.'
+                : 'Connect your wallet first. Social tasks, future MON rewards, and verified progress sync only work on wallet-linked accounts.'}
+            </div>
+            <div className="mb-3 flex items-center justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onRefreshSocialTasks}
+                disabled={!isWalletVerified || socialTasksLoading}
+                className="border-zinc-800 bg-zinc-950 text-zinc-100 hover:bg-black disabled:text-zinc-600"
+              >
+                {socialTasksLoading ? (
+                  <>
+                    <Clock3 className="mr-2 h-4 w-4" />
+                    Refreshing
+                  </>
+                ) : (
+                  <>
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    Refresh status
+                  </>
+                )}
+              </Button>
+            </div>
+            {renderSocialTaskList()}
           </TabsContent>
         </Tabs>
 

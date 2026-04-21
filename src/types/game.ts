@@ -81,6 +81,8 @@ export interface SocialTask {
   title: string;
   description: string;
   verificationMode: 'manual' | 'automatic';
+  rewardCoins?: number;
+  rewardBait?: number;
 }
 
 export interface DailyTaskProgress extends DailyTask {
@@ -94,6 +96,14 @@ export interface SpecialTaskProgress extends SpecialTask {
 }
 
 export type SocialTaskStatus = 'available' | 'pending_verification' | 'verified' | 'claimed';
+
+export interface SocialTaskProgress extends SocialTask {
+  status: SocialTaskStatus;
+  proofUrl: string | null;
+  updatedAt: string | null;
+  verifiedByWallet: string | null;
+  canClaim: boolean;
+}
 
 export interface WheelPrize {
   id: string;

@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { getStoredWalletSession } from '@/lib/walletSession';
 import type { Tables } from '@/integrations/supabase/types';
-import type { WheelPrize, TaskId } from '@/types/game';
+import { SOCIAL_TASKS, type SocialTaskId, type SocialTaskProgress, type TaskId, type WheelPrize } from '@/types/game';
 
 export interface CubeRollPayload {
   id: string;
@@ -16,6 +16,8 @@ interface PlayerActionResponse {
   player?: Tables<'players'>;
   roll?: CubeRollPayload;
   prize?: WheelPrize;
+  verification?: PlayerSocialTaskVerificationRow;
+  verifications?: PlayerSocialTaskVerificationRow[];
   leaderboard_entry?: {
     id: string;
     name: string;
@@ -25,6 +27,30 @@ interface PlayerActionResponse {
     updated_at?: string;
   };
 }
+
+interface PlayerSocialTaskVerificationRow {
+  task_id: SocialTaskId;
+  status: SocialTaskProgress['status'];
+  proof_url: string | null;
+  updated_at: string;
+  verified_by_wallet: string | null;
+}
+
+const mapSocialTasks = (rows: PlayerSocialTaskVerificationRow[] = []): SocialTaskProgress[] => (
+  SOCIAL_TASKS.map((task) => {
+    const verification = rows.find((row) => row.task_id === task.id);
+    const status = verification?.status ?? 'available';
+
+    return {
+      ...task,
+      status,
+      proofUrl: verification?.proof_url ?? null,
+      updatedAt: verification?.updated_at ?? null,
+      verifiedByWallet: verification?.verified_by_wallet ?? null,
+      canClaim: status === 'verified',
+    };
+  })
+);
 
 export function usePlayerActions(walletAddress: string | undefined, enabled: boolean) {
   const callPlayerActions = useCallback(async <T extends PlayerActionResponse>(
@@ -107,6 +133,29 @@ export function usePlayerActions(walletAddress: string | undefined, enabled: boo
     })
   ), [callPlayerActions]);
 
+  const listSocialTasks = useCallback(async () => {
+    const data = await callPlayerActions<{ verifications: PlayerSocialTaskVerificationRow[] }>('list_social_tasks');
+    return mapSocialTasks(data.verifications);
+  }, [callPlayerActions]);
+
+  const submitSocialTaskVerification = useCallback(async (taskId: SocialTaskId, proofUrl?: string) => {
+    const data = await callPlayerActions<{ verification: PlayerSocialTaskVerificationRow }>('submit_social_task_verification', {
+      task_id: taskId,
+      proof_url: proofUrl?.trim() || null,
+    });
+    return mapSocialTasks([data.verification]);
+  }, [callPlayerActions]);
+
+  const claimSocialTaskReward = useCallback(async (taskId: SocialTaskId) => {
+    const data = await callPlayerActions<{ player: Tables<'players'>; verification: PlayerSocialTaskVerificationRow }>('claim_social_task_reward', {
+      task_id: taskId,
+    });
+    return {
+      player: data.player,
+      socialTasks: mapSocialTasks([data.verification]),
+    };
+  }, [callPlayerActions]);
+
   return {
     rollCube,
     applyCubeReward,
@@ -114,5 +163,8 @@ export function usePlayerActions(walletAddress: string | undefined, enabled: boo
     cookRecipe,
     sellCookedDish,
     updateGrillLeaderboard,
+    listSocialTasks,
+    submitSocialTaskVerification,
+    claimSocialTaskReward,
   };
 }

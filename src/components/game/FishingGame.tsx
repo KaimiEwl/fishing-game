@@ -45,7 +45,20 @@ import {
   saveGlobalLeaderboardEntry,
   upsertLeaderboardEntry,
 } from '@/lib/leaderboard';
-import { DAILY_TASKS, GRILL_RECIPES, NFT_ROD_DATA, SPECIAL_TASKS, type GameTab, type GrillLeaderboardEntry, type GrillRecipe, type TaskId, type WheelPrize } from '@/types/game';
+import {
+  DAILY_TASKS,
+  GRILL_RECIPES,
+  NFT_ROD_DATA,
+  SOCIAL_TASKS,
+  SPECIAL_TASKS,
+  type GameTab,
+  type GrillLeaderboardEntry,
+  type GrillRecipe,
+  type SocialTaskId,
+  type SocialTaskProgress,
+  type TaskId,
+  type WheelPrize,
+} from '@/types/game';
 
 const TRAVEL_ICON_SRC = travelIconSrc;
 const TasksScreen = lazy(() => import('./TasksScreen'));
@@ -80,6 +93,17 @@ const ScreenLoadingFallback: React.FC = () => (
   </div>
 );
 
+const createDefaultSocialTasks = (): SocialTaskProgress[] => (
+  SOCIAL_TASKS.map((task) => ({
+    ...task,
+    status: 'available',
+    proofUrl: null,
+    updatedAt: null,
+    verifiedByWallet: null,
+    canClaim: false,
+  }))
+);
+
 const FishingGame: React.FC = () => {
   const {
     isConnected,
@@ -112,8 +136,20 @@ const FishingGame: React.FC = () => {
     savedProgress: isVerified ? savedGameProgress : undefined,
     onSave: isVerified ? saveGameProgress : undefined,
   });
-  const playerActions = usePlayerActions(address, isConnected && isVerified);
+  const {
+    rollCube,
+    applyCubeReward,
+    claimTaskReward,
+    cookRecipe: requestCookRecipe,
+    sellCookedDish: requestSellCookedDish,
+    updateGrillLeaderboard,
+    listSocialTasks,
+    submitSocialTaskVerification,
+    claimSocialTaskReward,
+  } = usePlayerActions(address, isConnected && isVerified);
   const { syncReferralTask } = gameProgress;
+  const [socialTasks, setSocialTasks] = useState<SocialTaskProgress[]>(() => createDefaultSocialTasks());
+  const [socialTasksLoading, setSocialTasksLoading] = useState(false);
   const logAuditEvent = useCallback((event: PlayerAuditEventPayload) => {
     if (!address || !isVerified) return;
 
@@ -184,6 +220,24 @@ const FishingGame: React.FC = () => {
       ))
     )).length
   ), [player.inventory]);
+
+  const refreshSocialTasks = useCallback(async () => {
+    if (!isVerified) {
+      setSocialTasks(createDefaultSocialTasks());
+      setSocialTasksLoading(false);
+      return;
+    }
+
+    setSocialTasksLoading(true);
+    try {
+      const nextTasks = await listSocialTasks();
+      setSocialTasks(nextTasks);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not refresh social task status.');
+    } finally {
+      setSocialTasksLoading(false);
+    }
+  }, [isVerified, listSocialTasks]);
 
   const saveCurrentLeaderboardEntry = useCallback((name: string, score: number, dishesDelta = 0) => {
     setLeaderboardEntries((entries) => {
@@ -403,6 +457,22 @@ const FishingGame: React.FC = () => {
     syncReferralTask(referralSummary?.rewardedReferralCount ?? 0);
   }, [syncReferralTask, referralSummary?.rewardedReferralCount]);
 
+  useEffect(() => {
+    if (!isVerified) {
+      setSocialTasks(createDefaultSocialTasks());
+      setSocialTasksLoading(false);
+      return;
+    }
+
+    void refreshSocialTasks();
+  }, [address, isVerified, refreshSocialTasks]);
+
+  useEffect(() => {
+    if (activeTab === 'tasks' && isVerified) {
+      void refreshSocialTasks();
+    }
+  }, [activeTab, isVerified, refreshSocialTasks]);
+
   const handleBuyBait = (amount: number, cost: number) => {
     const purchased = buyBait(amount, cost);
     if (!purchased) return;
@@ -425,7 +495,7 @@ const FishingGame: React.FC = () => {
   const handleSellCookedDish = async (recipeId: string) => {
     if (isVerified) {
       try {
-        const result = await playerActions.sellCookedDish(recipeId);
+        const result = await requestSellCookedDish(recipeId);
         applyServerPlayerSnapshot(result.player);
         sounds.playSellSound();
       } catch (error) {
@@ -444,7 +514,7 @@ const FishingGame: React.FC = () => {
 
     if (isVerified) {
       try {
-        const result = await playerActions.claimTaskReward(taskId);
+        const result = await claimTaskReward(taskId);
         applyServerPlayerSnapshot(result.player);
         sounds.playBuySound();
       } catch (error) {
@@ -482,7 +552,7 @@ const FishingGame: React.FC = () => {
   const handleRequestCubeRoll = async () => {
     if (!isVerified) return null;
 
-    const result = await playerActions.rollCube();
+    const result = await rollCube();
     applyServerPlayerSnapshot(result.player);
     return result.roll;
   };
@@ -490,7 +560,7 @@ const FishingGame: React.FC = () => {
   const handleResolveCubeReward = async (selectedPrize: WheelPrize, rollId?: string): Promise<WheelPrize | null> => {
     if (isVerified) {
       if (!rollId) throw new Error('Missing cube roll id.');
-      const result = await playerActions.applyCubeReward(rollId);
+      const result = await applyCubeReward(rollId);
       applyServerPlayerSnapshot(result.player);
       sounds.playLevelUpSound();
       return result.prize;
@@ -549,7 +619,7 @@ const FishingGame: React.FC = () => {
   const handleCookRecipe = async (recipe: GrillRecipe) => {
     if (isVerified) {
       try {
-        const result = await playerActions.cookRecipe(recipe.id);
+        const result = await requestCookRecipe(recipe.id);
         applyServerPlayerSnapshot(result.player);
         if (result.leaderboard_entry) {
           syncServerLeaderboardEntry(result.leaderboard_entry);
@@ -593,7 +663,7 @@ const FishingGame: React.FC = () => {
   const handleSaveLeaderboardName = (name: string) => {
     const score = Math.max(pendingLeaderboardScore, gameProgress.grillScore);
     if (isVerified) {
-      void playerActions.updateGrillLeaderboard(name, score, pendingLeaderboardDishes)
+      void updateGrillLeaderboard(name, score, pendingLeaderboardDishes)
         .then((result) => {
           syncServerLeaderboardEntry(result.leaderboard_entry);
           setLeaderboardNameOpen(false);
@@ -610,6 +680,39 @@ const FishingGame: React.FC = () => {
     setLeaderboardNameOpen(false);
     setPendingLeaderboardDishes(0);
     setPendingLeaderboardScore(0);
+  };
+
+  const handleSubmitSocialTask = async (taskId: SocialTaskId, proofUrl?: string) => {
+    if (!isVerified) {
+      toast.error('Connect a verified wallet first.');
+      return;
+    }
+
+    try {
+      await submitSocialTaskVerification(taskId, proofUrl);
+      await refreshSocialTasks();
+      sounds.playBuySound();
+      toast.success('Social task sent for review.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not submit social task.');
+    }
+  };
+
+  const handleClaimSocialTask = async (taskId: SocialTaskId) => {
+    if (!isVerified) {
+      toast.error('Connect a verified wallet first.');
+      return;
+    }
+
+    try {
+      const result = await claimSocialTaskReward(taskId);
+      applyServerPlayerSnapshot(result.player);
+      await refreshSocialTasks();
+      sounds.playBuySound();
+      toast.success('Social task claimed.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not claim social task.');
+    }
   };
 
   const isFishingScreen = activeTab === 'fish';
@@ -640,9 +743,15 @@ const FishingGame: React.FC = () => {
                   coins={player.coins}
                   dailyTasks={gameProgress.dailyTasks}
                   specialTasks={gameProgress.specialTasks}
+                  socialTasks={socialTasks}
                   dailyTaskClaimsMet={gameProgress.dailyTaskClaimsMet}
                   availableWheelRolls={gameProgress.availableWheelRolls}
+                  socialTasksLoading={socialTasksLoading}
+                  isWalletVerified={isVerified}
                   onClaimTask={handleClaimTask}
+                  onSubmitSocialTask={handleSubmitSocialTask}
+                  onClaimSocialTask={handleClaimSocialTask}
+                  onRefreshSocialTasks={() => void refreshSocialTasks()}
                   onOpenWheel={() => setActiveTab('wheel')}
                 />
               ) : activeTab === 'shop' ? (
