@@ -75,8 +75,8 @@ $report = [PSCustomObject]@{
   withdrawSummary = $withdrawSummary.summary
   pendingWithdrawRequests = $pendingWithdraws.requests
   weeklyPreview = [PSCustomObject]@{
-    weekKey = $weeklyPreview.weekKey
-    alreadyApplied = $weeklyPreview.alreadyApplied
+    weekKey = $weeklyPreview.week_key
+    alreadyApplied = $weeklyPreview.already_applied
     previewCount = @($weeklyPreview.preview).Count
     preview = $weeklyPreview.preview
   }
