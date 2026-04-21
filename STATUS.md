@@ -1,5 +1,10 @@
 # STATUS
 
+## VPS blank-screen hotfix
+- Fixed the first production blank-screen issue on `https://www.hookloot.xyz`: the VPS and domain were serving the app bundle correctly, but the client could get stuck behind the fixed `GameLoadingScreen` overlay when critical main-scene preload never resolved.
+- `FishingGame` now has a `5s` fail-open boot timeout for the main scene preload. If the critical preload stalls, the app promotes itself to ready state instead of keeping the screen at `0-4%` forever.
+- This is intentionally additive and low-risk: the main lake canvas already has its own image fallback path, so the UI can render safely even when the eager preload hangs on one asset.
+
 ## VPS deployment contour
 - Added a dedicated VPS deploy pack for `vm3661` so Hook & Loot can move off GitHub Pages without touching the existing `n8n` / `tailscale` runtime on that server.
 - The repo now includes an isolated Docker web contour under `deploy/vps/`: one `nginx` container (`hookloot-web`) bound only to `127.0.0.1:18181`, SPA routing config, ingress templates for `hookloot.xyz` / `www.hookloot.xyz`, and a release-based deploy flow rooted at `/opt/hookloot`.

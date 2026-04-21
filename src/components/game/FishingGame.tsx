@@ -91,6 +91,8 @@ const hideBootLoader = () => {
   bootWindow.__hideBootLoader?.();
 };
 
+const MAIN_SCENE_BOOT_TIMEOUT_MS = 5000;
+
 const ScreenLoadingFallback: React.FC = () => (
   <div className="flex h-full items-center justify-center bg-[#05060b] px-6 text-center">
     <div className="rounded-2xl border border-cyan-300/15 bg-black/65 px-6 py-5 text-cyan-100 shadow-2xl backdrop-blur-md">
@@ -322,6 +324,14 @@ const FishingGame: React.FC = () => {
 
   useEffect(() => {
     let cancelled = false;
+    let forceReadyTriggered = false;
+    const forceReadyTimer = window.setTimeout(() => {
+      if (cancelled || forceReadyTriggered) return;
+      forceReadyTriggered = true;
+      setAssetsProgress(1);
+      setBootLoaderState(1, 'Ready to fish...');
+      setAssetsReady(true);
+    }, MAIN_SCENE_BOOT_TIMEOUT_MS);
 
     setAssetsProgress(0.04);
     setBootLoaderState(0.04, 'Loading the lake...');
@@ -342,6 +352,7 @@ const FishingGame: React.FC = () => {
       window.requestAnimationFrame(() => {
         window.requestAnimationFrame(() => {
           if (!cancelled) {
+            window.clearTimeout(forceReadyTimer);
             setAssetsProgress(1);
             setBootLoaderState(1, 'Ready to fish...');
             setAssetsReady(true);
@@ -350,6 +361,7 @@ const FishingGame: React.FC = () => {
       });
     }).catch(() => {
       if (cancelled) return;
+      window.clearTimeout(forceReadyTimer);
       setAssetsProgress(1);
       setBootLoaderState(1, 'Ready to fish...');
       setAssetsReady(true);
@@ -357,6 +369,7 @@ const FishingGame: React.FC = () => {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(forceReadyTimer);
     };
   }, []);
 
