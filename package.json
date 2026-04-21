@@ -9,6 +9,10 @@
     "build:dev": "vite build --mode development",
     "build:pages": "node ./scripts/build-pages.mjs",
     "lint": "eslint .",
+    "ops:session": "node ./scripts/ops/make-session-token.mjs",
+    "ops:smoke:readonly": "powershell -ExecutionPolicy Bypass -File ./scripts/ops/smoke-live-readonly.ps1",
+    "ops:report": "powershell -ExecutionPolicy Bypass -File ./scripts/ops/live-ops-report.ps1",
+    "ops:smoke:mutation": "node ./scripts/ops/smoke-live-mutation.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

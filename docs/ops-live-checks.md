@@ -21,6 +21,12 @@ Browser session storage key:
 - `scripts/ops/smoke-live-readonly.ps1`
 - `scripts/ops/smoke-live-mutation.mjs`
 
+Convenience npm scripts:
+- `npm run ops:session -- --wallet 0xYourWallet`
+- `npm run ops:report -- -WalletAddress 0xYourAdminWallet -SessionToken "paste-session-token"`
+- `npm run ops:smoke:readonly -- -WalletAddress 0xYourAdminWallet -SessionToken "paste-session-token"`
+- `npm run ops:smoke:mutation`
+
 ## Generate a session token locally
 If you know the session secret:
 
