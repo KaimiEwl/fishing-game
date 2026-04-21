@@ -1,5 +1,10 @@
 # STATUS
 
+## VPS wallet/music/grill follow-up
+- Wallet attach flow was re-checked after the VPS/domain cutover: there is no hardcoded GitHub Pages origin in the wallet/session path, referral links now derive from the current `window.location.origin`, and the RainbowKit/Wagmi setup remains domain-agnostic in repo code.
+- Background music unlock on mobile is now more robust: the app no longer removes its first-interaction audio listeners before music has actually started, and it now retries on `pointerup`, `click`, and `touchend`, which is safer for mobile browsers that do not unlock WebAudio on the earliest touch event.
+- Grill UX copy now makes the cooked-dish loop explicit to players: after cooking, the result card says the dish was saved to `Inventory -> Dishes`, and the grill screen itself now states that dishes are stored there and can be sold later for gold.
+
 ## Wallet-bound progress hardening
 - Cross-device wallet sync was hardened on the client side: `mergeSyncedPlayerState` no longer lets any non-empty stale local `inventory` or `cookedDishes` override richer server state. Inventory and cooked dishes now merge by stack key with max quantity preservation instead of the old `local wins if non-empty` rule.
 - Server player rows are now normalized into proper `PlayerState` arrays with parsed `Date` objects for `inventory.caughtAt` and `cookedDishes.createdAt` before client merge logic runs, reducing type drift between local and server snapshots.

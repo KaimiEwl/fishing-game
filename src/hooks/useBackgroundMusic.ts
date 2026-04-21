@@ -101,10 +101,22 @@ const scheduleMusic = (state: MusicState) => {
 
 const startMusic = async () => {
   const state = ensureMusicState();
-  if (!state || state.running) return;
+  if (!state) return false;
 
-  if (state.ctx.state === 'suspended') {
-    await state.ctx.resume();
+  try {
+    if (state.ctx.state !== 'running') {
+      await state.ctx.resume();
+    }
+  } catch {
+    return false;
+  }
+
+  if (state.ctx.state !== 'running') {
+    return false;
+  }
+
+  if (state.running) {
+    return true;
   }
 
   state.startedAt = state.ctx.currentTime + 0.05;
@@ -112,6 +124,7 @@ const startMusic = async () => {
   state.running = true;
   scheduleMusic(state);
   state.intervalId = window.setInterval(() => scheduleMusic(state), 220);
+  return true;
 };
 
 export function useBackgroundMusic() {
@@ -125,11 +138,21 @@ export function useBackgroundMusic() {
       state.gain.gain.value = isSoundMuted() ? 0 : 0.035;
     };
 
-    const handleFirstInteraction = () => {
-      void startMusic();
+    const removeUnlockListeners = () => {
       window.removeEventListener('pointerdown', handleFirstInteraction);
+      window.removeEventListener('pointerup', handleFirstInteraction);
+      window.removeEventListener('click', handleFirstInteraction);
       window.removeEventListener('keydown', handleFirstInteraction);
       window.removeEventListener('touchstart', handleFirstInteraction);
+      window.removeEventListener('touchend', handleFirstInteraction);
+    };
+
+    const handleFirstInteraction = () => {
+      void startMusic().then((started) => {
+        if (started) {
+          removeUnlockListeners();
+        }
+      });
     };
 
     const handleVisibility = () => {
@@ -145,15 +168,16 @@ export function useBackgroundMusic() {
     window.addEventListener(SOUND_MUTED_EVENT, syncMute as EventListener);
     document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('pointerdown', handleFirstInteraction, { passive: true });
+    window.addEventListener('pointerup', handleFirstInteraction, { passive: true });
+    window.addEventListener('click', handleFirstInteraction, { passive: true });
     window.addEventListener('keydown', handleFirstInteraction);
     window.addEventListener('touchstart', handleFirstInteraction, { passive: true });
+    window.addEventListener('touchend', handleFirstInteraction, { passive: true });
 
     return () => {
       window.removeEventListener(SOUND_MUTED_EVENT, syncMute as EventListener);
       document.removeEventListener('visibilitychange', handleVisibility);
-      window.removeEventListener('pointerdown', handleFirstInteraction);
-      window.removeEventListener('keydown', handleFirstInteraction);
-      window.removeEventListener('touchstart', handleFirstInteraction);
+      removeUnlockListeners();
     };
   }, []);
 }
