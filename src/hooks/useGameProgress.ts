@@ -112,7 +112,6 @@ const normalizeState = (parsed?: Partial<GameProgressState> | null): GameProgres
   if (parsed.date !== todayKey()) {
     return {
       ...baseState,
-      specialTasks,
       grillScore: Math.max(0, Number(parsed.grillScore || 0)),
       paidWheelRolls: Math.max(0, Number(parsed.paidWheelRolls || 0)),
     };
@@ -157,10 +156,6 @@ const mergeState = (serverState: GameProgressState, localState: GameProgressStat
       paidWheelRolls: Math.max(serverState.paidWheelRolls, localState.paidWheelRolls),
       dailyWheelRolls: Math.max(serverState.dailyWheelRolls, localState.dailyWheelRolls),
       dailyRollRewardGranted: newerState.dailyRollRewardGranted || olderState.dailyRollRewardGranted,
-      specialTasks: {
-        ...olderState.specialTasks,
-        ...newerState.specialTasks,
-      },
     });
   }
 
@@ -318,10 +313,10 @@ export function useGameProgress(options?: UseGameProgressOptions) {
     });
   }, []);
 
-  const syncReferralTask = useCallback((rewardedReferralCount: number) => {
+  const syncReferralTask = useCallback((todayReferralAttachCount: number) => {
     setState((prev) => {
       const current = prev.specialTasks.invite_friend;
-      const nextProgress = rewardedReferralCount > 0 ? 1 : 0;
+      const nextProgress = todayReferralAttachCount > 0 ? 1 : 0;
 
       if (!current || current.progress === nextProgress) {
         return prev;

@@ -28,7 +28,7 @@ export const DAILY_TASKS: ReadonlyArray<TaskDefinition> = [
 ] as const;
 
 export const SPECIAL_TASKS: ReadonlyArray<TaskDefinition> = [
-  { id: 'invite_friend', title: 'Invite a friend', target: 1, rewardCoins: 1000 },
+  { id: 'invite_friend', title: 'Invite a friend', target: 1, rewardBait: 10 },
 ] as const;
 
 export const SOCIAL_TASKS: ReadonlyArray<TaskDefinition> = [

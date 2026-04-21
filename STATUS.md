@@ -1,5 +1,10 @@
 # STATUS
 
+## Daily invite special task
+- `Special -> Invite a friend` now awards `10 bait` instead of `1000 gold`.
+- The task is now treated as a daily special objective: its progress/claim state resets with the day instead of staying one-time forever.
+- Daily completion is now based on today's new `referrer_attached` events, not on lifetime `rewarded_referral_count`, so it can still complete after the main inviter payout cap of `10` rewarded referrals is exhausted.
+
 ## Cube MON tile visibility
 - `MON` prize cells on the cube are now visually emphasized even before reveal with a brighter emerald treatment and an explicit `1 MON` label rendered directly on the tile so players can immediately spot the winning MON cells on cube faces.
 

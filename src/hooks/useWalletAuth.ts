@@ -44,6 +44,7 @@ export interface PlayerRecord {
   avatar_url: string | null;
   referrer_wallet_address?: string | null;
   rewarded_referral_count?: number;
+  today_referral_attach_count?: number;
   updated_at?: string;
 }
 
@@ -56,6 +57,7 @@ interface ReferralRewardNotification {
 
 export interface ReferralSummary {
   rewardedReferralCount: number;
+  todayReferralAttachCount: number;
   maxRewardedReferrals: number;
   referrerWalletAddress: string | null;
   referralLink: string | null;
@@ -211,6 +213,7 @@ export function useWalletAuth() {
     const referralLink = buildReferralLink(playerRecord.wallet_address ?? address);
     setReferralSummary({
       rewardedReferralCount: playerRecord.rewarded_referral_count ?? 0,
+      todayReferralAttachCount: playerRecord.today_referral_attach_count ?? 0,
       maxRewardedReferrals: MAX_REWARDED_REFERRALS_PER_INVITER,
       referrerWalletAddress: playerRecord.referrer_wallet_address ?? null,
       referralLink,

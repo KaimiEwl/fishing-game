@@ -243,6 +243,17 @@ const getTodayKey = () => {
   return `${year}-${month}-${day}`;
 };
 
+const getTodayRange = () => {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  return {
+    startIso: start.toISOString(),
+    endIso: end.toISOString(),
+  };
+};
+
 const normalizeGameProgressForToday = (value: unknown) => {
   const progress = sanitizeGameProgress(value);
   if (progress.date === getTodayKey()) {
@@ -251,10 +262,34 @@ const normalizeGameProgressForToday = (value: unknown) => {
 
   return {
     ...createDefaultGameProgress(),
-    specialTasks: progress.specialTasks,
     grillScore: progress.grillScore,
     paidWheelRolls: progress.paidWheelRolls,
   };
+};
+
+const fetchTodayReferralAttachCount = async (
+  supabase: ReturnType<typeof createClient>,
+  referrerWalletAddress: string,
+) => {
+  const { startIso, endIso } = getTodayRange();
+  const { data, error } = await supabase
+    .from("player_audit_logs")
+    .select("metadata")
+    .eq("event_type", "referrer_attached")
+    .gte("created_at", startIso)
+    .lt("created_at", endIso);
+
+  if (error) throw error;
+
+  return (data ?? []).reduce((count, row) => {
+    const metadata = row && typeof row === "object"
+      ? (row as Record<string, unknown>).metadata as Record<string, unknown> | null
+      : null;
+    const attachedReferrer = typeof metadata?.referrerWalletAddress === "string"
+      ? metadata.referrerWalletAddress.toLowerCase()
+      : null;
+    return attachedReferrer === referrerWalletAddress ? count + 1 : count;
+  }, 0);
 };
 
 const getClaimedDailyCount = (tasks: ReturnType<typeof normalizeGameProgressForToday>["tasks"]) => (
@@ -678,7 +713,16 @@ serve(async (req) => {
           return jsonResponse({ player: updatedPlayer });
         }
 
-        const currentTask = progress.specialTasks[taskId as SpecialTaskId];
+        const nextSpecialTasks = { ...progress.specialTasks };
+        if (taskId === "invite_friend") {
+          const todayReferralAttachCount = await fetchTodayReferralAttachCount(supabase, walletAddress);
+          nextSpecialTasks.invite_friend = {
+            ...nextSpecialTasks.invite_friend,
+            progress: todayReferralAttachCount > 0 ? 1 : 0,
+          };
+        }
+
+        const currentTask = nextSpecialTasks[taskId as SpecialTaskId];
         if (!currentTask || currentTask.claimed || currentTask.progress < task.target) {
           return badRequest("Task is not ready to claim");
         }
@@ -686,7 +730,7 @@ serve(async (req) => {
         const nextProgress = {
           ...progress,
           specialTasks: {
-            ...progress.specialTasks,
+            ...nextSpecialTasks,
             [taskId]: {
               ...currentTask,
               claimed: true,

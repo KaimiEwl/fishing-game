@@ -454,8 +454,8 @@ const FishingGame: React.FC = () => {
   }, [currentLeaderboardEntry?.name, gameProgress.grillScore, leaderboardNameOpen]);
 
   useEffect(() => {
-    syncReferralTask(referralSummary?.rewardedReferralCount ?? 0);
-  }, [syncReferralTask, referralSummary?.rewardedReferralCount]);
+    syncReferralTask(referralSummary?.todayReferralAttachCount ?? 0);
+  }, [syncReferralTask, referralSummary?.todayReferralAttachCount]);
 
   useEffect(() => {
     if (!isVerified) {

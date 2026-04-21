@@ -189,6 +189,32 @@ serve(async (req) => {
       };
     };
 
+    const fetchTodayReferralAttachCount = async (referrerWalletAddress: string) => {
+      const now = new Date();
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const end = new Date(start);
+      end.setDate(end.getDate() + 1);
+
+      const { data, error } = await supabase
+        .from('player_audit_logs')
+        .select('metadata')
+        .eq('event_type', 'referrer_attached')
+        .gte('created_at', start.toISOString())
+        .lt('created_at', end.toISOString());
+
+      if (error) throw error;
+
+      return (data ?? []).reduce((count, row) => {
+        const metadata = row && typeof row === 'object'
+          ? (row as Record<string, unknown>).metadata as Record<string, unknown> | null
+          : null;
+        const attachedReferrer = typeof metadata?.referrerWalletAddress === 'string'
+          ? metadata.referrerWalletAddress.toLowerCase()
+          : null;
+        return attachedReferrer === referrerWalletAddress ? count + 1 : count;
+      }, 0);
+    };
+
     const loadProcessedPlayer = async (referrer: string | null = null) => {
       const { data, error } = await supabase
         .rpc('process_wallet_login', {
@@ -330,12 +356,16 @@ serve(async (req) => {
         afterInviter: null,
       });
       const latestReferralReward = await fetchLatestReferralReward(normalizedAddress);
+      const todayReferralAttachCount = await fetchTodayReferralAttachCount(normalizedAddress);
 
       const refreshedToken = await createSessionToken(normalizedAddress);
 
       return new Response(
         JSON.stringify({
-          player,
+          player: {
+            ...player,
+            today_referral_attach_count: todayReferralAttachCount,
+          },
           isNew: false,
           session_token: refreshedToken,
           latest_referral_reward: latestReferralReward,
@@ -394,11 +424,15 @@ serve(async (req) => {
       afterInviter,
     });
     const latestReferralReward = await fetchLatestReferralReward(normalizedAddress);
+    const todayReferralAttachCount = await fetchTodayReferralAttachCount(normalizedAddress);
     const sessionToken = await createSessionToken(normalizedAddress);
 
     return new Response(
       JSON.stringify({
-        player: newPlayer,
+        player: {
+          ...newPlayer,
+          today_referral_attach_count: todayReferralAttachCount,
+        },
         isNew: !beforePlayer,
         session_token: sessionToken,
         latest_referral_reward: latestReferralReward,

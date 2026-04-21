@@ -294,9 +294,9 @@ export const SPECIAL_TASKS: SpecialTask[] = [
   {
     id: 'invite_friend',
     title: 'Invite a friend',
-    description: 'Get your first rewarded referral after your friend connects a wallet.',
+    description: 'Invite 1 friend today after they connect a wallet.',
     target: 1,
-    rewardCoins: 1000,
+    rewardBait: 10,
   },
 ];
 

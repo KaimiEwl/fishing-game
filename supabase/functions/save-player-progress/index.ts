@@ -225,14 +225,9 @@ const mergeGameProgress = (
 ): GameProgressPayload => {
   if (currentProgress.date !== nextProgress.date) {
     const newerProgress = currentProgress.date >= nextProgress.date ? currentProgress : nextProgress;
-    const olderProgress = newerProgress === currentProgress ? nextProgress : currentProgress;
 
     return {
       ...newerProgress,
-      specialTasks: {
-        ...olderProgress.specialTasks,
-        ...newerProgress.specialTasks,
-      },
       grillScore: Math.max(currentProgress.grillScore, nextProgress.grillScore),
       paidWheelRolls: Math.max(currentProgress.paidWheelRolls, nextProgress.paidWheelRolls),
       dailyWheelRolls: Math.max(currentProgress.dailyWheelRolls, nextProgress.dailyWheelRolls),
