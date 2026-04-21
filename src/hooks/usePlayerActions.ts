@@ -60,6 +60,25 @@ const mapSocialTasks = (rows: PlayerSocialTaskVerificationRow[] = []): SocialTas
   })
 );
 
+const PLAYER_ACTION_FALLBACK_ERRORS: Record<string, string> = {
+  get_wallet_check_in_summary: 'Daily wallet check-in is temporarily unavailable. Please try again in a minute.',
+  verify_wallet_check_in: 'We could not verify your wallet check-in right now. Please try again in a minute.',
+  claim_task_reward: 'Could not claim this task right now. Please try again.',
+  roll_cube: 'Could not start the cube roll right now. Please try again.',
+  apply_cube_reward: 'Could not apply the cube reward right now. Please try again.',
+  cook_recipe: 'Could not cook this recipe right now. Please try again.',
+  sell_cooked_dish: 'Could not sell this dish right now. Please try again.',
+  update_grill_leaderboard: 'Could not update the grill leaderboard right now. Please try again.',
+  list_social_tasks: 'Social task status is temporarily unavailable. Please try again later.',
+  submit_social_task_verification: 'Could not submit this social task right now. Please try again later.',
+  claim_social_task_reward: 'Could not claim this social reward right now. Please try again later.',
+};
+
+const EDGE_FUNCTION_GENERIC_MESSAGES = [
+  'Edge Function returned a non-2xx status code',
+  'Failed to send a request to the Edge Function',
+];
+
 export function usePlayerActions(walletAddress: string | undefined, enabled: boolean) {
   const callPlayerActions = useCallback(async <T extends PlayerActionResponse>(
     action: string,
@@ -84,18 +103,31 @@ export function usePlayerActions(walletAddress: string | undefined, enabled: boo
     });
 
     if (error) {
+      const fallbackMessage = PLAYER_ACTION_FALLBACK_ERRORS[action] ?? 'This action is temporarily unavailable. Please try again later.';
       const contextualError = error as { context?: { clone?: () => Response } };
       if (contextualError.context?.clone) {
         try {
           const responsePayload = await contextualError.context.clone().json() as { error?: string };
           if (typeof responsePayload.error === 'string' && responsePayload.error.trim()) {
-            throw new Error(responsePayload.error);
+            const serverMessage = responsePayload.error.trim();
+            if (serverMessage === 'Unknown action') {
+              throw new Error(fallbackMessage);
+            }
+            throw new Error(serverMessage);
           }
         } catch {
           // Fall back to original error.
         }
       }
-      throw error;
+
+      if (
+        error instanceof Error
+        && EDGE_FUNCTION_GENERIC_MESSAGES.some((message) => error.message.includes(message))
+      ) {
+        throw new Error(fallbackMessage);
+      }
+
+      throw error instanceof Error ? error : new Error(fallbackMessage);
     }
 
     if (data?.error) throw new Error(data.error);
