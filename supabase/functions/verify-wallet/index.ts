@@ -44,6 +44,7 @@ interface PlayerLoginState {
   bait: number;
   daily_free_bait: number;
   cooked_dishes: unknown[];
+  game_progress?: Record<string, unknown> | null;
   xp: number;
   total_catches: number;
   rod_level: number;
@@ -68,6 +69,7 @@ const buildNewPlayerBaseline = (walletAddress: string): PlayerLoginState => ({
   bait: 10,
   daily_free_bait: DAILY_FREE_BAIT,
   cooked_dishes: [],
+  game_progress: {},
   xp: 0,
   total_catches: 0,
   rod_level: 0,
@@ -117,7 +119,7 @@ serve(async (req) => {
     const fetchPlayerLoginState = async (walletAddress: string) => {
       const { data, error } = await supabase
         .from('players')
-        .select('wallet_address, coins, bait, daily_free_bait, cooked_dishes, xp, total_catches, rod_level, equipped_rod, wallet_bait_bonus_claimed, referrer_wallet_address, rewarded_referral_count, referral_reward_granted, updated_at')
+        .select('wallet_address, coins, bait, daily_free_bait, cooked_dishes, game_progress, xp, total_catches, rod_level, equipped_rod, wallet_bait_bonus_claimed, referrer_wallet_address, rewarded_referral_count, referral_reward_granted, updated_at')
         .eq('wallet_address', walletAddress)
         .maybeSingle();
 
@@ -157,8 +159,16 @@ serve(async (req) => {
           .eq('wallet_address', invitedWalletAddress)
           .maybeSingle();
 
-        if (invitedError) throw invitedError;
-        invitedPlayerName = invitedPlayer?.nickname?.trim() || null;
+        if (invitedError) {
+          const details = typeof invitedError === 'object' && invitedError
+            ? JSON.stringify(invitedError)
+            : '';
+          if (!details.includes('players.nickname')) {
+            throw invitedError;
+          }
+        } else {
+          invitedPlayerName = invitedPlayer?.nickname?.trim() || null;
+        }
       }
 
       return {

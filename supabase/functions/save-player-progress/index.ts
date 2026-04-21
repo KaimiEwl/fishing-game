@@ -288,6 +288,19 @@ const mergeStacksByMax = <T extends Record<string, unknown>>(
   return Array.from(merged.values()).filter((item) => clampInt(item.quantity, 0, 0, 99999) > 0);
 };
 
+const formatErrorMessage = (error: unknown) => {
+  if (error instanceof Error && error.message.trim()) return error.message;
+  if (error && typeof error === 'object') {
+    try {
+      const serialized = JSON.stringify(error);
+      if (serialized && serialized !== '{}') return serialized;
+    } catch {
+      return 'Could not save progress';
+    }
+  }
+  return 'Could not save progress';
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -452,7 +465,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Save player progress error:', error);
 
-    const message = error instanceof Error ? error.message : 'Could not save progress';
+    const message = formatErrorMessage(error);
     return new Response(
       JSON.stringify({ error: message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
