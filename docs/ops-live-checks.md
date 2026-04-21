@@ -54,7 +54,6 @@ Required env:
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
-- `SESSION_TOKEN_SECRET`
 - optional `ADMIN_WALLET_ADDRESS`
 
 ```powershell
@@ -66,6 +65,8 @@ node .\scripts\ops\smoke-live-mutation.mjs
 ```
 
 It covers:
+- real `verify-wallet` for temporary generated wallets
+- temporary admin role grant
 - admin auth
 - weekly payout preview
 - server task claim
