@@ -2,7 +2,14 @@ import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { getStoredWalletSession } from '@/lib/walletSession';
 import type { Tables } from '@/integrations/supabase/types';
-import { SOCIAL_TASKS, type SocialTaskId, type SocialTaskProgress, type TaskId, type WheelPrize } from '@/types/game';
+import {
+  SOCIAL_TASKS,
+  type SocialTaskId,
+  type SocialTaskProgress,
+  type TaskId,
+  type WalletCheckInSummary,
+  type WheelPrize,
+} from '@/types/game';
 
 export interface CubeRollPayload {
   id: string;
@@ -16,6 +23,7 @@ interface PlayerActionResponse {
   player?: Tables<'players'>;
   roll?: CubeRollPayload;
   prize?: WheelPrize;
+  wallet_check_in_summary?: WalletCheckInSummary;
   verification?: PlayerSocialTaskVerificationRow;
   verifications?: PlayerSocialTaskVerificationRow[];
   leaderboard_entry?: {
@@ -110,6 +118,25 @@ export function usePlayerActions(walletAddress: string | undefined, enabled: boo
     })
   ), [callPlayerActions]);
 
+  const getWalletCheckInSummary = useCallback(async () => {
+    const data = await callPlayerActions<{ wallet_check_in_summary: WalletCheckInSummary }>('get_wallet_check_in_summary');
+    return data.wallet_check_in_summary;
+  }, [callPlayerActions]);
+
+  const verifyWalletCheckIn = useCallback(async (txHash: string) => {
+    const data = await callPlayerActions<{
+      player: Tables<'players'>;
+      wallet_check_in_summary: WalletCheckInSummary;
+    }>('verify_wallet_check_in', {
+      tx_hash: txHash,
+    });
+
+    return {
+      player: data.player,
+      walletCheckInSummary: data.wallet_check_in_summary,
+    };
+  }, [callPlayerActions]);
+
   const cookRecipe = useCallback(async (recipeId: string) => (
     callPlayerActions<{
       player: Tables<'players'>;
@@ -160,6 +187,8 @@ export function usePlayerActions(walletAddress: string | undefined, enabled: boo
     rollCube,
     applyCubeReward,
     claimTaskReward,
+    getWalletCheckInSummary,
+    verifyWalletCheckIn,
     cookRecipe,
     sellCookedDish,
     updateGrillLeaderboard,

@@ -40,6 +40,7 @@ const createTasks = (): DailyTaskMap => ({
 });
 
 const createSpecialTasks = (): SpecialTaskMap => ({
+  wallet_check_in: { progress: 0, claimed: false },
   invite_friend: { progress: 0, claimed: false },
 });
 
@@ -335,6 +336,28 @@ export function useGameProgress(options?: UseGameProgressOptions) {
     });
   }, []);
 
+  const syncWalletCheckInTask = useCallback((checkedInToday: boolean) => {
+    setState((prev) => {
+      const current = prev.specialTasks.wallet_check_in;
+      const nextProgress = checkedInToday ? 1 : 0;
+
+      if (!current || current.progress === nextProgress) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        specialTasks: {
+          ...prev.specialTasks,
+          wallet_check_in: {
+            ...current,
+            progress: nextProgress,
+          },
+        },
+      };
+    });
+  }, []);
+
   const dailyTasks = useMemo<DailyTaskProgress[]>(() => (
     DAILY_TASKS.map((task) => ({
       ...task,
@@ -470,6 +493,7 @@ export function useGameProgress(options?: UseGameProgressOptions) {
     recordGrillDish,
     recordCoinsSpent,
     syncReferralTask,
+    syncWalletCheckInTask,
     claimTask,
     spinWheel,
     addPaidWheelRolls,

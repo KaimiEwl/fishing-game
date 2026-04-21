@@ -54,9 +54,19 @@ export interface GameResult {
 export type GameTab = 'fish' | 'tasks' | 'shop' | 'grill' | 'wheel' | 'leaderboard' | 'map';
 
 export type DailyTaskId = 'check_in' | 'catch_10' | 'rare_1' | 'grill_1' | 'spend_1000';
-export type SpecialTaskId = 'invite_friend';
+export type SpecialTaskId = 'invite_friend' | 'wallet_check_in';
 export type SocialTaskId = 'twitter_follow' | 'twitter_repost' | 'twitter_like' | 'discord_join' | 'telegram_join';
 export type TaskId = DailyTaskId | SpecialTaskId;
+
+export interface WalletCheckInSummary {
+  todayCheckedIn: boolean;
+  streakDays: number;
+  lastCheckInAt: string | null;
+  lastCheckInDate: string | null;
+  lastCheckInTxHash: string | null;
+  receiverAddress: string;
+  amountMon: string;
+}
 
 export interface DailyTask {
   id: DailyTaskId;
@@ -291,6 +301,13 @@ export const DAILY_TASKS: DailyTask[] = [
 ];
 
 export const SPECIAL_TASKS: SpecialTask[] = [
+  {
+    id: 'wallet_check_in',
+    title: 'Wallet streak check-in',
+    description: 'Send a small MON check-in today to keep your streak alive and unlock this daily special reward.',
+    target: 1,
+    rewardBait: 10,
+  },
   {
     id: 'invite_friend',
     title: 'Invite a friend',

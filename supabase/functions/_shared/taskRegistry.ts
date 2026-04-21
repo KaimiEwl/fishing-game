@@ -1,5 +1,5 @@
 export type DailyTaskId = 'check_in' | 'catch_10' | 'rare_1' | 'grill_1' | 'spend_1000';
-export type SpecialTaskId = 'invite_friend';
+export type SpecialTaskId = 'invite_friend' | 'wallet_check_in';
 export type SocialTaskId =
   | 'twitter_follow'
   | 'twitter_repost'
@@ -28,6 +28,7 @@ export const DAILY_TASKS: ReadonlyArray<TaskDefinition> = [
 ] as const;
 
 export const SPECIAL_TASKS: ReadonlyArray<TaskDefinition> = [
+  { id: 'wallet_check_in', title: 'Wallet streak check-in', target: 1, rewardBait: 10 },
   { id: 'invite_friend', title: 'Invite a friend', target: 1, rewardBait: 10 },
 ] as const;
 

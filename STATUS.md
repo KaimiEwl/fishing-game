@@ -1,5 +1,11 @@
 # STATUS
 
+## Wallet streak special task
+- `Special -> Wallet streak check-in` is now a separate wallet-linked task instead of reusing the ordinary `Daily check-in`.
+- The flow now expects one verified micro-transaction (`0.0001 MON`) to the configured receiver address, then verifies it against Monad RPC through the existing backend action layer before marking today's special task ready.
+- The task card now shows the current consecutive-day streak, whether today is already checked in, and exposes an explicit `Check in with MON` action for verified wallets.
+- No new table was added for this feature: daily streak history is derived from `player_audit_logs` events of type `wallet_daily_check_in`, so it stays additive and queryable without a schema migration.
+
 ## Daily invite special task
 - `Special -> Invite a friend` now awards `10 bait` instead of `1000 gold`.
 - The task is now treated as a daily special objective: its progress/claim state resets with the day instead of staying one-time forever.

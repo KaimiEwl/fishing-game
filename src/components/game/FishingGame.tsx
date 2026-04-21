@@ -57,6 +57,7 @@ import {
   type SocialTaskId,
   type SocialTaskProgress,
   type TaskId,
+  type WalletCheckInSummary,
   type WheelPrize,
 } from '@/types/game';
 
@@ -140,6 +141,8 @@ const FishingGame: React.FC = () => {
     rollCube,
     applyCubeReward,
     claimTaskReward,
+    getWalletCheckInSummary,
+    verifyWalletCheckIn,
     cookRecipe: requestCookRecipe,
     sellCookedDish: requestSellCookedDish,
     updateGrillLeaderboard,
@@ -147,9 +150,11 @@ const FishingGame: React.FC = () => {
     submitSocialTaskVerification,
     claimSocialTaskReward,
   } = usePlayerActions(address, isConnected && isVerified);
-  const { syncReferralTask } = gameProgress;
+  const { syncReferralTask, syncWalletCheckInTask } = gameProgress;
   const [socialTasks, setSocialTasks] = useState<SocialTaskProgress[]>(() => createDefaultSocialTasks());
   const [socialTasksLoading, setSocialTasksLoading] = useState(false);
+  const [walletCheckInSummary, setWalletCheckInSummary] = useState<WalletCheckInSummary | null>(null);
+  const [walletCheckInLoading, setWalletCheckInLoading] = useState(false);
   const logAuditEvent = useCallback((event: PlayerAuditEventPayload) => {
     if (!address || !isVerified) return;
 
@@ -238,6 +243,24 @@ const FishingGame: React.FC = () => {
       setSocialTasksLoading(false);
     }
   }, [isVerified, listSocialTasks]);
+
+  const refreshWalletCheckInSummary = useCallback(async () => {
+    if (!isVerified) {
+      setWalletCheckInSummary(null);
+      setWalletCheckInLoading(false);
+      return;
+    }
+
+    setWalletCheckInLoading(true);
+    try {
+      const summary = await getWalletCheckInSummary();
+      setWalletCheckInSummary(summary);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not refresh wallet check-in.');
+    } finally {
+      setWalletCheckInLoading(false);
+    }
+  }, [getWalletCheckInSummary, isVerified]);
 
   const saveCurrentLeaderboardEntry = useCallback((name: string, score: number, dishesDelta = 0) => {
     setLeaderboardEntries((entries) => {
@@ -458,9 +481,15 @@ const FishingGame: React.FC = () => {
   }, [syncReferralTask, referralSummary?.todayReferralAttachCount]);
 
   useEffect(() => {
+    syncWalletCheckInTask(walletCheckInSummary?.todayCheckedIn ?? false);
+  }, [syncWalletCheckInTask, walletCheckInSummary?.todayCheckedIn]);
+
+  useEffect(() => {
     if (!isVerified) {
       setSocialTasks(createDefaultSocialTasks());
       setSocialTasksLoading(false);
+      setWalletCheckInSummary(null);
+      setWalletCheckInLoading(false);
       return;
     }
 
@@ -470,8 +499,9 @@ const FishingGame: React.FC = () => {
   useEffect(() => {
     if (activeTab === 'tasks' && isVerified) {
       void refreshSocialTasks();
+      void refreshWalletCheckInSummary();
     }
-  }, [activeTab, isVerified, refreshSocialTasks]);
+  }, [activeTab, isVerified, refreshSocialTasks, refreshWalletCheckInSummary]);
 
   const handleBuyBait = (amount: number, cost: number) => {
     const purchased = buyBait(amount, cost);
@@ -715,6 +745,17 @@ const FishingGame: React.FC = () => {
     }
   };
 
+  const handleWalletCheckIn = async (txHash: string) => {
+    if (!isVerified) {
+      throw new Error('Connect a verified wallet first.');
+    }
+
+    const result = await verifyWalletCheckIn(txHash);
+    applyServerPlayerSnapshot(result.player);
+    setWalletCheckInSummary(result.walletCheckInSummary);
+    sounds.playBuySound();
+  };
+
   const isFishingScreen = activeTab === 'fish';
 
   return (
@@ -741,14 +782,18 @@ const FishingGame: React.FC = () => {
               {activeTab === 'tasks' ? (
                 <TasksScreen
                   coins={player.coins}
+                  walletAddress={address}
                   dailyTasks={gameProgress.dailyTasks}
                   specialTasks={gameProgress.specialTasks}
                   socialTasks={socialTasks}
+                  walletCheckInSummary={walletCheckInSummary}
+                  walletCheckInLoading={walletCheckInLoading}
                   dailyTaskClaimsMet={gameProgress.dailyTaskClaimsMet}
                   availableWheelRolls={gameProgress.availableWheelRolls}
                   socialTasksLoading={socialTasksLoading}
                   isWalletVerified={isVerified}
                   onClaimTask={handleClaimTask}
+                  onWalletCheckIn={handleWalletCheckIn}
                   onSubmitSocialTask={handleSubmitSocialTask}
                   onClaimSocialTask={handleClaimSocialTask}
                   onRefreshSocialTasks={() => void refreshSocialTasks()}

@@ -39,6 +39,40 @@ const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
 
 const DAILY_TASK_CLAIMS_REQUIRED = 3;
 const DAILY_CUBE_ROLL_REWARD = 3;
+const MONAD_RPC = "https://rpc.monad.xyz";
+const WALLET_CHECK_IN_RECEIVER_ADDRESS = "0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D";
+const WALLET_CHECK_IN_AMOUNT_MON = "0.0001";
+const WALLET_CHECK_IN_WEI = 100000000000000n;
+
+interface RpcResponse<T> {
+  result?: T;
+  error?: { message?: string };
+}
+
+interface RpcTransactionReceipt {
+  status?: string;
+  blockHash?: string;
+}
+
+interface RpcTransaction {
+  from?: string;
+  to?: string | null;
+  value?: string;
+}
+
+interface RpcBlock {
+  timestamp?: string;
+}
+
+interface WalletCheckInSummary {
+  todayCheckedIn: boolean;
+  streakDays: number;
+  lastCheckInAt: string | null;
+  lastCheckInDate: string | null;
+  lastCheckInTxHash: string | null;
+  receiverAddress: string;
+  amountMon: string;
+}
 
 interface InventoryEntry {
   fishId: string;
@@ -109,6 +143,12 @@ const normalizeWalletAddress = (value: unknown) => {
   return text.toLowerCase();
 };
 
+const normalizeTxHash = (value: unknown) => {
+  const text = normalizeText(value);
+  if (!/^0x[a-fA-F0-9]{64}$/.test(text)) return null;
+  return text.toLowerCase();
+};
+
 const clampInt = (value: unknown, fallback: number, min = 0, max = Number.MAX_SAFE_INTEGER) => {
   const parsed = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(parsed)) return fallback;
@@ -120,6 +160,34 @@ const normalizeIso = (value: unknown, fallback: string) => {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return fallback;
   return parsed.toISOString();
+};
+
+const getUtcDayKey = (date = new Date()) => date.toISOString().slice(0, 10);
+
+const shiftUtcDayKey = (dayKey: string, offsetDays: number) => {
+  const parsed = new Date(`${dayKey}T00:00:00.000Z`);
+  parsed.setUTCDate(parsed.getUTCDate() + offsetDays);
+  return parsed.toISOString().slice(0, 10);
+};
+
+const rpcCall = async <T>(method: string, params: unknown[]) => {
+  const response = await fetch(MONAD_RPC, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method,
+      params,
+    }),
+  });
+
+  const payload = await response.json() as RpcResponse<T>;
+  if (payload.error) {
+    throw new Error(payload.error.message || `${method} failed`);
+  }
+
+  return payload.result ?? null;
 };
 
 const sanitizeInventory = (value: unknown): InventoryEntry[] => {
@@ -292,6 +360,146 @@ const fetchTodayReferralAttachCount = async (
   }, 0);
 };
 
+const loadWalletCheckInEvents = async (
+  supabase: ReturnType<typeof createClient>,
+  walletAddress: string,
+) => {
+  const { data, error } = await supabase
+    .from("player_audit_logs")
+    .select("created_at, metadata")
+    .eq("wallet_address", walletAddress)
+    .eq("event_type", "wallet_daily_check_in")
+    .order("created_at", { ascending: false })
+    .limit(120);
+
+  if (error) throw error;
+  return data ?? [];
+};
+
+const buildWalletCheckInSummary = async (
+  supabase: ReturnType<typeof createClient>,
+  walletAddress: string,
+): Promise<WalletCheckInSummary> => {
+  const rows = await loadWalletCheckInEvents(supabase, walletAddress);
+  const byDay = new Map<string, { createdAt: string; txHash: string | null }>();
+
+  for (const row of rows) {
+    const metadata = row && typeof row === "object"
+      ? (row as Record<string, unknown>).metadata as Record<string, unknown> | null
+      : null;
+    const checkInDate = typeof metadata?.checkInDate === "string"
+      ? metadata.checkInDate
+      : normalizeIso((row as Record<string, unknown>).created_at, new Date().toISOString()).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(checkInDate) || byDay.has(checkInDate)) continue;
+
+    byDay.set(checkInDate, {
+      createdAt: normalizeIso((row as Record<string, unknown>).created_at, new Date().toISOString()),
+      txHash: typeof metadata?.txHash === "string" ? metadata.txHash : null,
+    });
+  }
+
+  const orderedDays = [...byDay.keys()].sort((left, right) => right.localeCompare(left));
+  const todayKey = getUtcDayKey();
+  const yesterdayKey = shiftUtcDayKey(todayKey, -1);
+  let streakDays = 0;
+
+  if (orderedDays.length > 0 && [todayKey, yesterdayKey].includes(orderedDays[0])) {
+    let expectedDay = orderedDays[0];
+    for (const day of orderedDays) {
+      if (day !== expectedDay) break;
+      streakDays += 1;
+      expectedDay = shiftUtcDayKey(expectedDay, -1);
+    }
+  }
+
+  const todayEntry = byDay.get(todayKey) ?? null;
+  const latestDay = orderedDays[0] ?? null;
+  const latestEntry = latestDay ? byDay.get(latestDay) ?? null : null;
+
+  return {
+    todayCheckedIn: Boolean(todayEntry),
+    streakDays,
+    lastCheckInAt: latestEntry?.createdAt ?? null,
+    lastCheckInDate: latestDay,
+    lastCheckInTxHash: latestEntry?.txHash ?? null,
+    receiverAddress: WALLET_CHECK_IN_RECEIVER_ADDRESS,
+    amountMon: WALLET_CHECK_IN_AMOUNT_MON,
+  };
+};
+
+const hasWalletCheckInTxHash = async (
+  supabase: ReturnType<typeof createClient>,
+  walletAddress: string,
+  txHash: string,
+) => {
+  const { data, error } = await supabase
+    .from("player_audit_logs")
+    .select("id")
+    .eq("wallet_address", walletAddress)
+    .eq("event_type", "wallet_daily_check_in")
+    .contains("metadata", { txHash })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return Boolean(data);
+};
+
+const verifyWalletCheckInTransaction = async (
+  walletAddress: string,
+  txHash: string,
+) => {
+  const receipt = await rpcCall<RpcTransactionReceipt>("eth_getTransactionReceipt", [txHash]);
+  if (!receipt) {
+    throw new Error("Transaction is still pending. Try again in a few seconds.");
+  }
+
+  if (receipt.status !== "0x1") {
+    throw new Error("On-chain transaction failed.");
+  }
+
+  const tx = await rpcCall<RpcTransaction>("eth_getTransactionByHash", [txHash]);
+  if (!tx) {
+    throw new Error("Could not fetch transaction details.");
+  }
+
+  if (tx.from?.toLowerCase() !== walletAddress) {
+    throw new Error("Transaction sender does not match the connected wallet.");
+  }
+
+  if (tx.to?.toLowerCase() !== WALLET_CHECK_IN_RECEIVER_ADDRESS.toLowerCase()) {
+    throw new Error("Wrong recipient address for wallet check-in.");
+  }
+
+  const valueWei = typeof tx.value === "string" ? BigInt(tx.value) : 0n;
+  if (valueWei !== WALLET_CHECK_IN_WEI) {
+    throw new Error(`Wallet check-in must send exactly ${WALLET_CHECK_IN_AMOUNT_MON} MON.`);
+  }
+
+  const block = receipt.blockHash
+    ? await rpcCall<RpcBlock>("eth_getBlockByHash", [receipt.blockHash, false])
+    : null;
+
+  if (!block?.timestamp) {
+    throw new Error("Could not fetch block timestamp for wallet check-in.");
+  }
+
+  const txTimestamp = new Date(Number.parseInt(block.timestamp, 16) * 1000);
+  if (Number.isNaN(txTimestamp.getTime())) {
+    throw new Error("Invalid block timestamp for wallet check-in.");
+  }
+
+  const checkInDate = getUtcDayKey(txTimestamp);
+  if (checkInDate !== getUtcDayKey()) {
+    throw new Error("Wallet check-in transaction must be sent today.");
+  }
+
+  return {
+    txTimestampIso: txTimestamp.toISOString(),
+    checkInDate,
+  };
+};
+
 const getClaimedDailyCount = (tasks: ReturnType<typeof normalizeGameProgressForToday>["tasks"]) => (
   DAILY_TASKS.filter((task) => tasks[task.id as DailyTaskId]?.claimed).length
 );
@@ -426,6 +634,83 @@ serve(async (req) => {
     }
 
     switch (action) {
+      case "get_wallet_check_in_summary": {
+        await enforceRateLimit(supabase, {
+          actionKey: "player_actions.get_wallet_check_in_summary",
+          subjectKey: walletAddress,
+          windowSeconds: 60,
+          maxHits: 30,
+        });
+
+        const walletCheckInSummary = await buildWalletCheckInSummary(supabase, walletAddress);
+        return jsonResponse({
+          wallet_check_in_summary: walletCheckInSummary,
+        });
+      }
+
+      case "verify_wallet_check_in": {
+        await enforceRateLimit(supabase, {
+          actionKey: "player_actions.verify_wallet_check_in",
+          subjectKey: walletAddress,
+          windowSeconds: 60,
+          maxHits: 10,
+        });
+
+        const txHash = normalizeTxHash(body.tx_hash);
+        if (!txHash) return badRequest("Missing wallet check-in transaction hash");
+
+        if (await hasWalletCheckInTxHash(supabase, walletAddress, txHash)) {
+          return badRequest("This wallet check-in transaction was already used.");
+        }
+
+        const currentSummary = await buildWalletCheckInSummary(supabase, walletAddress);
+        if (currentSummary.todayCheckedIn) {
+          return badRequest("Wallet check-in was already completed today.");
+        }
+
+        const { txTimestampIso, checkInDate } = await verifyWalletCheckInTransaction(walletAddress, txHash);
+        const player = await loadPlayer(supabase, walletAddress);
+        const beforeState = await fetchPlayerAuditSnapshot(supabase, walletAddress);
+        const progress = normalizeGameProgressForToday(player.game_progress);
+        const nextProgress = {
+          ...progress,
+          specialTasks: {
+            ...progress.specialTasks,
+            wallet_check_in: progress.specialTasks.wallet_check_in.claimed
+              ? progress.specialTasks.wallet_check_in
+              : {
+                ...progress.specialTasks.wallet_check_in,
+                progress: 1,
+              },
+          },
+        };
+
+        const updatedPlayer = await updatePlayer(supabase, player.id, {
+          game_progress: nextProgress,
+        });
+
+        await insertPlayerAuditLog(supabase, {
+          walletAddress,
+          eventType: "wallet_daily_check_in",
+          eventSource: "server",
+          beforeState,
+          afterState: sanitizeAuditSnapshot(updatedPlayer),
+          metadata: {
+            txHash,
+            amountMon: WALLET_CHECK_IN_AMOUNT_MON,
+            recipient: WALLET_CHECK_IN_RECEIVER_ADDRESS,
+            txTimestamp: txTimestampIso,
+            checkInDate,
+          },
+        });
+
+        const walletCheckInSummary = await buildWalletCheckInSummary(supabase, walletAddress);
+        return jsonResponse({
+          player: updatedPlayer,
+          wallet_check_in_summary: walletCheckInSummary,
+        });
+      }
+
       case "list_social_tasks": {
         await enforceRateLimit(supabase, {
           actionKey: "player_actions.list_social_tasks",
@@ -719,6 +1004,12 @@ serve(async (req) => {
           nextSpecialTasks.invite_friend = {
             ...nextSpecialTasks.invite_friend,
             progress: todayReferralAttachCount > 0 ? 1 : 0,
+          };
+        } else if (taskId === "wallet_check_in") {
+          const walletCheckInSummary = await buildWalletCheckInSummary(supabase, walletAddress);
+          nextSpecialTasks.wallet_check_in = {
+            ...nextSpecialTasks.wallet_check_in,
+            progress: walletCheckInSummary.todayCheckedIn ? 1 : 0,
           };
         }
 

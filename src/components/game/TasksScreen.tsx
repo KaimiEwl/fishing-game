@@ -1,23 +1,43 @@
 import React, { useMemo, useState } from 'react';
 import { BadgeCheck, Box, Check, Clock3, Coins, ExternalLink, Lock, Send, Trophy, Worm } from 'lucide-react';
+import { useSendTransaction } from 'wagmi';
+import { parseEther } from 'viem';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { DailyTaskProgress, SocialTaskId, SocialTaskProgress, SpecialTaskProgress, TaskId } from '@/types/game';
+import type {
+  DailyTaskProgress,
+  SocialTaskId,
+  SocialTaskProgress,
+  SpecialTaskProgress,
+  TaskId,
+  WalletCheckInSummary,
+} from '@/types/game';
+import { getErrorMessage, isUserRejectedError } from '@/lib/errorUtils';
 import CoinIcon from './CoinIcon';
 import GameScreenShell from './GameScreenShell';
 import { publicAsset } from '@/lib/assets';
+import {
+  formatStreakDays,
+  WALLET_CHECK_IN_AMOUNT_MON,
+  WALLET_CHECK_IN_RECEIVER_ADDRESS,
+} from '@/lib/walletCheckIn';
 
 interface TasksScreenProps {
   coins: number;
+  walletAddress?: string;
   dailyTasks: DailyTaskProgress[];
   specialTasks: SpecialTaskProgress[];
   socialTasks: SocialTaskProgress[];
+  walletCheckInSummary: WalletCheckInSummary | null;
+  walletCheckInLoading?: boolean;
   dailyTaskClaimsMet: boolean;
   availableWheelRolls: number;
   socialTasksLoading?: boolean;
   isWalletVerified: boolean;
   onClaimTask: (id: TaskId) => void;
+  onWalletCheckIn: (txHash: string) => Promise<void>;
   onSubmitSocialTask: (id: SocialTaskId, proofUrl?: string) => void;
   onClaimSocialTask: (id: SocialTaskId) => void;
   onRefreshSocialTasks: () => void;
@@ -26,14 +46,18 @@ interface TasksScreenProps {
 
 const TasksScreen: React.FC<TasksScreenProps> = ({
   coins,
+  walletAddress,
   dailyTasks,
   specialTasks,
   socialTasks,
+  walletCheckInSummary,
+  walletCheckInLoading = false,
   dailyTaskClaimsMet,
   availableWheelRolls,
   socialTasksLoading = false,
   isWalletVerified,
   onClaimTask,
+  onWalletCheckIn,
   onSubmitSocialTask,
   onClaimSocialTask,
   onRefreshSocialTasks,
@@ -42,17 +66,56 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   const completedCount = dailyTasks.filter((task) => task.progress >= task.target).length;
   const claimedCount = dailyTasks.filter((task) => task.claimed).length;
   const [proofDrafts, setProofDrafts] = useState<Record<string, string>>({});
+  const [walletCheckInSubmitting, setWalletCheckInSubmitting] = useState(false);
+  const { sendTransactionAsync } = useSendTransaction();
+  const walletCheckInAmountMon = walletCheckInSummary?.amountMon ?? WALLET_CHECK_IN_AMOUNT_MON;
+  const walletCheckInReceiverAddress = walletCheckInSummary?.receiverAddress ?? WALLET_CHECK_IN_RECEIVER_ADDRESS;
 
   const socialTaskCards = useMemo(() => socialTasks.map((task) => ({
     ...task,
     proofDraft: proofDrafts[task.id] ?? task.proofUrl ?? '',
   })), [proofDrafts, socialTasks]);
 
+  const handleWalletCheckIn = async () => {
+    if (!walletAddress || walletCheckInSubmitting) return;
+
+    setWalletCheckInSubmitting(true);
+    try {
+      const txHash = await sendTransactionAsync({
+        to: walletCheckInReceiverAddress as `0x${string}`,
+        value: parseEther(walletCheckInAmountMon),
+      });
+
+      toast.info('Wallet check-in transaction sent. Verifying...');
+      await onWalletCheckIn(txHash);
+      toast.success('Daily wallet streak updated.');
+    } catch (error) {
+      if (isUserRejectedError(error)) {
+        toast.error('Transaction cancelled');
+      } else {
+        toast.error(`Wallet check-in failed: ${getErrorMessage(error)}`);
+      }
+    } finally {
+      setWalletCheckInSubmitting(false);
+    }
+  };
+
   const renderTaskList = (tasks: Array<DailyTaskProgress | SpecialTaskProgress>) => (
     <div className="grid gap-3">
       {tasks.map((task) => {
         const complete = task.progress >= task.target;
         const progress = Math.min(100, (task.progress / task.target) * 100);
+        const isWalletCheckInTask = task.id === 'wallet_check_in';
+        const canCheckInWithWallet = isWalletVerified && !walletCheckInSummary?.todayCheckedIn && !walletCheckInSubmitting && !walletCheckInLoading;
+        const walletCheckInStatusText = !isWalletVerified
+          ? 'Connect a verified wallet to use the on-chain streak check-in.'
+          : walletCheckInLoading
+            ? 'Refreshing streak status...'
+            : walletCheckInSummary?.todayCheckedIn
+              ? `Checked in today. Streak: ${formatStreakDays(walletCheckInSummary.streakDays)}.`
+              : walletCheckInSummary?.lastCheckInDate
+                ? `Current streak: ${formatStreakDays(walletCheckInSummary.streakDays)}. Send today's ${walletCheckInSummary.amountMon} MON check-in to keep it going.`
+                : `Start your streak with a ${walletCheckInAmountMon} MON check-in today.`;
 
         return (
           <article key={task.id} className="rounded-xl border border-cyan-300/15 bg-black/60 p-4 shadow-lg shadow-black/20 backdrop-blur-md">
@@ -88,6 +151,43 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                 />
               </div>
             </div>
+
+            {isWalletCheckInTask && (
+              <div className="mt-4 rounded-xl border border-emerald-400/15 bg-emerald-400/5 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-emerald-100/85">
+                  <span>Streak: {formatStreakDays(walletCheckInSummary?.streakDays ?? 0)}</span>
+                  {walletCheckInSummary?.lastCheckInAt && (
+                    <span>Last check-in {new Date(walletCheckInSummary.lastCheckInAt).toLocaleString()}</span>
+                  )}
+                </div>
+                <p className="mt-2 text-sm text-white/75">{walletCheckInStatusText}</p>
+                <Button
+                  type="button"
+                  disabled={!canCheckInWithWallet}
+                  onClick={() => {
+                    void handleWalletCheckIn();
+                  }}
+                  className="mt-3 h-11 w-full rounded-xl border border-emerald-300/25 bg-emerald-500/10 text-sm font-bold text-emerald-100 hover:bg-emerald-500/20 disabled:border-zinc-800 disabled:bg-zinc-950 disabled:text-zinc-600"
+                >
+                  {walletCheckInSummary?.todayCheckedIn ? (
+                    <>
+                      <Check className="mr-2 h-4 w-4" />
+                      Checked in today
+                    </>
+                  ) : walletCheckInSubmitting ? (
+                    <>
+                      <Clock3 className="mr-2 h-4 w-4" />
+                      Verifying transaction
+                    </>
+                  ) : (
+                    <>
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      Check in with {walletCheckInAmountMon} MON
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
 
             <Button
               type="button"
@@ -265,7 +365,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
           </TabsContent>
           <TabsContent value="special" className="mt-3">
             <div className="mb-3 rounded-xl border border-cyan-300/15 bg-black/60 p-4 text-sm text-white/70 shadow-lg shadow-black/20 backdrop-blur-md">
-              Connect your wallet and invite a friend to unlock referral rewards, future MON features, and synced progress.
+              Special tasks now mix referral rewards with a wallet streak check-in. Keep your MON check-in streak alive and still invite one new friend per day.
             </div>
             {renderTaskList(specialTasks)}
           </TabsContent>
