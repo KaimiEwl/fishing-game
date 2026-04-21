@@ -66,6 +66,7 @@ export interface WalletCheckInSummary {
   lastCheckInTxHash: string | null;
   receiverAddress: string;
   amountMon: string;
+  source?: 'server' | 'local';
 }
 
 export interface DailyTask {

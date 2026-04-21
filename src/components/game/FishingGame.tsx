@@ -34,6 +34,12 @@ import {
 import {
   FISH_GOT_AWAY_PANEL_SRC,
 } from '@/lib/rodAssets';
+import {
+  getDefaultWalletCheckInSummary,
+  loadLocalWalletCheckInSummary,
+  normalizeWalletCheckInSummary,
+  verifyLocalWalletCheckInTransaction,
+} from '@/lib/walletCheckIn';
 import travelIconSrc from '@/assets/map_travel_icon_cutout.png';
 import {
   deleteGlobalLeaderboardEntry,
@@ -254,13 +260,14 @@ const FishingGame: React.FC = () => {
     setWalletCheckInLoading(true);
     try {
       const summary = await getWalletCheckInSummary();
-      setWalletCheckInSummary(summary);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not refresh wallet check-in.');
+      setWalletCheckInSummary(normalizeWalletCheckInSummary(summary, 'server'));
+    } catch {
+      const localSummary = loadLocalWalletCheckInSummary(address);
+      setWalletCheckInSummary(localSummary ?? getDefaultWalletCheckInSummary());
     } finally {
       setWalletCheckInLoading(false);
     }
-  }, [getWalletCheckInSummary, isVerified]);
+  }, [address, getWalletCheckInSummary, isVerified]);
 
   const saveCurrentLeaderboardEntry = useCallback((name: string, score: number, dishesDelta = 0) => {
     setLeaderboardEntries((entries) => {
@@ -542,6 +549,22 @@ const FishingGame: React.FC = () => {
   const handleClaimTask = async (taskId: TaskId) => {
     const task = DAILY_TASKS.find((item) => item.id === taskId) ?? SPECIAL_TASKS.find((item) => item.id === taskId);
 
+    if (isVerified && taskId === 'wallet_check_in' && walletCheckInSummary?.source === 'local') {
+      const claimed = gameProgress.claimTask(taskId, ({ coins = 0, bait = 0 }) => {
+        if (coins > 0) addCoins(coins);
+        if (bait > 0) addBait(bait);
+      });
+
+      if (!claimed) {
+        toast.error('Could not claim wallet streak reward.');
+        return;
+      }
+
+      sounds.playBuySound();
+      toast.success('Wallet streak reward claimed.');
+      return;
+    }
+
     if (isVerified) {
       try {
         const result = await claimTaskReward(taskId);
@@ -750,10 +773,46 @@ const FishingGame: React.FC = () => {
       throw new Error('Connect a verified wallet first.');
     }
 
-    const result = await verifyWalletCheckIn(txHash);
-    applyServerPlayerSnapshot(result.player);
-    setWalletCheckInSummary(result.walletCheckInSummary);
-    sounds.playBuySound();
+    try {
+      const result = await verifyWalletCheckIn(txHash);
+      applyServerPlayerSnapshot(result.player);
+      setWalletCheckInSummary(normalizeWalletCheckInSummary(result.walletCheckInSummary, 'server'));
+      sounds.playBuySound();
+      return;
+    } catch (serverError) {
+      try {
+        const localSummary = await verifyLocalWalletCheckInTransaction({
+          walletAddress: address!,
+          txHash,
+          receiverAddress: walletCheckInSummary?.receiverAddress,
+          amountMon: walletCheckInSummary?.amountMon,
+        });
+
+        const auditState = toPlayerAuditSnapshot(player);
+        logAuditEvent({
+          eventType: 'wallet_daily_check_in',
+          beforeState: auditState,
+          afterState: auditState,
+          metadata: {
+            txHash,
+            receiverAddress: localSummary.receiverAddress,
+            amountMon: localSummary.amountMon,
+            streakDays: localSummary.streakDays,
+            verificationSource: 'client_rpc_fallback',
+          },
+        });
+
+        setWalletCheckInSummary(localSummary);
+        sounds.playBuySound();
+        return;
+      } catch (localError) {
+        throw localError instanceof Error
+          ? localError
+          : serverError instanceof Error
+            ? serverError
+            : new Error('Could not verify wallet check-in.');
+      }
+    }
   };
 
   const isFishingScreen = activeTab === 'fish';
