@@ -45,6 +45,7 @@ It checks:
 - admin auth
 - withdraw queue summary
 - weekly payout preview
+- suspicious summary + suspicious players
 - player MON summary
 
 ## Full mutation smoke
@@ -69,6 +70,7 @@ It covers:
 - temporary admin role grant
 - admin auth
 - weekly payout preview
+- suspicious summary + suspicious players
 - server task claim
 - server cube roll + reward apply
 - server grill cook + dish sell

@@ -108,6 +108,12 @@ const cleanupWallet = async (walletAddress) => {
   }
 
   try {
+    await supabase.from('edge_rate_limits').delete().eq('subject_key', walletAddress);
+  } catch {
+    // ignore cleanup misses
+  }
+
+  try {
     await supabase.from('players').delete().eq('wallet_address', walletAddress);
   } catch {
     // ignore cleanup misses
@@ -241,6 +247,29 @@ try {
   });
   assert((socialList.verifications ?? []).some((entry) => entry.wallet_address === playerWalletAddress), 'Social verification not listed');
 
+  const { error: rateLimitSeedError } = await supabase.from('edge_rate_limits').insert({
+    action_key: 'player_actions.roll_cube',
+    subject_key: playerWalletAddress,
+    window_started_at: new Date().toISOString(),
+    hit_count: 12,
+  });
+  if (rateLimitSeedError) throw rateLimitSeedError;
+
+  const suspiciousSummary = await invoke('admin', {
+    action: 'get_suspicious_summary',
+    wallet_address: adminWalletAddress,
+    session_token: adminVerify.session_token,
+  });
+  assert(Number(suspiciousSummary.summary?.flagged_players ?? 0) >= 1, 'Suspicious summary did not report any flagged players');
+
+  const suspiciousPlayers = await invoke('admin', {
+    action: 'list_suspicious_players',
+    wallet_address: adminWalletAddress,
+    session_token: adminVerify.session_token,
+    limit: 20,
+  });
+  assert((suspiciousPlayers.players ?? []).some((entry) => entry.wallet_address === playerWalletAddress), 'Suspicious players list did not include seeded player');
+
   await invoke('admin', {
     action: 'grant_mon_reward',
     wallet_address: adminWalletAddress,
@@ -313,6 +342,7 @@ try {
     playerId,
     cubePrizeType: cubeRoll.roll.prize.type,
     weeklyPreviewCount: weeklyPreview.preview.length,
+    suspiciousFlaggedPlayers: suspiciousSummary.summary.flagged_players,
     withdrawRequestId: requestRow.id,
   }, null, 2));
 } finally {

@@ -3,6 +3,7 @@ import { useAccount } from 'wagmi';
 import { useNavigate } from 'react-router-dom';
 import {
   Activity,
+  AlertTriangle,
   ArrowLeft,
   ArrowUpRight,
   Eye,
@@ -21,6 +22,8 @@ import {
   type AdminPlayerDetails,
   type AdminPlayerActivityEntry,
   type AdminPlayerMessage,
+  type AdminSuspiciousPlayer,
+  type AdminSuspiciousSummary,
   type AdminSocialTaskVerification,
   type AdminStats,
   type AdminWeeklyPayoutBatch,
@@ -32,6 +35,7 @@ import {
 } from '@/hooks/useAdmin';
 import AdminPlayerDetailSheet from '@/components/AdminPlayerDetailSheet';
 import AdminPlayerMessageCenter from '@/components/AdminPlayerMessageCenter';
+import AdminSuspiciousCenter from '@/components/AdminSuspiciousCenter';
 import AdminSocialTaskCenter from '@/components/AdminSocialTaskCenter';
 import AdminWithdrawRequestCenter from '@/components/AdminWithdrawRequestCenter';
 import AdminWeeklyPayoutCenter from '@/components/AdminWeeklyPayoutCenter';
@@ -76,6 +80,8 @@ export default function Admin() {
     sendPlayerMessage,
     listWithdrawRequests,
     getAdminWithdrawSummary,
+    getSuspiciousSummary,
+    listSuspiciousPlayers,
     approveWithdrawRequest,
     rejectWithdrawRequest,
     markWithdrawPaid,
@@ -106,6 +112,8 @@ export default function Admin() {
   const [selectedPlayerMessages, setSelectedPlayerMessages] = useState<AdminPlayerMessage[]>([]);
   const [withdrawRequests, setWithdrawRequests] = useState<AdminWithdrawRequest[]>([]);
   const [withdrawSummary, setWithdrawSummary] = useState<AdminWithdrawSummary | null>(null);
+  const [suspiciousSummary, setSuspiciousSummary] = useState<AdminSuspiciousSummary | null>(null);
+  const [suspiciousPlayers, setSuspiciousPlayers] = useState<AdminSuspiciousPlayer[]>([]);
   const [withdrawFilter, setWithdrawFilter] = useState<WithdrawRequestStatus | 'all'>('pending');
   const [weeklyPreview, setWeeklyPreview] = useState<AdminWeeklyPayoutPreviewEntry[]>([]);
   const [weeklyPreviewWeekKey, setWeeklyPreviewWeekKey] = useState<string | null>(null);
@@ -118,6 +126,7 @@ export default function Admin() {
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [messageSending, setMessageSending] = useState(false);
   const [withdrawsLoading, setWithdrawsLoading] = useState(false);
+  const [suspiciousLoading, setSuspiciousLoading] = useState(false);
   const [processingWithdrawId, setProcessingWithdrawId] = useState<string | null>(null);
   const [weeklyLoading, setWeeklyLoading] = useState(false);
   const [weeklyApplying, setWeeklyApplying] = useState(false);
@@ -179,6 +188,22 @@ export default function Admin() {
       setWithdrawsLoading(false);
     }
   }, [listWithdrawRequests, toast, withdrawFilter]);
+
+  const fetchSuspiciousData = useCallback(async () => {
+    setSuspiciousLoading(true);
+    try {
+      const [summary, players] = await Promise.all([
+        getSuspiciousSummary(),
+        listSuspiciousPlayers(20),
+      ]);
+      setSuspiciousSummary(summary);
+      setSuspiciousPlayers(players);
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
+    } finally {
+      setSuspiciousLoading(false);
+    }
+  }, [getSuspiciousSummary, listSuspiciousPlayers, toast]);
 
   const fetchWeeklyData = useCallback(async () => {
     setWeeklyLoading(true);
@@ -263,6 +288,12 @@ export default function Admin() {
       void fetchWeeklyData();
     }
   }, [activeTab, fetchWeeklyData, isAdmin]);
+
+  useEffect(() => {
+    if (isAdmin && activeTab === 'overview') {
+      void fetchSuspiciousData();
+    }
+  }, [activeTab, fetchSuspiciousData, isAdmin]);
 
   useEffect(() => {
     if (isAdmin && activeTab === 'social') {
@@ -377,6 +408,18 @@ export default function Admin() {
       toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
     }
   }, [fetchWithdrawSummary, grantMonReward, toast]);
+
+  const handleInspectSuspiciousPlayer = useCallback((player: AdminSuspiciousPlayer) => {
+    const existingPlayer = players.find((entry) => entry.wallet_address === player.walletAddress);
+    if (existingPlayer) {
+      void loadSelectedPlayerContext(existingPlayer, true);
+      return;
+    }
+
+    setSearch(player.walletAddress);
+    setPage(1);
+    setActiveTab('players');
+  }, [loadSelectedPlayerContext, players]);
 
   const handleDelete = async (player: AdminPlayer) => {
     if (!confirm('Delete player?')) return;
@@ -615,6 +658,20 @@ export default function Admin() {
                   <AdminTopList title="Top by level" players={stats.topByLevel} field="level" />
                   <AdminTopList title="Top by coins" players={stats.topByCoins} field="coins" />
                   <AdminTopList title="Top by catches" players={stats.topByCatches} field="total_catches" />
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-yellow-300" />
+                    <h2 className="text-base font-semibold text-foreground">Security watch</h2>
+                  </div>
+                  <AdminSuspiciousCenter
+                    summary={suspiciousSummary}
+                    players={suspiciousPlayers}
+                    loading={suspiciousLoading}
+                    onRefresh={() => void fetchSuspiciousData()}
+                    onInspectPlayer={handleInspectSuspiciousPlayer}
+                  />
                 </div>
               </>
             )}

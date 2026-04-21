@@ -79,6 +79,29 @@ export interface AdminWithdrawSummary {
   pending_amount_mon: number;
 }
 
+export interface AdminSuspiciousSummary {
+  flaggedPlayers: number;
+  highCoinGainPlayers: number;
+  highBaitGainPlayers: number;
+  highCubeRewardPlayers: number;
+  withdrawSpamPlayers: number;
+  rateLimitedSubjects: number;
+  latestSignalAt: string | null;
+}
+
+export interface AdminSuspiciousPlayer {
+  playerId: string | null;
+  walletAddress: string;
+  nickname: string | null;
+  flags: string[];
+  coinGain24h: number;
+  baitGain24h: number;
+  cubeRewards24h: number;
+  withdrawRequests7d: number;
+  rateLimitHits1h: number;
+  latestSignalAt: string | null;
+}
+
 export interface AdminWeeklyPayoutPreviewEntry {
   rank: number;
   walletAddress: string;
@@ -174,6 +197,37 @@ interface AdminWithdrawSummaryResponse {
   summary: AdminWithdrawSummary;
 }
 
+interface AdminSuspiciousSummaryRow {
+  flagged_players: number;
+  high_coin_gain_players: number;
+  high_bait_gain_players: number;
+  high_cube_reward_players: number;
+  withdraw_spam_players: number;
+  rate_limited_subjects: number;
+  latest_signal_at: string | null;
+}
+
+interface AdminSuspiciousSummaryResponse {
+  summary: AdminSuspiciousSummaryRow;
+}
+
+interface AdminSuspiciousPlayerRow {
+  player_id: string | null;
+  wallet_address: string;
+  nickname: string | null;
+  flags: string[];
+  coin_gain_24h: number;
+  bait_gain_24h: number;
+  cube_rewards_24h: number;
+  withdraw_requests_7d: number;
+  rate_limit_hits_1h: number;
+  latest_signal_at: string | null;
+}
+
+interface AdminSuspiciousPlayersResponse {
+  players: AdminSuspiciousPlayerRow[];
+}
+
 interface AdminWeeklyPayoutPreviewRow {
   rank: number;
   wallet_address: string;
@@ -266,6 +320,29 @@ const mapSocialTaskVerification = (verification: AdminSocialTaskVerificationRow)
   verifiedByWallet: verification.verified_by_wallet,
   createdAt: verification.created_at,
   updatedAt: verification.updated_at,
+});
+
+const mapSuspiciousSummary = (summary: AdminSuspiciousSummaryRow): AdminSuspiciousSummary => ({
+  flaggedPlayers: summary.flagged_players,
+  highCoinGainPlayers: summary.high_coin_gain_players,
+  highBaitGainPlayers: summary.high_bait_gain_players,
+  highCubeRewardPlayers: summary.high_cube_reward_players,
+  withdrawSpamPlayers: summary.withdraw_spam_players,
+  rateLimitedSubjects: summary.rate_limited_subjects,
+  latestSignalAt: summary.latest_signal_at,
+});
+
+const mapSuspiciousPlayer = (player: AdminSuspiciousPlayerRow): AdminSuspiciousPlayer => ({
+  playerId: player.player_id,
+  walletAddress: player.wallet_address,
+  nickname: player.nickname,
+  flags: player.flags ?? [],
+  coinGain24h: player.coin_gain_24h,
+  baitGain24h: player.bait_gain_24h,
+  cubeRewards24h: player.cube_rewards_24h,
+  withdrawRequests7d: player.withdraw_requests_7d,
+  rateLimitHits1h: player.rate_limit_hits_1h,
+  latestSignalAt: player.latest_signal_at,
 });
 
 export function useAdmin(walletAddress: string | undefined) {
@@ -387,6 +464,16 @@ export function useAdmin(walletAddress: string | undefined) {
     return data.summary;
   }, [callAdmin]);
 
+  const getSuspiciousSummary = useCallback(async () => {
+    const data = await callAdmin<AdminSuspiciousSummaryResponse>('get_suspicious_summary');
+    return mapSuspiciousSummary(data.summary);
+  }, [callAdmin]);
+
+  const listSuspiciousPlayers = useCallback(async (limit = 20) => {
+    const data = await callAdmin<AdminSuspiciousPlayersResponse>('list_suspicious_players', { limit });
+    return (data.players ?? []).map(mapSuspiciousPlayer);
+  }, [callAdmin]);
+
   const approveWithdrawRequest = useCallback(async (requestId: string) => {
     const data = await callAdmin<{ request: AdminWithdrawRequestRow }>('approve_withdraw_request', {
       request_id: requestId,
@@ -498,6 +585,8 @@ export function useAdmin(walletAddress: string | undefined) {
     sendPlayerMessage,
     listWithdrawRequests,
     getAdminWithdrawSummary,
+    getSuspiciousSummary,
+    listSuspiciousPlayers,
     approveWithdrawRequest,
     rejectWithdrawRequest,
     markWithdrawPaid,

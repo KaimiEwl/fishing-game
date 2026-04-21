@@ -85,6 +85,67 @@ type WithdrawRequestRow = {
   admin_note: string | null;
 };
 
+type RecentAuditSignalRow = {
+  wallet_address: string;
+  event_type: string;
+  delta_state: Record<string, unknown> | null;
+  created_at: string;
+};
+
+type RecentWithdrawSignalRow = {
+  wallet_address: string;
+  requested_at: string;
+};
+
+type EdgeRateLimitRow = {
+  action_key: string;
+  subject_key: string;
+  hit_count: number;
+  updated_at: string;
+};
+
+type SuspiciousSummary = {
+  flagged_players: number;
+  high_coin_gain_players: number;
+  high_bait_gain_players: number;
+  high_cube_reward_players: number;
+  withdraw_spam_players: number;
+  rate_limited_subjects: number;
+  latest_signal_at: string | null;
+};
+
+type SuspiciousPlayerRow = {
+  player_id: string | null;
+  wallet_address: string;
+  nickname: string | null;
+  flags: string[];
+  coin_gain_24h: number;
+  bait_gain_24h: number;
+  cube_rewards_24h: number;
+  withdraw_requests_7d: number;
+  rate_limit_hits_1h: number;
+  latest_signal_at: string | null;
+};
+
+type SuspiciousSignalMetrics = {
+  walletAddress: string;
+  playerId: string | null;
+  nickname: string | null;
+  coinGain24h: number;
+  baitGain24h: number;
+  cubeRewards24h: number;
+  withdrawRequests7d: number;
+  rateLimitHits1h: number;
+  latestSignalAt: string | null;
+};
+
+const SUSPICIOUS_COIN_GAIN_THRESHOLD = 20000;
+const SUSPICIOUS_BAIT_GAIN_THRESHOLD = 60;
+const SUSPICIOUS_CUBE_REWARD_THRESHOLD = 4;
+const SUSPICIOUS_WITHDRAW_REQUEST_THRESHOLD = 3;
+const SUSPICIOUS_RATE_LIMIT_HIT_THRESHOLD = 10;
+const CUBE_REWARD_EVENT_TYPES = new Set(["cube_coin_reward", "cube_fish_reward", "cube_mon_reward"]);
+
 const jsonResponse = (payload: unknown, status = 200) =>
   new Response(JSON.stringify(payload), { status, headers: jsonHeaders });
 
@@ -95,6 +156,15 @@ const normalizeText = (value: unknown) => typeof value === "string" ? value.trim
 const toPositiveInt = (value: unknown, fallback: number, max: number) => {
   if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
   return Math.min(Math.max(Math.floor(value), 1), max);
+};
+
+const toSafeNumber = (value: unknown) => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return 0;
 };
 
 const buildInventorySummary = (inventory: unknown): InventorySummaryEntry[] => {
@@ -116,16 +186,24 @@ const buildInventorySummary = (inventory: unknown): InventorySummaryEntry[] => {
 
 const buildSuspiciousFlags = (activityRows: AuditLogRow[]) => {
   let coinGain = 0;
+  let baitGain = 0;
   let cubeRewardCount = 0;
   let purchaseVerifyCount = 0;
 
   for (const row of activityRows) {
-    const deltaCoins = row.delta_state?.coins;
-    if (typeof deltaCoins === "number" && deltaCoins > 0) {
+    const deltaCoins = toSafeNumber(row.delta_state?.coins);
+    const deltaBait = Math.max(0, toSafeNumber(row.delta_state?.bait))
+      + Math.max(0, toSafeNumber(row.delta_state?.daily_free_bait));
+
+    if (deltaCoins > 0) {
       coinGain += deltaCoins;
     }
 
-    if (row.event_type === "cube_coin_reward" || row.event_type === "cube_fish_reward") {
+    if (deltaBait > 0) {
+      baitGain += deltaBait;
+    }
+
+    if (CUBE_REWARD_EVENT_TYPES.has(row.event_type)) {
       cubeRewardCount += 1;
     }
 
@@ -135,8 +213,9 @@ const buildSuspiciousFlags = (activityRows: AuditLogRow[]) => {
   }
 
   const flags: string[] = [];
-  if (coinGain >= 20000) flags.push("Unusually high coin gain");
-  if (cubeRewardCount >= 4) flags.push("Frequent cube rewards");
+  if (coinGain >= SUSPICIOUS_COIN_GAIN_THRESHOLD) flags.push("Unusually high coin gain");
+  if (baitGain >= SUSPICIOUS_BAIT_GAIN_THRESHOLD) flags.push("Unusually high bait gain");
+  if (cubeRewardCount >= SUSPICIOUS_CUBE_REWARD_THRESHOLD) flags.push("Frequent cube rewards");
   if (purchaseVerifyCount >= 3) flags.push("Repeated purchase verifications");
   return flags;
 };
@@ -160,6 +239,209 @@ const mapWithdrawRequestRow = (
   amount_mon: toMonAmount(request.amount_mon),
   player_nickname: playerNameById.get(request.player_id) ?? null,
 });
+
+const isWalletAddress = (value: string) => /^0x[a-f0-9]{40}$/i.test(value);
+
+const getLaterIso = (left: string | null, right: string | null) => {
+  if (!left) return right;
+  if (!right) return left;
+  return new Date(left).getTime() >= new Date(right).getTime() ? left : right;
+};
+
+const createSuspiciousMetrics = (walletAddress: string): SuspiciousSignalMetrics => ({
+  walletAddress,
+  playerId: null,
+  nickname: null,
+  coinGain24h: 0,
+  baitGain24h: 0,
+  cubeRewards24h: 0,
+  withdrawRequests7d: 0,
+  rateLimitHits1h: 0,
+  latestSignalAt: null,
+});
+
+const buildSuspiciousInsights = async (
+  supabase: ReturnType<typeof createClient>,
+  limit: number,
+): Promise<{ summary: SuspiciousSummary; players: SuspiciousPlayerRow[] }> => {
+  const auditSinceIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const withdrawSinceIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const rateLimitSinceIso = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+  const [auditResult, withdrawResult, rateLimitResult] = await Promise.all([
+    supabase
+      .from("player_audit_logs")
+      .select("wallet_address, event_type, delta_state, created_at")
+      .gte("created_at", auditSinceIso)
+      .order("created_at", { ascending: false })
+      .limit(5000),
+    supabase
+      .from("mon_withdraw_requests")
+      .select("wallet_address, requested_at")
+      .gte("requested_at", withdrawSinceIso)
+      .order("requested_at", { ascending: false })
+      .limit(1000),
+    supabase
+      .from("edge_rate_limits")
+      .select("action_key, subject_key, hit_count, updated_at")
+      .gte("updated_at", rateLimitSinceIso)
+      .order("updated_at", { ascending: false })
+      .limit(2000),
+  ]);
+
+  if (auditResult.error) throw auditResult.error;
+  if (withdrawResult.error) throw withdrawResult.error;
+  if (rateLimitResult.error) throw rateLimitResult.error;
+
+  const metricsByWallet = new Map<string, SuspiciousSignalMetrics>();
+  const getMetrics = (walletAddress: string) => {
+    const normalizedWallet = walletAddress.toLowerCase();
+    const existing = metricsByWallet.get(normalizedWallet);
+    if (existing) return existing;
+    const created = createSuspiciousMetrics(normalizedWallet);
+    metricsByWallet.set(normalizedWallet, created);
+    return created;
+  };
+
+  for (const row of (auditResult.data ?? []) as RecentAuditSignalRow[]) {
+    const metrics = getMetrics(row.wallet_address);
+    const deltaCoins = Math.max(0, toSafeNumber(row.delta_state?.coins));
+    const deltaBait = Math.max(0, toSafeNumber(row.delta_state?.bait))
+      + Math.max(0, toSafeNumber(row.delta_state?.daily_free_bait));
+
+    metrics.coinGain24h += deltaCoins;
+    metrics.baitGain24h += deltaBait;
+
+    if (CUBE_REWARD_EVENT_TYPES.has(row.event_type)) {
+      metrics.cubeRewards24h += 1;
+    }
+
+    metrics.latestSignalAt = getLaterIso(metrics.latestSignalAt, row.created_at);
+  }
+
+  for (const row of (withdrawResult.data ?? []) as RecentWithdrawSignalRow[]) {
+    const metrics = getMetrics(row.wallet_address);
+    metrics.withdrawRequests7d += 1;
+    metrics.latestSignalAt = getLaterIso(metrics.latestSignalAt, row.requested_at);
+  }
+
+  for (const row of (rateLimitResult.data ?? []) as EdgeRateLimitRow[]) {
+    if (!isWalletAddress(row.subject_key)) continue;
+
+    const metrics = getMetrics(row.subject_key);
+    metrics.rateLimitHits1h += Math.max(0, toSafeNumber(row.hit_count));
+    metrics.latestSignalAt = getLaterIso(metrics.latestSignalAt, row.updated_at);
+  }
+
+  const wallets = Array.from(metricsByWallet.keys());
+  if (wallets.length === 0) {
+    return {
+      summary: {
+        flagged_players: 0,
+        high_coin_gain_players: 0,
+        high_bait_gain_players: 0,
+        high_cube_reward_players: 0,
+        withdraw_spam_players: 0,
+        rate_limited_subjects: 0,
+        latest_signal_at: null,
+      },
+      players: [],
+    };
+  }
+
+  const { data: players, error: playersError } = await supabase
+    .from("players")
+    .select("id, wallet_address, nickname")
+    .in("wallet_address", wallets);
+  if (playersError) throw playersError;
+
+  for (const player of players ?? []) {
+    const metrics = metricsByWallet.get(player.wallet_address.toLowerCase());
+    if (!metrics) continue;
+    metrics.playerId = player.id;
+    metrics.nickname = player.nickname ?? null;
+  }
+
+  let highCoinGainPlayers = 0;
+  let highBaitGainPlayers = 0;
+  let highCubeRewardPlayers = 0;
+  let withdrawSpamPlayers = 0;
+  let rateLimitedSubjects = 0;
+  let latestSignalAt: string | null = null;
+
+  const allSuspiciousPlayers = Array.from(metricsByWallet.values())
+    .map((metrics) => {
+      const flags: string[] = [];
+      if (metrics.coinGain24h >= SUSPICIOUS_COIN_GAIN_THRESHOLD) {
+        flags.push("High coin gain");
+        highCoinGainPlayers += 1;
+      }
+      if (metrics.baitGain24h >= SUSPICIOUS_BAIT_GAIN_THRESHOLD) {
+        flags.push("High bait gain");
+        highBaitGainPlayers += 1;
+      }
+      if (metrics.cubeRewards24h >= SUSPICIOUS_CUBE_REWARD_THRESHOLD) {
+        flags.push("Frequent cube rewards");
+        highCubeRewardPlayers += 1;
+      }
+      if (metrics.withdrawRequests7d >= SUSPICIOUS_WITHDRAW_REQUEST_THRESHOLD) {
+        flags.push("Repeated withdraw requests");
+        withdrawSpamPlayers += 1;
+      }
+      if (metrics.rateLimitHits1h >= SUSPICIOUS_RATE_LIMIT_HIT_THRESHOLD) {
+        flags.push("Rate-limit pressure");
+        rateLimitedSubjects += 1;
+      }
+
+      if (flags.length > 0) {
+        latestSignalAt = getLaterIso(latestSignalAt, metrics.latestSignalAt);
+      }
+
+      return {
+        player_id: metrics.playerId,
+        wallet_address: metrics.walletAddress,
+        nickname: metrics.nickname,
+        flags,
+        coin_gain_24h: metrics.coinGain24h,
+        bait_gain_24h: metrics.baitGain24h,
+        cube_rewards_24h: metrics.cubeRewards24h,
+        withdraw_requests_7d: metrics.withdrawRequests7d,
+        rate_limit_hits_1h: metrics.rateLimitHits1h,
+        latest_signal_at: metrics.latestSignalAt,
+      } satisfies SuspiciousPlayerRow;
+    })
+    .filter((player) => player.flags.length > 0)
+    .sort((left, right) => {
+      if (right.flags.length !== left.flags.length) {
+        return right.flags.length - left.flags.length;
+      }
+
+      if (right.rate_limit_hits_1h !== left.rate_limit_hits_1h) {
+        return right.rate_limit_hits_1h - left.rate_limit_hits_1h;
+      }
+
+      if (right.coin_gain_24h !== left.coin_gain_24h) {
+        return right.coin_gain_24h - left.coin_gain_24h;
+      }
+
+      return new Date(right.latest_signal_at ?? 0).getTime() - new Date(left.latest_signal_at ?? 0).getTime();
+    });
+
+  const suspiciousPlayers = allSuspiciousPlayers.slice(0, limit);
+
+  return {
+    summary: {
+      flagged_players: allSuspiciousPlayers.length,
+      high_coin_gain_players: highCoinGainPlayers,
+      high_bait_gain_players: highBaitGainPlayers,
+      high_cube_reward_players: highCubeRewardPlayers,
+      withdraw_spam_players: withdrawSpamPlayers,
+      rate_limited_subjects: rateLimitedSubjects,
+      latest_signal_at: latestSignalAt,
+    },
+    players: suspiciousPlayers,
+  };
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -298,6 +580,17 @@ serve(async (req) => {
         if (error) throw error;
 
         return jsonResponse({ activity: data ?? [] });
+      }
+
+      case "get_suspicious_summary": {
+        const insights = await buildSuspiciousInsights(supabase, 20);
+        return jsonResponse({ summary: insights.summary });
+      }
+
+      case "list_suspicious_players": {
+        const limit = toPositiveInt(body.limit, 20, 100);
+        const insights = await buildSuspiciousInsights(supabase, limit);
+        return jsonResponse({ players: insights.players });
       }
 
       case "list_player_messages": {
