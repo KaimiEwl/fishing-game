@@ -1,5 +1,11 @@
 # STATUS
 
+## VPS deployment contour
+- Added a dedicated VPS deploy pack for `vm3661` so Hook & Loot can move off GitHub Pages without touching the existing `n8n` / `tailscale` runtime on that server.
+- The repo now includes an isolated Docker web contour under `deploy/vps/`: one `nginx` container (`hookloot-web`) bound only to `127.0.0.1:18181`, SPA routing config, ingress templates for `hookloot.xyz` / `www.hookloot.xyz`, and a release-based deploy flow rooted at `/opt/hookloot`.
+- Added server-side bootstrap/deploy scripts for a bare-repo push model: `/opt/hookloot/repo.git` receives `main`, a `post-receive` hook creates a timestamped release, builds with `node:20` in Docker, atomically switches `/opt/hookloot/current`, restarts only the game container, runs smoke checks, and prunes old releases.
+- Added local helpers `npm run vps:install`, `npm run vps:add-remote`, `npm run vps:sync-env`, and `npm run vps:mirror-origin` plus `docs/vps-deploy.md` so this machine can bootstrap the VPS, sync the public production env, and mirror `git push origin main` into the VPS bare repo for immediate site updates after each normal push.
+
 ## Wallet streak special task
 - `Special -> Wallet streak check-in` is now a separate wallet-linked task instead of reusing the ordinary `Daily check-in`.
 - The flow now expects one verified micro-transaction (`0.0001 MON`) to the configured receiver address, then verifies it against Monad RPC through the existing backend action layer before marking today's special task ready.

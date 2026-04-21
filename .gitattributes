@@ -1,0 +1,5 @@
+*.sh text eol=lf
+deploy/vps/server/post-receive text eol=lf
+deploy/vps/nginx/*.conf text eol=lf
+deploy/vps/ingress/*.conf text eol=lf
+deploy/vps/ingress/*.caddy text eol=lf

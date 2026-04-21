@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="/opt/hookloot"
+DEPLOY_SCRIPT="${ROOT_DIR}/bin/deploy-hookloot.sh"
+
+while read -r oldrev newrev refname; do
+  if [[ "${refname}" != "refs/heads/main" ]]; then
+    continue
+  fi
+
+  "${DEPLOY_SCRIPT}" "${newrev}"
+done

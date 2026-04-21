@@ -1,0 +1,26 @@
+services:
+  hookloot-web:
+    image: nginx:1.27-alpine
+    container_name: hookloot-web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${HOOKLOOT_BIND_PORT:-18181}:80"
+    volumes:
+      - /opt/hookloot/current/dist:/usr/share/nginx/html:ro
+      - /opt/hookloot/current/deploy/vps/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    networks:
+      - hookloot_net
+
+networks:
+  hookloot_net:
+    name: hookloot_net

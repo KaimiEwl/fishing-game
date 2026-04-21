@@ -65,6 +65,15 @@ Notes:
 - Trigger: push to `main`
 - CI injects `VITE_BASE_PATH=/<repo-name>/` and publishes `dist/` to GitHub Pages
 
+## VPS deployment
+
+- New VPS deploy assets now live under `deploy/vps/`
+- Step-by-step guide:
+  - `docs/vps-deploy.md`
+- Local helpers:
+  - `npm run vps:install`
+  - `npm run vps:add-remote`
+
 ## Customer handoff note
 
 For customer delivery, include the deployed GitHub Pages URL and the backup zip created before release work.

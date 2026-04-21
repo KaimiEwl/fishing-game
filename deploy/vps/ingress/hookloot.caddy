@@ -1,0 +1,8 @@
+hookloot.xyz {
+  redir https://www.hookloot.xyz{uri} permanent
+}
+
+www.hookloot.xyz {
+  encode gzip zstd
+  reverse_proxy 127.0.0.1:18181
+}
