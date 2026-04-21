@@ -36,6 +36,11 @@ type InventorySummaryEntry = {
   quantity: number;
 };
 
+type AdminRoleRow = {
+  wallet_address: string;
+  role: string;
+};
+
 type AuditLogRow = {
   id: string;
   event_type: string;
@@ -223,6 +228,28 @@ const buildSuspiciousFlags = (activityRows: AuditLogRow[]) => {
 const normalizeNullableText = (value: unknown, maxLength: number) => {
   const normalized = normalizeText(value);
   return normalized ? normalized.slice(0, maxLength) : null;
+};
+
+const getPlayerAuditCatchCounts = async (
+  supabase: ReturnType<typeof createClient>,
+  players: Array<{ wallet_address: string; total_catches: number }>,
+) => {
+  const auditCountByWallet = new Map<string, number>();
+  const zeroCatchPlayers = players.filter((player) => player.total_catches <= 0);
+
+  await Promise.all(zeroCatchPlayers.map(async (player) => {
+    const normalizedWallet = player.wallet_address.toLowerCase();
+    const { count, error } = await supabase
+      .from("player_audit_logs")
+      .select("id", { count: "exact", head: true })
+      .eq("wallet_address", normalizedWallet)
+      .eq("event_type", "fish_caught");
+
+    if (error) throw error;
+    auditCountByWallet.set(normalizedWallet, count ?? 0);
+  }));
+
+  return auditCountByWallet;
 };
 
 const isWithdrawRequestStatus = (value: string): value is WithdrawRequestStatus =>
@@ -503,7 +530,51 @@ serve(async (req) => {
           .range(offset, offset + limit - 1);
 
         if (error) throw error;
-        return jsonResponse({ players: data ?? [], total: count ?? 0 });
+
+        const players = data ?? [];
+        const walletAddresses = players.map((player) => player.wallet_address.toLowerCase());
+
+        const [adminRolesResult, auditCatchCountByWallet] = await Promise.all([
+          walletAddresses.length > 0
+            ? supabase
+              .from("admin_roles")
+              .select("wallet_address, role")
+              .in("wallet_address", walletAddresses)
+            : Promise.resolve({ data: [] as AdminRoleRow[], error: null }),
+          getPlayerAuditCatchCounts(supabase, players),
+        ]);
+
+        if (adminRolesResult.error) throw adminRolesResult.error;
+
+        const adminRoleByWallet = new Map<string, string>(
+          (adminRolesResult.data ?? []).map((entry) => [entry.wallet_address.toLowerCase(), entry.role]),
+        );
+
+        const playersWithMeta = players.map((player) => {
+          const normalizedWallet = player.wallet_address.toLowerCase();
+          const storedCatchCount = player.total_catches ?? 0;
+          const auditCatchCount = auditCatchCountByWallet.get(normalizedWallet) ?? 0;
+          const displayCatchCount = Math.max(storedCatchCount, auditCatchCount);
+          const adminRole = adminRoleByWallet.get(normalizedWallet) ?? null;
+
+          return {
+            ...player,
+            is_admin: adminRole !== null,
+            admin_role: adminRole,
+            display_total_catches: displayCatchCount,
+            catches_source: displayCatchCount > storedCatchCount ? "audit_fallback" : "player",
+          };
+        });
+
+        if (sortBy === "total_catches") {
+          playersWithMeta.sort((left, right) => {
+            const leftValue = left.display_total_catches ?? left.total_catches ?? 0;
+            const rightValue = right.display_total_catches ?? right.total_catches ?? 0;
+            return sortDir ? leftValue - rightValue : rightValue - leftValue;
+          });
+        }
+
+        return jsonResponse({ players: playersWithMeta, total: count ?? 0 });
       }
 
       case "get_player": {

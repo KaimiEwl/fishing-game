@@ -7,7 +7,12 @@ import { getStoredWalletSession } from '@/lib/walletSession';
 
 const ADMIN_INVOKE_TIMEOUT_MS = 12000;
 
-export type AdminPlayer = Tables<'players'>;
+export type AdminPlayer = Tables<'players'> & {
+  is_admin?: boolean;
+  admin_role?: string | null;
+  display_total_catches?: number;
+  catches_source?: 'player' | 'audit_fallback';
+};
 export type AdminPlayerMessage = Tables<'player_messages'>;
 
 export interface AdminPlayerListResponse {

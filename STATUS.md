@@ -1,5 +1,10 @@
 # STATUS
 
+## Admin player list accuracy
+- `/admin -> Players` now marks wallets with admin access using an `Admin` / `Superadmin` badge in the nickname column instead of leaving them visually indistinguishable from regular players.
+- `Catches` in the admin player list now falls back to counted `fish_caught` audit events when `players.total_catches` is still `0`, so the table no longer shows false zeroes for players whose progress sync lagged behind their live catch history.
+- The fallback is additive only: stored `players.total_catches` still wins whenever it is already greater than or equal to the audit-derived count.
+
 ## UI architecture refactor
 - UI refactor backup created before the component cleanup:
   - `C:\Video Test\N8N_API_ACTIVE_BUSINESSSTORIES_2026-02-17\FISHING GAME\backup_bright-greet-forge-main_ui_refactor_20260418_070746.zip`

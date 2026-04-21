@@ -39,6 +39,7 @@ import AdminSuspiciousCenter from '@/components/AdminSuspiciousCenter';
 import AdminSocialTaskCenter from '@/components/AdminSocialTaskCenter';
 import AdminWithdrawRequestCenter from '@/components/AdminWithdrawRequestCenter';
 import AdminWeeklyPayoutCenter from '@/components/AdminWeeklyPayoutCenter';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -66,6 +67,8 @@ type EditablePlayerForm = Pick<
 };
 
 const formatWallet = (value: string) => `${value.slice(0, 6)}...${value.slice(-4)}`;
+
+const getDisplayCatchCount = (player: AdminPlayer) => player.display_total_catches ?? player.total_catches;
 
 export default function Admin() {
   const { address } = useAccount();
@@ -737,7 +740,17 @@ export default function Admin() {
                     {players.map((player) => (
                       <TableRow key={player.id} className={cn(selectedPlayer?.id === player.id && 'bg-primary/5')}>
                         <TableCell className="text-sm font-medium">
-                          {player.nickname || <span className="italic text-muted-foreground">-</span>}
+                          <div className="flex items-center gap-2">
+                            {player.nickname || <span className="italic text-muted-foreground">-</span>}
+                            {player.is_admin && (
+                              <Badge
+                                variant="secondary"
+                                className="border border-amber-500/40 bg-amber-500/15 text-[10px] uppercase tracking-[0.18em] text-amber-700"
+                              >
+                                {player.admin_role === 'superadmin' ? 'Superadmin' : 'Admin'}
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="font-mono text-xs">
                           {player.wallet_address.slice(0, 6)}...{player.wallet_address.slice(-4)}
@@ -745,7 +758,18 @@ export default function Admin() {
                         <TableCell>{player.level}</TableCell>
                         <TableCell>{player.coins.toLocaleString()}</TableCell>
                         <TableCell>{(player.bait + player.daily_free_bait).toLocaleString()}</TableCell>
-                        <TableCell>{player.total_catches}</TableCell>
+                        <TableCell>
+                          <span
+                            className={cn(
+                              player.catches_source === 'audit_fallback' && 'font-medium text-amber-700',
+                            )}
+                            title={player.catches_source === 'audit_fallback'
+                              ? 'Displayed from audit logs because saved catches have not synced yet.'
+                              : undefined}
+                          >
+                            {getDisplayCatchCount(player).toLocaleString()}
+                          </span>
+                        </TableCell>
                         <TableCell>{ROD_NAMES[player.rod_level] || player.rod_level}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">
                           {new Date(player.created_at).toLocaleDateString()}
