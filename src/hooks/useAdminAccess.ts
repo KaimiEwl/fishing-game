@@ -2,16 +2,20 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { getStoredWalletSession } from '@/lib/walletSession';
 
-interface AdminCheckResponse {
-  is_admin: boolean;
+interface AdminWithdrawSummaryResponse {
+  summary: {
+    pending_count: number;
+  };
 }
 
 export function useAdminAccess(walletAddress: string | undefined, enabled: boolean) {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [pendingWithdrawCount, setPendingWithdrawCount] = useState(0);
 
   useEffect(() => {
     if (!enabled || !walletAddress) {
       setIsAdmin(null);
+      setPendingWithdrawCount(0);
       return;
     }
 
@@ -27,7 +31,7 @@ export function useAdminAccess(walletAddress: string | undefined, enabled: boole
 
         const { data, error } = await supabase.functions.invoke('admin', {
           body: {
-            action: 'check_admin',
+            action: 'get_admin_withdraw_summary',
             wallet_address: walletAddress.toLowerCase(),
             session_token: session.token,
           },
@@ -38,21 +42,45 @@ export function useAdminAccess(walletAddress: string | undefined, enabled: boole
         }
 
         if (!cancelled) {
-          setIsAdmin((data as AdminCheckResponse).is_admin === true);
+          setIsAdmin(true);
+          setPendingWithdrawCount((data as AdminWithdrawSummaryResponse).summary?.pending_count ?? 0);
         }
       } catch {
         if (!cancelled) {
           setIsAdmin(false);
+          setPendingWithdrawCount(0);
         }
       }
     };
 
     void checkAdminAccess();
 
+    const handleWindowFocus = () => {
+      void checkAdminAccess();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void checkAdminAccess();
+      }
+    };
+
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void checkAdminAccess();
+      }
+    }, 30000);
+
+    window.addEventListener('focus', handleWindowFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       cancelled = true;
+      window.clearInterval(interval);
+      window.removeEventListener('focus', handleWindowFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [enabled, walletAddress]);
 
-  return isAdmin;
+  return { isAdmin, pendingWithdrawCount };
 }

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifySessionToken } from "../_shared/session.ts";
+import { toMonAmount } from "../_shared/monRewards.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -40,6 +41,21 @@ type AuditLogRow = {
   delta_state: Record<string, unknown>;
   metadata: Record<string, unknown>;
   created_at: string;
+};
+
+type WithdrawRequestStatus = "pending" | "approved" | "rejected" | "paid";
+
+type WithdrawRequestRow = {
+  id: string;
+  player_id: string;
+  wallet_address: string;
+  amount_mon: string | number | null;
+  status: WithdrawRequestStatus;
+  requested_at: string;
+  processed_at: string | null;
+  payout_tx_hash: string | null;
+  processed_by_wallet: string | null;
+  admin_note: string | null;
 };
 
 const jsonResponse = (payload: unknown, status = 200) =>
@@ -97,6 +113,23 @@ const buildSuspiciousFlags = (activityRows: AuditLogRow[]) => {
   if (purchaseVerifyCount >= 3) flags.push("Repeated purchase verifications");
   return flags;
 };
+
+const normalizeNullableText = (value: unknown, maxLength: number) => {
+  const normalized = normalizeText(value);
+  return normalized ? normalized.slice(0, maxLength) : null;
+};
+
+const isWithdrawRequestStatus = (value: string): value is WithdrawRequestStatus =>
+  ["pending", "approved", "rejected", "paid"].includes(value);
+
+const mapWithdrawRequestRow = (
+  request: WithdrawRequestRow,
+  playerNameById: Map<string, string | null>,
+) => ({
+  ...request,
+  amount_mon: toMonAmount(request.amount_mon),
+  player_nickname: playerNameById.get(request.player_id) ?? null,
+});
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -244,6 +277,176 @@ serve(async (req) => {
         if (error) throw error;
 
         return jsonResponse({ messages: data ?? [] });
+      }
+
+      case "list_withdraw_requests": {
+        const limit = toPositiveInt(body.limit, 50, 200);
+        const status = normalizeText(body.status).toLowerCase();
+
+        let query = supabase
+          .from("mon_withdraw_requests")
+          .select("id, player_id, wallet_address, amount_mon, status, requested_at, processed_at, payout_tx_hash, processed_by_wallet, admin_note")
+          .order("requested_at", { ascending: false })
+          .limit(limit);
+
+        if (isWithdrawRequestStatus(status)) {
+          query = query.eq("status", status);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        const requests = (data ?? []) as WithdrawRequestRow[];
+        const playerIds = Array.from(new Set(requests.map((request) => request.player_id)));
+        const playerNameById = new Map<string, string | null>();
+
+        if (playerIds.length > 0) {
+          const { data: players, error: playersError } = await supabase
+            .from("players")
+            .select("id, nickname")
+            .in("id", playerIds);
+          if (playersError) throw playersError;
+
+          for (const player of players ?? []) {
+            playerNameById.set(player.id, player.nickname ?? null);
+          }
+        }
+
+        return jsonResponse({
+          requests: requests.map((request) => mapWithdrawRequestRow(request, playerNameById)),
+        });
+      }
+
+      case "get_admin_withdraw_summary": {
+        const { data, error } = await supabase
+          .from("mon_withdraw_requests")
+          .select("amount_mon, status");
+        if (error) throw error;
+
+        const rows = (data ?? []) as Array<{ amount_mon: string | number | null; status: WithdrawRequestStatus }>;
+        const summary = rows.reduce((acc, row) => {
+          const amount = toMonAmount(row.amount_mon);
+          if (row.status === "pending") {
+            acc.pending_count += 1;
+            acc.pending_amount_mon += amount;
+          } else if (row.status === "approved") {
+            acc.approved_count += 1;
+          } else if (row.status === "rejected") {
+            acc.rejected_count += 1;
+          } else if (row.status === "paid") {
+            acc.paid_count += 1;
+          }
+          return acc;
+        }, {
+          pending_count: 0,
+          approved_count: 0,
+          rejected_count: 0,
+          paid_count: 0,
+          pending_amount_mon: 0,
+        });
+
+        return jsonResponse({
+          summary: {
+            ...summary,
+            pending_amount_mon: toMonAmount(summary.pending_amount_mon),
+          },
+        });
+      }
+
+      case "approve_withdraw_request": {
+        const requestId = normalizeText(body.request_id);
+        const adminNote = normalizeNullableText(body.admin_note, 1000);
+        if (!requestId) return badRequest("Missing withdraw request");
+
+        const { data: request, error: requestError } = await supabase
+          .from("mon_withdraw_requests")
+          .select("id, status")
+          .eq("id", requestId)
+          .single();
+        if (requestError) throw requestError;
+        if (request.status !== "pending") {
+          return badRequest("Only pending requests can be approved");
+        }
+
+        const { data, error } = await supabase
+          .from("mon_withdraw_requests")
+          .update({
+            status: "approved",
+            processed_at: new Date().toISOString(),
+            processed_by_wallet: walletAddress,
+            admin_note: adminNote,
+          })
+          .eq("id", requestId)
+          .select("id, player_id, wallet_address, amount_mon, status, requested_at, processed_at, payout_tx_hash, processed_by_wallet, admin_note")
+          .single();
+        if (error) throw error;
+
+        return jsonResponse({ request: { ...data, amount_mon: toMonAmount(data.amount_mon) } });
+      }
+
+      case "reject_withdraw_request": {
+        const requestId = normalizeText(body.request_id);
+        const adminNote = normalizeNullableText(body.admin_note, 1000);
+        if (!requestId) return badRequest("Missing withdraw request");
+
+        const { data: request, error: requestError } = await supabase
+          .from("mon_withdraw_requests")
+          .select("id, status")
+          .eq("id", requestId)
+          .single();
+        if (requestError) throw requestError;
+        if (!["pending", "approved"].includes(request.status)) {
+          return badRequest("Only pending or approved requests can be rejected");
+        }
+
+        const { data, error } = await supabase
+          .from("mon_withdraw_requests")
+          .update({
+            status: "rejected",
+            processed_at: new Date().toISOString(),
+            processed_by_wallet: walletAddress,
+            admin_note: adminNote,
+          })
+          .eq("id", requestId)
+          .select("id, player_id, wallet_address, amount_mon, status, requested_at, processed_at, payout_tx_hash, processed_by_wallet, admin_note")
+          .single();
+        if (error) throw error;
+
+        return jsonResponse({ request: { ...data, amount_mon: toMonAmount(data.amount_mon) } });
+      }
+
+      case "mark_withdraw_paid": {
+        const requestId = normalizeText(body.request_id);
+        const payoutTxHash = normalizeText(body.payout_tx_hash);
+        const adminNote = normalizeNullableText(body.admin_note, 1000);
+        if (!requestId) return badRequest("Missing withdraw request");
+        if (!payoutTxHash) return badRequest("Missing payout tx hash");
+
+        const { data: request, error: requestError } = await supabase
+          .from("mon_withdraw_requests")
+          .select("id, status")
+          .eq("id", requestId)
+          .single();
+        if (requestError) throw requestError;
+        if (request.status !== "approved") {
+          return badRequest("Only approved requests can be marked as paid");
+        }
+
+        const { data, error } = await supabase
+          .from("mon_withdraw_requests")
+          .update({
+            status: "paid",
+            processed_at: new Date().toISOString(),
+            processed_by_wallet: walletAddress,
+            payout_tx_hash: payoutTxHash,
+            admin_note: adminNote,
+          })
+          .eq("id", requestId)
+          .select("id, player_id, wallet_address, amount_mon, status, requested_at, processed_at, payout_tx_hash, processed_by_wallet, admin_note")
+          .single();
+        if (error) throw error;
+
+        return jsonResponse({ request: { ...data, amount_mon: toMonAmount(data.amount_mon) } });
       }
 
       case "send_player_message": {

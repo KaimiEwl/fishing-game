@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { PlayerState, FISH_DATA } from '@/types/game';
 import type { ReferralSummary } from '@/hooks/useWalletAuth';
 import type { PlayerInboxMessage } from '@/hooks/usePlayerMessages';
+import { usePlayerMon } from '@/hooks/usePlayerMon';
 import CoinIcon from './CoinIcon';
 import { Card } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -50,7 +51,9 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({
   const totalBait = getVisibleBaitTotal(player);
   const isMobile = useIsMobile();
   const [isExpanded, setIsExpanded] = useState(false);
-  const isAdmin = useAdminAccess(walletAddress, isConnected && isVerified);
+  const monEnabled = isConnected && isVerified;
+  const { isAdmin, pendingWithdrawCount } = useAdminAccess(walletAddress, isConnected && isVerified);
+  const monRewards = usePlayerMon(walletAddress, monEnabled);
 
   return (
     <>
@@ -102,6 +105,12 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({
           inboxLoading={inboxLoading}
           onMarkMessageRead={onMarkMessageRead}
           showAdminPanelEntry={isAdmin === true}
+          adminPendingWithdrawCount={pendingWithdrawCount}
+          monSummary={monEnabled ? monRewards.summary : undefined}
+          monRequests={monEnabled ? monRewards.requests : []}
+          monLoading={monEnabled ? monRewards.loading : false}
+          monRequesting={monEnabled ? monRewards.requesting : false}
+          onRequestMonWithdraw={monEnabled ? monRewards.createWithdrawRequest : undefined}
         />
 
         <button

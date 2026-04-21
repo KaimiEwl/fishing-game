@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
+import { normalizeMonAmount } from '@/lib/monRewards';
 import { getStoredWalletSession } from '@/lib/walletSession';
 
 export type AdminPlayer = Tables<'players'>;
@@ -53,6 +54,30 @@ export interface AdminPlayerReferralSummary {
   wallet_bait_bonus_claimed: boolean;
 }
 
+export type WithdrawRequestStatus = 'pending' | 'approved' | 'rejected' | 'paid';
+
+export interface AdminWithdrawRequest {
+  id: string;
+  playerId: string;
+  walletAddress: string;
+  playerNickname: string | null;
+  amountMon: number;
+  status: WithdrawRequestStatus;
+  requestedAt: string;
+  processedAt: string | null;
+  payoutTxHash: string | null;
+  processedByWallet: string | null;
+  adminNote: string | null;
+}
+
+export interface AdminWithdrawSummary {
+  pending_count: number;
+  approved_count: number;
+  rejected_count: number;
+  paid_count: number;
+  pending_amount_mon: number;
+}
+
 export interface AdminPlayerDetails {
   player: AdminPlayer;
   grill_summary: AdminPlayerGrillSummary | null;
@@ -91,6 +116,28 @@ interface AdminPlayerActivityResponse {
 
 interface AdminPlayerMessagesResponse {
   messages: AdminPlayerMessage[];
+}
+
+interface AdminWithdrawRequestRow {
+  id: string;
+  player_id: string;
+  wallet_address: string;
+  player_nickname: string | null;
+  amount_mon: string | number;
+  status: WithdrawRequestStatus;
+  requested_at: string;
+  processed_at: string | null;
+  payout_tx_hash: string | null;
+  processed_by_wallet: string | null;
+  admin_note: string | null;
+}
+
+interface AdminWithdrawRequestsResponse {
+  requests: AdminWithdrawRequestRow[];
+}
+
+interface AdminWithdrawSummaryResponse {
+  summary: AdminWithdrawSummary;
 }
 
 export function useAdmin(walletAddress: string | undefined) {
@@ -188,6 +235,52 @@ export function useAdmin(walletAddress: string | undefined) {
     return data.message;
   }, [callAdmin]);
 
+  const listWithdrawRequests = useCallback(async (
+    params: { status?: WithdrawRequestStatus | 'all'; limit?: number } = {},
+  ) => {
+    const data = await callAdmin<AdminWithdrawRequestsResponse>('list_withdraw_requests', params);
+    return (data.requests ?? []).map((request): AdminWithdrawRequest => ({
+      id: request.id,
+      playerId: request.player_id,
+      walletAddress: request.wallet_address,
+      playerNickname: request.player_nickname,
+      amountMon: normalizeMonAmount(request.amount_mon),
+      status: request.status,
+      requestedAt: request.requested_at,
+      processedAt: request.processed_at,
+      payoutTxHash: request.payout_tx_hash,
+      processedByWallet: request.processed_by_wallet,
+      adminNote: request.admin_note,
+    }));
+  }, [callAdmin]);
+
+  const getAdminWithdrawSummary = useCallback(async () => {
+    const data = await callAdmin<AdminWithdrawSummaryResponse>('get_admin_withdraw_summary');
+    return data.summary;
+  }, [callAdmin]);
+
+  const approveWithdrawRequest = useCallback(async (requestId: string) => {
+    const data = await callAdmin<{ request: AdminWithdrawRequestRow }>('approve_withdraw_request', {
+      request_id: requestId,
+    });
+    return data.request;
+  }, [callAdmin]);
+
+  const rejectWithdrawRequest = useCallback(async (requestId: string) => {
+    const data = await callAdmin<{ request: AdminWithdrawRequestRow }>('reject_withdraw_request', {
+      request_id: requestId,
+    });
+    return data.request;
+  }, [callAdmin]);
+
+  const markWithdrawPaid = useCallback(async (requestId: string, payoutTxHash: string) => {
+    const data = await callAdmin<{ request: AdminWithdrawRequestRow }>('mark_withdraw_paid', {
+      request_id: requestId,
+      payout_tx_hash: payoutTxHash,
+    });
+    return data.request;
+  }, [callAdmin]);
+
   const updatePlayer = useCallback(async (playerId: string, updates: Record<string, unknown>) => {
     const data = await callAdmin<AdminPlayerResponse>('update_player', { player_id: playerId, updates });
     return data.player;
@@ -211,6 +304,11 @@ export function useAdmin(walletAddress: string | undefined) {
     listPlayerActivity,
     listPlayerMessages,
     sendPlayerMessage,
+    listWithdrawRequests,
+    getAdminWithdrawSummary,
+    approveWithdrawRequest,
+    rejectWithdrawRequest,
+    markWithdrawPaid,
     updatePlayer,
     deletePlayer,
     getStats,

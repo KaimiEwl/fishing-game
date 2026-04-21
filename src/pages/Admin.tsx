@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Activity,
   ArrowLeft,
+  ArrowUpRight,
   Eye,
   MessageSquare,
   Pencil,
@@ -21,9 +22,13 @@ import {
   type AdminPlayerActivityEntry,
   type AdminPlayerMessage,
   type AdminStats,
+  type AdminWithdrawRequest,
+  type AdminWithdrawSummary,
+  type WithdrawRequestStatus,
 } from '@/hooks/useAdmin';
 import AdminPlayerDetailSheet from '@/components/AdminPlayerDetailSheet';
 import AdminPlayerMessageCenter from '@/components/AdminPlayerMessageCenter';
+import AdminWithdrawRequestCenter from '@/components/AdminWithdrawRequestCenter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -41,7 +46,7 @@ import { cn } from '@/lib/utils';
 
 const ROD_NAMES = ['Starter', 'Bamboo', 'Carbon', 'Pro', 'Legendary'];
 
-type AdminTab = 'overview' | 'players' | 'messages';
+type AdminTab = 'overview' | 'players' | 'messages' | 'withdrawals';
 
 type EditablePlayerForm = Pick<
   AdminPlayer,
@@ -63,6 +68,11 @@ export default function Admin() {
     listPlayerActivity,
     listPlayerMessages,
     sendPlayerMessage,
+    listWithdrawRequests,
+    getAdminWithdrawSummary,
+    approveWithdrawRequest,
+    rejectWithdrawRequest,
+    markWithdrawPaid,
     updatePlayer,
     deletePlayer,
     getStats,
@@ -82,10 +92,15 @@ export default function Admin() {
   const [selectedPlayerDetails, setSelectedPlayerDetails] = useState<AdminPlayerDetails | null>(null);
   const [selectedPlayerActivity, setSelectedPlayerActivity] = useState<AdminPlayerActivityEntry[]>([]);
   const [selectedPlayerMessages, setSelectedPlayerMessages] = useState<AdminPlayerMessage[]>([]);
+  const [withdrawRequests, setWithdrawRequests] = useState<AdminWithdrawRequest[]>([]);
+  const [withdrawSummary, setWithdrawSummary] = useState<AdminWithdrawSummary | null>(null);
+  const [withdrawFilter, setWithdrawFilter] = useState<WithdrawRequestStatus | 'all'>('pending');
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [messageSending, setMessageSending] = useState(false);
+  const [withdrawsLoading, setWithdrawsLoading] = useState(false);
+  const [processingWithdrawId, setProcessingWithdrawId] = useState<string | null>(null);
   const [editPlayer, setEditPlayer] = useState<AdminPlayer | null>(null);
   const [editForm, setEditForm] = useState<EditablePlayerForm | null>(null);
   const [saving, setSaving] = useState(false);
@@ -118,6 +133,30 @@ export default function Admin() {
       toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
     }
   }, [getStats, toast]);
+
+  const fetchWithdrawSummary = useCallback(async () => {
+    try {
+      const data = await getAdminWithdrawSummary();
+      setWithdrawSummary(data);
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
+    }
+  }, [getAdminWithdrawSummary, toast]);
+
+  const fetchWithdrawRequests = useCallback(async () => {
+    setWithdrawsLoading(true);
+    try {
+      const data = await listWithdrawRequests({
+        status: withdrawFilter,
+        limit: 100,
+      });
+      setWithdrawRequests(data);
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
+    } finally {
+      setWithdrawsLoading(false);
+    }
+  }, [listWithdrawRequests, toast, withdrawFilter]);
 
   const loadSelectedPlayerContext = useCallback(async (player: AdminPlayer, openDetails = false) => {
     setSelectedPlayer(player);
@@ -153,8 +192,16 @@ export default function Admin() {
     if (isAdmin) {
       void fetchPlayers();
       void fetchStats();
+      void fetchWithdrawSummary();
     }
-  }, [fetchPlayers, fetchStats, isAdmin]);
+  }, [fetchPlayers, fetchStats, fetchWithdrawSummary, isAdmin]);
+
+  useEffect(() => {
+    if (isAdmin && activeTab === 'withdrawals') {
+      void fetchWithdrawRequests();
+      void fetchWithdrawSummary();
+    }
+  }, [activeTab, fetchWithdrawRequests, fetchWithdrawSummary, isAdmin]);
 
   const totalPages = Math.ceil(total / 20);
 
@@ -288,6 +335,48 @@ export default function Admin() {
     }
   };
 
+  const handleApproveWithdraw = async (requestId: string) => {
+    setProcessingWithdrawId(requestId);
+    try {
+      await approveWithdrawRequest(requestId);
+      toast({ title: 'Withdraw approved' });
+      await fetchWithdrawRequests();
+      await fetchWithdrawSummary();
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
+    } finally {
+      setProcessingWithdrawId(null);
+    }
+  };
+
+  const handleRejectWithdraw = async (requestId: string) => {
+    setProcessingWithdrawId(requestId);
+    try {
+      await rejectWithdrawRequest(requestId);
+      toast({ title: 'Withdraw rejected' });
+      await fetchWithdrawRequests();
+      await fetchWithdrawSummary();
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
+    } finally {
+      setProcessingWithdrawId(null);
+    }
+  };
+
+  const handleMarkWithdrawPaid = async (requestId: string, payoutTxHash: string) => {
+    setProcessingWithdrawId(requestId);
+    try {
+      await markWithdrawPaid(requestId, payoutTxHash);
+      toast({ title: 'Withdraw marked as paid', description: 'Payout tx hash saved.' });
+      await fetchWithdrawRequests();
+      await fetchWithdrawSummary();
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
+    } finally {
+      setProcessingWithdrawId(null);
+    }
+  };
+
   const messageListTitle = useMemo(() => (
     selectedPlayer
       ? `${selectedPlayer.nickname || formatWallet(selectedPlayer.wallet_address)}`
@@ -329,10 +418,14 @@ export default function Admin() {
         </div>
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as AdminTab)}>
-          <TabsList className="grid w-full max-w-xl grid-cols-3">
+          <TabsList className="grid w-full max-w-2xl grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="players">Players</TabsTrigger>
             <TabsTrigger value="messages">Messages</TabsTrigger>
+            <TabsTrigger value="withdrawals" className="gap-2">
+              <ArrowUpRight className="h-4 w-4" />
+              Withdrawals
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -577,6 +670,24 @@ export default function Admin() {
                 />
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="withdrawals" className="space-y-4">
+            <AdminWithdrawRequestCenter
+              requests={withdrawRequests}
+              summary={withdrawSummary}
+              filter={withdrawFilter}
+              loading={withdrawsLoading}
+              processingRequestId={processingWithdrawId}
+              onFilterChange={setWithdrawFilter}
+              onRefresh={() => {
+                void fetchWithdrawRequests();
+                void fetchWithdrawSummary();
+              }}
+              onApprove={handleApproveWithdraw}
+              onReject={handleRejectWithdraw}
+              onMarkPaid={handleMarkWithdrawPaid}
+            />
           </TabsContent>
         </Tabs>
 

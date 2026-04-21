@@ -18,9 +18,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { isSoundMuted, setSoundMuted } from '@/hooks/useSoundEffects';
 import type { ReferralSummary } from '@/hooks/useWalletAuth';
 import type { PlayerInboxMessage } from '@/hooks/usePlayerMessages';
+import type { MonBalanceSummary, PlayerWithdrawRequest } from '@/hooks/usePlayerMon';
 import { supabase } from '@/integrations/supabase/client';
 import type { TablesUpdate } from '@/integrations/supabase/types';
 import { REFERRAL_BAIT_ENABLED } from '@/lib/baitEconomy';
+import { formatMonAmount } from '@/lib/monRewards';
 import { cn } from '@/lib/utils';
 import PlayerInboxPanel from '@/components/PlayerInboxPanel';
 
@@ -37,6 +39,12 @@ interface SettingsDialogProps {
   inboxLoading?: boolean;
   onMarkMessageRead?: (messageId: string) => void;
   showAdminPanelEntry?: boolean;
+  adminPendingWithdrawCount?: number;
+  monSummary?: MonBalanceSummary;
+  monRequests?: PlayerWithdrawRequest[];
+  monLoading?: boolean;
+  monRequesting?: boolean;
+  onRequestMonWithdraw?: () => Promise<unknown> | void;
 }
 
 const NICKNAME_REGEX = /^[\p{L}0-9_-]{2,20}$/u;
@@ -54,6 +62,12 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
   inboxLoading = false,
   onMarkMessageRead,
   showAdminPanelEntry = false,
+  adminPendingWithdrawCount = 0,
+  monSummary,
+  monRequests = [],
+  monLoading = false,
+  monRequesting = false,
+  onRequestMonWithdraw,
 }) => {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -224,16 +238,28 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
     }, 180);
   };
 
+  const canRequestWithdraw = Boolean(
+    isConnected
+    && monSummary
+    && monSummary.withdrawableMon >= monSummary.minWithdrawMon
+    && !monRequesting,
+  );
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
           variant="outline"
           size="icon"
-          className="h-11 w-11 rounded-full border border-cyan-300/20 bg-black/85 text-cyan-100 shadow-md outline-none backdrop-blur-md transition-all hover:scale-105 hover:border-cyan-300/40 hover:bg-zinc-950 active:scale-95 sm:h-8 sm:w-8"
+          className="relative h-11 w-11 rounded-full border border-cyan-300/20 bg-black/85 text-cyan-100 shadow-md outline-none backdrop-blur-md transition-all hover:scale-105 hover:border-cyan-300/40 hover:bg-zinc-950 active:scale-95 sm:h-8 sm:w-8"
           aria-label="Settings"
         >
           <Settings className="h-5 w-5 sm:h-4 sm:w-4" />
+          {showAdminPanelEntry && adminPendingWithdrawCount > 0 && (
+            <span className="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full border border-red-300/40 bg-red-500 px-1 text-[10px] font-black text-white shadow-[0_0_12px_rgba(239,68,68,0.45)]">
+              {adminPendingWithdrawCount > 99 ? '99+' : adminPendingWithdrawCount}
+            </span>
+          )}
         </Button>
       </DialogTrigger>
 
@@ -375,6 +401,88 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
             </div>
           )}
 
+          {isConnected && monSummary && (
+            <div className="space-y-2">
+              <p className="text-base font-bold text-zinc-100 sm:text-sm sm:font-medium">MON Rewards</p>
+              <div className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg border border-zinc-800 bg-black/70 px-3 py-2">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400">Pending hold</p>
+                    <p className="mt-1 text-lg font-black text-zinc-100">
+                      {formatMonAmount(monSummary.pendingHoldMon)} MON
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-zinc-800 bg-black/70 px-3 py-2">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400">Withdrawable</p>
+                    <p className="mt-1 text-lg font-black text-emerald-300">
+                      {formatMonAmount(monSummary.withdrawableMon)} MON
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-medium text-zinc-400">
+                  <span>Minimum withdraw: {formatMonAmount(monSummary.minWithdrawMon)} MON</span>
+                  <span className="text-zinc-600">|</span>
+                  <span>Hold: {monSummary.holdDays} days</span>
+                  <span className="text-zinc-600">|</span>
+                  <span>Pending requests: {formatMonAmount(monSummary.pendingRequestMon)} MON</span>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void onRequestMonWithdraw?.()}
+                  disabled={!canRequestWithdraw || !onRequestMonWithdraw}
+                  className="mt-3 h-11 w-full justify-between border-zinc-800 bg-black px-4 text-zinc-100 hover:bg-zinc-900 disabled:text-zinc-500"
+                >
+                  <span>{monRequesting ? 'Requesting...' : 'Request withdraw'}</span>
+                  <span className="font-black uppercase tracking-[0.12em] text-cyan-100">
+                    {formatMonAmount(monSummary.withdrawableMon)} MON
+                  </span>
+                </Button>
+
+                <div className="mt-3 space-y-2">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400">Recent requests</p>
+                  {monLoading && monRequests.length === 0 ? (
+                    <p className="text-xs font-medium text-zinc-500">Loading requests...</p>
+                  ) : monRequests.length > 0 ? (
+                    monRequests.slice(0, 4).map((request) => (
+                      <div key={request.id} className="rounded-lg border border-zinc-800 bg-black/60 px-3 py-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-sm font-semibold text-zinc-100">
+                            {formatMonAmount(request.amountMon)} MON
+                          </span>
+                          <span className={cn(
+                            'rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em]',
+                            request.status === 'pending' && 'bg-yellow-400/10 text-yellow-200',
+                            request.status === 'approved' && 'bg-cyan-300/10 text-cyan-100',
+                            request.status === 'rejected' && 'bg-red-400/10 text-red-200',
+                            request.status === 'paid' && 'bg-emerald-400/10 text-emerald-200',
+                          )}>
+                            {request.status}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs text-zinc-400">
+                          {new Date(request.requestedAt).toLocaleString()}
+                        </p>
+                        {request.payoutTxHash && (
+                          <p className="mt-1 truncate text-[11px] font-medium text-zinc-500">
+                            Tx: {request.payoutTxHash}
+                          </p>
+                        )}
+                        {request.adminNote && (
+                          <p className="mt-1 text-xs text-zinc-400">{request.adminNote}</p>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs font-medium text-zinc-500">No withdraw requests yet.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {isConnected && onMarkMessageRead && (
             <div className="space-y-2">
               <p className="text-base font-bold text-zinc-100 sm:text-sm sm:font-medium">Inbox</p>
@@ -399,6 +507,11 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
                 <span>Open admin tools</span>
                 <span className="font-black uppercase tracking-[0.12em] text-red-200">Admin Panel</span>
               </Button>
+              {adminPendingWithdrawCount > 0 && (
+                <p className="text-xs font-medium text-red-200">
+                  {adminPendingWithdrawCount} pending MON withdraw {adminPendingWithdrawCount === 1 ? 'request' : 'requests'} in queue.
+                </p>
+              )}
             </div>
           )}
 

@@ -196,6 +196,94 @@ export type Database = {
           },
         ]
       }
+      player_mon_rewards: {
+        Row: {
+          amount_mon: number
+          created_at: string
+          hold_until: string
+          id: string
+          player_id: string
+          source_ref: string | null
+          source_type: string
+          wallet_address: string
+        }
+        Insert: {
+          amount_mon: number
+          created_at?: string
+          hold_until: string
+          id?: string
+          player_id: string
+          source_ref?: string | null
+          source_type: string
+          wallet_address: string
+        }
+        Update: {
+          amount_mon?: number
+          created_at?: string
+          hold_until?: string
+          id?: string
+          player_id?: string
+          source_ref?: string | null
+          source_type?: string
+          wallet_address?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_mon_rewards_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mon_withdraw_requests: {
+        Row: {
+          admin_note: string | null
+          amount_mon: number
+          id: string
+          payout_tx_hash: string | null
+          player_id: string
+          processed_at: string | null
+          processed_by_wallet: string | null
+          requested_at: string
+          status: string
+          wallet_address: string
+        }
+        Insert: {
+          admin_note?: string | null
+          amount_mon: number
+          id?: string
+          payout_tx_hash?: string | null
+          player_id: string
+          processed_at?: string | null
+          processed_by_wallet?: string | null
+          requested_at?: string
+          status?: string
+          wallet_address: string
+        }
+        Update: {
+          admin_note?: string | null
+          amount_mon?: number
+          id?: string
+          payout_tx_hash?: string | null
+          player_id?: string
+          processed_at?: string | null
+          processed_by_wallet?: string | null
+          requested_at?: string
+          status?: string
+          wallet_address?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mon_withdraw_requests_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
