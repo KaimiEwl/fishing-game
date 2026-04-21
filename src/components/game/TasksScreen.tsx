@@ -1,10 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { BadgeCheck, Box, Check, Clock3, Coins, ExternalLink, Lock, Send, Trophy, Worm } from 'lucide-react';
+import { Box, Check, Clock3, Coins, ExternalLink, Heart, Lock, MessageCircle, Repeat2, Send, Trophy, Worm } from 'lucide-react';
 import { useSendTransaction } from 'wagmi';
 import { parseEther } from 'viem';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type {
   DailyTaskProgress,
@@ -58,23 +57,26 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   isWalletVerified,
   onClaimTask,
   onWalletCheckIn,
-  onSubmitSocialTask,
-  onClaimSocialTask,
-  onRefreshSocialTasks,
   onOpenWheel,
 }) => {
   const completedCount = dailyTasks.filter((task) => task.progress >= task.target).length;
   const claimedCount = dailyTasks.filter((task) => task.claimed).length;
-  const [proofDrafts, setProofDrafts] = useState<Record<string, string>>({});
   const [walletCheckInSubmitting, setWalletCheckInSubmitting] = useState(false);
   const { sendTransactionAsync } = useSendTransaction();
   const walletCheckInAmountMon = walletCheckInSummary?.amountMon ?? WALLET_CHECK_IN_AMOUNT_MON;
   const walletCheckInReceiverAddress = walletCheckInSummary?.receiverAddress ?? WALLET_CHECK_IN_RECEIVER_ADDRESS;
-
   const socialTaskCards = useMemo(() => socialTasks.map((task) => ({
     ...task,
-    proofDraft: proofDrafts[task.id] ?? task.proofUrl ?? '',
-  })), [proofDrafts, socialTasks]);
+    icon: task.id === 'twitter_follow'
+      ? ExternalLink
+      : task.id === 'twitter_repost'
+        ? Repeat2
+        : task.id === 'twitter_like'
+          ? Heart
+          : task.id === 'discord_join'
+            ? MessageCircle
+            : Send,
+  })), [socialTasks]);
 
   const handleWalletCheckIn = async () => {
     if (!walletAddress || walletCheckInSubmitting) return;
@@ -214,132 +216,30 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   );
 
   const renderSocialTaskList = () => (
-    <div className="grid gap-3">
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
       {socialTaskCards.map((task) => {
-        const isPending = task.status === 'pending_verification';
-        const isVerifiedReady = task.status === 'verified';
-        const isClaimed = task.status === 'claimed';
-        const isAvailable = task.status === 'available';
-        const rewardLabel = task.rewardBait
-          ? `${task.rewardBait} bait`
-          : task.rewardCoins
-            ? `${task.rewardCoins} gold`
-            : 'Reward set later';
+        const Icon = task.icon;
 
         return (
-          <article key={task.id} className="rounded-xl border border-cyan-300/15 bg-black/60 p-4 shadow-lg shadow-black/20 backdrop-blur-md">
+          <button
+            key={task.id}
+            type="button"
+            onClick={() => toast.info(`${task.title} coming soon`)}
+            className="rounded-xl border border-cyan-300/15 bg-black/60 p-4 text-left shadow-lg shadow-black/20 backdrop-blur-md transition-all hover:border-cyan-300/30 hover:bg-black/70"
+          >
             <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-lg font-bold text-white drop-shadow-sm">{task.title}</h2>
-                  <span className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-300">
-                    {task.verificationMode}
-                  </span>
-                </div>
-                <p className="mt-1 text-sm text-white/70">{task.description}</p>
-                <p className="mt-2 text-xs text-cyan-100/70">
-                  {isAvailable
-                    ? 'Submit this task for manual review. Admin can verify it later.'
-                    : isPending
-                      ? 'Waiting for admin verification.'
-                      : isVerifiedReady
-                        ? 'Verified. Reward can be claimed now.'
-                        : 'Reward already claimed.'}
-                </p>
+              <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-cyan-300/20 bg-zinc-950 text-cyan-100 shadow-lg shadow-black/30">
+                <Icon className="h-5 w-5" />
               </div>
-              <div className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-bold shadow-sm">
-                {task.rewardBait ? (
-                  <>
-                    <Worm className="h-4 w-4 text-lime-300" />
-                    <span className="text-lime-200">{rewardLabel}</span>
-                  </>
-                ) : task.rewardCoins ? (
-                  <>
-                    <CoinIcon size="md" />
-                    <span className="text-amber-300">{rewardLabel}</span>
-                  </>
-                ) : (
-                  <>
-                    <ExternalLink className="h-4 w-4 text-cyan-100" />
-                    <span className="text-cyan-100">{rewardLabel}</span>
-                  </>
-                )}
-              </div>
+              <span className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-300">
+                Coming soon
+              </span>
             </div>
-
-            <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
-              {isClaimed ? (
-                <span className="rounded-md border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-emerald-200">
-                  Claimed
-                </span>
-              ) : isVerifiedReady ? (
-                <span className="rounded-md border border-cyan-300/20 bg-cyan-300/10 px-2.5 py-1 text-cyan-100">
-                  Verified
-                </span>
-              ) : isPending ? (
-                <span className="rounded-md border border-yellow-400/20 bg-yellow-400/10 px-2.5 py-1 text-yellow-200">
-                  Pending verification
-                </span>
-              ) : (
-                <span className="rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-zinc-300">
-                  Available
-                </span>
-              )}
-              {task.updatedAt && (
-                <span className="text-white/50">Updated {new Date(task.updatedAt).toLocaleString()}</span>
-              )}
-            </div>
-
-            <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-center">
-              <Input
-                value={task.proofDraft}
-                onChange={(event) => setProofDrafts((current) => ({
-                  ...current,
-                  [task.id]: event.target.value,
-                }))}
-                placeholder="Optional proof link for manual review"
-                disabled={!isWalletVerified || isClaimed}
-                className="border-zinc-800 bg-zinc-950 text-sm text-zinc-100 placeholder:text-zinc-500"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                disabled={!isWalletVerified || isPending || isClaimed}
-                onClick={() => onSubmitSocialTask(task.id, task.proofDraft)}
-                className="h-11 rounded-xl border-zinc-800 bg-zinc-950 text-zinc-100 hover:bg-black disabled:text-zinc-600"
-              >
-                {isPending ? (
-                  <>
-                    <Clock3 className="mr-2 h-4 w-4" />
-                    Waiting
-                  </>
-                ) : (
-                  <>
-                    <Send className="mr-2 h-4 w-4" />
-                    Submit
-                  </>
-                )}
-              </Button>
-              <Button
-                type="button"
-                disabled={!isWalletVerified || !task.canClaim || isClaimed}
-                onClick={() => onClaimSocialTask(task.id)}
-                className="h-11 rounded-xl border border-cyan-300/25 bg-zinc-950 text-base font-bold text-cyan-100 shadow-lg shadow-black/30 transition-all hover:bg-black disabled:border-zinc-800 disabled:bg-zinc-950 disabled:text-zinc-600 disabled:shadow-none"
-              >
-                {isClaimed ? (
-                  <>
-                    <Check className="mr-2 h-4 w-4" />
-                    Claimed
-                  </>
-                ) : (
-                  <>
-                    <BadgeCheck className="mr-2 h-4 w-4" />
-                    Claim
-                  </>
-                )}
-              </Button>
-            </div>
-          </article>
+            <h2 className="mt-4 text-lg font-bold text-white drop-shadow-sm">{task.title}</h2>
+            <p className="mt-1 text-sm text-white/70">
+              This social action is planned but not live yet. Tap to see upcoming tasks only.
+            </p>
+          </button>
         );
       })}
     </div>
@@ -372,29 +272,8 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
           <TabsContent value="social" className="mt-3">
             <div className="mb-3 rounded-xl border border-cyan-300/15 bg-black/60 p-4 text-sm text-white/70 shadow-lg shadow-black/20 backdrop-blur-md">
               {isWalletVerified
-                ? 'Social tasks use manual verification for now. Submit them here, let admin review them, then claim when verified.'
+                ? (socialTasksLoading ? 'Preparing future social tasks...' : 'Social tasks are not live yet. For now, only the platform icons remain here and each one will show Coming soon.')
                 : 'Connect your wallet first. Social tasks, future MON rewards, and verified progress sync only work on wallet-linked accounts.'}
-            </div>
-            <div className="mb-3 flex items-center justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onRefreshSocialTasks}
-                disabled={!isWalletVerified || socialTasksLoading}
-                className="border-zinc-800 bg-zinc-950 text-zinc-100 hover:bg-black disabled:text-zinc-600"
-              >
-                {socialTasksLoading ? (
-                  <>
-                    <Clock3 className="mr-2 h-4 w-4" />
-                    Refreshing
-                  </>
-                ) : (
-                  <>
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                    Refresh status
-                  </>
-                )}
-              </Button>
             </div>
             {renderSocialTaskList()}
           </TabsContent>

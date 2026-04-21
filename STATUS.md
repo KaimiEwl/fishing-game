@@ -6,6 +6,11 @@
 - The task card now shows the current consecutive-day streak, whether today is already checked in, and exposes an explicit `Check in with MON` action for verified wallets.
 - No new table was added for this feature: daily streak history is derived from `player_audit_logs` events of type `wallet_daily_check_in`, so it stays additive and queryable without a schema migration.
 
+## Social task placeholder mode
+- The player-facing `Tasks -> Social` tab no longer shows the manual submit / review / claim workflow for now.
+- It only shows platform icons as placeholders, and tapping any of them now displays `Coming soon` instead of exposing a half-live verification flow to players.
+- The backend social-task scaffold and admin review tools remain in the repo; only the player-side UI is hidden behind the placeholder state.
+
 ## Daily invite special task
 - `Special -> Invite a friend` now awards `10 bait` instead of `1000 gold`.
 - The task is now treated as a daily special objective: its progress/claim state resets with the day instead of staying one-time forever.
