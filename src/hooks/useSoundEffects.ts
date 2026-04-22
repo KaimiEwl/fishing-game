@@ -1,10 +1,25 @@
-import { useCallback } from 'react';
+import { publicAsset } from '@/lib/assets';
+import { useCallback, useEffect } from 'react';
 
 export const SOUND_MUTED_EVENT = 'monadfish:sound-muted-changed';
 
 // Один общий AudioContext (лениво создаётся)
 let audioContext: AudioContext | null = null;
 type LegacyAudioWindow = Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext };
+
+const CAST_SAMPLE_URLS = [
+  publicAsset('/assets/audio/cast_01.mp3'),
+  publicAsset('/assets/audio/cast_02.mp3'),
+  publicAsset('/assets/audio/cast_03.mp3'),
+  publicAsset('/assets/audio/cast_04.mp3'),
+  publicAsset('/assets/audio/cast_05.mp3'),
+  publicAsset('/assets/audio/cast_06.mp3'),
+  publicAsset('/assets/audio/cast_07.mp3'),
+];
+const FISH_CATCH_SAMPLE_URL = publicAsset('/assets/audio/fish_catch_boat.mp3');
+const sampleBuffers = new Map<string, AudioBuffer>();
+const sampleLoads = new Map<string, Promise<AudioBuffer | null>>();
+let sampleWarmStarted = false;
 
 const getCtx = () => {
   if (!audioContext) {
@@ -17,6 +32,82 @@ const getCtx = () => {
   }
   return audioContext;
 };
+
+const decodeAudioData = (ctx: AudioContext, data: ArrayBuffer) =>
+  new Promise<AudioBuffer>((resolve, reject) => {
+    ctx.decodeAudioData(data.slice(0), resolve, reject);
+  });
+
+const ensureSampleLoaded = (url: string) => {
+  if (sampleBuffers.has(url)) {
+    return Promise.resolve(sampleBuffers.get(url) ?? null);
+  }
+
+  const existing = sampleLoads.get(url);
+  if (existing) {
+    return existing;
+  }
+
+  const loadPromise = (async () => {
+    try {
+      const response = await fetch(url, { cache: 'force-cache' });
+      if (!response.ok) {
+        return null;
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = await decodeAudioData(getCtx(), arrayBuffer);
+      sampleBuffers.set(url, buffer);
+      return buffer;
+    } catch {
+      return null;
+    } finally {
+      sampleLoads.delete(url);
+    }
+  })();
+
+  sampleLoads.set(url, loadPromise);
+  return loadPromise;
+};
+
+const warmSoundSamples = () =>
+  Promise.all([...CAST_SAMPLE_URLS, FISH_CATCH_SAMPLE_URL].map((url) => ensureSampleLoaded(url)));
+
+const requestSampleWarmup = () => {
+  if (sampleWarmStarted) return;
+  sampleWarmStarted = true;
+  void warmSoundSamples();
+};
+
+const playSampleBuffer = (url: string, volume: number, playbackRate: number = 1) => {
+  if (globalMuted) return false;
+
+  try {
+    const ctx = getCtx();
+    if (ctx.state === 'suspended') {
+      void ctx.resume();
+    }
+    const buffer = sampleBuffers.get(url);
+    if (!buffer) {
+      return false;
+    }
+
+    const source = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(volume, ctx.currentTime);
+
+    source.buffer = buffer;
+    source.playbackRate.setValueAtTime(playbackRate, ctx.currentTime);
+    source.connect(gain);
+    gain.connect(ctx.destination);
+    source.start();
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const pickRandom = <T,>(items: readonly T[]) => items[Math.floor(Math.random() * items.length)];
 
 const readMutedFromStorage = () => {
   if (typeof window === 'undefined') return false;
@@ -58,6 +149,9 @@ function playTone(
   if (globalMuted) return;
   try {
     const ctx = getCtx();
+    if (ctx.state === 'suspended') {
+      void ctx.resume();
+    }
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
@@ -84,6 +178,9 @@ function playNoise(dur: number, vol: number = 0.08, delay: number = 0) {
   if (globalMuted) return;
   try {
     const ctx = getCtx();
+    if (ctx.state === 'suspended') {
+      void ctx.resume();
+    }
     const t0 = ctx.currentTime + delay;
     const bufferSize = ctx.sampleRate * dur;
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
@@ -116,7 +213,29 @@ function playNoise(dur: number, vol: number = 0.08, delay: number = 0) {
 }
 
 export function useSoundEffects() {
+  useEffect(() => {
+    const warmOnce = () => requestSampleWarmup();
+
+    window.addEventListener('pointerdown', warmOnce, { passive: true });
+    window.addEventListener('touchend', warmOnce, { passive: true });
+    window.addEventListener('keydown', warmOnce);
+
+    return () => {
+      window.removeEventListener('pointerdown', warmOnce);
+      window.removeEventListener('touchend', warmOnce);
+      window.removeEventListener('keydown', warmOnce);
+    };
+  }, []);
+
   const playCastSound = useCallback(() => {
+    const clipUrl = pickRandom(CAST_SAMPLE_URLS);
+    const playbackRate = 0.96 + Math.random() * 0.1;
+
+    if (playSampleBuffer(clipUrl, 0.24, playbackRate)) {
+      return;
+    }
+
+    void ensureSampleLoaded(clipUrl);
     playTone(600, 0.2, 'sine', 0.12, 200);
     playTone(400, 0.15, 'triangle', 0.08, 150, 0.1);
   }, []);
@@ -134,6 +253,11 @@ export function useSoundEffects() {
   }, []);
 
   const playSuccessSound = useCallback(() => {
+    if (playSampleBuffer(FISH_CATCH_SAMPLE_URL, 0.35)) {
+      return;
+    }
+
+    void ensureSampleLoaded(FISH_CATCH_SAMPLE_URL);
     playTone(523, 0.15, 'sine', 0.14);
     playTone(659, 0.15, 'sine', 0.14, undefined, 0.12);
     playTone(784, 0.15, 'sine', 0.16, undefined, 0.24);

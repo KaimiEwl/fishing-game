@@ -1,5 +1,12 @@
 # STATUS
 
+## Fishing sound samples from Downloads
+- Added real audio samples from `C:\Users\WInter\Downloads\РЫБАЛКА` into `public/assets/audio/` for the fishing loop instead of relying only on synthetic WebAudio tones.
+- The multi-cast source track was sliced into seven short `cast_01.mp3` ... `cast_07.mp3` clips, and `useSoundEffects` now picks one at random on each cast so the rod throw no longer sounds identical every time.
+- The caught-fish boat sound was trimmed into `fish_catch_boat.mp3` and is now used as the primary success/catch sound.
+- The old synthetic cast/success sounds remain as a fallback path if an audio sample fails to preload or decode, so fishing SFX still work on browsers that reject sample playback.
+- Sample warm-up now starts on the first real user interaction instead of immediately on mount, which avoids creating a suspended audio context too early on mobile while still priming the cast/catch clips for the next interaction.
+
 ## Wallet settings simplified
 - The wallet area in `Settings` no longer shows the redundant `Sign In` / `Sign Up` split. Guests now get one clear `Connect wallet` action instead of two buttons that opened the same flow.
 - Nickname setup was moved directly into the wallet block after connection: if the wallet is connected and no name is saved yet, the dialog now immediately asks for the player's name there instead of hiding it behind a separate nickname accordion lower in settings.
