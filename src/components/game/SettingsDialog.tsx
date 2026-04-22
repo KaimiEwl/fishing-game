@@ -10,8 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Camera, Check, ChevronDown, Copy, LogOut, Mail, Settings, Volume2, VolumeX } from 'lucide-react';
+import { Camera, Check, Copy, LogOut, Mail, Settings, Volume2, VolumeX } from 'lucide-react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useBalance } from 'wagmi';
 import { Link, useNavigate } from 'react-router-dom';
@@ -76,7 +75,6 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
   const [saved, setSaved] = useState(false);
   const [muted, setMuted] = useState(isSoundMuted());
   const [uploading, setUploading] = useState(false);
-  const [nicknameOpen, setNicknameOpen] = useState(false);
   const [copiedReferral, setCopiedReferral] = useState(false);
   const [copyError, setCopyError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -245,6 +243,12 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
     && !monRequesting,
   );
 
+  useEffect(() => {
+    setNickInput(nickname);
+    setSaved(false);
+    setError('');
+  }, [nickname]);
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <div className="flex items-center gap-1.5">
@@ -327,28 +331,73 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
               <ConnectButton.Custom>
                 {({ openConnectModal }) => (
                   <div className="space-y-2">
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => handleWalletModalOpen(openConnectModal)}
-                        className="h-11 flex-1 gap-2 border border-cyan-300/25 bg-zinc-950 text-cyan-100 hover:bg-black"
-                        style={{ background: 'linear-gradient(135deg, #020617, #083344)' }}
-                      >
-                        Sign In
-                      </Button>
-                      <Button
-                        onClick={() => handleWalletModalOpen(openConnectModal)}
-                        variant="outline"
-                        className="h-11 flex-1 gap-2 border-zinc-800 bg-black text-zinc-100 hover:bg-zinc-950"
-                      >
-                        Sign Up
-                      </Button>
-                    </div>
+                    <Button
+                      onClick={() => handleWalletModalOpen(openConnectModal)}
+                      className="h-11 w-full gap-2 border border-cyan-300/25 bg-zinc-950 text-cyan-100 hover:bg-black"
+                      style={{ background: 'linear-gradient(135deg, #020617, #083344)' }}
+                    >
+                      Connect wallet
+                    </Button>
                     <p className="text-xs font-medium text-zinc-400">
                       Connect wallet to unlock referrals, future MON rewards, and synced progress on every device.
                     </p>
                   </div>
                 )}
               </ConnectButton.Custom>
+            )}
+
+            {isConnected && (
+              <div className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-3">
+                {nicknameAlreadySet ? (
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400">Player name</p>
+                    <p className="text-base font-bold text-zinc-100">{nickname}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-sm font-semibold text-zinc-100">Enter your name to finish wallet setup.</p>
+                      <p className="mt-1 text-xs font-medium text-zinc-400">
+                        Save it once and it will stay attached to your wallet progress.
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        value={nickInput}
+                        onChange={(event) => {
+                          setNickInput(event.target.value);
+                          setSaved(false);
+                        }}
+                        placeholder="Enter your name"
+                        className="h-11 flex-1 border-zinc-800 bg-black text-zinc-100 placeholder:text-zinc-400"
+                        maxLength={20}
+                        disabled={!onSetNickname}
+                        autoFocus={open}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') handleSaveNick();
+                        }}
+                      />
+                      <Button
+                        onClick={handleSaveNick}
+                        disabled={!onSetNickname || saved}
+                        size="sm"
+                        className="h-11 gap-1 border border-cyan-300/25 bg-black px-4 text-cyan-100 hover:bg-zinc-950 disabled:border-zinc-800 disabled:bg-zinc-900 disabled:text-zinc-500"
+                      >
+                        {saved ? (
+                          <>
+                            <Check className="h-3 w-3" />
+                            Saved
+                          </>
+                        ) : (
+                          'Save'
+                        )}
+                      </Button>
+                    </div>
+                    {error && <p className="text-xs font-semibold text-red-300">{error}</p>}
+                    <p className="text-xs font-medium text-zinc-400">Use 2-20 letters, digits, _ or -.</p>
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
@@ -588,70 +637,6 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
             </Link>
           </div>
 
-          <Collapsible open={nicknameOpen} onOpenChange={setNicknameOpen} className="rounded-lg border border-zinc-800 bg-zinc-950">
-            <CollapsibleTrigger asChild>
-              <button
-                type="button"
-                className="flex min-h-12 w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-zinc-100 transition-colors hover:bg-black/60"
-              >
-                <span>
-                  <span className="block text-base font-bold sm:text-sm sm:font-medium">Nickname settings</span>
-                  <span className="mt-0.5 block text-xs font-medium text-zinc-300">
-                    {nicknameAlreadySet ? nickname : 'Save your public name one time.'}
-                  </span>
-                </span>
-                <ChevronDown className={cn('h-4 w-4 shrink-0 text-cyan-100 transition-transform', nicknameOpen && 'rotate-180')} />
-              </button>
-            </CollapsibleTrigger>
-
-            <CollapsibleContent className="border-t border-zinc-800 px-3 pb-3 pt-3">
-              {nicknameAlreadySet ? (
-                <div className="min-h-11 rounded-lg border border-cyan-300/15 bg-black px-3 py-2.5 text-base font-bold text-zinc-100 sm:text-sm">
-                  {nickname}
-                </div>
-              ) : (
-                <>
-                  <div className="flex gap-2">
-                    <Input
-                      value={nickInput}
-                      onChange={(event) => {
-                        setNickInput(event.target.value);
-                        setSaved(false);
-                      }}
-                      placeholder="Enter nickname"
-                      className="h-11 flex-1 border-zinc-800 bg-black text-zinc-100 placeholder:text-zinc-400"
-                      maxLength={20}
-                      disabled={!onSetNickname}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') handleSaveNick();
-                      }}
-                    />
-                    <Button
-                      onClick={handleSaveNick}
-                      disabled={!onSetNickname || saved}
-                      size="sm"
-                      className="h-11 gap-1 border border-cyan-300/25 bg-black px-4 text-cyan-100 hover:bg-zinc-950 disabled:border-zinc-800 disabled:bg-zinc-900 disabled:text-zinc-500"
-                    >
-                      {saved ? (
-                        <>
-                          <Check className="h-3 w-3" />
-                          Saved
-                        </>
-                      ) : (
-                        'Save'
-                      )}
-                    </Button>
-                  </div>
-                  {error && <p className="mt-2 text-xs font-semibold text-red-300">{error}</p>}
-                  {!onSetNickname && (
-                    <p className="mt-2 text-xs font-medium text-zinc-300">Connect wallet to set nickname.</p>
-                  )}
-                  <p className="mt-2 text-xs font-medium text-zinc-300">You can save your nickname once.</p>
-                  <p className="text-xs font-medium text-zinc-400">Nickname can only be set one time.</p>
-                </>
-              )}
-            </CollapsibleContent>
-          </Collapsible>
         </div>
       </DialogContent>
     </Dialog>

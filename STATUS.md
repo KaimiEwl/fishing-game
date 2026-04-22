@@ -1,5 +1,10 @@
 # STATUS
 
+## Wallet settings simplified
+- The wallet area in `Settings` no longer shows the redundant `Sign In` / `Sign Up` split. Guests now get one clear `Connect wallet` action instead of two buttons that opened the same flow.
+- Nickname setup was moved directly into the wallet block after connection: if the wallet is connected and no name is saved yet, the dialog now immediately asks for the player's name there instead of hiding it behind a separate nickname accordion lower in settings.
+- This keeps the wallet flow closer to the intended mental model: connect wallet -> enter your name once -> continue with synced progress and wallet-only features.
+
 ## First-screen asset weight reduced
 - Audited the current runtime asset path and confirmed that the main fishing scene itself was not bottlenecked by the fish sprites or lake backgrounds: `bg_main.jpg`, `bg_tasks.jpg`, `bg_wheel_v4.jpg`, and the fish sprites were already relatively small. The heavier pain points were large imported PNG cutouts used by the UI shell around gameplay.
 - Re-encoded the heaviest actively used PNG cutouts to `.webp` and switched runtime imports to those optimized files:
