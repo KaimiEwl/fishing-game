@@ -765,9 +765,18 @@ serve(async (req) => {
           : enrichedNextGameProgress,
     };
 
+    const requestedEquippedRod = clampInt(
+      clientPayload.equipped_rod,
+      currentPlayerRow.equipped_rod,
+      0,
+      99,
+    );
+
     updatePayload.equipped_rod = Math.min(
       updatePayload.rod_level,
-      clampInt(clientPayload.equipped_rod, currentPlayerRow.equipped_rod, 0, 99),
+      isStaleBase
+        ? clampInt(currentPlayerRow.equipped_rod, 0, 0, 99)
+        : requestedEquippedRod,
     );
 
     const { data: updatedPlayer, error: updateError } = await supabase
