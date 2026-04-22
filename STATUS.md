@@ -1,5 +1,13 @@
 # STATUS
 
+## Wallet-bound nickname and referral reward toast dedupe
+- Wallet-linked identity merge was tightened: when a verified player snapshot comes back from the server, `nickname` and `avatarUrl` now always come from the server-side wallet row instead of being overwritten by whatever global local player state happened to be on this device. This keeps the visible name tied to the wallet rather than to the browser's stale cache.
+- Referral reward toasts are now deduped per wallet and per reward event. `useWalletAuth` stores the last shown referral reward key (`createdAt + invited wallet + bait amount`) in local storage, so refresh / reconnect / session restore no longer re-show the same `+10 bait received` toast for an already processed referral reward.
+- Live narrow referral smoke against the working Supabase confirmed that the actual reward itself is not duplicating on repeat invitee refresh/re-sign:
+  - inviter after first referral: `bait 30`, `rewardedReferralCount 1`
+  - inviter after invitee refresh: unchanged
+  - inviter after invitee re-sign: unchanged
+
 ## Wallet check-in temporary repeatable test mode
 - Added a temporary frontend-only test mode for `wallet_check_in` so repeated MON check-ins can be exercised right now even while the live backend flow is still unstable.
 - The local RPC fallback no longer rejects a second same-day check-in if it comes with a new `txHash`; it now records the fresh transaction, keeps the streak stable for the same day, and updates the latest check-in hash.

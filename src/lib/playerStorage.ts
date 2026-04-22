@@ -202,8 +202,9 @@ export const mergeSyncedPlayerState = (
     dailyBonusClaimed: normalizedLocalPlayer.dailyBonusClaimed,
     loginStreak: Math.max(normalizedServerPlayer.loginStreak, normalizedLocalPlayer.loginStreak),
     nftRods: Array.from(new Set([...normalizedServerPlayer.nftRods, ...normalizedLocalPlayer.nftRods])).sort((a, b) => a - b),
-    nickname: normalizedLocalPlayer.nickname ?? normalizedServerPlayer.nickname,
-    avatarUrl: normalizedLocalPlayer.avatarUrl ?? normalizedServerPlayer.avatarUrl,
+    // Wallet-bound identity fields must come from the server row for this wallet.
+    nickname: normalizedServerPlayer.nickname,
+    avatarUrl: normalizedServerPlayer.avatarUrl,
   };
 };
 

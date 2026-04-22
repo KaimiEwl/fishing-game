@@ -65,6 +65,7 @@ export interface ReferralSummary {
 }
 
 const REFERRAL_STORAGE_KEY = 'hook_loot_pending_referrer_v1';
+const LAST_REFERRAL_REWARD_STORAGE_KEY = 'hook_loot_last_referral_reward_v1';
 const EDGE_FUNCTION_GENERIC_MESSAGES = [
   'Edge Function returned a non-2xx status code',
   'Failed to send a request to the Edge Function',
@@ -90,6 +91,42 @@ function storePendingReferrer(referrerWalletAddress: string) {
 
 function clearPendingReferrer() {
   localStorage.removeItem(REFERRAL_STORAGE_KEY);
+}
+
+const buildReferralRewardStorageKey = (walletAddress: string) => (
+  `${LAST_REFERRAL_REWARD_STORAGE_KEY}:${walletAddress.toLowerCase()}`
+);
+
+function getReferralRewardKey(reward: ReferralRewardNotification | null | undefined) {
+  if (!reward) return null;
+
+  return [
+    reward.createdAt ?? '',
+    normalizeWalletAddress(reward.invitedWalletAddress) ?? '',
+    String(reward.rewardBait ?? ''),
+  ].join('|');
+}
+
+function wasReferralRewardToastShown(walletAddress: string, reward: ReferralRewardNotification | null | undefined) {
+  const rewardKey = getReferralRewardKey(reward);
+  if (!walletAddress || !rewardKey) return false;
+
+  try {
+    return localStorage.getItem(buildReferralRewardStorageKey(walletAddress)) === rewardKey;
+  } catch {
+    return false;
+  }
+}
+
+function markReferralRewardToastShown(walletAddress: string, reward: ReferralRewardNotification | null | undefined) {
+  const rewardKey = getReferralRewardKey(reward);
+  if (!walletAddress || !rewardKey) return;
+
+  try {
+    localStorage.setItem(buildReferralRewardStorageKey(walletAddress), rewardKey);
+  } catch {
+    // ignore storage failures
+  }
 }
 
 function buildReferralLink(walletAddress: string | null | undefined): string | null {
@@ -388,8 +425,6 @@ export function useWalletAuth() {
     playerRecord: PlayerRecord,
     latestReferralReward?: ReferralRewardNotification | null,
   ) => {
-    const previousRewardedCount = referralSummaryRef.current?.rewardedReferralCount ?? 0;
-    const previousBonusGranted = savedPlayerRef.current?.bonusBaitGrantedTotal ?? 0;
     const nextStoredPlayer = syncLocalPlayerFromServer(playerRecord);
     const nextSavedGameProgress = playerRecord.game_progress && typeof playerRecord.game_progress === 'object'
       ? playerRecord.game_progress as GameProgressSnapshot
@@ -405,9 +440,10 @@ export function useWalletAuth() {
 
     if (
       REFERRAL_BAIT_ENABLED
-      && (playerRecord.rewarded_referral_count ?? 0) > previousRewardedCount
-      && (playerRecord.bonus_bait_granted_total ?? 0) > previousBonusGranted
+      && latestReferralReward
+      && !wasReferralRewardToastShown(playerRecord.wallet_address, latestReferralReward)
     ) {
+      markReferralRewardToastShown(playerRecord.wallet_address, latestReferralReward);
       showReferralRewardToast(latestReferralReward);
     }
 
