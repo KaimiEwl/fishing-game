@@ -12,6 +12,7 @@ import {
   applyServerBonusBaitSync,
   loadStoredPlayer,
   mergeSyncedPlayerState,
+  normalizeLegacyStartingBait,
   normalizePlayerDailyFreeBait,
   storePlayerLocally,
 } from '@/lib/playerStorage';
@@ -275,14 +276,17 @@ export function useWalletAuth() {
   }, [address]);
 
   const syncLocalPlayerFromServer = useCallback((playerRecord: PlayerRecord) => {
-    const mappedPlayer = normalizePlayerDailyFreeBait(
+    const mappedPlayer = normalizeLegacyStartingBait(normalizePlayerDailyFreeBait(
       mapPlayerRecord(playerRecord),
       BAIT_BUCKETS_V2_ENABLED,
       DAILY_FREE_BAIT,
-    );
+    ), DAILY_FREE_BAIT);
     const localPlayer = loadStoredPlayer(mappedPlayer);
     const normalizedLocalPlayer = localPlayer
-      ? normalizePlayerDailyFreeBait(localPlayer, BAIT_BUCKETS_V2_ENABLED, DAILY_FREE_BAIT)
+      ? normalizeLegacyStartingBait(
+          normalizePlayerDailyFreeBait(localPlayer, BAIT_BUCKETS_V2_ENABLED, DAILY_FREE_BAIT),
+          DAILY_FREE_BAIT,
+        )
       : null;
 
     const mergedPlayer = normalizedLocalPlayer

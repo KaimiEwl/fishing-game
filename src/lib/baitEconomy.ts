@@ -10,7 +10,7 @@ const readFlag = (value: string | undefined, fallback: boolean) => {
 };
 
 export const DAILY_FREE_BAIT = 30;
-export const WALLET_CONNECT_BAIT_BONUS = 10;
+export const WALLET_CONNECT_BAIT_BONUS = 0;
 export const REFERRAL_BAIT_BONUS = 10;
 export const MAX_REWARDED_REFERRALS_PER_INVITER = 10;
 export const MAX_EXTRA_BAIT_FROM_DAILIES_PER_DAY = 0;

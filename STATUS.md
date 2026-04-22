@@ -1,5 +1,13 @@
 # STATUS
 
+## Starting bait removed and mobile preload tightened
+- New accounts are now defined to start with `30` daily free bait and `0` reserve bait. The old `10` starter reserve bait was removed from the local initial player state, from the frontend bait-economy constant, and from the repo copy of `verify-wallet`.
+- Added a new migration `20260422004500_remove_starting_bait.sql` so the `players.bait` default becomes `0`, new `process_wallet_login` inserts explicitly start at `0` reserve bait, and the wallet-connect bait bonus path only runs when the configured bonus is actually greater than `0`.
+- Updated the live reward smoke script expectations to the new baseline: first wallet verify now expects `0 reserve + 30 daily`, and referral rewards stack from that clean base.
+- Added a frontend compatibility repair for still-deployed old wallet baselines: if a brand-new player arrives from the backend with the legacy fresh-account bait profile (`10` or `20` reserve bait, no actual gameplay progress yet), the client now normalizes that pristine state back to `0 reserve / 30 daily` before merge and local sync. This keeps the new baseline visible on the live app even before the separate Supabase rollout lands.
+- Tightened the mobile boot path so the loading screen now waits for the main scene assets instead of force-opening after `5s`. The image loader now has a per-asset timeout and waits for decode where possible, which is safer for mobile and reduces the chance of seeing fish placeholders right after the loading screen disappears.
+- Important rollout note: the frontend/VPS part of this change can go live immediately after push, but the working Supabase project still needs a fresh `verify-wallet` deploy and the new migration before wallet-created server rows fully match the new `30 daily / 0 reserve` rule.
+
 ## VPS 403 origin mount fix
 - Fixed the live VPS regression where `https://www.hookloot.xyz` could fall into `403 Forbidden` / `500 Internal Server Error` even though `/opt/hookloot/current/dist` still contained a valid build.
 - Root cause: the `hookloot-web` container was not guaranteed to be recreated on each release switch, so it could keep a stale bind mount to an older release directory that later got pruned. Once that old release disappeared, nginx inside the container served an empty `/usr/share/nginx/html`, which produced `403` on `/` and an internal redirect cycle `500` on `/index.html`.

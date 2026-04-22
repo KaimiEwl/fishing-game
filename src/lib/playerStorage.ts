@@ -62,6 +62,42 @@ export const normalizePlayerDailyFreeBait = (
   };
 };
 
+export const normalizeLegacyStartingBait = (
+  player: PlayerState,
+  dailyFreeBaitAmount: number,
+): PlayerState => {
+  const looksLikeFreshBaseline = (
+    player.coins === 100
+    && player.bait >= 10
+    && player.dailyFreeBait === dailyFreeBaitAmount
+    && player.level === 1
+    && player.xp === 0
+    && player.rodLevel === 0
+    && player.equippedRod === 0
+    && player.totalCatches === 0
+    && player.loginStreak === 1
+    && player.inventory.length === 0
+    && player.cookedDishes.length === 0
+    && player.nftRods.length === 0
+    && player.nickname == null
+    && player.avatarUrl == null
+  );
+  const hasLegacyStartingBait = (
+    (player.bait === 10 && player.bonusBaitGrantedTotal === 0)
+    || (player.bait === 20 && player.bonusBaitGrantedTotal === 10)
+  );
+
+  if (!looksLikeFreshBaseline || !hasLegacyStartingBait) {
+    return player;
+  }
+
+  return {
+    ...player,
+    bait: 0,
+    bonusBaitGrantedTotal: 0,
+  };
+};
+
 export const applyServerBonusBaitSync = (
   player: PlayerState,
   serverGrantedTotal: number,
@@ -119,28 +155,30 @@ export const mergeSyncedPlayerState = (
   serverPlayer: PlayerState,
   localPlayer: PlayerState,
 ): PlayerState => {
+  const normalizedServerPlayer = normalizeLegacyStartingBait(serverPlayer, serverPlayer.dailyFreeBait);
+  const normalizedLocalPlayer = normalizeLegacyStartingBait(localPlayer, localPlayer.dailyFreeBait);
   const mergedBonusBaitGrantedTotal = Math.max(
-    serverPlayer.bonusBaitGrantedTotal,
-    localPlayer.bonusBaitGrantedTotal,
+    normalizedServerPlayer.bonusBaitGrantedTotal,
+    normalizedLocalPlayer.bonusBaitGrantedTotal,
   );
-  const serverNonBonusBait = Math.max(0, serverPlayer.bait - serverPlayer.bonusBaitGrantedTotal);
-  const localNonBonusBait = Math.max(0, localPlayer.bait - localPlayer.bonusBaitGrantedTotal);
+  const serverNonBonusBait = Math.max(0, normalizedServerPlayer.bait - normalizedServerPlayer.bonusBaitGrantedTotal);
+  const localNonBonusBait = Math.max(0, normalizedLocalPlayer.bait - normalizedLocalPlayer.bonusBaitGrantedTotal);
 
   return {
-    ...serverPlayer,
-    coins: Math.max(serverPlayer.coins, localPlayer.coins),
+    ...normalizedServerPlayer,
+    coins: Math.max(normalizedServerPlayer.coins, normalizedLocalPlayer.coins),
     bait: Math.max(serverNonBonusBait, localNonBonusBait) + mergedBonusBaitGrantedTotal,
-    dailyFreeBait: Math.max(serverPlayer.dailyFreeBait, localPlayer.dailyFreeBait),
-    dailyFreeBaitResetAt: serverPlayer.dailyFreeBaitResetAt ?? localPlayer.dailyFreeBaitResetAt,
+    dailyFreeBait: Math.max(normalizedServerPlayer.dailyFreeBait, normalizedLocalPlayer.dailyFreeBait),
+    dailyFreeBaitResetAt: normalizedServerPlayer.dailyFreeBaitResetAt ?? normalizedLocalPlayer.dailyFreeBaitResetAt,
     bonusBaitGrantedTotal: mergedBonusBaitGrantedTotal,
-    level: Math.max(serverPlayer.level, localPlayer.level),
-    xp: Math.max(serverPlayer.xp, localPlayer.xp),
-    xpToNextLevel: Math.max(serverPlayer.xpToNextLevel, localPlayer.xpToNextLevel),
-    rodLevel: Math.max(serverPlayer.rodLevel, localPlayer.rodLevel),
-    equippedRod: Math.max(serverPlayer.equippedRod, localPlayer.equippedRod),
+    level: Math.max(normalizedServerPlayer.level, normalizedLocalPlayer.level),
+    xp: Math.max(normalizedServerPlayer.xp, normalizedLocalPlayer.xp),
+    xpToNextLevel: Math.max(normalizedServerPlayer.xpToNextLevel, normalizedLocalPlayer.xpToNextLevel),
+    rodLevel: Math.max(normalizedServerPlayer.rodLevel, normalizedLocalPlayer.rodLevel),
+    equippedRod: Math.max(normalizedServerPlayer.equippedRod, normalizedLocalPlayer.equippedRod),
     inventory: mergeStacksByMax(
-      serverPlayer.inventory,
-      localPlayer.inventory,
+      normalizedServerPlayer.inventory,
+      normalizedLocalPlayer.inventory,
       (item) => item.fishId,
       (preferred, alternate) => ({
         ...preferred,
@@ -150,8 +188,8 @@ export const mergeSyncedPlayerState = (
       }),
     ),
     cookedDishes: mergeStacksByMax(
-      serverPlayer.cookedDishes,
-      localPlayer.cookedDishes,
+      normalizedServerPlayer.cookedDishes,
+      normalizedLocalPlayer.cookedDishes,
       (item) => item.recipeId,
       (preferred, alternate) => ({
         ...preferred,
@@ -160,12 +198,12 @@ export const mergeSyncedPlayerState = (
           : alternate.createdAt,
       }),
     ),
-    totalCatches: Math.max(serverPlayer.totalCatches, localPlayer.totalCatches),
-    dailyBonusClaimed: localPlayer.dailyBonusClaimed,
-    loginStreak: Math.max(serverPlayer.loginStreak, localPlayer.loginStreak),
-    nftRods: Array.from(new Set([...serverPlayer.nftRods, ...localPlayer.nftRods])).sort((a, b) => a - b),
-    nickname: localPlayer.nickname ?? serverPlayer.nickname,
-    avatarUrl: localPlayer.avatarUrl ?? serverPlayer.avatarUrl,
+    totalCatches: Math.max(normalizedServerPlayer.totalCatches, normalizedLocalPlayer.totalCatches),
+    dailyBonusClaimed: normalizedLocalPlayer.dailyBonusClaimed,
+    loginStreak: Math.max(normalizedServerPlayer.loginStreak, normalizedLocalPlayer.loginStreak),
+    nftRods: Array.from(new Set([...normalizedServerPlayer.nftRods, ...normalizedLocalPlayer.nftRods])).sort((a, b) => a - b),
+    nickname: normalizedLocalPlayer.nickname ?? normalizedServerPlayer.nickname,
+    avatarUrl: normalizedLocalPlayer.avatarUrl ?? normalizedServerPlayer.avatarUrl,
   };
 };
 
@@ -174,7 +212,7 @@ export const deserializeStoredPlayer = (raw: string, fallback: PlayerState): Pla
     const parsed = JSON.parse(raw) as Partial<StoredPlayerState>;
     if (!parsed || typeof parsed !== 'object') return null;
 
-    return {
+    return normalizeLegacyStartingBait({
       ...fallback,
       ...parsed,
       inventory: Array.isArray(parsed.inventory)
@@ -199,7 +237,7 @@ export const deserializeStoredPlayer = (raw: string, fallback: PlayerState): Pla
       bonusBaitGrantedTotal: typeof parsed.bonusBaitGrantedTotal === 'number'
         ? parsed.bonusBaitGrantedTotal
         : fallback.bonusBaitGrantedTotal,
-    };
+    }, fallback.dailyFreeBait);
   } catch {
     return null;
   }

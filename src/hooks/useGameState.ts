@@ -31,7 +31,7 @@ import {
 
 const INITIAL_PLAYER_STATE: PlayerState = {
   coins: 100,
-  bait: 10,
+  bait: 0,
   dailyFreeBait: BAIT_BUCKETS_V2_ENABLED ? DAILY_FREE_BAIT : 0,
   dailyFreeBaitResetAt: BAIT_BUCKETS_V2_ENABLED ? new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate())).toISOString() : null,
   bonusBaitGrantedTotal: 0,

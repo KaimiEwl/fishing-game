@@ -15,7 +15,7 @@ const corsHeaders = {
 };
 
 const DAILY_FREE_BAIT = 30;
-const WALLET_BAIT_BONUS = 10;
+const WALLET_BAIT_BONUS = 0;
 const REFERRAL_BAIT_BONUS = 10;
 const MAX_REWARDED_REFERRALS = 10;
 
@@ -67,7 +67,7 @@ interface ReferralRewardSummary {
 const buildNewPlayerBaseline = (walletAddress: string): PlayerLoginState => ({
   wallet_address: walletAddress,
   coins: 100,
-  bait: 10,
+  bait: 0,
   daily_free_bait: DAILY_FREE_BAIT,
   cooked_dishes: [],
   game_progress: {},

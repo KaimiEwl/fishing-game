@@ -28,6 +28,8 @@ const MAIN_SCENE_ROD_FILES = [
   'rod_legendary.png',
 ] as const;
 
+const IMAGE_LOAD_TIMEOUT_MS = 15000;
+
 export interface MainSceneAssets {
   background: HTMLImageElement;
   pepe: HTMLImageElement;
@@ -61,17 +63,30 @@ export const WARM_PRELOAD_ASSET_URLS = [
 const loadImageElement = (src: string) => new Promise<HTMLImageElement>((resolve, reject) => {
   const img = new Image();
   let settled = false;
+  const timeout = window.setTimeout(() => {
+    finalize(() => reject(new Error(`Timed out loading image: ${src}`)));
+  }, IMAGE_LOAD_TIMEOUT_MS);
 
   const finalize = (fn: () => void) => {
     if (settled) return;
     settled = true;
+    window.clearTimeout(timeout);
     fn();
   };
 
   img.decoding = 'async';
   img.loading = 'eager';
   img.fetchPriority = 'high';
-  img.onload = () => finalize(() => resolve(img));
+  img.onload = () => {
+    if (typeof img.decode === 'function') {
+      img.decode()
+        .catch(() => undefined)
+        .finally(() => finalize(() => resolve(img)));
+      return;
+    }
+
+    finalize(() => resolve(img));
+  };
   img.onerror = () => finalize(() => reject(new Error(`Failed to load image: ${src}`)));
   img.src = src;
 

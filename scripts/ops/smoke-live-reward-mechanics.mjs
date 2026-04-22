@@ -119,9 +119,9 @@ try {
   let inviterSessionToken = inviterVerify.session_token;
   let inviterPlayer = inviterVerify.player;
 
-  assert(inviterPlayer.bait === 20, `Expected inviter first verify to yield 20 reserve bait, got ${inviterPlayer.bait}`);
+  assert(inviterPlayer.bait === 0, `Expected inviter first verify to yield 0 reserve bait, got ${inviterPlayer.bait}`);
   assert(inviterPlayer.daily_free_bait === 30, `Expected inviter daily free bait to be 30, got ${inviterPlayer.daily_free_bait}`);
-  assert(inviterPlayer.bonus_bait_granted_total === 10, `Expected inviter server bonus total to be 10, got ${inviterPlayer.bonus_bait_granted_total}`);
+  assert(inviterPlayer.bonus_bait_granted_total === 0, `Expected inviter server bonus total to be 0, got ${inviterPlayer.bonus_bait_granted_total}`);
   assert(inviterPlayer.rewarded_referral_count === 0, `Expected inviter referral count to start at 0, got ${inviterPlayer.rewarded_referral_count}`);
 
   const inviterRefresh = await invoke('verify-wallet', {
@@ -146,9 +146,9 @@ try {
   inviterPlayer = inviterAfterInviteeOne.player;
 
   assert(inviteeOnePlayer.referrer_wallet_address === inviterWallet, 'First invitee did not attach inviter wallet');
-  assert(inviteeOnePlayer.bait === 20, `Expected invitee one reserve bait to stay at 20 after first verify, got ${inviteeOnePlayer.bait}`);
-  assert(inviterPlayer.bait === 30, `Expected inviter reserve bait to increase to 30 after first referral, got ${inviterPlayer.bait}`);
-  assert(inviterPlayer.bonus_bait_granted_total === 20, `Expected inviter server bonus total to increase to 20 after first referral, got ${inviterPlayer.bonus_bait_granted_total}`);
+  assert(inviteeOnePlayer.bait === 0, `Expected invitee one reserve bait to stay at 0 after first verify, got ${inviteeOnePlayer.bait}`);
+  assert(inviterPlayer.bait === 10, `Expected inviter reserve bait to increase to 10 after first referral, got ${inviterPlayer.bait}`);
+  assert(inviterPlayer.bonus_bait_granted_total === 10, `Expected inviter server bonus total to increase to 10 after first referral, got ${inviterPlayer.bonus_bait_granted_total}`);
   assert(inviterPlayer.rewarded_referral_count === 1, `Expected inviter rewarded referral count to be 1 after first referral, got ${inviterPlayer.rewarded_referral_count}`);
 
   await invoke('verify-wallet', {
@@ -187,7 +187,7 @@ try {
   inviterPlayer = inviterAfterInviteeTwo.player;
 
   assert(inviteeTwoPlayer.referrer_wallet_address === inviterWallet, 'Second invitee did not attach inviter wallet');
-  assert(inviterPlayer.bait === 40, `Expected inviter reserve bait to increase to 40 after second referral, got ${inviterPlayer.bait}`);
+  assert(inviterPlayer.bait === 20, `Expected inviter reserve bait to increase to 20 after second referral, got ${inviterPlayer.bait}`);
   assert(inviterPlayer.rewarded_referral_count === 2, `Expected inviter rewarded referral count to be 2 after second referral, got ${inviterPlayer.rewarded_referral_count}`);
 
   const seededState = {
