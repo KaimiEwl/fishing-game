@@ -20,6 +20,7 @@ import CoinIcon from './CoinIcon';
 import FishIcon from './FishIcon';
 import GameScreenShell from './GameScreenShell';
 import { publicAsset } from '@/lib/assets';
+import { CUBE_REBALANCE_CONFIG } from '@/lib/baitEconomy';
 import { isUserRejectedError } from '@/lib/errorUtils';
 
 interface WheelScreenProps {
@@ -86,9 +87,35 @@ const SPIN_DURATION_MS = 2400;
 const SPIN_SETTLE_BUFFER_MS = 90;
 const LIGHT_STEP_START_MS = 55;
 const LIGHT_STEP_INCREMENT_MS = 7;
-const FISH_TILE_RATIO = 0.42;
-const SECRET_COIN_CHANCE = 0.015;
-const REGULAR_COIN_PRIZES = WHEEL_PRIZES.filter((item) => !item.secret);
+const FISH_TILE_RATIO = CUBE_REBALANCE_CONFIG.enabled ? CUBE_REBALANCE_CONFIG.fishTileRatio : 0.42;
+const MON_TILE_COUNT = CUBE_REBALANCE_CONFIG.enabled ? CUBE_REBALANCE_CONFIG.monTileCount : 2;
+const BAIT_TILE_RATIO = CUBE_REBALANCE_CONFIG.enabled ? 0.28 : 0;
+const COIN_PRIZES = WHEEL_PRIZES.filter((item) => item.type === 'coins');
+const BAIT_PRIZES = WHEEL_PRIZES.filter((item) => item.type === 'bait');
+const SECRET_MON_PRIZE = WHEEL_PRIZES.find((item) => item.type === 'mon' && item.secret) ?? {
+  id: 'secret_mon_1',
+  type: 'mon' as const,
+  label: `${CUBE_REBALANCE_CONFIG.monPrizeAmount} MON`,
+  mon: CUBE_REBALANCE_CONFIG.monPrizeAmount,
+  secret: true,
+};
+const COIN_PRIZE_WEIGHTS: Readonly<Record<string, number>> = {
+  coin_60: 28,
+  coin_120: 24,
+  coin_200: 18,
+  coin_350: 12,
+  coin_550: 8,
+  coin_900: 5,
+  coin_1500: 3,
+  coin_2200: 2,
+};
+const BAIT_PRIZE_WEIGHTS: Readonly<Record<string, number>> = {
+  bait_3: 30,
+  bait_5: 26,
+  bait_8: 20,
+  bait_12: 15,
+  bait_18: 9,
+};
 const PAID_SPIN_COST_MON = '1';
 const RECEIVER_ADDRESS = '0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D' as const;
 const BUY_ROLL_ICON_SRC = publicAsset('assets/wheel_buy_roll_icon_v2.webp');
@@ -112,6 +139,20 @@ const CUBE_TILE_PATH = Array.from({ length: 5 }, (_, row) => {
 }).flat();
 
 const mod = (value: number, base: number) => ((value % base) + base) % base;
+
+const indexToFaceAndTile = (index: number) => ({
+  faceIndex: Math.floor(index / FACE_TILE_COUNT),
+  tileIndex: index % FACE_TILE_COUNT,
+});
+
+const randomUniqueIndexes = (count: number, maxExclusive: number) => {
+  const chosen = new Set<number>();
+  while (chosen.size < count) {
+    chosen.add(Math.floor(Math.random() * maxExclusive));
+  }
+
+  return Array.from(chosen.values());
+};
 
 const pickWeighted = <T,>(items: readonly T[], getWeight: (item: T) => number) => {
   const totalWeight = items.reduce((sum, item) => sum + getWeight(item), 0);
@@ -152,21 +193,37 @@ const createFishPrize = (): WheelPrize => {
 };
 
 const createCoinPrize = (): WheelPrize => {
-  const roll = Math.random();
-  if (roll < SECRET_COIN_CHANCE) {
-    return WHEEL_PRIZES.find((item) => item.secret) ?? WHEEL_PRIZES[0];
-  }
-
-  return REGULAR_COIN_PRIZES[Math.floor(Math.random() * REGULAR_COIN_PRIZES.length)];
+  return pickWeighted(COIN_PRIZES, (item) => COIN_PRIZE_WEIGHTS[item.id] ?? 1);
 };
 
-const createCubeTilePrize = (): WheelPrize => (
-  Math.random() < FISH_TILE_RATIO ? createFishPrize() : createCoinPrize()
+const createBaitPrize = (): WheelPrize => (
+  pickWeighted(BAIT_PRIZES, (item) => BAIT_PRIZE_WEIGHTS[item.id] ?? 1)
 );
 
-const createCubeFaces = (): CubeFaces => (
-  CUBE_SIDES.map(() => Array.from({ length: FACE_TILE_COUNT }, () => createCubeTilePrize()))
+const createRewardPrize = (): WheelPrize => (
+  BAIT_PRIZES.length > 0 && Math.random() < BAIT_TILE_RATIO ? createBaitPrize() : createCoinPrize()
 );
+
+const createCubeTilePrize = (): WheelPrize => (
+  Math.random() < FISH_TILE_RATIO ? createFishPrize() : createRewardPrize()
+);
+
+const createCubeFaces = (): CubeFaces => {
+  const cubeFaces = CUBE_SIDES.map(() => Array.from({ length: FACE_TILE_COUNT }, () => createCubeTilePrize()));
+
+  if (MON_TILE_COUNT > 0) {
+    const monIndexes = randomUniqueIndexes(MON_TILE_COUNT, CUBE_SIDES.length * FACE_TILE_COUNT);
+    for (const globalIndex of monIndexes) {
+      const { faceIndex, tileIndex } = indexToFaceAndTile(globalIndex);
+      cubeFaces[faceIndex][tileIndex] = {
+        ...SECRET_MON_PRIZE,
+        label: `${SECRET_MON_PRIZE.mon ?? CUBE_REBALANCE_CONFIG.monPrizeAmount} MON`,
+      };
+    }
+  }
+
+  return cubeFaces;
+};
 
 const getFaceViewRotation = (faceIndex: number): RotationState => {
   const offset = FACE_ALIGNMENT_OFFSETS[faceIndex] ?? FACE_ALIGNMENT_OFFSETS[0];
@@ -271,12 +328,15 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     const fish = getFishByReward(item);
     const isHighlighted = highlightedFaceIndex === sideIndex && highlightedTileIndex === tileIndex;
     const isMonTile = item.type === 'mon';
+    const isBaitTile = item.type === 'bait';
     const colorIndex = Math.max(WHEEL_PRIZES.findIndex((prizeItem) => prizeItem.id === item.id), 0);
     const accent = item.type === 'fish' && fish
       ? RARITY_COLORS[fish.rarity]
       : item.type === 'mon'
         ? '#14f195'
-      : item.secret
+      : item.type === 'bait'
+        ? '#bef264'
+        : item.secret
         ? '#f8fafc'
         : CUBE_TILE_COLORS[colorIndex % CUBE_TILE_COLORS.length];
 
@@ -288,6 +348,8 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
             ? 'z-20 scale-[1.16] border-white ring-4 ring-cyan-100/90 shadow-[0_0_26px_rgba(34,211,238,0.95),0_0_44px_rgba(255,255,255,0.65)]'
             : isMonTile
               ? 'border-emerald-100/90 ring-1 ring-emerald-100/85 shadow-[0_0_0_1px_rgba(16,185,129,0.25),0_0_16px_rgba(20,241,149,0.45)]'
+            : isBaitTile
+              ? 'border-lime-100/90 ring-1 ring-lime-100/80 shadow-[0_0_0_1px_rgba(101,163,13,0.2),0_0_14px_rgba(190,242,100,0.35)]'
             : 'border-black/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.58),0_5px_10px_rgba(0,0,0,0.22)]'
         }`}
         style={{
@@ -295,9 +357,11 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
             ? `linear-gradient(135deg, ${accent}40, ${accent}18)`
             : isMonTile
               ? 'radial-gradient(circle at top, rgba(236,253,245,0.98), rgba(52,211,153,0.94) 52%, rgba(5,150,105,0.98) 100%)'
+            : isBaitTile
+              ? 'radial-gradient(circle at top, rgba(247,254,231,0.98), rgba(190,242,100,0.94) 55%, rgba(101,163,13,0.98) 100%)'
             : item.secret
               ? 'linear-gradient(135deg, #f8fafc, #fde68a 45%, #f472b6)'
-              : `linear-gradient(135deg, ${accent}, ${accent}bb)`,
+            : `linear-gradient(135deg, ${accent}, ${accent}bb)`,
           opacity: spinning && highlightedFaceIndex !== null && highlightedFaceIndex !== sideIndex ? 0.94 : 1,
           filter: isHighlighted ? 'brightness(1.38) saturate(1.3)' : 'none',
         }}
@@ -322,6 +386,15 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
             <span className="pointer-events-none absolute inset-x-[12%] bottom-[18%] h-[1px] bg-emerald-950/20" />
             <span className="text-[8px] font-black tracking-[0.08em] text-emerald-950 drop-shadow-[0_1px_0_rgba(255,255,255,0.65)] sm:text-[10px]">
               {item.mon ?? 1} MON
+            </span>
+          </div>
+        ) : item.type === 'bait' ? (
+          <div className="relative flex h-full w-full flex-col items-center justify-center px-0.5 text-center">
+            <span className="text-[6px] font-black tracking-[0.14em] text-lime-950/85 sm:text-[7px]">
+              BAIT
+            </span>
+            <span className="text-[8px] font-black text-lime-950 drop-shadow-[0_1px_0_rgba(255,255,255,0.6)] sm:text-[10px]">
+              +{item.bait ?? 0}
             </span>
           </div>
         ) : (

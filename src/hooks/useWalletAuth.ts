@@ -193,6 +193,10 @@ function mapCookedDishes(value: unknown): PlayerState['cookedDishes'] {
 }
 
 function mapPlayerRecord(p: PlayerRecord): PlayerState {
+  const syncedProgress = p.game_progress && typeof p.game_progress === 'object'
+    ? p.game_progress as GameProgressSnapshot
+    : null;
+
   return {
     coins: p.coins,
     bait: p.bait,
@@ -212,6 +216,8 @@ function mapPlayerRecord(p: PlayerRecord): PlayerState {
     nftRods: (p.nft_rods || []) as number[],
     nickname: p.nickname || null,
     avatarUrl: p.avatar_url || null,
+    collectionBook: syncedProgress?.collectionBook ?? null,
+    rodMastery: syncedProgress?.rodMastery ?? null,
   };
 }
 
@@ -246,6 +252,8 @@ function serializePlayerProgress(player: PlayerState) {
     nft_rods: [...player.nftRods].sort((a, b) => a - b),
     nickname: player.nickname,
     avatar_url: player.avatarUrl,
+    collection_book: player.collectionBook ?? null,
+    rod_mastery: player.rodMastery ?? null,
   };
 }
 

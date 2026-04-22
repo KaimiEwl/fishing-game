@@ -1,4 +1,5 @@
-import type { PlayerState } from '@/types/game';
+import type { PlayerState, RodMasteryState } from '@/types/game';
+import { mergeCollectionBooks } from '@/lib/collectionBook';
 
 export const PLAYER_STORAGE_KEY = 'hook_loot_player_v1';
 
@@ -164,6 +165,42 @@ export const mergeSyncedPlayerState = (
   const serverNonBonusBait = Math.max(0, normalizedServerPlayer.bait - normalizedServerPlayer.bonusBaitGrantedTotal);
   const localNonBonusBait = Math.max(0, normalizedLocalPlayer.bait - normalizedLocalPlayer.bonusBaitGrantedTotal);
 
+  const mergeRodMastery = (
+    serverRodMastery?: RodMasteryState | null,
+    localRodMastery?: RodMasteryState | null,
+  ): RodMasteryState | null => {
+    if (!serverRodMastery && !localRodMastery) return null;
+    if (!serverRodMastery) return localRodMastery ?? null;
+    if (!localRodMastery) return serverRodMastery;
+
+    const trackKeys = new Set([
+      ...Object.keys(serverRodMastery.tracks || {}),
+      ...Object.keys(localRodMastery.tracks || {}),
+    ]);
+
+    const tracks = Object.fromEntries(
+      Array.from(trackKeys).map((trackKey) => {
+        const serverTrack = serverRodMastery.tracks?.[trackKey];
+        const localTrack = localRodMastery.tracks?.[trackKey];
+
+        if (!serverTrack) return [trackKey, localTrack];
+        if (!localTrack) return [trackKey, serverTrack];
+
+        return [trackKey, {
+          ...serverTrack,
+          masteryLevel: Math.max(serverTrack.masteryLevel, localTrack.masteryLevel),
+          masteryPoints: Math.max(serverTrack.masteryPoints, localTrack.masteryPoints),
+          lastUpdatedAt: serverTrack.lastUpdatedAt ?? localTrack.lastUpdatedAt,
+        }];
+      }),
+    );
+
+    return {
+      totalMasteryPoints: Math.max(serverRodMastery.totalMasteryPoints, localRodMastery.totalMasteryPoints),
+      tracks,
+    };
+  };
+
   return {
     ...normalizedServerPlayer,
     coins: Math.max(normalizedServerPlayer.coins, normalizedLocalPlayer.coins),
@@ -205,6 +242,8 @@ export const mergeSyncedPlayerState = (
     // Wallet-bound identity fields must come from the server row for this wallet.
     nickname: normalizedServerPlayer.nickname,
     avatarUrl: normalizedServerPlayer.avatarUrl,
+    collectionBook: mergeCollectionBooks(normalizedServerPlayer.collectionBook, normalizedLocalPlayer.collectionBook),
+    rodMastery: mergeRodMastery(normalizedServerPlayer.rodMastery, normalizedLocalPlayer.rodMastery),
   };
 };
 

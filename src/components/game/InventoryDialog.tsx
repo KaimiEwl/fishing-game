@@ -6,8 +6,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { ChefHat, Backpack, ShipWheel } from 'lucide-react';
-import { CaughtFish, FISH_DATA, GRILL_RECIPES, type CookedDishStack } from '@/types/game';
+import { BookOpen, ChefHat, Backpack, CheckCircle2, Lock, ShipWheel } from 'lucide-react';
+import { ALBUM_FIRST_CATCH_BONUSES } from '@/lib/baitEconomy';
+import { COLLECTION_BOOK_PAGES, ensureCollectionBook } from '@/lib/collectionBook';
+import { CaughtFish, FISH_DATA, GRILL_RECIPES, type CollectionBookState, type CookedDishStack } from '@/types/game';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import FishIcon from './FishIcon';
@@ -19,6 +21,7 @@ import InventoryDishItem from '@/components/InventoryDishItem';
 interface InventoryDialogProps {
   inventory: CaughtFish[];
   cookedDishes: CookedDishStack[];
+  collectionBook?: CollectionBookState | null;
   rodLevel: number;
   equippedRod: number;
   nftRods: number[];
@@ -26,11 +29,13 @@ interface InventoryDialogProps {
   onSellFish: (fishId: string) => void;
   onSellCookedDish: (recipeId: string) => void;
   triggerVariant?: 'panel' | 'shortcut';
+  collectionBookEnabled?: boolean;
 }
 
 const InventoryDialog: React.FC<InventoryDialogProps> = ({
   inventory,
   cookedDishes,
+  collectionBook,
   rodLevel,
   equippedRod,
   nftRods,
@@ -38,10 +43,20 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({
   onSellFish,
   onSellCookedDish,
   triggerVariant = 'panel',
+  collectionBookEnabled = true,
 }) => {
   const totalFish = inventory.reduce((sum, f) => sum + f.quantity, 0);
   const totalDishes = cookedDishes.reduce((sum, item) => sum + item.quantity, 0);
   const totalItems = totalFish + totalDishes;
+  const normalizedCollectionBook = ensureCollectionBook(collectionBook);
+  const collectionSpecies = FISH_DATA.map((fish) => ({
+    fish,
+    state: normalizedCollectionBook.species[fish.id],
+    firstCatchBonus: ALBUM_FIRST_CATCH_BONUSES[fish.id as keyof typeof ALBUM_FIRST_CATCH_BONUSES] ?? 0,
+  }));
+  const completedPages = normalizedCollectionBook.pages.filter((page) => page.completed).length;
+  const showCollectionTab = collectionBookEnabled;
+  const tabsColumnClass = showCollectionTab ? 'grid-cols-4' : 'grid-cols-3';
 
   const inventoryItems = inventory.map(item => {
     const fishData = FISH_DATA.find(f => f.id === item.fishId);
@@ -78,9 +93,12 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({
         </DialogHeader>
 
         <Tabs defaultValue="fish" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-zinc-950">
+          <TabsList className={`grid w-full ${tabsColumnClass} bg-zinc-950`}>
             <TabsTrigger value="fish" className="gap-1.5 text-zinc-200 data-[state=active]:bg-black data-[state=active]:text-cyan-100"><FishIcon fishId="carp" size="badge" /> Fish ({totalFish})</TabsTrigger>
             <TabsTrigger value="dishes" className="gap-1.5 text-zinc-200 data-[state=active]:bg-black data-[state=active]:text-amber-100"><ChefHat className="h-4 w-4" /> Dishes ({totalDishes})</TabsTrigger>
+            {showCollectionTab && (
+              <TabsTrigger value="album" className="gap-1.5 text-zinc-200 data-[state=active]:bg-black data-[state=active]:text-emerald-100"><BookOpen className="h-4 w-4" /> Album</TabsTrigger>
+            )}
             <TabsTrigger value="rods" className="gap-1.5 text-zinc-200 data-[state=active]:bg-black data-[state=active]:text-cyan-100"><ShipWheel className="h-4 w-4" /> Rods ({ownedRods.length})</TabsTrigger>
           </TabsList>
 
@@ -137,6 +155,92 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({
               )}
             </ScrollArea>
           </TabsContent>
+
+          {showCollectionTab && (
+            <TabsContent value="album" className="mt-4 min-w-0">
+              <ScrollArea className="h-[min(300px,42vh)] pr-2">
+                <div className="space-y-3 pr-2">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-3">
+                      <p className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-200/80">Species caught</p>
+                      <p className="mt-1 text-2xl font-black text-white">
+                        {normalizedCollectionBook.totalSpeciesCaught} / {FISH_DATA.length}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-cyan-300/20 bg-cyan-300/10 p-3">
+                      <p className="text-[11px] font-black uppercase tracking-[0.16em] text-cyan-200/80">Pages completed</p>
+                      <p className="mt-1 text-2xl font-black text-white">
+                        {completedPages} / {COLLECTION_BOOK_PAGES.length}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-2">
+                    {COLLECTION_BOOK_PAGES.map((page) => {
+                      const pageState = normalizedCollectionBook.pages.find((item) => item.pageId === page.id);
+                      const discoveredCount = page.fishIds.filter((fishId) => normalizedCollectionBook.species[fishId]?.discovered).length;
+
+                      return (
+                        <div key={page.id} className="rounded-xl border border-zinc-800 bg-zinc-950/80 p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-black text-white">{page.title}</p>
+                              <p className="mt-1 text-xs text-zinc-400">{page.description}</p>
+                            </div>
+                            {pageState?.completed ? (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-emerald-200">
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                Complete
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-zinc-700 bg-black px-2 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-zinc-300">
+                                {discoveredCount}/{page.fishIds.length}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {collectionSpecies.map(({ fish, state, firstCatchBonus }) => (
+                      <article
+                        key={fish.id}
+                        className={`rounded-xl border p-3 ${state.discovered ? 'border-emerald-300/20 bg-black' : 'border-zinc-800 bg-zinc-950/70'}`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={state.discovered ? '' : 'opacity-35'}>
+                            <FishIcon fishId={fish.id} size="lg" tone={state.discovered ? 'default' : 'muted'} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className={`truncate text-sm font-black ${state.discovered ? 'text-white' : 'text-zinc-400'}`}>
+                                {state.discovered ? fish.name : 'Unknown species'}
+                              </p>
+                              {state.discovered ? (
+                                <span className="rounded-full bg-emerald-300/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-200">
+                                  x{state.catches}
+                                </span>
+                              ) : (
+                                <Lock className="h-4 w-4 text-zinc-500" />
+                              )}
+                            </div>
+                            <p className="mt-1 text-xs text-zinc-500">
+                              {state.discovered ? fish.description : `First catch bonus: +${firstCatchBonus} coins`}
+                            </p>
+                            <p className="mt-2 text-[11px] font-black uppercase tracking-[0.16em] text-amber-200/80">
+                              First catch +{firstCatchBonus} coins
+                            </p>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              </ScrollArea>
+            </TabsContent>
+          )}
 
           <TabsContent value="rods" className="mt-4 min-w-0">
             <ScrollArea className="h-[min(300px,42vh)] pr-2">

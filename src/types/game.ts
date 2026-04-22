@@ -30,6 +30,8 @@ export interface PlayerState {
   nftRods: number[]; // Array of rod levels that have been minted as NFT
   nickname: string | null;
   avatarUrl: string | null;
+  collectionBook?: CollectionBookState | null;
+  rodMastery?: RodMasteryState | null;
 }
 
 export interface CaughtFish {
@@ -56,7 +58,17 @@ export type GameTab = 'fish' | 'tasks' | 'shop' | 'grill' | 'wheel' | 'leaderboa
 export type DailyTaskId = 'check_in' | 'catch_10' | 'rare_1' | 'grill_1' | 'spend_1000';
 export type SpecialTaskId = 'invite_friend' | 'wallet_check_in';
 export type SocialTaskId = 'twitter_follow' | 'twitter_repost' | 'twitter_like' | 'discord_join' | 'telegram_join';
+export type WeeklyMissionId =
+  | 'catch_60_fish'
+  | 'catch_6_rare'
+  | 'cook_5_dishes'
+  | 'sell_3_dishes'
+  | 'cube_3_days'
+  | 'complete_1_premium_session';
 export type TaskId = DailyTaskId | SpecialTaskId;
+export type ReactionQuality = 'miss' | 'good' | 'perfect';
+export type PremiumDropTierId = 'zero' | 'small' | 'medium' | 'big' | 'spike' | 'jackpot';
+export type PremiumSessionStatus = 'idle' | 'active' | 'completed' | 'expired';
 
 export interface WalletCheckInSummary {
   todayCheckedIn: boolean;
@@ -96,6 +108,16 @@ export interface SocialTask {
   rewardBait?: number;
 }
 
+export interface WeeklyMission {
+  id: WeeklyMissionId;
+  title: string;
+  description: string;
+  target: number;
+  rewardCoins?: number;
+  rewardBait?: number;
+  rewardCubeCharge?: number;
+}
+
 export interface DailyTaskProgress extends DailyTask {
   progress: number;
   claimed: boolean;
@@ -116,24 +138,106 @@ export interface SocialTaskProgress extends SocialTask {
   canClaim: boolean;
 }
 
+export interface WeeklyMissionProgress extends WeeklyMission {
+  progress: number;
+  claimed: boolean;
+}
+
+export interface PremiumCastResult {
+  castIndex: number;
+  reactionQuality: ReactionQuality;
+  fishId: string;
+  bonusCoinsAwarded: number;
+  bonusXpAwarded: number;
+  monDropTier: PremiumDropTierId;
+  monAmount: number;
+  recoveredMonTotal: number;
+  luckMeterStacks: number;
+  zeroDropStreak: number;
+  pityTriggered: boolean;
+  rescueTriggered: boolean;
+  hotStreakActive: boolean;
+  occurredAt: string;
+}
+
+export interface PremiumSessionState {
+  sessionId: string | null;
+  status: PremiumSessionStatus;
+  priceMon: string;
+  castsTotal: number;
+  castsUsed: number;
+  castsRemaining: number;
+  recoveredMon: number;
+  luckMeterStacks: number;
+  zeroDropStreak: number;
+  guaranteedRewardTier: PremiumDropTierId | null;
+  rescueEligible: boolean;
+  lastDropTier: PremiumDropTierId | null;
+  lastCastAt: string | null;
+}
+
+export interface CollectionSpeciesState {
+  fishId: string;
+  discovered: boolean;
+  catches: number;
+  firstCaughtAt: string | null;
+  lastCaughtAt: string | null;
+  firstCatchBonusClaimed: boolean;
+}
+
+export interface CollectionPageState {
+  pageId: string;
+  completed: boolean;
+  claimed: boolean;
+}
+
+export interface CollectionBookState {
+  species: Record<string, CollectionSpeciesState>;
+  pages: CollectionPageState[];
+  totalSpeciesCaught: number;
+  totalFirstCatchBonusesClaimed: number;
+}
+
+export interface RodMasteryTrackState {
+  rodLevel: number;
+  masteryLevel: number;
+  masteryPoints: number;
+  lastUpdatedAt: string | null;
+}
+
+export interface RodMasteryState {
+  totalMasteryPoints: number;
+  tracks: Record<string, RodMasteryTrackState>;
+}
+
 export interface WheelPrize {
   id: string;
   label: string;
-  type: 'coins' | 'fish' | 'mon';
+  type: 'coins' | 'fish' | 'mon' | 'bait' | 'album' | 'premium_shard';
   coins?: number;
   fishId?: string;
   quantity?: number;
   mon?: number;
+  bait?: number;
+  albumPageId?: string;
+  premiumShards?: number;
   secret?: boolean;
 }
 
 export type DailyTaskStateMap = Record<DailyTaskId, { progress: number; claimed: boolean }>;
 export type SpecialTaskStateMap = Record<SpecialTaskId, { progress: number; claimed: boolean }>;
+export type WeeklyMissionStateMap = Record<WeeklyMissionId, { progress: number; claimed: boolean }>;
 
 export interface GameProgressSnapshot {
   date: string;
+  weekKey?: string;
   tasks: DailyTaskStateMap;
   specialTasks: SpecialTaskStateMap;
+  weeklyMissions?: WeeklyMissionStateMap;
+  lastWeeklyCubeUnlockDate?: string | null;
+  collectionBook?: CollectionBookState | null;
+  rodMastery?: RodMasteryState | null;
+  premiumSession?: PremiumSessionState | null;
   lastWalletCheckInTxHash?: string | null;
   wheelSpun: boolean;
   wheelPrize: WheelPrize | null;
@@ -353,15 +457,20 @@ export const SOCIAL_TASKS: SocialTask[] = [
 ];
 
 export const WHEEL_PRIZES: WheelPrize[] = [
-  { id: 'coin_1', type: 'coins', label: '50 coins', coins: 50 },
-  { id: 'coin_25', type: 'coins', label: '100 coins', coins: 100 },
-  { id: 'coin_75', type: 'coins', label: '250 coins', coins: 250 },
-  { id: 'coin_150', type: 'coins', label: '500 coins', coins: 500 },
-  { id: 'coin_300', type: 'coins', label: '750 coins', coins: 750 },
-  { id: 'coin_750', type: 'coins', label: '1,000 coins', coins: 1000 },
+  { id: 'coin_60', type: 'coins', label: '60 coins', coins: 60 },
+  { id: 'coin_120', type: 'coins', label: '120 coins', coins: 120 },
+  { id: 'coin_200', type: 'coins', label: '200 coins', coins: 200 },
+  { id: 'coin_350', type: 'coins', label: '350 coins', coins: 350 },
+  { id: 'coin_550', type: 'coins', label: '550 coins', coins: 550 },
+  { id: 'coin_900', type: 'coins', label: '900 coins', coins: 900 },
   { id: 'coin_1500', type: 'coins', label: '1,500 coins', coins: 1500 },
-  { id: 'coin_10000', type: 'coins', label: '2,500 coins', coins: 2500 },
-  { id: 'secret_meteor', type: 'coins', label: 'Secret Meteor Prize', coins: 5000, secret: true },
+  { id: 'coin_2200', type: 'coins', label: '2,200 coins', coins: 2200 },
+  { id: 'bait_3', type: 'bait', label: '3 bait', bait: 3 },
+  { id: 'bait_5', type: 'bait', label: '5 bait', bait: 5 },
+  { id: 'bait_8', type: 'bait', label: '8 bait', bait: 8 },
+  { id: 'bait_12', type: 'bait', label: '12 bait', bait: 12 },
+  { id: 'bait_18', type: 'bait', label: '18 bait', bait: 18 },
+  { id: 'secret_mon_1', type: 'mon', label: '1 MON', mon: 1, secret: true },
 ];
 
 export const GRILL_RECIPES: GrillRecipe[] = [
@@ -389,8 +498,8 @@ export const GRILL_RECIPES: GrillRecipe[] = [
   {
     id: 'deepwater_platter',
     name: 'Deepwater Platter',
-    description: 'High score dish made from stronger catches.',
-    ingredients: { pike: 1, catfish: 1 },
+    description: 'High score dish made from a strong deepwater haul.',
+    ingredients: { catfish: 2, bream: 1 },
     score: 420,
   },
   {

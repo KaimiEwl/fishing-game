@@ -6,7 +6,14 @@ export type SocialTaskId =
   | 'twitter_like'
   | 'discord_join'
   | 'telegram_join';
-export type TaskId = DailyTaskId | SpecialTaskId | SocialTaskId;
+export type WeeklyMissionId =
+  | 'catch_60_fish'
+  | 'catch_6_rare'
+  | 'cook_5_dishes'
+  | 'sell_3_dishes'
+  | 'cube_3_days'
+  | 'complete_1_premium_session';
+export type TaskId = DailyTaskId | SpecialTaskId | SocialTaskId | WeeklyMissionId;
 
 export type SocialTaskStatus = 'available' | 'pending_verification' | 'verified' | 'claimed';
 
@@ -16,6 +23,7 @@ export interface TaskDefinition {
   target: number;
   rewardCoins?: number;
   rewardBait?: number;
+  rewardCubeCharge?: number;
   verificationMode?: 'automatic' | 'manual';
 }
 
@@ -40,12 +48,22 @@ export const SOCIAL_TASKS: ReadonlyArray<TaskDefinition> = [
   { id: 'telegram_join', title: 'Join Telegram', target: 1, rewardCoins: 0, verificationMode: 'manual' },
 ] as const;
 
+export const WEEKLY_MISSIONS: ReadonlyArray<TaskDefinition> = [
+  { id: 'catch_60_fish', title: 'Catch 60 fish', target: 60, rewardCoins: 300 },
+  { id: 'catch_6_rare', title: 'Catch 6 rare+ fish', target: 6, rewardCoins: 250 },
+  { id: 'cook_5_dishes', title: 'Cook 5 dishes', target: 5, rewardBait: 10 },
+  { id: 'sell_3_dishes', title: 'Sell 3 dishes', target: 3, rewardBait: 10 },
+  { id: 'cube_3_days', title: 'Unlock cube on 3 days', target: 3, rewardCubeCharge: 1 },
+  { id: 'complete_1_premium_session', title: 'Complete 1 premium session', target: 1, rewardCoins: 250 },
+] as const;
+
 export const DAILY_TASK_IDS = DAILY_TASKS.map((task) => task.id) as DailyTaskId[];
 export const SPECIAL_TASK_IDS = SPECIAL_TASKS.map((task) => task.id) as SpecialTaskId[];
 export const SOCIAL_TASK_IDS = SOCIAL_TASKS.map((task) => task.id) as SocialTaskId[];
+export const WEEKLY_MISSION_IDS = WEEKLY_MISSIONS.map((task) => task.id) as WeeklyMissionId[];
 
 const TASK_REGISTRY = new Map<TaskId, TaskDefinition>(
-  [...DAILY_TASKS, ...SPECIAL_TASKS, ...SOCIAL_TASKS].map((task) => [task.id, task]),
+  [...DAILY_TASKS, ...SPECIAL_TASKS, ...SOCIAL_TASKS, ...WEEKLY_MISSIONS].map((task) => [task.id, task]),
 );
 
 export const getTaskDefinition = (taskId: string) => TASK_REGISTRY.get(taskId as TaskId) ?? null;

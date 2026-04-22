@@ -1,5 +1,118 @@
 # STATUS
 
+## Economy progress persistence hardened for collection and rod mastery
+- Closed the main save-sync gap created by the new retention layers: verified wallet saves can now round-trip `collectionBook` and `rodMastery` instead of only keeping them in local browser state.
+- `useWalletAuth` now serializes `collection_book` and `rod_mastery` with the wallet-bound player payload, and it restores those fields back into `PlayerState` from `player.game_progress` when a verified snapshot comes from the server.
+- `save-player-progress` now sanitizes and preserves both structures inside `game_progress`:
+  - same-device player saves can push updated album/mastery data even when no explicit `game_progress` payload is being saved in that request
+  - stale-base merges now keep the richer `collectionBook` / `rodMastery` state instead of letting a partial save wipe it
+- `_shared/gameProgress.ts` was extended to understand the same two structures so future backend consumers no longer treat them as unknown extra keys.
+- This is still repo-level hardening only until the working Supabase project gets a fresh function deploy, but the code path is now aligned end-to-end instead of leaving the new economy meta progression browser-local.
+
+## Premium fishing DB schema foundation
+- Added a new migration `20260422013000_add_premium_fishing_sessions.sql` to create the first server-authoritative storage layer for the planned premium MON-fishing loop.
+- New table `public.premium_fishing_sessions` stores one active/completed premium session per player with:
+  - wallet/player identity
+  - session price in MON
+  - casts total / casts used
+  - luck meter stacks
+  - zero-drop streak
+  - rescue eligibility
+  - recovered MON total
+  - lifecycle timestamps
+- New table `public.premium_fishing_casts` stores every resolved premium cast with:
+  - ordered cast index per session
+  - reaction quality
+  - resolved fish id
+  - bonus coins / XP
+  - MON drop tier / amount
+  - luck meter before/after
+  - zero-drop streak after the cast
+  - pity / rescue / hot-streak flags
+- Both tables follow the existing live repo pattern:
+  - `gen_random_uuid()` primary keys
+  - service-role-only RLS policies
+  - indices for active-session lookup and cast audit queries
+  - partial unique index that keeps premium sessions to one active session per player
+- This step is schema-only: no premium gameplay behavior is live yet, but the backend now has a proper table foundation for the upcoming shared premium engine and `player-actions` endpoints.
+
+## Shared premium fishing backend engine
+- Added `supabase/functions/_shared/premiumFishing.ts` as the new backend-side source of truth for the premium MON-fishing math, instead of planning to scatter roll logic across `player-actions`.
+- The helper now carries the first complete server-side premium engine pieces:
+  - premium fish pool mirrored from the current game economy
+  - fish rarity uplift for premium casts
+  - MON drop table
+  - luck meter adjustment
+  - pity threshold handling
+  - bounded rescue drop path
+  - hot-streak carryover handling
+  - one resolver for a premium cast result
+  - one mapper from DB session rows into the frontend-friendly premium session state shape
+- This is still foundation work only: no endpoint uses the helper yet, but the repo now has a single backend module ready for the next step (`player-actions` premium endpoints) instead of leaving those rules implicit in the design notes.
+
+## Premium session actions in player-actions
+- Extended `supabase/functions/player-actions/index.ts` with the first server-authoritative premium session API surface:
+  - `start_premium_session`
+  - `get_premium_session_state`
+  - `resolve_premium_cast`
+  - `complete_premium_session`
+- `start_premium_session` now verifies an on-chain MON payment transaction to the configured receiver address, blocks tx-hash reuse via `player_audit_logs`, enforces one active premium session per player, and creates a tracked `premium_fishing_sessions` row.
+- `get_premium_session_state` now returns the current active premium session (or an idle state) directly from server tables instead of requiring any client-side premium session source of truth.
+- `resolve_premium_cast` now performs the premium fishing resolution on the backend:
+  - loads the active session
+  - applies premium fish rarity uplift
+  - preserves existing rod + NFT rare-fish bonuses
+  - applies premium MON drop logic through the shared helper
+  - increments catch / rare-fish daily task progress
+  - updates player XP, level, level-up coin rewards, inventory, and total catches
+  - inserts a cast audit row in `premium_fishing_casts`
+  - grants MON through the existing reward helper when a premium MON drop happens
+  - writes a `premium_cast_resolved` audit log
+- `complete_premium_session` now finalizes a spent session on the backend and returns the canonical session state.
+- Important rollout note: these endpoints are implemented in repo code only so far. They still need a working Supabase deploy plus the new migration applied before the premium loop can be exercised live from the client.
+
+## Economy config foundation for premium fishing rollout
+- Added a first centralized economy foundation layer in `src/lib/baitEconomy.ts` for the planned premium MON-fishing rollout instead of letting upcoming values spread across UI and edge functions.
+- New feature flags now exist for the upcoming layers:
+  - `VITE_PREMIUM_SESSIONS_ENABLED`
+  - `VITE_COLLECTION_BOOK_ENABLED`
+  - `VITE_WEEKLY_MISSIONS_ENABLED`
+  - `VITE_CUBE_REBALANCE_ENABLED`
+- Added the first source-of-truth constants for:
+  - premium session price / cast count / guaranteed per-cast bonuses
+  - premium MON drop table with computed EV per cast and per session
+  - premium fish rarity weight modifiers
+  - luck meter, pity, and rescue configs
+  - album first-catch bonuses
+  - weekly mission baseline rewards
+  - weekly grill payout baseline budget
+  - cube rebalance target config
+- This pass is config-only: no live gameplay behavior changed yet, and the new systems are still effectively dormant until the next backend/UI steps wire them in.
+
+## Premium session / collection / weekly mission types
+- Extended `src/types/game.ts` with the first type-level model for the upcoming retention economy rollout:
+  - `PremiumDropTierId`, `PremiumSessionStatus`, `ReactionQuality`
+  - `PremiumCastResult`, `PremiumSessionState`
+  - `CollectionSpeciesState`, `CollectionPageState`, `CollectionBookState`
+  - `RodMasteryTrackState`, `RodMasteryState`
+  - `WeeklyMissionId`, `WeeklyMission`, `WeeklyMissionProgress`, `WeeklyMissionStateMap`
+- `PlayerState` can now optionally carry `collectionBook` and `rodMastery`, while `GameProgressSnapshot` can now optionally carry `weeklyMissions` and `premiumSession`.
+- `WheelPrize` was widened in advance to support future cube rebalance reward kinds (`bait`, `album`, `premium_shard`) without forcing a later breaking type expansion when the UI/backend wiring starts.
+- Removed duplicate premium type declarations from `src/lib/baitEconomy.ts` so the premium config layer now imports shared economy type names from `src/types/game.ts` instead of carrying its own parallel definitions.
+
+## Grill sink fix before premium rollout
+- Fixed the one clearly bad grill sink in the current recipe ladder before any premium-fishing rollout can make rare trophy catches more common or more emotionally important.
+- `Deepwater Platter` no longer burns the `pike` / Purple Fish. The recipe now uses `catfish x2 + bream x1` while keeping the same `420` score, so the high-end midgame grill path still exists but no longer asks players to destroy a `10000-coin` trophy fish for a clearly irrational return.
+- This keeps `pike` in the healthier role for Hook & Loot right now: rare collection / brag / sale value, not a punishing grill ingredient.
+
+## Collection book and first-catch bonuses
+- Added the first live collection retention layer on the client side:
+  - `src/lib/collectionBook.ts` now defines album pages, normalization, merge logic, and species/page progression updates.
+  - `Inventory` now shows an `Album` tab with page progress, species discovery state, and first-catch reward visibility.
+- Collection is enabled by default through `COLLECTION_BOOK_ENABLED`, while still supporting an env override if it needs to be turned off quickly.
+- Normal rod catches now update a wallet-local collection book and grant one-time first-catch coin bonuses using the centralized values in `ALBUM_FIRST_CATCH_BONUSES`.
+- Wallet sync on the same device now preserves album progress instead of dropping it during server/local merge, even though the server does not yet persist collection data as a first-class field.
+
 ## Wallet-bound nickname and referral reward toast dedupe
 - Wallet-linked identity merge was tightened: when a verified player snapshot comes back from the server, `nickname` and `avatarUrl` now always come from the server-side wallet row instead of being overwritten by whatever global local player state happened to be on this device. This keeps the visible name tied to the wallet rather than to the browser's stale cache.
 - Referral reward toasts are now deduped per wallet and per reward event. `useWalletAuth` stores the last shown referral reward key (`createdAt + invited wallet + bait amount`) in local storage, so refresh / reconnect / session restore no longer re-show the same `+10 bait received` toast for an already processed referral reward.
@@ -330,3 +443,12 @@ These should not be staged unless they become part of an intentional task.
 - Hook & Loot frontend hosting is now live on the isolated VPS contour instead of depending on GitHub Pages: `/opt/hookloot` on `vm3661` serves the production build through `hookloot-web` on `127.0.0.1:18181`, the public host nginx proxies `hookloot.xyz` / `www.hookloot.xyz`, Let's Encrypt is issued for both names, and the canonical public URL is now `https://www.hookloot.xyz`
 - 2026-04-21: Fixed hookloot.xyz wallet connect regression by routing frontend edge-function calls through same-origin `/api/edge/*` on VPS and stopping forced wallet disconnect after verify errors. This removes the old GitHub Pages origin dependency from wallet/session flows on the new domain.
 - 2026-04-21: Added manual wallet re-verify path in Settings after failed attach attempts. Connected-but-unverified wallets now show a retry button and error text instead of getting stuck with no way to finish linking.
+- 2026-04-22: Premium economy Phase 1 client shell is now wired in behind flags: `usePlayerActions` exposes premium session actions, `BoostDialog` can submit a `MON Expedition` payment after receipt confirmation, and `FishingGame` can refresh/show active premium session state without turning the feature live by default.
+- 2026-04-22: Premium economy Phase 1 cast integration is now wired through the existing lake loop behind flags: `useGameState` has a non-economic premium cast animation path, `FishingGame` routes active expedition casts/reels/timeouts through server `resolve_premium_cast`, and premium sessions no longer require bait to use the normal fishing HUD.
+- 2026-04-22: Collection book foundation is now live in the client: catches update an `Album` tab in `Inventory`, first-time species catches grant one-time coin bonuses, and wallet/local player merge keeps collection progress from being overwritten by stale local sync.
+- 2026-04-22: Cube rebalance is now wired on both client and backend: cube faces shift part of value from liquid coins into fish and bait, the rare secret hit is now `1 MON`, and cube reward application supports `bait` prizes in both local and verified-wallet reward paths.
+- 2026-04-22: Weekly missions foundation is now wired in the client and save schema: `useGameProgress` tracks weekly ladders and weekly cube-unlock days, `TasksScreen` has a weekly tab behind the weekly feature flag, and `FishingGame` now records dish sales / premium-session completion into weekly progress while preserving build compatibility with the new `save-player-progress` weekly fields.
+- 2026-04-22: Economy telemetry scaffolding now exists for the new weekly/premium layer: client-side progress and claim events are queued into `window.__hookLootTelemetryQueue` for weekly mission progression, weekly mission claims, daily cube-unlock progression, and premium-session completion without changing live economy behavior yet.
+- 2026-04-22: Weekly mission progression/claims are now partially server-authoritative in `player-actions`: daily-task cube unlocks increment the weekly `cube_3_days` mission once per day, `cook_recipe`, `sell_cooked_dish`, and `complete_premium_session` now advance their weekly ladders on backend updates, and `claim_task_reward` can now award weekly rewards including bonus cube charges without relying on client-only weekly claim state.
+- 2026-04-22: Verified-wallet weekly mission claims now use the backend `claim_task_reward` path from `FishingGame` instead of local-only mission claiming, removing the last obvious split-brain between weekly client progress and reward-critical server state before the weekly feature flag is enabled.
+- 2026-04-22: Economy rollout scaffolding now supports cohort-based enablement on the client: premium sessions, weekly missions, collection book, and cube rebalance can be gated by rollout percentage plus allowlist in `baitEconomy`, and `FishingGame` now passes resolved feature availability into the local progress/state hooks and child dialogs instead of relying only on repo-wide boolean flags.

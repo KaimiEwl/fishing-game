@@ -14,9 +14,12 @@ import {
 } from '@/types/game';
 import {
   BAIT_BUCKETS_V2_ENABLED,
+  ALBUM_FIRST_CATCH_BONUSES,
+  COLLECTION_BOOK_ENABLED,
   DAILY_FREE_BAIT,
   LEGACY_DAILY_BONUS_DISABLED,
 } from '@/lib/baitEconomy';
+import { recordCollectionCatch } from '@/lib/collectionBook';
 import {
   applyServerBonusBaitSync,
   loadStoredPlayer,
@@ -47,7 +50,9 @@ const INITIAL_PLAYER_STATE: PlayerState = {
   loginStreak: 1,
   nftRods: [],
   nickname: null,
-  avatarUrl: null
+  avatarUrl: null,
+  collectionBook: null,
+  rodMastery: null,
 };
 
 const MIN_CAST_INTERVAL = 4000; // minimum 4s between casts
@@ -81,6 +86,16 @@ interface UseGameStateOptions {
   onSave?: (player: PlayerState) => void;
   onFishCaught?: (fish: Fish) => void;
   onAuditEvent?: (event: PlayerAuditEventPayload) => void;
+  onPremiumBiteTimeout?: () => void;
+  collectionBookEnabled?: boolean;
+}
+
+interface AlbumRewardInfo {
+  fishId: string;
+  fishName: string;
+  bonusCoins: number;
+  totalSpeciesCaught: number;
+  pageCompletedIds: string[];
 }
 
 export function useGameState(options?: UseGameStateOptions) {
@@ -88,12 +103,15 @@ export function useGameState(options?: UseGameStateOptions) {
   const onSave = options?.onSave;
   const onFishCaught = options?.onFishCaught;
   const onAuditEvent = options?.onAuditEvent;
+  const onPremiumBiteTimeout = options?.onPremiumBiteTimeout;
+  const collectionBookEnabled = options?.collectionBookEnabled ?? COLLECTION_BOOK_ENABLED;
   const [player, setPlayer] = useState<PlayerState>(
     resolveInitialPlayer(savedPlayer)
   );
   const [gameState, setGameState] = useState<GameState>('idle');
   const [lastResult, setLastResult] = useState<GameResult | null>(null);
   const [levelUpInfo, setLevelUpInfo] = useState<{ newLevel: number; coinsReward: number } | null>(null);
+  const [albumRewardInfo, setAlbumRewardInfo] = useState<AlbumRewardInfo | null>(null);
   const [biteTimeLeft, setBiteTimeLeft] = useState<number>(0);
   const [biteTimeTotal, setBiteTimeTotal] = useState<number>(0);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -104,6 +122,7 @@ export function useGameState(options?: UseGameStateOptions) {
   const biteCountdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const gameStateRef = useRef<GameState>('idle');
   const pendingAuditEventsRef = useRef<PlayerAuditEventPayload[]>([]);
+  const premiumCastActiveRef = useRef(false);
 
   // Keep ref in sync
   useEffect(() => {
@@ -233,6 +252,8 @@ export function useGameState(options?: UseGameStateOptions) {
   }, []);
 
   const applyFishReward = useCallback((caughtFish: Fish) => {
+    let nextAlbumReward: AlbumRewardInfo | null = null;
+
     setPlayer(prev => {
       const beforeSnapshot = toPlayerAuditSnapshot(prev);
       const nftB = getNftBonus(prev.equippedRod, prev.nftRods);
@@ -255,22 +276,41 @@ export function useGameState(options?: UseGameStateOptions) {
       }
 
       const existingFish = prev.inventory.find(f => f.fishId === caughtFish.id);
+      const caughtAt = new Date();
       const newInventory = existingFish
         ? prev.inventory.map(f => 
             f.fishId === caughtFish.id 
               ? { ...f, quantity: f.quantity + 1 }
               : f
           )
-        : [...prev.inventory, { fishId: caughtFish.id, caughtAt: new Date(), quantity: 1 }];
+        : [...prev.inventory, { fishId: caughtFish.id, caughtAt, quantity: 1 }];
+
+      const collectionUpdate = collectionBookEnabled
+        ? recordCollectionCatch(prev.collectionBook, caughtFish.id, caughtAt)
+        : null;
+      const firstCatchBonus = collectionUpdate?.isFirstCatch
+        ? (ALBUM_FIRST_CATCH_BONUSES[caughtFish.id as keyof typeof ALBUM_FIRST_CATCH_BONUSES] ?? 0)
+        : 0;
+
+      if (collectionUpdate?.isFirstCatch) {
+        nextAlbumReward = {
+          fishId: caughtFish.id,
+          fishName: caughtFish.name,
+          bonusCoins: firstCatchBonus,
+          totalSpeciesCaught: collectionUpdate.nextBook.totalSpeciesCaught,
+          pageCompletedIds: collectionUpdate.pageCompletedIds,
+        };
+      }
 
       const nextPlayer = {
         ...prev,
         xp: remainingXp,
         xpToNextLevel: xpToNext,
         level: newLevel,
-        coins: prev.coins + bonusCoins,
+        coins: prev.coins + bonusCoins + firstCatchBonus,
         inventory: newInventory,
-        totalCatches: prev.totalCatches + 1
+        totalCatches: prev.totalCatches + 1,
+        collectionBook: collectionUpdate?.nextBook ?? prev.collectionBook,
       };
 
       queueAuditEvent({
@@ -283,13 +323,18 @@ export function useGameState(options?: UseGameStateOptions) {
           sellPrice: caughtFish.price,
           xpGain,
           quantity: 1,
+          firstCatchBonus,
+          pageCompletedIds: collectionUpdate?.pageCompletedIds ?? [],
         },
       });
 
       return nextPlayer;
     });
+    if (nextAlbumReward) {
+      setAlbumRewardInfo(nextAlbumReward);
+    }
     onFishCaught?.(caughtFish);
-  }, [getNftBonus, onFishCaught, queueAuditEvent]);
+  }, [collectionBookEnabled, getNftBonus, onFishCaught, queueAuditEvent]);
 
   const grantFishReward = useCallback((fishId: string, quantity = 1) => {
     const rewardedFish = FISH_DATA.find((fish) => fish.id === fishId);
@@ -385,6 +430,7 @@ export function useGameState(options?: UseGameStateOptions) {
   // Bite timeout — fish escapes
   const onBiteTimeout = useCallback(async () => {
     clearBiteTimers();
+    premiumCastActiveRef.current = false;
     pendingFishRef.current = null;
     applyMissXp();
     setLastResult({ success: false });
@@ -394,41 +440,69 @@ export function useGameState(options?: UseGameStateOptions) {
     setLastResult(null);
   }, [clearBiteTimers, applyMissXp]);
 
-  const castRod = useCallback(async () => {
+  const resetPremiumCastState = useCallback(() => {
+    clearBiteTimers();
+    premiumCastActiveRef.current = false;
+    pendingFishRef.current = null;
+    setBiteTimeLeft(0);
+    setBiteTimeTotal(0);
+    setLastResult(null);
+    setGameState('idle');
+  }, [clearBiteTimers]);
+
+  const presentPremiumCastResult = useCallback(async (fish: Fish | null) => {
+    clearBiteTimers();
+    premiumCastActiveRef.current = false;
+    pendingFishRef.current = null;
+    setBiteTimeLeft(0);
+    setBiteTimeTotal(0);
+    setGameState('catching');
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setLastResult(fish ? { success: true, fish } : { success: false });
+    setGameState('result');
+    await new Promise(resolve => setTimeout(resolve, 2500));
+    setGameState('idle');
+    setLastResult(null);
+  }, [clearBiteTimers]);
+
+  const startCastSequence = useCallback(async (options: { consumeBait: boolean; premium: boolean }) => {
     const normalizedPlayer = normalizePlayerDailyFreeBait(player, BAIT_BUCKETS_V2_ENABLED, DAILY_FREE_BAIT);
     const totalBait = normalizedPlayer.bait + normalizedPlayer.dailyFreeBait;
-    if (totalBait <= 0 || gameState !== 'idle') return;
+    if ((!options.premium && totalBait <= 0) || gameState !== 'idle') return;
 
-    // Rate limiting
     const now = Date.now();
     if (now - lastCastTimeRef.current < MIN_CAST_INTERVAL) return;
     lastCastTimeRef.current = now;
+    premiumCastActiveRef.current = options.premium;
 
-    setPlayer(prev => {
-      const next = normalizePlayerDailyFreeBait(prev, BAIT_BUCKETS_V2_ENABLED, DAILY_FREE_BAIT);
-      const beforeSnapshot = toPlayerAuditSnapshot(next);
-      if (next.dailyFreeBait > 0) {
-        const afterState = { ...next, dailyFreeBait: next.dailyFreeBait - 1 };
-        queueAuditEvent({
-          eventType: 'cast_started',
-          beforeState: beforeSnapshot,
-          afterState: toPlayerAuditSnapshot(afterState),
-          metadata: { spentBucket: 'daily_free_bait' },
-        });
-        return afterState;
-      }
-      if (next.bait > 0) {
-        const afterState = { ...next, bait: next.bait - 1 };
-        queueAuditEvent({
-          eventType: 'cast_started',
-          beforeState: beforeSnapshot,
-          afterState: toPlayerAuditSnapshot(afterState),
-          metadata: { spentBucket: 'bait' },
-        });
-        return afterState;
-      }
-      return next;
-    });
+    if (options.consumeBait) {
+      setPlayer(prev => {
+        const next = normalizePlayerDailyFreeBait(prev, BAIT_BUCKETS_V2_ENABLED, DAILY_FREE_BAIT);
+        const beforeSnapshot = toPlayerAuditSnapshot(next);
+        if (next.dailyFreeBait > 0) {
+          const afterState = { ...next, dailyFreeBait: next.dailyFreeBait - 1 };
+          queueAuditEvent({
+            eventType: 'cast_started',
+            beforeState: beforeSnapshot,
+            afterState: toPlayerAuditSnapshot(afterState),
+            metadata: { spentBucket: 'daily_free_bait' },
+          });
+          return afterState;
+        }
+        if (next.bait > 0) {
+          const afterState = { ...next, bait: next.bait - 1 };
+          queueAuditEvent({
+            eventType: 'cast_started',
+            beforeState: beforeSnapshot,
+            afterState: toPlayerAuditSnapshot(afterState),
+            metadata: { spentBucket: 'bait' },
+          });
+          return afterState;
+        }
+        return next;
+      });
+    }
+
     setGameState('casting');
 
     await new Promise(resolve => setTimeout(resolve, 800));
@@ -437,16 +511,13 @@ export function useGameState(options?: UseGameStateOptions) {
     const waitTime = 1000 + Math.random() * 2000;
     await new Promise(resolve => setTimeout(resolve, waitTime));
 
-    const caughtFish = calculateFishCatch();
-    pendingFishRef.current = caughtFish;
+    pendingFishRef.current = options.premium ? null : calculateFishCatch();
 
-    // Enter biting state — player must react
     const biteWindow = BITE_WINDOW_MIN + Math.random() * (BITE_WINDOW_MAX - BITE_WINDOW_MIN);
     setBiteTimeTotal(biteWindow);
     setBiteTimeLeft(biteWindow);
     setGameState('biting');
 
-    // Countdown timer for UI
     const startTime = Date.now();
     biteCountdownRef.current = setInterval(() => {
       const elapsed = Date.now() - startTime;
@@ -458,11 +529,22 @@ export function useGameState(options?: UseGameStateOptions) {
       }
     }, 50);
 
-    // Timeout — fish escapes
     biteTimerRef.current = setTimeout(() => {
-      onBiteTimeout();
+      if (options.premium) {
+        void onPremiumBiteTimeout?.();
+        return;
+      }
+      void onBiteTimeout();
     }, biteWindow);
-  }, [player, gameState, calculateFishCatch, onBiteTimeout, queueAuditEvent]);
+  }, [calculateFishCatch, gameState, onBiteTimeout, onPremiumBiteTimeout, player, queueAuditEvent]);
+
+  const castRod = useCallback(async () => {
+    await startCastSequence({ consumeBait: true, premium: false });
+  }, [startCastSequence]);
+
+  const castPremiumRod = useCallback(async () => {
+    await startCastSequence({ consumeBait: false, premium: true });
+  }, [startCastSequence]);
 
   const sellFish = useCallback((fishId: string) => {
     const fish = FISH_DATA.find(f => f.id === fishId);
@@ -664,6 +746,10 @@ export function useGameState(options?: UseGameStateOptions) {
     setLevelUpInfo(null);
   }, []);
 
+  const dismissAlbumReward = useCallback(() => {
+    setAlbumRewardInfo(null);
+  }, []);
+
   const mintNftRod = useCallback((rodLevel: number) => {
     setPlayer(prev => {
       if (prev.nftRods.includes(rodLevel)) return prev;
@@ -689,10 +775,14 @@ export function useGameState(options?: UseGameStateOptions) {
     gameState,
     lastResult,
     levelUpInfo,
+    albumRewardInfo,
     biteTimeLeft,
     biteTimeTotal,
     castRod,
+    castPremiumRod,
     reelIn,
+    presentPremiumCastResult,
+    resetPremiumCastState,
     sellFish,
     consumeFish,
     cookRecipe,
@@ -705,6 +795,7 @@ export function useGameState(options?: UseGameStateOptions) {
     grantFishReward,
     claimDailyBonus,
     dismissLevelUp,
+    dismissAlbumReward,
     mintNftRod,
     setNickname,
     setAvatarUrl

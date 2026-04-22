@@ -9,11 +9,18 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useSendTransaction } from 'wagmi';
+import { waitForTransactionReceipt } from '@wagmi/core';
 import { parseEther } from 'viem';
-import { Coins, Rocket, Zap } from 'lucide-react';
+import { Coins, Crown, Fish, Rocket, Sparkles, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { BOOST_ICON_SRC } from '@/lib/rodAssets';
 import { isUserRejectedError } from '@/lib/errorUtils';
+import { wagmiConfig } from '@/lib/wagmi';
+import {
+  PREMIUM_SESSION_CASTS,
+  PREMIUM_SESSION_COST_MON,
+} from '@/lib/baitEconomy';
+import type { PremiumSessionState } from '@/types/game';
 
 const RECEIVER_ADDRESS = '0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D' as const;
 
@@ -28,32 +35,83 @@ const BOOST_PACKAGES = [
 
 interface BoostDialogProps {
   walletAddress?: string;
+  premiumSession?: PremiumSessionState | null;
+  onStartPremiumSession?: (txHash: string) => Promise<void>;
+  premiumSessionLoading?: boolean;
+  premiumSessionsEnabled?: boolean;
 }
 
-const BoostDialog: React.FC<BoostDialogProps> = ({ walletAddress }) => {
+const BoostDialog: React.FC<BoostDialogProps> = ({
+  walletAddress,
+  premiumSession,
+  onStartPremiumSession,
+  premiumSessionLoading = false,
+  premiumSessionsEnabled = false,
+}) => {
   const [selectedBoostId, setSelectedBoostId] = useState<string | null>(null);
   const { sendTransactionAsync } = useSendTransaction();
+  const hasActivePremiumSession = premiumSession?.status === 'active';
+  const canOfferPremiumSession = premiumSessionsEnabled && typeof onStartPremiumSession === 'function';
 
-  const handlePurchase = async (boostId: string, monAmount: string) => {
+  const boostPackages = [
+    ...BOOST_PACKAGES,
+    ...(canOfferPremiumSession ? [{
+      id: 'premium_session',
+      title: 'MON Expedition',
+      description: `20 premium casts. Fish always, bonus coins + XP always, chance to recover MON.`,
+      monAmount: PREMIUM_SESSION_COST_MON,
+      isPremiumSession: true,
+    }] : []),
+  ] as const;
+
+  const handlePurchase = async (
+    boostId: string,
+    monAmount: string,
+    options?: { isPremiumSession?: boolean },
+  ) => {
     if (!walletAddress) {
       toast.error('Connect wallet first');
       return;
     }
 
+    if (options?.isPremiumSession && hasActivePremiumSession) {
+      toast.error('Premium session already active');
+      return;
+    }
+
     setSelectedBoostId(boostId);
     try {
-      await sendTransactionAsync({
+      const txHash = await sendTransactionAsync({
         to: RECEIVER_ADDRESS,
         value: parseEther(monAmount),
       });
 
-      toast.success('Boost purchase sent');
+      if (options?.isPremiumSession) {
+        toast.info('Transaction sent. Waiting for Monad confirmation...');
+        const receipt = await waitForTransactionReceipt(wagmiConfig, {
+          hash: txHash,
+          confirmations: 1,
+        });
+
+        if (receipt.status !== 'success') {
+          throw new Error('Premium session payment failed on-chain.');
+        }
+
+        if (!onStartPremiumSession) {
+          throw new Error('Premium session is not available right now.');
+        }
+
+        await onStartPremiumSession(txHash);
+        toast.success(`MON Expedition ready: ${PREMIUM_SESSION_CASTS} casts loaded`);
+      } else {
+        toast.success('Boost purchase sent');
+      }
     } catch (err: unknown) {
       console.error('Boost purchase failed:', err);
       if (isUserRejectedError(err)) {
         toast.error('Transaction cancelled');
       } else {
-        toast.error('Boost purchase error');
+        toast.error(err instanceof Error ? err.message : 'Boost purchase error');
       }
     } finally {
       setSelectedBoostId(null);
@@ -85,10 +143,12 @@ const BoostDialog: React.FC<BoostDialogProps> = ({ walletAddress }) => {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl text-zinc-100">
             <Zap className="h-5 w-5 text-amber-300" />
-            Boost
+            {canOfferPremiumSession ? 'Boosts & Sessions' : 'Boost'}
           </DialogTitle>
           <DialogDescription className="text-sm text-zinc-400">
-            Buy boost with MON from the main screen.
+            {canOfferPremiumSession
+              ? 'Buy instant boosts or launch a premium MON fishing session.'
+              : 'Buy boost with MON from the main screen.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -102,14 +162,45 @@ const BoostDialog: React.FC<BoostDialogProps> = ({ walletAddress }) => {
               draggable={false}
             />
             <div>
-              <p className="text-base font-black text-amber-300">Premium Boost</p>
-              <p className="text-sm text-zinc-400">Fast purchase flow directly from the fishing screen.</p>
+              <p className="text-base font-black text-amber-300">
+                {canOfferPremiumSession ? 'Premium boosts and sessions' : 'Premium Boost'}
+              </p>
+              <p className="text-sm text-zinc-400">
+                {canOfferPremiumSession
+                  ? 'Quick MON purchases without leaving the lake.'
+                  : 'Fast purchase flow directly from the fishing screen.'}
+              </p>
             </div>
           </div>
 
+          {canOfferPremiumSession && hasActivePremiumSession && (
+            <div className="mb-3 rounded-xl border border-emerald-300/25 bg-emerald-950/30 p-3 text-sm text-emerald-100">
+              <div className="flex items-center gap-2 font-black uppercase tracking-[0.12em] text-emerald-200">
+                <Crown className="h-4 w-4" />
+                MON Expedition Active
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2 text-xs text-emerald-100/90">
+                <span className="rounded-lg border border-emerald-300/20 bg-black/30 px-2 py-1">
+                  {premiumSession.castsRemaining}/{premiumSession.castsTotal} casts left
+                </span>
+                <span className="rounded-lg border border-emerald-300/20 bg-black/30 px-2 py-1">
+                  Recovered {premiumSession.recoveredMon.toFixed(2)} / {PREMIUM_SESSION_COST_MON} MON
+                </span>
+                <span className="rounded-lg border border-emerald-300/20 bg-black/30 px-2 py-1">
+                  Luck Meter {premiumSession.luckMeterStacks}
+                </span>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-3">
-            {BOOST_PACKAGES.map((pkg) => {
+            {boostPackages.map((pkg) => {
               const isBusy = selectedBoostId === pkg.id;
+              const isPremiumSession = pkg.id === 'premium_session';
+              const isDisabled = !walletAddress
+                || isBusy
+                || premiumSessionLoading
+                || (isPremiumSession && hasActivePremiumSession);
               return (
                 <div
                   key={pkg.id}
@@ -117,8 +208,25 @@ const BoostDialog: React.FC<BoostDialogProps> = ({ walletAddress }) => {
                 >
                   <div className="mb-3 flex items-start justify-between gap-3">
                     <div>
-                      <p className="font-bold text-zinc-100">{pkg.title}</p>
+                      <p className="flex items-center gap-2 font-bold text-zinc-100">
+                        {isPremiumSession ? <Sparkles className="h-4 w-4 text-emerald-300" /> : null}
+                        {pkg.title}
+                      </p>
                       <p className="text-sm text-zinc-400">{pkg.description}</p>
+                      {isPremiumSession ? (
+                        <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold text-zinc-300">
+                          <span className="rounded-lg border border-zinc-800 bg-zinc-950/80 px-2 py-1">
+                            <Fish className="mr-1 inline h-3.5 w-3.5 text-cyan-300" />
+                            Fish always
+                          </span>
+                          <span className="rounded-lg border border-zinc-800 bg-zinc-950/80 px-2 py-1">
+                            +12 coins / +18 XP
+                          </span>
+                          <span className="rounded-lg border border-zinc-800 bg-zinc-950/80 px-2 py-1">
+                            Luck Meter active
+                          </span>
+                        </div>
+                      ) : null}
                     </div>
                     <span className="inline-flex items-center gap-1 rounded-lg border border-cyan-300/15 bg-zinc-950 px-2.5 py-1 text-sm font-bold text-cyan-100">
                       <Coins className="h-4 w-4" />
@@ -126,12 +234,18 @@ const BoostDialog: React.FC<BoostDialogProps> = ({ walletAddress }) => {
                     </span>
                   </div>
                   <Button
-                    onClick={() => handlePurchase(pkg.id, pkg.monAmount)}
-                    disabled={!walletAddress || isBusy}
+                    onClick={() => handlePurchase(pkg.id, pkg.monAmount, { isPremiumSession })}
+                    disabled={isDisabled}
                     className="w-full rounded-xl border border-cyan-300/25 bg-zinc-950 font-bold text-cyan-100 hover:bg-black disabled:border-zinc-700 disabled:bg-zinc-900 disabled:text-zinc-400"
                   >
                     <Rocket className="mr-2 h-4 w-4" />
-                    {isBusy ? 'Processing...' : 'Buy Boost'}
+                    {isBusy
+                      ? (isPremiumSession ? 'Preparing session...' : 'Processing...')
+                      : isPremiumSession
+                        ? hasActivePremiumSession
+                          ? 'Session active'
+                          : 'Start Expedition'
+                        : 'Buy Boost'}
                   </Button>
                 </div>
               );

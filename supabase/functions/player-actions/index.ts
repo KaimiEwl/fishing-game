@@ -11,11 +11,13 @@ import {
   SOCIAL_TASKS,
   SOCIAL_TASK_IDS,
   SPECIAL_TASKS,
+  WEEKLY_MISSIONS,
   getTaskDefinition,
   type DailyTaskId,
   type SocialTaskId,
   type SocialTaskStatus,
   type SpecialTaskId,
+  type WeeklyMissionId,
 } from "../_shared/taskRegistry.ts";
 import {
   createDefaultGameProgress,
@@ -23,6 +25,15 @@ import {
 } from "../_shared/gameProgress.ts";
 import { getGrillRecipe } from "../_shared/grillConfig.ts";
 import { grantPlayerReward } from "../_shared/rewards.ts";
+import {
+  PREMIUM_SESSION_CASTS,
+  PREMIUM_SESSION_COST_MON,
+  buildPremiumSessionState,
+  resolvePremiumCast,
+  type PremiumCastRowLike,
+  type PremiumReactionQuality,
+  type PremiumSessionRowLike,
+} from "../_shared/premiumFishing.ts";
 import {
   fetchPlayerAuditSnapshot,
   insertPlayerAuditLog,
@@ -43,6 +54,20 @@ const MONAD_RPC = "https://rpc.monad.xyz";
 const WALLET_CHECK_IN_RECEIVER_ADDRESS = "0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D";
 const WALLET_CHECK_IN_AMOUNT_MON = "0.0001";
 const WALLET_CHECK_IN_WEI = 100000000000000n;
+const PREMIUM_SESSION_PAYMENT_RECEIVER_ADDRESS = WALLET_CHECK_IN_RECEIVER_ADDRESS;
+const XP_PER_LEVEL = 100;
+const PREMIUM_SESSION_LOW_RECOVERY_THRESHOLD_MON = 0.8;
+const PREMIUM_SESSION_RESCUE_REQUIRED_BAD_SESSIONS = 2;
+const PREMIUM_BIG_DROP_TIERS = new Set(["big", "spike", "jackpot"]);
+const RARE_FISH_RANK = new Set(["rare", "epic", "legendary", "mythical", "secret"]);
+const ROD_BONUSES = [0, 5, 10, 15, 25] as const;
+const NFT_ROD_BONUSES = new Map<number, { rarityBonus: number; xpBonus: number; sellBonus: number }>([
+  [0, { rarityBonus: 3, xpBonus: 10, sellBonus: 0 }],
+  [1, { rarityBonus: 5, xpBonus: 15, sellBonus: 10 }],
+  [2, { rarityBonus: 7, xpBonus: 20, sellBonus: 15 }],
+  [3, { rarityBonus: 10, xpBonus: 25, sellBonus: 20 }],
+  [4, { rarityBonus: 15, xpBonus: 30, sellBonus: 25 }],
+]);
 
 interface RpcResponse<T> {
   result?: T;
@@ -121,6 +146,41 @@ interface PlayerRow {
   referrer_wallet_address: string | null;
   rewarded_referral_count: number;
   updated_at: string;
+}
+
+interface PremiumSessionRow extends PremiumSessionRowLike {
+  id: string;
+  player_id: string;
+  wallet_address: string;
+  status: string;
+  price_mon: number | string;
+  casts_total: number;
+  casts_used: number;
+  luck_meter_stacks: number;
+  zero_drop_streak: number;
+  rescue_eligible: boolean;
+  recovered_mon_total: number | string;
+  started_at: string;
+  completed_at: string | null;
+}
+
+interface PremiumCastAuditRow extends PremiumCastRowLike {
+  id: string;
+  session_id: string;
+  cast_index: number;
+  reaction_quality: string;
+  fish_id: string;
+  bonus_coins_awarded: number;
+  bonus_xp_awarded: number;
+  mon_drop_tier: string;
+  mon_amount: number | string;
+  luck_meter_before: number;
+  luck_meter_after: number;
+  zero_drop_streak_after: number;
+  pity_triggered: boolean;
+  rescue_triggered: boolean;
+  hot_streak_active: boolean;
+  created_at: string;
 }
 
 const FULL_PLAYER_SELECT = "id, wallet_address, coins, bait, daily_free_bait, daily_free_bait_reset_at, bonus_bait_granted_total, level, xp, xp_to_next, rod_level, equipped_rod, inventory, cooked_dishes, game_progress, total_catches, login_streak, nft_rods, nickname, avatar_url, referrer_wallet_address, rewarded_referral_count, updated_at";
@@ -330,6 +390,9 @@ const normalizeGameProgressForToday = (value: unknown) => {
 
   return {
     ...createDefaultGameProgress(),
+    weekKey: progress.weekKey,
+    weeklyMissions: progress.weeklyMissions,
+    lastWeeklyCubeUnlockDate: progress.lastWeeklyCubeUnlockDate,
     grillScore: progress.grillScore,
     paidWheelRolls: progress.paidWheelRolls,
   };
@@ -498,6 +561,289 @@ const verifyWalletCheckInTransaction = async (
     txTimestampIso: txTimestamp.toISOString(),
     checkInDate,
   };
+};
+
+const toExpectedMonWei = (amountMon: string) => BigInt(Math.round(Number.parseFloat(amountMon) * 1e18));
+
+const hasPremiumSessionTxHash = async (
+  supabase: ReturnType<typeof createClient>,
+  walletAddress: string,
+  txHash: string,
+) => {
+  const { data, error } = await supabase
+    .from("player_audit_logs")
+    .select("id")
+    .eq("wallet_address", walletAddress)
+    .eq("event_type", "premium_session_started")
+    .contains("metadata", { txHash })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return Boolean(data);
+};
+
+const verifyPremiumSessionPaymentTransaction = async (
+  walletAddress: string,
+  txHash: string,
+  expectedMonAmount: string,
+) => {
+  const receipt = await rpcCall<RpcTransactionReceipt>("eth_getTransactionReceipt", [txHash]);
+  if (!receipt) {
+    throw new Error("Premium session transaction is still pending. Try again in a few seconds.");
+  }
+
+  if (receipt.status !== "0x1") {
+    throw new Error("Premium session payment failed on-chain.");
+  }
+
+  const tx = await rpcCall<RpcTransaction>("eth_getTransactionByHash", [txHash]);
+  if (!tx) {
+    throw new Error("Could not fetch premium session payment details.");
+  }
+
+  if (tx.from?.toLowerCase() !== walletAddress) {
+    throw new Error("Transaction sender does not match the connected wallet.");
+  }
+
+  if (tx.to?.toLowerCase() !== PREMIUM_SESSION_PAYMENT_RECEIVER_ADDRESS.toLowerCase()) {
+    throw new Error("Wrong recipient address for premium session payment.");
+  }
+
+  const valueWei = typeof tx.value === "string" ? BigInt(tx.value) : 0n;
+  const expectedWei = toExpectedMonWei(expectedMonAmount);
+  const minExpectedWei = expectedWei * 99n / 100n;
+  if (valueWei < minExpectedWei) {
+    throw new Error(`Premium session requires at least ${expectedMonAmount} MON.`);
+  }
+
+  return {
+    paidMon: Number(valueWei) / 1e18,
+  };
+};
+
+const getNftBonuses = (equippedRod: number, nftRods: unknown) => {
+  const ownedNftRods = Array.isArray(nftRods)
+    ? nftRods.map((value) => Number(value)).filter((value) => Number.isFinite(value))
+    : [];
+  if (!ownedNftRods.includes(equippedRod)) {
+    return { rarityBonus: 0, xpBonus: 0, sellBonus: 0 };
+  }
+
+  return NFT_ROD_BONUSES.get(equippedRod) ?? { rarityBonus: 0, xpBonus: 0, sellBonus: 0 };
+};
+
+const applyXpProgress = (
+  player: Pick<PlayerRow, "level" | "xp" | "xp_to_next">,
+  xpGain: number,
+) => {
+  let newLevel = player.level;
+  let remainingXp = player.xp + xpGain;
+  let xpToNext = player.xp_to_next;
+  let levelUpCoins = 0;
+
+  while (remainingXp >= xpToNext) {
+    remainingXp -= xpToNext;
+    newLevel += 1;
+    xpToNext = newLevel * XP_PER_LEVEL;
+    levelUpCoins += 100 * newLevel;
+  }
+
+  return {
+    level: newLevel,
+    xp: remainingXp,
+    xpToNext: xpToNext,
+    levelUpCoins,
+  };
+};
+
+const applyPremiumCatchTasks = (
+  progress: ReturnType<typeof normalizeGameProgressForToday>,
+  fishRarity: string,
+) => {
+  const catchTask = progress.tasks.catch_10;
+  const rareTask = progress.tasks.rare_1;
+
+  return {
+    ...progress,
+    tasks: {
+      ...progress.tasks,
+      catch_10: catchTask.claimed
+        ? catchTask
+        : {
+          ...catchTask,
+          progress: Math.min(10, catchTask.progress + 1),
+        },
+      rare_1: rareTask.claimed || !RARE_FISH_RANK.has(fishRarity)
+        ? rareTask
+        : {
+          ...rareTask,
+          progress: 1,
+        },
+    },
+    weeklyMissions: {
+      ...progress.weeklyMissions,
+      catch_60_fish: progress.weeklyMissions.catch_60_fish.claimed
+        ? progress.weeklyMissions.catch_60_fish
+        : {
+          ...progress.weeklyMissions.catch_60_fish,
+          progress: Math.min(60, progress.weeklyMissions.catch_60_fish.progress + 1),
+        },
+      catch_6_rare: progress.weeklyMissions.catch_6_rare.claimed || !RARE_FISH_RANK.has(fishRarity)
+        ? progress.weeklyMissions.catch_6_rare
+        : {
+          ...progress.weeklyMissions.catch_6_rare,
+          progress: Math.min(6, progress.weeklyMissions.catch_6_rare.progress + 1),
+        },
+    },
+  };
+};
+
+const applyWeeklyMissionProgress = (
+  progress: ReturnType<typeof normalizeGameProgressForToday>,
+  missionId: WeeklyMissionId,
+  amount = 1,
+) => {
+  const mission = WEEKLY_MISSIONS.find((item) => item.id === missionId);
+  const currentMission = progress.weeklyMissions[missionId];
+  if (!mission || !currentMission || currentMission.claimed || amount <= 0) {
+    return progress;
+  }
+
+  return {
+    ...progress,
+    weeklyMissions: {
+      ...progress.weeklyMissions,
+      [missionId]: {
+        ...currentMission,
+        progress: Math.min(mission.target, currentMission.progress + amount),
+      },
+    },
+  };
+};
+
+const applyWeeklyCubeUnlockDay = (
+  progress: ReturnType<typeof normalizeGameProgressForToday>,
+) => {
+  const todayKey = getTodayKey();
+  if (progress.lastWeeklyCubeUnlockDate === todayKey) {
+    return progress;
+  }
+
+  const nextProgress = applyWeeklyMissionProgress(progress, "cube_3_days", 1);
+  return {
+    ...nextProgress,
+    lastWeeklyCubeUnlockDate: todayKey,
+  };
+};
+
+const loadActivePremiumSession = async (
+  supabase: ReturnType<typeof createClient>,
+  playerId: string,
+  sessionId?: string | null,
+) => {
+  let query = supabase
+    .from("premium_fishing_sessions")
+    .select("id, player_id, wallet_address, status, price_mon, casts_total, casts_used, luck_meter_stacks, zero_drop_streak, rescue_eligible, recovered_mon_total, started_at, completed_at")
+    .eq("player_id", playerId)
+    .eq("status", "active");
+
+  if (sessionId) {
+    query = query.eq("id", sessionId);
+  }
+
+  const { data, error } = await query.maybeSingle();
+  if (error) throw error;
+  return data as PremiumSessionRow | null;
+};
+
+const loadPremiumSessionById = async (
+  supabase: ReturnType<typeof createClient>,
+  playerId: string,
+  sessionId: string,
+) => {
+  const { data, error } = await supabase
+    .from("premium_fishing_sessions")
+    .select("id, player_id, wallet_address, status, price_mon, casts_total, casts_used, luck_meter_stacks, zero_drop_streak, rescue_eligible, recovered_mon_total, started_at, completed_at")
+    .eq("player_id", playerId)
+    .eq("id", sessionId)
+    .maybeSingle();
+  if (error) throw error;
+  return data as PremiumSessionRow | null;
+};
+
+const loadLatestPremiumCast = async (
+  supabase: ReturnType<typeof createClient>,
+  sessionId: string,
+) => {
+  const { data, error } = await supabase
+    .from("premium_fishing_casts")
+    .select("id, session_id, cast_index, reaction_quality, fish_id, bonus_coins_awarded, bonus_xp_awarded, mon_drop_tier, mon_amount, luck_meter_before, luck_meter_after, zero_drop_streak_after, pity_triggered, rescue_triggered, hot_streak_active, created_at")
+    .eq("session_id", sessionId)
+    .order("cast_index", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data as PremiumCastAuditRow | null;
+};
+
+const loadRecentPremiumCasts = async (
+  supabase: ReturnType<typeof createClient>,
+  sessionId: string,
+  limit = 4,
+) => {
+  const { data, error } = await supabase
+    .from("premium_fishing_casts")
+    .select("id, session_id, cast_index, reaction_quality, fish_id, bonus_coins_awarded, bonus_xp_awarded, mon_drop_tier, mon_amount, luck_meter_before, luck_meter_after, zero_drop_streak_after, pity_triggered, rescue_triggered, hot_streak_active, created_at")
+    .eq("session_id", sessionId)
+    .order("cast_index", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as PremiumCastAuditRow[];
+};
+
+const getHotStreakCastsRemaining = (
+  currentCastsUsed: number,
+  recentCasts: PremiumCastAuditRow[],
+) => {
+  const latestBigDrop = recentCasts.find((cast) => PREMIUM_BIG_DROP_TIERS.has(cast.mon_drop_tier));
+  if (!latestBigDrop) return 0;
+
+  const castsSinceBigDrop = Math.max(0, currentCastsUsed - latestBigDrop.cast_index);
+  return Math.max(0, 4 - castsSinceBigDrop);
+};
+
+const computePremiumSessionRescueEligible = async (
+  supabase: ReturnType<typeof createClient>,
+  playerId: string,
+) => {
+  const { data: recentSessions, error: sessionError } = await supabase
+    .from("premium_fishing_sessions")
+    .select("id, recovered_mon_total")
+    .eq("player_id", playerId)
+    .eq("status", "completed")
+    .order("started_at", { ascending: false })
+    .limit(PREMIUM_SESSION_RESCUE_REQUIRED_BAD_SESSIONS);
+
+  if (sessionError) throw sessionError;
+  if (!recentSessions || recentSessions.length < PREMIUM_SESSION_RESCUE_REQUIRED_BAD_SESSIONS) {
+    return false;
+  }
+
+  const recentWereLowRecovery = recentSessions.every((session) => Number(session.recovered_mon_total ?? 0) < PREMIUM_SESSION_LOW_RECOVERY_THRESHOLD_MON);
+  if (!recentWereLowRecovery) return false;
+
+  const sessionIds = recentSessions.map((session) => session.id);
+  const { data: recentCasts, error: castsError } = await supabase
+    .from("premium_fishing_casts")
+    .select("mon_drop_tier")
+    .in("session_id", sessionIds)
+    .order("created_at", { ascending: false })
+    .limit(40);
+
+  if (castsError) throw castsError;
+  return !(recentCasts ?? []).some((cast) => PREMIUM_BIG_DROP_TIERS.has(String(cast.mon_drop_tier)));
 };
 
 const getClaimedDailyCount = (tasks: ReturnType<typeof normalizeGameProgressForToday>["tasks"]) => (
@@ -711,6 +1057,363 @@ serve(async (req) => {
         });
       }
 
+      case "start_premium_session": {
+        await enforceRateLimit(supabase, {
+          actionKey: "player_actions.start_premium_session",
+          subjectKey: walletAddress,
+          windowSeconds: 60,
+          maxHits: 10,
+        });
+
+        const txHash = normalizeTxHash(body.tx_hash);
+        if (!txHash) return badRequest("Missing premium session payment transaction hash");
+
+        const player = await loadPlayer(supabase, walletAddress);
+        const existingActiveSession = await loadActivePremiumSession(supabase, player.id);
+        if (existingActiveSession) {
+          const lastCast = await loadLatestPremiumCast(supabase, existingActiveSession.id);
+          return jsonResponse({
+            player,
+            premium_session: buildPremiumSessionState(existingActiveSession, lastCast),
+            active_session_exists: true,
+          });
+        }
+
+        if (await hasPremiumSessionTxHash(supabase, walletAddress, txHash)) {
+          return badRequest("This premium session payment transaction was already used.");
+        }
+
+        const { paidMon } = await verifyPremiumSessionPaymentTransaction(walletAddress, txHash, PREMIUM_SESSION_COST_MON);
+        const beforeState = await fetchPlayerAuditSnapshot(supabase, walletAddress);
+        const rescueEligible = await computePremiumSessionRescueEligible(supabase, player.id);
+
+        const { data: createdSession, error: createSessionError } = await supabase
+          .from("premium_fishing_sessions")
+          .insert({
+            player_id: player.id,
+            wallet_address: walletAddress,
+            status: "active",
+            price_mon: Number(PREMIUM_SESSION_COST_MON),
+            casts_total: PREMIUM_SESSION_CASTS,
+            casts_used: 0,
+            luck_meter_stacks: 0,
+            zero_drop_streak: 0,
+            rescue_eligible: rescueEligible,
+            recovered_mon_total: 0,
+          })
+          .select("id, player_id, wallet_address, status, price_mon, casts_total, casts_used, luck_meter_stacks, zero_drop_streak, rescue_eligible, recovered_mon_total, started_at, completed_at")
+          .single();
+
+        if (createSessionError) {
+          const details = typeof createSessionError === "object" && createSessionError ? JSON.stringify(createSessionError) : "";
+          if (details.includes("idx_premium_fishing_sessions_active_per_player")) {
+            const activeSession = await loadActivePremiumSession(supabase, player.id);
+            const lastCast = activeSession ? await loadLatestPremiumCast(supabase, activeSession.id) : null;
+            return jsonResponse({
+              player,
+              premium_session: buildPremiumSessionState(activeSession, lastCast),
+              active_session_exists: true,
+            });
+          }
+          throw createSessionError;
+        }
+
+        await insertPlayerAuditLog(supabase, {
+          walletAddress,
+          eventType: "premium_session_started",
+          eventSource: "server",
+          beforeState,
+          afterState: sanitizeAuditSnapshot(player),
+          metadata: {
+            txHash,
+            sessionId: createdSession.id,
+            paidMon,
+            expectedMon: PREMIUM_SESSION_COST_MON,
+            castsTotal: PREMIUM_SESSION_CASTS,
+            rescueEligible,
+          },
+        });
+
+        return jsonResponse({
+          player,
+          premium_session: buildPremiumSessionState(createdSession as PremiumSessionRow, null),
+        });
+      }
+
+      case "get_premium_session_state": {
+        await enforceRateLimit(supabase, {
+          actionKey: "player_actions.get_premium_session_state",
+          subjectKey: walletAddress,
+          windowSeconds: 60,
+          maxHits: 30,
+        });
+
+        const player = await loadPlayer(supabase, walletAddress);
+        const activeSession = await loadActivePremiumSession(supabase, player.id);
+        const lastCast = activeSession ? await loadLatestPremiumCast(supabase, activeSession.id) : null;
+
+        return jsonResponse({
+          player,
+          premium_session: buildPremiumSessionState(activeSession, lastCast),
+        });
+      }
+
+      case "resolve_premium_cast": {
+        await enforceRateLimit(supabase, {
+          actionKey: "player_actions.resolve_premium_cast",
+          subjectKey: walletAddress,
+          windowSeconds: 60,
+          maxHits: 40,
+        });
+
+        const reactionQuality = normalizeText(body.reaction_quality) as PremiumReactionQuality;
+        if (!["miss", "good", "perfect"].includes(reactionQuality)) {
+          return badRequest("Invalid premium cast reaction quality");
+        }
+
+        const requestedSessionId = normalizeText(body.session_id) || null;
+        const player = await loadPlayer(supabase, walletAddress);
+        const activeSession = await loadActivePremiumSession(supabase, player.id, requestedSessionId);
+        if (!activeSession) {
+          return badRequest("No active premium session");
+        }
+
+        if (activeSession.casts_used >= activeSession.casts_total) {
+          return badRequest("Premium session has no casts remaining");
+        }
+
+        const recentCasts = await loadRecentPremiumCasts(supabase, activeSession.id, 4);
+        const lastCast = recentCasts[0] ?? null;
+        const nftBonuses = getNftBonuses(player.equipped_rod, player.nft_rods);
+        const rareFishBonusPercent = (ROD_BONUSES[player.equipped_rod] ?? 0) + nftBonuses.rarityBonus;
+        const castResolution = resolvePremiumCast(
+          reactionQuality,
+          {
+            recoveredMonTotal: Number(activeSession.recovered_mon_total ?? 0),
+            luckMeterStacks: activeSession.luck_meter_stacks,
+            zeroDropStreak: activeSession.zero_drop_streak,
+            rescueEligible: activeSession.rescue_eligible,
+            hotStreakCastsRemaining: getHotStreakCastsRemaining(activeSession.casts_used, recentCasts),
+          },
+          { rareFishBonusPercent },
+        );
+
+        const xpGain = Math.floor(
+          (castResolution.fish.xp + 5 + castResolution.bonusXpAwarded) * (1 + nftBonuses.xpBonus / 100),
+        );
+        const xpProgress = applyXpProgress(player, xpGain);
+        const progress = applyPremiumCatchTasks(
+          normalizeGameProgressForToday(player.game_progress),
+          castResolution.fish.rarity,
+        );
+        const inventory = sanitizeInventory(player.inventory);
+        const nextCastsUsed = activeSession.casts_used + 1;
+        const shouldCompleteSession = nextCastsUsed >= activeSession.casts_total;
+
+        const { data: updatedSession, error: sessionUpdateError } = await supabase
+          .from("premium_fishing_sessions")
+          .update({
+            casts_used: nextCastsUsed,
+            luck_meter_stacks: castResolution.monDrop.luckMeterAfter,
+            zero_drop_streak: castResolution.monDrop.zeroDropStreakAfter,
+            rescue_eligible: castResolution.monDrop.rescueTriggered ? false : activeSession.rescue_eligible,
+            recovered_mon_total: castResolution.recoveredMonTotal,
+            status: shouldCompleteSession ? "completed" : "active",
+            completed_at: shouldCompleteSession ? new Date().toISOString() : null,
+          })
+          .eq("id", activeSession.id)
+          .eq("status", "active")
+          .eq("casts_used", activeSession.casts_used)
+          .select("id, player_id, wallet_address, status, price_mon, casts_total, casts_used, luck_meter_stacks, zero_drop_streak, rescue_eligible, recovered_mon_total, started_at, completed_at")
+          .single();
+
+        if (sessionUpdateError) {
+          const details = typeof sessionUpdateError === "object" && sessionUpdateError ? JSON.stringify(sessionUpdateError) : "";
+          if (details.includes("Results contain 0 rows")) {
+            return badRequest("Premium session state changed. Refresh and try again.");
+          }
+          throw sessionUpdateError;
+        }
+
+        const castIndex = nextCastsUsed;
+        const { data: insertedCast, error: castInsertError } = await supabase
+          .from("premium_fishing_casts")
+          .insert({
+            session_id: activeSession.id,
+            cast_index: castIndex,
+            reaction_quality: reactionQuality,
+            fish_id: castResolution.fish.id,
+            bonus_coins_awarded: castResolution.bonusCoinsAwarded,
+            bonus_xp_awarded: castResolution.bonusXpAwarded,
+            mon_drop_tier: castResolution.monDrop.tierId,
+            mon_amount: castResolution.monDrop.monAmount,
+            luck_meter_before: castResolution.monDrop.luckMeterBefore,
+            luck_meter_after: castResolution.monDrop.luckMeterAfter,
+            zero_drop_streak_after: castResolution.monDrop.zeroDropStreakAfter,
+            pity_triggered: castResolution.monDrop.pityTriggered,
+            rescue_triggered: castResolution.monDrop.rescueTriggered,
+            hot_streak_active: castResolution.hotStreakActive,
+          })
+          .select("id, session_id, cast_index, reaction_quality, fish_id, bonus_coins_awarded, bonus_xp_awarded, mon_drop_tier, mon_amount, luck_meter_before, luck_meter_after, zero_drop_streak_after, pity_triggered, rescue_triggered, hot_streak_active, created_at")
+          .single();
+        if (castInsertError) throw castInsertError;
+
+        const beforeState = await fetchPlayerAuditSnapshot(supabase, walletAddress);
+        const updatedPlayer = await updatePlayer(supabase, player.id, {
+          coins: player.coins + castResolution.bonusCoinsAwarded + xpProgress.levelUpCoins,
+          xp: xpProgress.xp,
+          xp_to_next: xpProgress.xpToNext,
+          level: xpProgress.level,
+          total_catches: player.total_catches + 1,
+          inventory: addInventoryFish(inventory, castResolution.fish.id, 1),
+          game_progress: progress,
+        });
+
+        if (castResolution.monDrop.monAmount > 0) {
+          await grantPlayerReward(supabase, {
+            walletAddress,
+            reward: { mon: castResolution.monDrop.monAmount },
+            sourceType: "premium_session_reward",
+            sourceRef: `${activeSession.id}:${castIndex}`,
+            eventType: "premium_cast_mon_reward",
+            metadata: {
+              sessionId: activeSession.id,
+              castIndex,
+              tierId: castResolution.monDrop.tierId,
+              monAmount: castResolution.monDrop.monAmount,
+            },
+          });
+        }
+
+        await insertPlayerAuditLog(supabase, {
+          walletAddress,
+          eventType: "premium_cast_resolved",
+          eventSource: "server",
+          beforeState,
+          afterState: sanitizeAuditSnapshot(updatedPlayer),
+          metadata: {
+            sessionId: activeSession.id,
+            castIndex,
+            reactionQuality,
+            fishId: castResolution.fish.id,
+            fishRarity: castResolution.fish.rarity,
+            xpGain,
+            bonusCoinsAwarded: castResolution.bonusCoinsAwarded,
+            levelUpCoinsAwarded: xpProgress.levelUpCoins,
+            monDropTier: castResolution.monDrop.tierId,
+            monAmount: castResolution.monDrop.monAmount,
+            luckMeterBefore: castResolution.monDrop.luckMeterBefore,
+            luckMeterAfter: castResolution.monDrop.luckMeterAfter,
+            zeroDropStreakAfter: castResolution.monDrop.zeroDropStreakAfter,
+            pityTriggered: castResolution.monDrop.pityTriggered,
+            rescueTriggered: castResolution.monDrop.rescueTriggered,
+            hotStreakActive: castResolution.hotStreakActive,
+            albumPointsAwarded: castResolution.albumPointsAwarded,
+            rodMasteryPointsAwarded: castResolution.rodMasteryPointsAwarded,
+          },
+        });
+
+        return jsonResponse({
+          player: updatedPlayer,
+          premium_session: buildPremiumSessionState(updatedSession as PremiumSessionRow, insertedCast as PremiumCastAuditRow),
+          cast_result: {
+            castIndex,
+            reactionQuality,
+            fishId: castResolution.fish.id,
+            fishRarity: castResolution.fish.rarity,
+            fishName: castResolution.fish.name,
+            bonusCoinsAwarded: castResolution.bonusCoinsAwarded,
+            bonusXpAwarded: castResolution.bonusXpAwarded,
+            totalXpGain: xpGain,
+            levelUpCoinsAwarded: xpProgress.levelUpCoins,
+            monDropTier: castResolution.monDrop.tierId,
+            monAmount: castResolution.monDrop.monAmount,
+            recoveredMonTotal: castResolution.recoveredMonTotal,
+            luckMeterStacks: castResolution.monDrop.luckMeterAfter,
+            zeroDropStreak: castResolution.monDrop.zeroDropStreakAfter,
+            pityTriggered: castResolution.monDrop.pityTriggered,
+            rescueTriggered: castResolution.monDrop.rescueTriggered,
+            hotStreakActive: castResolution.hotStreakActive,
+            albumPointsAwarded: castResolution.albumPointsAwarded,
+            rodMasteryPointsAwarded: castResolution.rodMasteryPointsAwarded,
+            occurredAt: insertedCast.created_at,
+          },
+        });
+      }
+
+      case "complete_premium_session": {
+        await enforceRateLimit(supabase, {
+          actionKey: "player_actions.complete_premium_session",
+          subjectKey: walletAddress,
+          windowSeconds: 60,
+          maxHits: 12,
+        });
+
+        const requestedSessionId = normalizeText(body.session_id) || null;
+        const player = await loadPlayer(supabase, walletAddress);
+        const session = requestedSessionId
+          ? await loadPremiumSessionById(supabase, player.id, requestedSessionId)
+          : await loadActivePremiumSession(supabase, player.id);
+
+        if (!session) {
+          return badRequest("Premium session was not found");
+        }
+
+        if (session.status === "completed") {
+          const lastCast = await loadLatestPremiumCast(supabase, session.id);
+          return jsonResponse({
+            player,
+            premium_session: buildPremiumSessionState(session, lastCast),
+          });
+        }
+
+        if (session.status !== "active") {
+          return badRequest("Premium session is not active");
+        }
+
+        if (session.casts_used < session.casts_total) {
+          return badRequest("Premium session still has casts remaining");
+        }
+
+        const progress = normalizeGameProgressForToday(player.game_progress);
+        const nextProgress = applyWeeklyMissionProgress(progress, "complete_1_premium_session", 1);
+        const beforeState = await fetchPlayerAuditSnapshot(supabase, walletAddress);
+        const { data: completedSession, error: completeError } = await supabase
+          .from("premium_fishing_sessions")
+          .update({
+            status: "completed",
+            completed_at: new Date().toISOString(),
+          })
+          .eq("id", session.id)
+          .eq("status", "active")
+          .select("id, player_id, wallet_address, status, price_mon, casts_total, casts_used, luck_meter_stacks, zero_drop_streak, rescue_eligible, recovered_mon_total, started_at, completed_at")
+          .single();
+        if (completeError) throw completeError;
+
+        const updatedPlayer = await updatePlayer(supabase, player.id, {
+          game_progress: nextProgress,
+        });
+
+        const lastCast = await loadLatestPremiumCast(supabase, session.id);
+        await insertPlayerAuditLog(supabase, {
+          walletAddress,
+          eventType: "premium_session_completed",
+          eventSource: "server",
+          beforeState,
+          afterState: sanitizeAuditSnapshot(updatedPlayer),
+          metadata: {
+            sessionId: session.id,
+            castsUsed: completedSession.casts_used,
+            recoveredMonTotal: completedSession.recovered_mon_total,
+          },
+        });
+
+        return jsonResponse({
+          player: updatedPlayer,
+          premium_session: buildPremiumSessionState(completedSession as PremiumSessionRow, lastCast),
+        });
+      }
+
       case "list_social_tasks": {
         await enforceRateLimit(supabase, {
           actionKey: "player_actions.list_social_tasks",
@@ -884,6 +1587,19 @@ serve(async (req) => {
             },
           });
           updatedPlayer = await loadPlayer(supabase, walletAddress);
+        } else if (prize.type === "bait") {
+          await grantPlayerReward(supabase, {
+            walletAddress,
+            reward: { bait: prize.bait ?? 0 },
+            sourceType: "cube_reward",
+            sourceRef: roll.id,
+            eventType: "cube_bait_reward",
+            metadata: {
+              prizeId: prize.id,
+              bait: prize.bait ?? 0,
+            },
+          });
+          updatedPlayer = await loadPlayer(supabase, walletAddress);
         } else if (prize.type === "mon") {
           await grantPlayerReward(supabase, {
             walletAddress,
@@ -944,7 +1660,10 @@ serve(async (req) => {
 
         const taskId = normalizeText(body.task_id);
         const task = getTaskDefinition(taskId);
-        if (!task || !(DAILY_TASKS.some((item) => item.id === taskId) || SPECIAL_TASKS.some((item) => item.id === taskId))) {
+        const isDailyTask = DAILY_TASKS.some((item) => item.id === taskId);
+        const isSpecialTask = SPECIAL_TASKS.some((item) => item.id === taskId);
+        const isWeeklyMission = WEEKLY_MISSIONS.some((item) => item.id === taskId);
+        if (!task || !(isDailyTask || isSpecialTask || isWeeklyMission)) {
           return badRequest("Unknown task");
         }
 
@@ -952,7 +1671,7 @@ serve(async (req) => {
         const progress = normalizeGameProgressForToday(player.game_progress);
         const beforeState = await fetchPlayerAuditSnapshot(supabase, walletAddress);
 
-        if (DAILY_TASKS.some((item) => item.id === taskId)) {
+        if (isDailyTask) {
           const currentTask = progress.tasks[taskId as DailyTaskId];
           if (!currentTask || currentTask.claimed || currentTask.progress < task.target) {
             return badRequest("Task is not ready to claim");
@@ -967,12 +1686,15 @@ serve(async (req) => {
           };
           const nextClaimedCount = getClaimedDailyCount(nextTasks);
           const shouldGrantRolls = !progress.dailyRollRewardGranted && nextClaimedCount >= DAILY_TASK_CLAIMS_REQUIRED;
-          const nextProgress = {
+          const nextProgressBase = {
             ...progress,
             tasks: nextTasks,
             dailyWheelRolls: shouldGrantRolls ? progress.dailyWheelRolls + DAILY_CUBE_ROLL_REWARD : progress.dailyWheelRolls,
             dailyRollRewardGranted: progress.dailyRollRewardGranted || shouldGrantRolls,
           };
+          const nextProgress = shouldGrantRolls
+            ? applyWeeklyCubeUnlockDay(nextProgressBase)
+            : nextProgressBase;
 
           const updatedPlayer = await updatePlayer(supabase, player.id, {
             game_progress: nextProgress,
@@ -992,6 +1714,48 @@ serve(async (req) => {
               rewardCoins: task.rewardCoins ?? 0,
               rewardBait: task.rewardBait ?? 0,
               grantedDailyRolls: shouldGrantRolls ? DAILY_CUBE_ROLL_REWARD : 0,
+            },
+          });
+
+          return jsonResponse({ player: updatedPlayer });
+        }
+
+        if (isWeeklyMission) {
+          const currentTask = progress.weeklyMissions[taskId as WeeklyMissionId];
+          if (!currentTask || currentTask.claimed || currentTask.progress < task.target) {
+            return badRequest("Weekly mission is not ready to claim");
+          }
+
+          const nextProgress = {
+            ...progress,
+            weeklyMissions: {
+              ...progress.weeklyMissions,
+              [taskId]: {
+                ...currentTask,
+                claimed: true,
+              },
+            },
+            dailyWheelRolls: progress.dailyWheelRolls + (task.rewardCubeCharge ?? 0),
+          };
+
+          const updatedPlayer = await updatePlayer(supabase, player.id, {
+            game_progress: nextProgress,
+            coins: player.coins + (task.rewardCoins ?? 0),
+            bait: player.bait + (task.rewardBait ?? 0),
+            bonus_bait_granted_total: player.bonus_bait_granted_total + (task.rewardBait ?? 0),
+          });
+
+          await insertPlayerAuditLog(supabase, {
+            walletAddress,
+            eventType: "weekly_mission_claimed",
+            eventSource: "server",
+            beforeState,
+            afterState: sanitizeAuditSnapshot(updatedPlayer),
+            metadata: {
+              taskId,
+              rewardCoins: task.rewardCoins ?? 0,
+              rewardBait: task.rewardBait ?? 0,
+              rewardCubeCharge: task.rewardCubeCharge ?? 0,
             },
           });
 
@@ -1157,18 +1921,19 @@ serve(async (req) => {
           grillScore: progress.grillScore + recipe.score,
           dishesToday: progress.dishesToday + 1,
         };
+        const nextWeeklyProgress = applyWeeklyMissionProgress(nextProgress, "cook_5_dishes", 1);
 
         const updatedPlayer = await updatePlayer(supabase, player.id, {
           inventory: nextInventory,
           cooked_dishes: addCookedDish(cookedDishes, recipe.id, 1),
-          game_progress: nextProgress,
+          game_progress: nextWeeklyProgress,
         });
 
         const leaderboardEntry = await upsertGrillLeaderboard(
           supabase,
           walletAddress,
           player.nickname ?? "Hook & Loot player",
-          nextProgress.grillScore,
+          nextWeeklyProgress.grillScore,
           1,
         );
 
@@ -1209,10 +1974,13 @@ serve(async (req) => {
         const cookedDishes = sanitizeCookedDishes(player.cooked_dishes);
         const nextCookedDishes = consumeCookedDish(cookedDishes, recipe.id);
         if (!nextCookedDishes) return badRequest("Dish is not available");
+        const progress = normalizeGameProgressForToday(player.game_progress);
+        const nextProgress = applyWeeklyMissionProgress(progress, "sell_3_dishes", 1);
 
         const updatedPlayer = await updatePlayer(supabase, player.id, {
           coins: player.coins + recipe.score,
           cooked_dishes: nextCookedDishes,
+          game_progress: nextProgress,
         });
 
         await insertPlayerAuditLog(supabase, {

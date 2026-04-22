@@ -17,7 +17,11 @@ import { usePlayerActions } from '@/hooks/usePlayerActions';
 import { useBackgroundMusic } from '@/hooks/useBackgroundMusic';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { getVisibleBaitTotal } from '@/lib/baitEconomy';
+import {
+  getEconomyFeatureAvailability,
+  getVisibleBaitTotal,
+  PREMIUM_SESSION_COST_MON,
+} from '@/lib/baitEconomy';
 import {
   logPlayerAuditEvent,
   type PlayerAuditEventPayload,
@@ -54,6 +58,7 @@ import {
 } from '@/lib/leaderboard';
 import {
   DAILY_TASKS,
+  FISH_DATA,
   GRILL_RECIPES,
   NFT_ROD_DATA,
   SOCIAL_TASKS,
@@ -61,10 +66,13 @@ import {
   type GameTab,
   type GrillLeaderboardEntry,
   type GrillRecipe,
+  type PremiumSessionState,
+  type ReactionQuality,
   type SocialTaskId,
   type SocialTaskProgress,
   type TaskId,
   type WalletCheckInSummary,
+  type WeeklyMissionId,
   type WheelPrize,
 } from '@/types/game';
 
@@ -143,9 +151,12 @@ const FishingGame: React.FC = () => {
   const [leaderboardNameOpen, setLeaderboardNameOpen] = useState(false);
   const [pendingLeaderboardScore, setPendingLeaderboardScore] = useState(0);
   const [pendingLeaderboardDishes, setPendingLeaderboardDishes] = useState(0);
+  const economyFeatures = useMemo(() => getEconomyFeatureAvailability(address), [address]);
   const gameProgress = useGameProgress({
     savedProgress: isVerified ? savedGameProgress : undefined,
     onSave: isVerified ? saveGameProgress : undefined,
+    weeklyMissionsEnabled: economyFeatures.weeklyMissions,
+    cubeRebalanceEnabled: economyFeatures.cubeRebalance,
   });
   const {
     rollCube,
@@ -153,6 +164,9 @@ const FishingGame: React.FC = () => {
     claimTaskReward,
     getWalletCheckInSummary,
     verifyWalletCheckIn,
+    startPremiumSession,
+    getPremiumSessionState,
+    resolvePremiumCast,
     cookRecipe: requestCookRecipe,
     sellCookedDish: requestSellCookedDish,
     updateGrillLeaderboard,
@@ -165,6 +179,10 @@ const FishingGame: React.FC = () => {
   const [socialTasksLoading, setSocialTasksLoading] = useState(false);
   const [walletCheckInSummary, setWalletCheckInSummary] = useState<WalletCheckInSummary | null>(null);
   const [walletCheckInLoading, setWalletCheckInLoading] = useState(false);
+  const [premiumSession, setPremiumSession] = useState<PremiumSessionState | null>(null);
+  const [premiumSessionLoading, setPremiumSessionLoading] = useState(false);
+  const premiumBiteTimeoutHandlerRef = useRef<(() => void) | null>(null);
+  const premiumCastResolveInFlightRef = useRef(false);
   const logAuditEvent = useCallback((event: PlayerAuditEventPayload) => {
     if (!address || !isVerified) return;
 
@@ -179,16 +197,38 @@ const FishingGame: React.FC = () => {
   const applyServerPlayerSnapshot = useCallback((playerRecord: Parameters<typeof syncServerPlayerRecord>[0]) => {
     syncServerPlayerRecord(playerRecord);
   }, [syncServerPlayerRecord]);
+  const refreshPremiumSession = useCallback(async () => {
+    if (!economyFeatures.premiumSessions || !isVerified) {
+      setPremiumSession(null);
+      setPremiumSessionLoading(false);
+      return;
+    }
+
+    setPremiumSessionLoading(true);
+    try {
+      const result = await getPremiumSessionState();
+      applyServerPlayerSnapshot(result.player);
+      setPremiumSession(result.premiumSession);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not refresh premium session state.');
+    } finally {
+      setPremiumSessionLoading(false);
+    }
+  }, [applyServerPlayerSnapshot, economyFeatures.premiumSessions, getPremiumSessionState, isVerified]);
 
   const {
     player,
     gameState,
     lastResult,
     levelUpInfo,
+    albumRewardInfo,
     biteTimeLeft,
     biteTimeTotal,
     castRod,
+    castPremiumRod,
     reelIn,
+    presentPremiumCastResult,
+    resetPremiumCastState,
     sellFish,
     cookRecipe,
     sellCookedDish,
@@ -199,6 +239,7 @@ const FishingGame: React.FC = () => {
     addBait,
     grantFishReward,
     dismissLevelUp,
+    dismissAlbumReward,
     mintNftRod,
     setNickname,
     setAvatarUrl,
@@ -207,6 +248,10 @@ const FishingGame: React.FC = () => {
     onSave: isVerified ? saveProgress : undefined,
     onFishCaught: gameProgress.recordFishCatch,
     onAuditEvent: logAuditEvent,
+    collectionBookEnabled: economyFeatures.collectionBook,
+    onPremiumBiteTimeout: () => {
+      premiumBiteTimeoutHandlerRef.current?.();
+    },
   });
 
   const sounds = useSoundEffects();
@@ -226,8 +271,12 @@ const FishingGame: React.FC = () => {
   }, [player.equippedRod, player.nftRods]);
   const totalBait = useMemo(() => getVisibleBaitTotal(player), [player]);
   const pendingTaskCount = useMemo(() => (
-    [...gameProgress.dailyTasks, ...gameProgress.specialTasks].filter((task) => !task.claimed).length
-  ), [gameProgress.dailyTasks, gameProgress.specialTasks]);
+    [
+      ...gameProgress.dailyTasks,
+      ...gameProgress.specialTasks,
+      ...(economyFeatures.weeklyMissions ? gameProgress.weeklyMissions : []),
+    ].filter((task) => !task.claimed).length
+  ), [economyFeatures.weeklyMissions, gameProgress.dailyTasks, gameProgress.specialTasks, gameProgress.weeklyMissions]);
   const availableGrillCount = useMemo(() => (
     GRILL_RECIPES.filter((recipe) => (
       Object.entries(recipe.ingredients).every(([fishId, amount]) => (
@@ -472,6 +521,19 @@ const FishingGame: React.FC = () => {
   }, [player.level, sounds]);
 
   useEffect(() => {
+    if (!albumRewardInfo) return;
+
+    const completedPagesNote = albumRewardInfo.pageCompletedIds.length > 0
+      ? ` Page complete: ${albumRewardInfo.pageCompletedIds.length}.`
+      : '';
+
+    toast.success(`Album updated: ${albumRewardInfo.fishName}`, {
+      description: `First catch bonus +${albumRewardInfo.bonusCoins} coins. Species discovered: ${albumRewardInfo.totalSpeciesCaught}.${completedPagesNote}`,
+    });
+    dismissAlbumReward();
+  }, [albumRewardInfo, dismissAlbumReward]);
+
+  useEffect(() => {
     if (
       gameProgress.grillScore > 0
       && !hasCustomLeaderboardName(currentLeaderboardEntry?.name)
@@ -507,11 +569,27 @@ const FishingGame: React.FC = () => {
   }, [address, isVerified, refreshSocialTasks]);
 
   useEffect(() => {
+    if (!economyFeatures.premiumSessions || !isVerified) {
+      setPremiumSession(null);
+      setPremiumSessionLoading(false);
+      return;
+    }
+
+    void refreshPremiumSession();
+  }, [address, economyFeatures.premiumSessions, isVerified, refreshPremiumSession]);
+
+  useEffect(() => {
     if (activeTab === 'tasks' && isVerified) {
       void refreshSocialTasks();
       void refreshWalletCheckInSummary();
     }
   }, [activeTab, isVerified, refreshSocialTasks, refreshWalletCheckInSummary]);
+
+  useEffect(() => {
+    if (activeTab === 'fish' && economyFeatures.premiumSessions && isVerified) {
+      void refreshPremiumSession();
+    }
+  }, [activeTab, economyFeatures.premiumSessions, isVerified, refreshPremiumSession]);
 
   const handleBuyBait = (amount: number, cost: number) => {
     const purchased = buyBait(amount, cost);
@@ -537,6 +615,7 @@ const FishingGame: React.FC = () => {
       try {
         const result = await requestSellCookedDish(recipeId);
         applyServerPlayerSnapshot(result.player);
+        gameProgress.recordDishSold();
         sounds.playSellSound();
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Could not sell dish.');
@@ -546,6 +625,7 @@ const FishingGame: React.FC = () => {
 
     const sellPrice = sellCookedDish(recipeId);
     if (sellPrice <= 0) return;
+    gameProgress.recordDishSold();
     sounds.playSellSound();
   };
 
@@ -605,6 +685,41 @@ const FishingGame: React.FC = () => {
     }
   };
 
+  const handleClaimWeeklyMission = useCallback(async (missionId: WeeklyMissionId) => {
+    if (isVerified) {
+      try {
+        const result = await claimTaskReward(missionId);
+        applyServerPlayerSnapshot(result.player);
+        sounds.playBuySound();
+        if (missionId !== 'cube_3_days') {
+          toast.success('Weekly mission claimed.');
+        }
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Could not claim weekly mission reward.');
+      }
+      return;
+    }
+
+    const claimed = gameProgress.claimWeeklyMission(missionId, ({ coins = 0, bait = 0, cubeCharge = 0 }) => {
+      if (coins > 0) addCoins(coins);
+      if (bait > 0) addBait(bait);
+      if (cubeCharge > 0) {
+        toast.success(`Weekly mission claimed. +${cubeCharge} cube roll ready.`);
+      }
+    });
+
+    if (!claimed) {
+      toast.error('Could not claim weekly mission reward.');
+      return;
+    }
+
+    if (!economyFeatures.weeklyMissions) return;
+    sounds.playBuySound();
+    if (missionId !== 'cube_3_days') {
+      toast.success('Weekly mission claimed.');
+    }
+  }, [addBait, addCoins, applyServerPlayerSnapshot, claimTaskReward, economyFeatures.weeklyMissions, gameProgress, isVerified, sounds]);
+
   const handleRequestCubeRoll = async () => {
     if (!isVerified) return null;
 
@@ -631,6 +746,10 @@ const FishingGame: React.FC = () => {
       if (reward.type === 'mon') {
         return;
       }
+      if (reward.type === 'bait') {
+        addBait(reward.bait ?? 0);
+        return;
+      }
 
       addCoins(reward.coins ?? 0);
     };
@@ -648,6 +767,12 @@ const FishingGame: React.FC = () => {
         metadata.quantity = prize.quantity ?? 1;
       } else if (prize.type === 'mon') {
         metadata.mon = prize.mon ?? 0;
+      } else if (prize.type === 'bait') {
+        metadata.bait = prize.bait ?? 0;
+        afterState = {
+          ...beforeState,
+          bait: beforeState.bait + (prize.bait ?? 0),
+        };
       } else {
         metadata.coins = prize.coins ?? 0;
         afterState = {
@@ -658,7 +783,13 @@ const FishingGame: React.FC = () => {
 
       void logPlayerAuditEvent({
         walletAddress: address,
-        eventType: prize.type === 'fish' ? 'cube_fish_reward' : prize.type === 'mon' ? 'cube_mon_reward' : 'cube_coin_reward',
+        eventType: prize.type === 'fish'
+          ? 'cube_fish_reward'
+          : prize.type === 'mon'
+            ? 'cube_mon_reward'
+            : prize.type === 'bait'
+              ? 'cube_bait_reward'
+              : 'cube_coin_reward',
         beforeState,
         afterState,
         metadata,
@@ -677,6 +808,7 @@ const FishingGame: React.FC = () => {
       try {
         const result = await requestCookRecipe(recipe.id);
         applyServerPlayerSnapshot(result.player);
+        gameProgress.recordGrillDish(recipe.score);
         if (result.leaderboard_entry) {
           syncServerLeaderboardEntry(result.leaderboard_entry);
         }
@@ -819,6 +951,77 @@ const FishingGame: React.FC = () => {
   };
 
   const isFishingScreen = activeTab === 'fish';
+  const activePremiumSession = premiumSession?.status === 'active' ? premiumSession : null;
+
+  const handleStartPremiumSession = useCallback(async (txHash: string) => {
+    setPremiumSessionLoading(true);
+    try {
+      const result = await startPremiumSession(txHash);
+      applyServerPlayerSnapshot(result.player);
+      setPremiumSession(result.premiumSession);
+    } finally {
+      setPremiumSessionLoading(false);
+    }
+  }, [applyServerPlayerSnapshot, startPremiumSession]);
+
+  const handlePremiumCastResolution = useCallback(async (reactionQuality: ReactionQuality) => {
+    if (!activePremiumSession || premiumCastResolveInFlightRef.current) return;
+
+    premiumCastResolveInFlightRef.current = true;
+    try {
+      const result = await resolvePremiumCast(reactionQuality);
+      applyServerPlayerSnapshot(result.player);
+      setPremiumSession(result.premiumSession);
+      if (result.premiumSession.status === 'completed') {
+        gameProgress.recordPremiumSessionCompleted();
+      }
+
+      const caughtFish = FISH_DATA.find((fish) => fish.id === result.castResult.fishId) ?? null;
+      await presentPremiumCastResult(caughtFish);
+    } catch (error) {
+      resetPremiumCastState();
+      toast.error(error instanceof Error ? error.message : 'Could not resolve premium cast.');
+      void refreshPremiumSession();
+    } finally {
+      premiumCastResolveInFlightRef.current = false;
+    }
+  }, [
+    activePremiumSession,
+    applyServerPlayerSnapshot,
+    gameProgress,
+    presentPremiumCastResult,
+    refreshPremiumSession,
+    resolvePremiumCast,
+    resetPremiumCastState,
+  ]);
+
+  useEffect(() => {
+    premiumBiteTimeoutHandlerRef.current = () => {
+      void handlePremiumCastResolution('miss');
+    };
+
+    return () => {
+      premiumBiteTimeoutHandlerRef.current = null;
+    };
+  }, [handlePremiumCastResolution]);
+
+  const handleCastAction = useCallback(() => {
+    if (activePremiumSession && isVerified) {
+      void castPremiumRod();
+      return;
+    }
+
+    void castRod();
+  }, [activePremiumSession, castPremiumRod, castRod, isVerified]);
+
+  const handleReelAction = useCallback(() => {
+    if (activePremiumSession && isVerified) {
+      void handlePremiumCastResolution('good');
+      return;
+    }
+
+    void reelIn();
+  }, [activePremiumSession, handlePremiumCastResolution, isVerified, reelIn]);
 
   return (
     <main className="fixed inset-0 flex flex-col bg-[#05060b]">
@@ -833,7 +1036,7 @@ const FishingGame: React.FC = () => {
         <div className={cn('relative flex-1 overflow-hidden transition-opacity duration-300', assetsReady ? 'opacity-100' : 'opacity-0')}>
           {isFishingScreen ? (
             <MonadFishCanvas
-              onCast={castRod}
+              onCast={handleCastAction}
               gameState={gameState}
               lastResult={lastResult}
               rodLevel={player.equippedRod}
@@ -847,6 +1050,8 @@ const FishingGame: React.FC = () => {
                   walletAddress={address}
                   dailyTasks={gameProgress.dailyTasks}
                   specialTasks={gameProgress.specialTasks}
+                  weeklyMissions={gameProgress.weeklyMissions}
+                  weeklyMissionsEnabled={economyFeatures.weeklyMissions}
                   socialTasks={socialTasks}
                   walletCheckInSummary={walletCheckInSummary}
                   walletCheckInLoading={walletCheckInLoading}
@@ -855,6 +1060,7 @@ const FishingGame: React.FC = () => {
                   socialTasksLoading={socialTasksLoading}
                   isWalletVerified={isVerified}
                   onClaimTask={handleClaimTask}
+                  onClaimWeeklyMission={handleClaimWeeklyMission}
                   onWalletCheckIn={handleWalletCheckIn}
                   onSubmitSocialTask={handleSubmitSocialTask}
                   onClaimSocialTask={handleClaimSocialTask}
@@ -919,10 +1125,18 @@ const FishingGame: React.FC = () => {
 
           {isFishingScreen && (
             <div className="absolute right-[2.5%] top-[12.5%] z-20 flex flex-col items-center gap-3 sm:right-[2.25%] sm:top-[13.5%]">
-              <BoostDialog walletAddress={address} />
+              <BoostDialog
+                walletAddress={address}
+                premiumSession={premiumSession}
+                onStartPremiumSession={handleStartPremiumSession}
+                premiumSessionLoading={premiumSessionLoading}
+                premiumSessionsEnabled={economyFeatures.premiumSessions}
+              />
               <InventoryDialog
                 inventory={player.inventory}
                 cookedDishes={player.cookedDishes}
+                collectionBook={player.collectionBook}
+                collectionBookEnabled={economyFeatures.collectionBook}
                 rodLevel={player.rodLevel}
                 equippedRod={player.equippedRod}
                 nftRods={player.nftRods}
@@ -931,6 +1145,47 @@ const FishingGame: React.FC = () => {
                 onSellCookedDish={handleSellCookedDish}
                 triggerVariant="shortcut"
               />
+            </div>
+          )}
+
+          {isFishingScreen && economyFeatures.premiumSessions && activePremiumSession && (
+            <div className="pointer-events-none absolute inset-x-0 top-3 z-20 flex justify-center px-3 sm:top-4">
+              <div className="pointer-events-auto flex w-full max-w-xl flex-col gap-2 rounded-2xl border border-emerald-300/20 bg-black/65 px-4 py-3 text-white shadow-2xl backdrop-blur-md">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-300/85">
+                      MON Expedition Active
+                    </div>
+                    <div className="mt-1 text-sm font-semibold text-white/90">
+                      {activePremiumSession.castsRemaining} premium casts left
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-emerald-300/20 bg-emerald-950/35 px-3 py-2 text-right">
+                    <div className="text-[11px] font-black uppercase tracking-[0.14em] text-emerald-200/80">
+                      Recovered
+                    </div>
+                    <div className="text-sm font-bold text-emerald-100">
+                      {activePremiumSession.recoveredMon.toFixed(2)} / {PREMIUM_SESSION_COST_MON} MON
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 text-[11px] font-semibold text-zinc-200/90">
+                  <span className="rounded-lg border border-zinc-700 bg-zinc-950/80 px-2 py-1">
+                    Casts used {activePremiumSession.castsUsed}/{activePremiumSession.castsTotal}
+                  </span>
+                  <span className="rounded-lg border border-zinc-700 bg-zinc-950/80 px-2 py-1">
+                    Luck Meter {activePremiumSession.luckMeterStacks}
+                  </span>
+                  <span className="rounded-lg border border-zinc-700 bg-zinc-950/80 px-2 py-1">
+                    Zero streak {activePremiumSession.zeroDropStreak}
+                  </span>
+                  {activePremiumSession.guaranteedRewardTier ? (
+                    <span className="rounded-lg border border-amber-300/30 bg-amber-950/35 px-2 py-1 text-amber-100">
+                      Guaranteed {activePremiumSession.guaranteedRewardTier} reward incoming
+                    </span>
+                  ) : null}
+                </div>
+              </div>
             </div>
           )}
 
@@ -959,10 +1214,10 @@ const FishingGame: React.FC = () => {
             <GameControls
               gameState={gameState}
               lastResult={lastResult}
-              hasBait={totalBait > 0}
+              hasBait={Boolean(activePremiumSession) || totalBait > 0}
               totalBait={totalBait}
-              onCast={castRod}
-              onReelIn={reelIn}
+              onCast={handleCastAction}
+              onReelIn={handleReelAction}
               rodLevel={player.equippedRod}
               ownedRodLevel={player.rodLevel}
               nftRods={player.nftRods}

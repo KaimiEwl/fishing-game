@@ -13,6 +13,8 @@ import type {
   SpecialTaskProgress,
   TaskId,
   WalletCheckInSummary,
+  WeeklyMissionId,
+  WeeklyMissionProgress,
 } from '@/types/game';
 import { getErrorMessage, isUserRejectedError } from '@/lib/errorUtils';
 import CoinIcon from './CoinIcon';
@@ -30,6 +32,7 @@ interface TasksScreenProps {
   walletAddress?: string;
   dailyTasks: DailyTaskProgress[];
   specialTasks: SpecialTaskProgress[];
+  weeklyMissions: WeeklyMissionProgress[];
   socialTasks: SocialTaskProgress[];
   walletCheckInSummary: WalletCheckInSummary | null;
   walletCheckInLoading?: boolean;
@@ -38,11 +41,13 @@ interface TasksScreenProps {
   socialTasksLoading?: boolean;
   isWalletVerified: boolean;
   onClaimTask: (id: TaskId) => void;
+  onClaimWeeklyMission: (id: WeeklyMissionId) => void;
   onWalletCheckIn: (txHash: string) => Promise<void>;
   onSubmitSocialTask: (id: SocialTaskId, proofUrl?: string) => void;
   onClaimSocialTask: (id: SocialTaskId) => void;
   onRefreshSocialTasks: () => void;
   onOpenWheel: () => void;
+  weeklyMissionsEnabled?: boolean;
 }
 
 const TasksScreen: React.FC<TasksScreenProps> = ({
@@ -50,6 +55,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   walletAddress,
   dailyTasks,
   specialTasks,
+  weeklyMissions,
   socialTasks,
   walletCheckInSummary,
   walletCheckInLoading = false,
@@ -58,8 +64,10 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   socialTasksLoading = false,
   isWalletVerified,
   onClaimTask,
+  onClaimWeeklyMission,
   onWalletCheckIn,
   onOpenWheel,
+  weeklyMissionsEnabled = false,
 }) => {
   const completedCount = dailyTasks.filter((task) => task.progress >= task.target).length;
   const claimedCount = dailyTasks.filter((task) => task.claimed).length;
@@ -104,7 +112,37 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
     }
   };
 
-  const renderTaskList = (tasks: Array<DailyTaskProgress | SpecialTaskProgress>) => (
+  const renderRewardBadge = (task: DailyTaskProgress | SpecialTaskProgress | WeeklyMissionProgress) => {
+    if (task.rewardCubeCharge) {
+      return (
+        <>
+          <Box className="h-4 w-4 text-cyan-200" />
+          <span className="text-cyan-100">+{task.rewardCubeCharge} cube roll</span>
+        </>
+      );
+    }
+
+    if (task.rewardBait) {
+      return (
+        <>
+          <Worm className="h-4 w-4 text-lime-300" />
+          <span className="text-lime-200">{task.rewardBait} bait</span>
+        </>
+      );
+    }
+
+    return (
+      <>
+        <CoinIcon size="md" />
+        <span className="text-amber-300">{task.rewardCoins}</span>
+      </>
+    );
+  };
+
+  const renderTaskList = (
+    tasks: Array<DailyTaskProgress | SpecialTaskProgress | WeeklyMissionProgress>,
+    onClaim: (id: TaskId | WeeklyMissionId) => void,
+  ) => (
     <div className="grid gap-3">
       {tasks.map((task) => {
         const complete = task.progress >= task.target;
@@ -133,17 +171,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                 <p className="mt-1 text-sm text-white/70">{task.description}</p>
               </div>
               <div className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-bold shadow-sm">
-                {task.rewardBait ? (
-                  <>
-                    <Worm className="h-4 w-4 text-lime-300" />
-                    <span className="text-lime-200">{task.rewardBait} bait</span>
-                  </>
-                ) : (
-                  <>
-                    <CoinIcon size="md" />
-                    <span className="text-amber-300">{task.rewardCoins}</span>
-                  </>
-                )}
+                {renderRewardBadge(task)}
               </div>
             </div>
 
@@ -153,7 +181,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                 <span>{complete ? 'Ready' : 'In progress'}</span>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-zinc-900 ring-1 ring-zinc-800">
-                <div
+              <div
                   className="h-full rounded-full bg-cyan-300 shadow-[0_0_10px_rgba(34,211,238,0.35)]"
                   style={{ width: `${progress}%` }}
                 />
@@ -224,7 +252,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
             <Button
               type="button"
               disabled={!complete || task.claimed}
-              onClick={() => onClaimTask(task.id)}
+              onClick={() => onClaim(task.id)}
               className="mt-4 h-12 w-full rounded-xl border border-cyan-300/25 bg-zinc-950 text-base font-bold text-cyan-100 shadow-lg shadow-black/30 transition-all hover:bg-black disabled:border-zinc-800 disabled:bg-zinc-950 disabled:text-zinc-600 disabled:shadow-none"
             >
               {task.claimed ? (
@@ -234,7 +262,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                 </>
               ) : (
                 <>
-                  {task.rewardBait ? <Worm className="mr-2 h-4 w-4" /> : <Coins className="mr-2 h-4 w-4" />}
+                  {task.rewardCubeCharge ? <Box className="mr-2 h-4 w-4" /> : task.rewardBait ? <Worm className="mr-2 h-4 w-4" /> : <Coins className="mr-2 h-4 w-4" />}
                   Claim reward
                 </>
               )}
@@ -285,20 +313,31 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
     >
       <div className="grid gap-3 pb-3 lg:grid-cols-[1fr_0.72fr] lg:items-start">
         <Tabs defaultValue="daily" className="min-w-0">
-          <TabsList className="grid w-full grid-cols-3 rounded-lg border border-cyan-300/15 bg-black/85 shadow-lg shadow-black/30">
+          <TabsList className={`grid w-full ${weeklyMissionsEnabled ? 'grid-cols-4' : 'grid-cols-3'} rounded-lg border border-cyan-300/15 bg-black/85 shadow-lg shadow-black/30`}>
             <TabsTrigger value="daily" className="rounded-lg text-zinc-200 data-[state=active]:border data-[state=active]:border-cyan-300/25 data-[state=active]:bg-zinc-950 data-[state=active]:text-cyan-50">Daily</TabsTrigger>
             <TabsTrigger value="special" className="rounded-lg text-zinc-200 data-[state=active]:border data-[state=active]:border-cyan-300/25 data-[state=active]:bg-zinc-950 data-[state=active]:text-cyan-50">Special</TabsTrigger>
+            {weeklyMissionsEnabled && (
+              <TabsTrigger value="weekly" className="rounded-lg text-zinc-200 data-[state=active]:border data-[state=active]:border-cyan-300/25 data-[state=active]:bg-zinc-950 data-[state=active]:text-cyan-50">Weekly</TabsTrigger>
+            )}
             <TabsTrigger value="social" className="rounded-lg text-zinc-200 data-[state=active]:border data-[state=active]:border-cyan-300/25 data-[state=active]:bg-zinc-950 data-[state=active]:text-cyan-50">Social</TabsTrigger>
           </TabsList>
           <TabsContent value="daily" className="mt-3">
-            {renderTaskList(dailyTasks)}
+            {renderTaskList(dailyTasks, onClaimTask)}
           </TabsContent>
           <TabsContent value="special" className="mt-3">
             <div className="mb-3 rounded-xl border border-cyan-300/15 bg-black/60 p-4 text-sm text-white/70 shadow-lg shadow-black/20 backdrop-blur-md">
               Special tasks now mix referral rewards with a wallet streak check-in. Keep your MON check-in streak alive and still invite one new friend per day.
             </div>
-            {renderTaskList(specialTasks)}
+            {renderTaskList(specialTasks, onClaimTask)}
           </TabsContent>
+          {weeklyMissionsEnabled && (
+            <TabsContent value="weekly" className="mt-3">
+              <div className="mb-3 rounded-xl border border-cyan-300/15 bg-black/60 p-4 text-sm text-white/70 shadow-lg shadow-black/20 backdrop-blur-md">
+                Weekly missions are the longer ladder. Keep coming back through the week for bigger rewards, including bonus cube charges.
+              </div>
+              {renderTaskList(weeklyMissions, onClaimWeeklyMission)}
+            </TabsContent>
+          )}
           <TabsContent value="social" className="mt-3">
             <div className="mb-3 rounded-xl border border-cyan-300/15 bg-black/60 p-4 text-sm text-white/70 shadow-lg shadow-black/20 backdrop-blur-md">
               {isWalletVerified

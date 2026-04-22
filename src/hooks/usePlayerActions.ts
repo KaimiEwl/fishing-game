@@ -3,6 +3,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { getStoredWalletSession } from '@/lib/walletSession';
 import type { Tables } from '@/integrations/supabase/types';
 import {
+  type PremiumCastResult,
+  type PremiumSessionState,
+  type ReactionQuality,
   SOCIAL_TASKS,
   type SocialTaskId,
   type SocialTaskProgress,
@@ -24,6 +27,8 @@ interface PlayerActionResponse {
   roll?: CubeRollPayload;
   prize?: WheelPrize;
   wallet_check_in_summary?: WalletCheckInSummary;
+  premium_session?: PremiumSessionState | null;
+  cast_result?: PremiumCastResult;
   verification?: PlayerSocialTaskVerificationRow;
   verifications?: PlayerSocialTaskVerificationRow[];
   leaderboard_entry?: {
@@ -169,6 +174,62 @@ export function usePlayerActions(walletAddress: string | undefined, enabled: boo
     };
   }, [callPlayerActions]);
 
+  const startPremiumSession = useCallback(async (txHash: string) => {
+    const data = await callPlayerActions<{
+      player: Tables<'players'>;
+      premium_session: PremiumSessionState;
+    }>('start_premium_session', {
+      tx_hash: txHash,
+    });
+
+    return {
+      player: data.player,
+      premiumSession: data.premium_session,
+    };
+  }, [callPlayerActions]);
+
+  const getPremiumSessionState = useCallback(async () => {
+    const data = await callPlayerActions<{
+      player: Tables<'players'>;
+      premium_session: PremiumSessionState | null;
+    }>('get_premium_session_state');
+
+    return {
+      player: data.player,
+      premiumSession: data.premium_session,
+    };
+  }, [callPlayerActions]);
+
+  const resolvePremiumCast = useCallback(async (reactionQuality: ReactionQuality) => {
+    const data = await callPlayerActions<{
+      player: Tables<'players'>;
+      premium_session: PremiumSessionState;
+      cast_result: PremiumCastResult;
+    }>('resolve_premium_cast', {
+      reaction_quality: reactionQuality,
+    });
+
+    return {
+      player: data.player,
+      premiumSession: data.premium_session,
+      castResult: data.cast_result,
+    };
+  }, [callPlayerActions]);
+
+  const completePremiumSession = useCallback(async (sessionId?: string) => {
+    const data = await callPlayerActions<{
+      player: Tables<'players'>;
+      premium_session: PremiumSessionState;
+    }>('complete_premium_session', {
+      session_id: sessionId ?? null,
+    });
+
+    return {
+      player: data.player,
+      premiumSession: data.premium_session,
+    };
+  }, [callPlayerActions]);
+
   const cookRecipe = useCallback(async (recipeId: string) => (
     callPlayerActions<{
       player: Tables<'players'>;
@@ -221,6 +282,10 @@ export function usePlayerActions(walletAddress: string | undefined, enabled: boo
     claimTaskReward,
     getWalletCheckInSummary,
     verifyWalletCheckIn,
+    startPremiumSession,
+    getPremiumSessionState,
+    resolvePremiumCast,
+    completePremiumSession,
     cookRecipe,
     sellCookedDish,
     updateGrillLeaderboard,

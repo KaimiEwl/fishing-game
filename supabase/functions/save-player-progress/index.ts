@@ -20,6 +20,9 @@ const MAX_PROGRESS_SAVE_GRILL_SCORE_DELTA = 20000;
 const MAX_PROGRESS_SAVE_PAID_ROLL_DELTA = 50;
 const DAILY_TASK_IDS = ['check_in', 'catch_10', 'rare_1', 'grill_1', 'spend_1000'] as const;
 const SPECIAL_TASK_IDS = ['invite_friend', 'wallet_check_in'] as const;
+const WEEKLY_MISSION_IDS = ['catch_60_fish', 'catch_6_rare', 'cook_5_dishes', 'sell_3_dishes', 'cube_3_days', 'complete_1_premium_session'] as const;
+const COLLECTION_FISH_IDS = ['carp', 'perch', 'bream', 'catfish', 'goldfish', 'mutant', 'pike', 'leviathan'] as const;
+const COLLECTION_PAGE_IDS = ['lake_basics', 'deepwater_odds', 'trophy_legends'] as const;
 
 interface InventoryEntry {
   fishId: string;
@@ -51,12 +54,53 @@ interface PlayerProgressPayload {
   nft_rods: number[];
   nickname: string | null;
   avatar_url: string | null;
+  collection_book?: unknown;
+  rod_mastery?: unknown;
+}
+
+interface CollectionSpeciesPayload {
+  fishId: string;
+  discovered: boolean;
+  catches: number;
+  firstCaughtAt: string | null;
+  lastCaughtAt: string | null;
+  firstCatchBonusClaimed: boolean;
+}
+
+interface CollectionPagePayload {
+  pageId: string;
+  completed: boolean;
+  claimed: boolean;
+}
+
+interface CollectionBookPayload {
+  species: Record<string, CollectionSpeciesPayload>;
+  pages: CollectionPagePayload[];
+  totalSpeciesCaught: number;
+  totalFirstCatchBonusesClaimed: number;
+}
+
+interface RodMasteryTrackPayload {
+  rodLevel: number;
+  masteryLevel: number;
+  masteryPoints: number;
+  lastUpdatedAt: string | null;
+}
+
+interface RodMasteryPayload {
+  totalMasteryPoints: number;
+  tracks: Record<string, RodMasteryTrackPayload>;
 }
 
 interface GameProgressPayload {
   date: string;
+  weekKey?: string;
   tasks: Record<string, { progress: number; claimed: boolean }>;
   specialTasks: Record<string, { progress: number; claimed: boolean }>;
+  weeklyMissions?: Record<string, { progress: number; claimed: boolean }>;
+  lastWeeklyCubeUnlockDate?: string | null;
+  collectionBook?: CollectionBookPayload | null;
+  rodMastery?: RodMasteryPayload | null;
   wheelSpun: boolean;
   wheelPrize: Record<string, unknown> | null;
   dailyWheelRolls: number;
@@ -108,6 +152,17 @@ const normalizeWalletAddress = (value: string | null | undefined) => {
 const getUtcResetIso = (date = new Date()) => (
   new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())).toISOString()
 );
+
+const getWeekKey = (date = new Date()) => {
+  const current = new Date(date);
+  const mondayBasedDay = (current.getDay() + 6) % 7;
+  current.setHours(0, 0, 0, 0);
+  current.setDate(current.getDate() - mondayBasedDay);
+  const y = current.getFullYear();
+  const m = String(current.getMonth() + 1).padStart(2, '0');
+  const d = String(current.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
 
 const sanitizeInventory = (value: unknown): InventoryEntry[] => {
   if (!Array.isArray(value)) return [];
@@ -181,6 +236,8 @@ const sanitizeWheelPrize = (value: unknown) => {
       ? 'coins'
       : prize.type === 'mon'
         ? 'mon'
+        : prize.type === 'bait'
+          ? 'bait'
         : null;
   const id = typeof prize.id === 'string' ? prize.id.trim() : '';
   const label = typeof prize.label === 'string' ? prize.label.trim() : '';
@@ -194,7 +251,178 @@ const sanitizeWheelPrize = (value: unknown) => {
     fishId: type === 'fish' && typeof prize.fishId === 'string' ? prize.fishId.trim() : undefined,
     quantity: prize.quantity == null ? undefined : clampInt(prize.quantity, 1, 1, 99999),
     mon: type === 'mon' ? Number(prize.mon ?? 0) : undefined,
+    bait: type === 'bait' ? clampInt(prize.bait, 0, 0, 99999) : undefined,
     secret: Boolean(prize.secret),
+  };
+};
+
+const sanitizeIsoOrNull = (value: unknown) => {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+};
+
+const pickEarlierIso = (current: string | null, next: string | null) => {
+  if (!current) return next;
+  if (!next) return current;
+  return new Date(current).getTime() <= new Date(next).getTime() ? current : next;
+};
+
+const pickLaterIso = (current: string | null, next: string | null) => {
+  if (!current) return next;
+  if (!next) return current;
+  return new Date(current).getTime() >= new Date(next).getTime() ? current : next;
+};
+
+const sanitizeCollectionBook = (value: unknown): CollectionBookPayload | null => {
+  if (!value || typeof value !== 'object') return null;
+
+  const source = value as Record<string, unknown>;
+  const speciesSource = source.species && typeof source.species === 'object'
+    ? source.species as Record<string, unknown>
+    : {};
+  const species = Object.fromEntries(COLLECTION_FISH_IDS.map((fishId) => {
+    const current = speciesSource[fishId] && typeof speciesSource[fishId] === 'object'
+      ? speciesSource[fishId] as Record<string, unknown>
+      : {};
+    return [fishId, {
+      fishId,
+      discovered: Boolean(current.discovered),
+      catches: clampInt(current.catches, 0, 0, 1_000_000),
+      firstCaughtAt: sanitizeIsoOrNull(current.firstCaughtAt),
+      lastCaughtAt: sanitizeIsoOrNull(current.lastCaughtAt),
+      firstCatchBonusClaimed: Boolean(current.firstCatchBonusClaimed),
+    }];
+  })) as Record<string, CollectionSpeciesPayload>;
+
+  const pageSource = Array.isArray(source.pages) ? source.pages : [];
+  const pages = COLLECTION_PAGE_IDS.map((pageId) => {
+    const current = pageSource.find((item) => item && typeof item === 'object' && (item as Record<string, unknown>).pageId === pageId);
+    return {
+      pageId,
+      completed: Boolean(current && (current as Record<string, unknown>).completed),
+      claimed: Boolean(current && (current as Record<string, unknown>).claimed),
+    };
+  });
+
+  return {
+    species,
+    pages,
+    totalSpeciesCaught: Object.values(species).filter((entry) => entry.discovered).length,
+    totalFirstCatchBonusesClaimed: Object.values(species).filter((entry) => entry.firstCatchBonusClaimed).length,
+  };
+};
+
+const mergeCollectionBook = (
+  currentBook: CollectionBookPayload | null | undefined,
+  nextBook: CollectionBookPayload | null | undefined,
+): CollectionBookPayload | null => {
+  if (!currentBook && !nextBook) return null;
+  const sanitizedCurrent = sanitizeCollectionBook(currentBook);
+  const sanitizedNext = sanitizeCollectionBook(nextBook);
+  if (!sanitizedCurrent) return sanitizedNext;
+  if (!sanitizedNext) return sanitizedCurrent;
+
+  const species = Object.fromEntries(COLLECTION_FISH_IDS.map((fishId) => {
+    const currentSpecies = sanitizedCurrent.species[fishId];
+    const nextSpecies = sanitizedNext.species[fishId];
+    return [fishId, {
+      fishId,
+      discovered: currentSpecies.discovered || nextSpecies.discovered,
+      catches: Math.max(currentSpecies.catches, nextSpecies.catches),
+      firstCaughtAt: pickEarlierIso(currentSpecies.firstCaughtAt, nextSpecies.firstCaughtAt),
+      lastCaughtAt: pickLaterIso(currentSpecies.lastCaughtAt, nextSpecies.lastCaughtAt),
+      firstCatchBonusClaimed: currentSpecies.firstCatchBonusClaimed || nextSpecies.firstCatchBonusClaimed,
+    }];
+  })) as Record<string, CollectionSpeciesPayload>;
+
+  const pages = COLLECTION_PAGE_IDS.map((pageId) => {
+    const currentPage = sanitizedCurrent.pages.find((page) => page.pageId === pageId);
+    const nextPage = sanitizedNext.pages.find((page) => page.pageId === pageId);
+    return {
+      pageId,
+      completed: Boolean(currentPage?.completed || nextPage?.completed),
+      claimed: Boolean(currentPage?.claimed || nextPage?.claimed),
+    };
+  });
+
+  return {
+    species,
+    pages,
+    totalSpeciesCaught: Object.values(species).filter((entry) => entry.discovered).length,
+    totalFirstCatchBonusesClaimed: Object.values(species).filter((entry) => entry.firstCatchBonusClaimed).length,
+  };
+};
+
+const sanitizeRodMastery = (value: unknown): RodMasteryPayload | null => {
+  if (!value || typeof value !== 'object') return null;
+
+  const source = value as Record<string, unknown>;
+  const tracksSource = source.tracks && typeof source.tracks === 'object'
+    ? source.tracks as Record<string, unknown>
+    : {};
+  const tracks = Object.fromEntries(
+    Object.entries(tracksSource)
+      .filter(([trackKey]) => Boolean(trackKey.trim()))
+      .map(([trackKey, rawTrack]) => {
+        const current = rawTrack && typeof rawTrack === 'object'
+          ? rawTrack as Record<string, unknown>
+          : {};
+        return [trackKey, {
+          rodLevel: clampInt(current.rodLevel, 0, 0, 99),
+          masteryLevel: clampInt(current.masteryLevel, 0, 0, 999),
+          masteryPoints: clampInt(current.masteryPoints, 0, 0, 1_000_000),
+          lastUpdatedAt: sanitizeIsoOrNull(current.lastUpdatedAt),
+        }];
+      }),
+  ) as Record<string, RodMasteryTrackPayload>;
+
+  return {
+    totalMasteryPoints: Math.max(
+      clampInt(source.totalMasteryPoints, 0, 0, 1_000_000),
+      Object.values(tracks).reduce((sum, track) => sum + track.masteryPoints, 0),
+    ),
+    tracks,
+  };
+};
+
+const mergeRodMastery = (
+  currentMastery: RodMasteryPayload | null | undefined,
+  nextMastery: RodMasteryPayload | null | undefined,
+): RodMasteryPayload | null => {
+  if (!currentMastery && !nextMastery) return null;
+  const sanitizedCurrent = sanitizeRodMastery(currentMastery);
+  const sanitizedNext = sanitizeRodMastery(nextMastery);
+  if (!sanitizedCurrent) return sanitizedNext;
+  if (!sanitizedNext) return sanitizedCurrent;
+
+  const trackKeys = new Set([
+    ...Object.keys(sanitizedCurrent.tracks),
+    ...Object.keys(sanitizedNext.tracks),
+  ]);
+  const tracks = Object.fromEntries(
+    Array.from(trackKeys).map((trackKey) => {
+      const currentTrack = sanitizedCurrent.tracks[trackKey];
+      const nextTrack = sanitizedNext.tracks[trackKey];
+      if (!currentTrack) return [trackKey, nextTrack];
+      if (!nextTrack) return [trackKey, currentTrack];
+
+      return [trackKey, {
+        rodLevel: Math.max(currentTrack.rodLevel, nextTrack.rodLevel),
+        masteryLevel: Math.max(currentTrack.masteryLevel, nextTrack.masteryLevel),
+        masteryPoints: Math.max(currentTrack.masteryPoints, nextTrack.masteryPoints),
+        lastUpdatedAt: pickLaterIso(currentTrack.lastUpdatedAt, nextTrack.lastUpdatedAt),
+      }];
+    }),
+  ) as Record<string, RodMasteryTrackPayload>;
+
+  return {
+    totalMasteryPoints: Math.max(
+      sanitizedCurrent.totalMasteryPoints,
+      sanitizedNext.totalMasteryPoints,
+      Object.values(tracks).reduce((sum, track) => sum + track.masteryPoints, 0),
+    ),
+    tracks,
   };
 };
 
@@ -202,13 +430,28 @@ const sanitizeGameProgress = (value: unknown, fallbackDate: string): GameProgres
   const source = value && typeof value === 'object'
     ? value as Record<string, unknown>
     : {};
+  const currentWeekKey = getWeekKey();
+  const parsedWeekKey = typeof source.weekKey === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(source.weekKey)
+    ? source.weekKey
+    : currentWeekKey;
 
   return {
     date: typeof source.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(source.date)
       ? source.date
       : fallbackDate,
+    weekKey: parsedWeekKey,
     tasks: sanitizeTaskStateMap(source.tasks, DAILY_TASK_IDS),
     specialTasks: sanitizeTaskStateMap(source.specialTasks, SPECIAL_TASK_IDS),
+    weeklyMissions: parsedWeekKey === currentWeekKey
+      ? sanitizeTaskStateMap(source.weeklyMissions, WEEKLY_MISSION_IDS)
+      : sanitizeTaskStateMap({}, WEEKLY_MISSION_IDS),
+    lastWeeklyCubeUnlockDate: parsedWeekKey === currentWeekKey
+      && typeof source.lastWeeklyCubeUnlockDate === 'string'
+      && /^\d{4}-\d{2}-\d{2}$/.test(source.lastWeeklyCubeUnlockDate)
+      ? source.lastWeeklyCubeUnlockDate
+      : null,
+    collectionBook: sanitizeCollectionBook(source.collectionBook),
+    rodMastery: sanitizeRodMastery(source.rodMastery),
     wheelSpun: Boolean(source.wheelSpun),
     wheelPrize: sanitizeWheelPrize(source.wheelPrize),
     dailyWheelRolls: clampInt(source.dailyWheelRolls, 0, 0, 99999),
@@ -228,6 +471,8 @@ const mergeGameProgress = (
 
     return {
       ...newerProgress,
+      collectionBook: mergeCollectionBook(currentProgress.collectionBook, nextProgress.collectionBook),
+      rodMastery: mergeRodMastery(currentProgress.rodMastery, nextProgress.rodMastery),
       grillScore: Math.max(currentProgress.grillScore, nextProgress.grillScore),
       paidWheelRolls: Math.max(currentProgress.paidWheelRolls, nextProgress.paidWheelRolls),
       dailyWheelRolls: Math.max(currentProgress.dailyWheelRolls, nextProgress.dailyWheelRolls),
@@ -251,10 +496,29 @@ const mergeGameProgress = (
     },
   ]));
 
+  const mergedWeeklyMissions = currentProgress.weekKey !== nextProgress.weekKey
+    ? (currentProgress.weekKey >= nextProgress.weekKey ? currentProgress.weeklyMissions : nextProgress.weeklyMissions)
+    : Object.fromEntries(WEEKLY_MISSION_IDS.map((id) => [
+      id,
+      {
+        progress: Math.max(currentProgress.weeklyMissions?.[id]?.progress ?? 0, nextProgress.weeklyMissions?.[id]?.progress ?? 0),
+        claimed: Boolean(currentProgress.weeklyMissions?.[id]?.claimed || nextProgress.weeklyMissions?.[id]?.claimed),
+      },
+    ]));
+
   return {
     date: currentProgress.date,
+    weekKey: currentProgress.weekKey && nextProgress.weekKey
+      ? (currentProgress.weekKey >= nextProgress.weekKey ? currentProgress.weekKey : nextProgress.weekKey)
+      : (currentProgress.weekKey ?? nextProgress.weekKey ?? getWeekKey()),
     tasks: mergedTasks,
     specialTasks: mergedSpecialTasks,
+    weeklyMissions: mergedWeeklyMissions,
+    lastWeeklyCubeUnlockDate: currentProgress.weekKey !== nextProgress.weekKey
+      ? (currentProgress.weekKey >= nextProgress.weekKey ? currentProgress.lastWeeklyCubeUnlockDate : nextProgress.lastWeeklyCubeUnlockDate)
+      : currentProgress.lastWeeklyCubeUnlockDate ?? nextProgress.lastWeeklyCubeUnlockDate,
+    collectionBook: mergeCollectionBook(currentProgress.collectionBook, nextProgress.collectionBook),
+    rodMastery: mergeRodMastery(currentProgress.rodMastery, nextProgress.rodMastery),
     wheelSpun: currentProgress.wheelSpun || nextProgress.wheelSpun,
     wheelPrize: nextProgress.wheelPrize ?? currentProgress.wheelPrize,
     dailyWheelRolls: Math.max(currentProgress.dailyWheelRolls, nextProgress.dailyWheelRolls),
@@ -414,6 +678,19 @@ serve(async (req) => {
     const nextGameProgress = game_progress == null
       ? currentGameProgress
       : sanitizeGameProgress(game_progress, currentGameProgress.date);
+    const hasCollectionBookPayload = Object.prototype.hasOwnProperty.call(clientPayload, 'collection_book');
+    const hasRodMasteryPayload = Object.prototype.hasOwnProperty.call(clientPayload, 'rod_mastery');
+    const resolvedCollectionBook = hasCollectionBookPayload
+      ? sanitizeCollectionBook(clientPayload.collection_book)
+      : (nextGameProgress.collectionBook ?? currentGameProgress.collectionBook ?? null);
+    const resolvedRodMastery = hasRodMasteryPayload
+      ? sanitizeRodMastery(clientPayload.rod_mastery)
+      : (nextGameProgress.rodMastery ?? currentGameProgress.rodMastery ?? null);
+    const enrichedNextGameProgress: GameProgressPayload = {
+      ...nextGameProgress,
+      collectionBook: resolvedCollectionBook,
+      rodMastery: resolvedRodMastery,
+    };
 
     const requestedCoins = clampInt(clientPayload.coins, currentPlayerRow.coins, 0, 1_000_000_000);
     const requestedBait = clampInt(clientPayload.bait, currentPlayerRow.bait, 0, 1_000_000_000);
@@ -481,11 +758,11 @@ serve(async (req) => {
       avatar_url: isStaleBase
         ? (currentPlayerRow.avatar_url ?? normalizeNullableText(clientPayload.avatar_url, 2048))
         : normalizeNullableText(clientPayload.avatar_url, 2048),
-      game_progress: game_progress == null
+      game_progress: game_progress == null && !hasCollectionBookPayload && !hasRodMasteryPayload
         ? currentPlayerRow.game_progress
         : isStaleBase
-          ? mergeGameProgress(currentGameProgress, nextGameProgress)
-          : nextGameProgress,
+          ? mergeGameProgress(currentGameProgress, enrichedNextGameProgress)
+          : enrichedNextGameProgress,
     };
 
     updatePayload.equipped_rod = Math.min(
