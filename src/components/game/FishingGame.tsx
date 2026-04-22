@@ -183,6 +183,16 @@ const FishingGame: React.FC = () => {
   const [premiumSessionLoading, setPremiumSessionLoading] = useState(false);
   const premiumBiteTimeoutHandlerRef = useRef<(() => void) | null>(null);
   const premiumCastResolveInFlightRef = useRef(false);
+  const backgroundErrorToastRef = useRef<Record<string, number>>({});
+  const showBackgroundActionError = useCallback((key: string, message: string) => {
+    const now = Date.now();
+    const lastShownAt = backgroundErrorToastRef.current[key] ?? 0;
+
+    if (now - lastShownAt < 5000) return;
+
+    backgroundErrorToastRef.current[key] = now;
+    toast.error(message);
+  }, []);
   const logAuditEvent = useCallback((event: PlayerAuditEventPayload) => {
     if (!address || !isVerified) return;
 
@@ -210,11 +220,14 @@ const FishingGame: React.FC = () => {
       applyServerPlayerSnapshot(result.player);
       setPremiumSession(result.premiumSession);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not refresh premium session state.');
+      showBackgroundActionError(
+        'premium-session-refresh',
+        error instanceof Error ? error.message : 'Could not refresh premium session state.',
+      );
     } finally {
       setPremiumSessionLoading(false);
     }
-  }, [applyServerPlayerSnapshot, economyFeatures.premiumSessions, getPremiumSessionState, isVerified]);
+  }, [applyServerPlayerSnapshot, economyFeatures.premiumSessions, getPremiumSessionState, isVerified, showBackgroundActionError]);
 
   const {
     player,
@@ -297,11 +310,14 @@ const FishingGame: React.FC = () => {
       const nextTasks = await listSocialTasks();
       setSocialTasks(nextTasks);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not refresh social task status.');
+      showBackgroundActionError(
+        'social-tasks-refresh',
+        error instanceof Error ? error.message : 'Could not refresh social task status.',
+      );
     } finally {
       setSocialTasksLoading(false);
     }
-  }, [isVerified, listSocialTasks]);
+  }, [isVerified, listSocialTasks, showBackgroundActionError]);
 
   const refreshWalletCheckInSummary = useCallback(async () => {
     if (!isVerified) {
@@ -562,21 +578,11 @@ const FishingGame: React.FC = () => {
       setSocialTasksLoading(false);
       setWalletCheckInSummary(null);
       setWalletCheckInLoading(false);
-      return;
-    }
-
-    void refreshSocialTasks();
-  }, [address, isVerified, refreshSocialTasks]);
-
-  useEffect(() => {
-    if (!economyFeatures.premiumSessions || !isVerified) {
       setPremiumSession(null);
       setPremiumSessionLoading(false);
       return;
     }
-
-    void refreshPremiumSession();
-  }, [address, economyFeatures.premiumSessions, isVerified, refreshPremiumSession]);
+  }, [isVerified]);
 
   useEffect(() => {
     if (activeTab === 'tasks' && isVerified) {
@@ -588,6 +594,12 @@ const FishingGame: React.FC = () => {
   useEffect(() => {
     if (activeTab === 'fish' && economyFeatures.premiumSessions && isVerified) {
       void refreshPremiumSession();
+      return;
+    }
+
+    if (!economyFeatures.premiumSessions || !isVerified) {
+      setPremiumSession(null);
+      setPremiumSessionLoading(false);
     }
   }, [activeTab, economyFeatures.premiumSessions, isVerified, refreshPremiumSession]);
 

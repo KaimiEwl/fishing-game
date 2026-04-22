@@ -69,6 +69,10 @@ const mapSocialTasks = (rows: PlayerSocialTaskVerificationRow[] = []): SocialTas
 const PLAYER_ACTION_FALLBACK_ERRORS: Record<string, string> = {
   get_wallet_check_in_summary: 'Daily wallet check-in is temporarily unavailable. Please try again in a minute.',
   verify_wallet_check_in: 'We could not verify your wallet check-in right now. Please try again in a minute.',
+  get_premium_session_state: 'Premium fishing status is temporarily unavailable. Please try again in a minute.',
+  start_premium_session: 'Could not start the premium fishing session right now. Please try again in a minute.',
+  resolve_premium_cast: 'Could not resolve the premium cast right now. Please try again in a moment.',
+  complete_premium_session: 'Could not finalize the premium fishing session right now. Please try again in a moment.',
   claim_task_reward: 'Could not claim this task right now. Please try again.',
   roll_cube: 'Could not start the cube roll right now. Please try again.',
   apply_cube_reward: 'Could not apply the cube reward right now. Please try again.',
