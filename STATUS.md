@@ -1,5 +1,11 @@
 # STATUS
 
+## VPS 403 origin mount fix
+- Fixed the live VPS regression where `https://www.hookloot.xyz` could fall into `403 Forbidden` / `500 Internal Server Error` even though `/opt/hookloot/current/dist` still contained a valid build.
+- Root cause: the `hookloot-web` container was not guaranteed to be recreated on each release switch, so it could keep a stale bind mount to an older release directory that later got pruned. Once that old release disappeared, nginx inside the container served an empty `/usr/share/nginx/html`, which produced `403` on `/` and an internal redirect cycle `500` on `/index.html`.
+- `deploy/vps/server/deploy-hookloot.sh` now uses `docker compose ... up -d --force-recreate hookloot-web` both on the main deploy path and on rollback cleanup, and it runs a second healthcheck after release pruning so stale-mount regressions are caught immediately.
+- The live server was repaired by force-recreating `hookloot-web` against the current release and then syncing the updated deploy script into `/opt/hookloot/bin/deploy-hookloot.sh`, so future auto-deploys use the fixed behavior.
+
 ## Reward mechanics smoke and wallet bonus merge fix
 - Added a new live smoke script at `scripts/ops/smoke-live-reward-mechanics.mjs` plus `npm run ops:smoke:rewards`. It verifies the main reward-bearing loops on the working Supabase project without service-role access: first wallet verify, repeat verify, first and second referral payouts, duplicate-referral blocking on repeat invitee login/sign, daily task claim rewards, grill cook/sell rewards, and cube reward application idempotence.
 - Live smoke result for the current working backend: the suspected duplicate referral payout did **not** reproduce. A fresh inviter got exactly `+10` reserve bait per unique invited wallet, repeated login/sign of the same invitee did not pay twice, and the inviter reward count increased only once per new invitee.

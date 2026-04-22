@@ -28,7 +28,7 @@ cleanup_failed_release() {
 
   if [[ -n "${PREVIOUS_TARGET}" && -d "${PREVIOUS_TARGET}" ]]; then
     ln -sfn "${PREVIOUS_TARGET}" "${CURRENT_LINK}"
-    docker compose -p "${COMPOSE_PROJECT_NAME}" -f "${CURRENT_LINK}/deploy/vps/compose.yml" up -d hookloot-web || true
+    docker compose -p "${COMPOSE_PROJECT_NAME}" -f "${CURRENT_LINK}/deploy/vps/compose.yml" up -d --force-recreate hookloot-web || true
   fi
 }
 
@@ -54,8 +54,9 @@ docker run --rm \
 test -f "${RELEASE_DIR}/dist/index.html"
 
 ln -sfn "${RELEASE_DIR}" "${CURRENT_LINK}"
-docker compose -p "${COMPOSE_PROJECT_NAME}" -f "${CURRENT_LINK}/deploy/vps/compose.yml" up -d hookloot-web
+docker compose -p "${COMPOSE_PROJECT_NAME}" -f "${CURRENT_LINK}/deploy/vps/compose.yml" up -d --force-recreate hookloot-web
 "${ROOT_DIR}/bin/healthcheck.sh"
 "${ROOT_DIR}/bin/prune-releases.sh"
+"${ROOT_DIR}/bin/healthcheck.sh"
 
 echo "[deploy] success release=${RELEASE_DIR}"
