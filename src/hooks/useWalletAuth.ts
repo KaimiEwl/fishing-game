@@ -266,6 +266,7 @@ export function useWalletAuth() {
   
   const [isVerified, setIsVerified] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
   const [savedPlayer, setSavedPlayer] = useState<PlayerState | null>(null);
   const [savedGameProgress, setSavedGameProgress] = useState<GameProgressSnapshot | null>(null);
   const [referralSummary, setReferralSummary] = useState<ReferralSummary | null>(null);
@@ -528,15 +529,16 @@ export function useWalletAuth() {
     }
   }, [address, applyVerifiedPlayerPayload, isConnected, isVerified, isVerifying]);
 
-  const verifyWallet = useCallback(async () => {
+  const verifyWallet = useCallback(async (force = false) => {
     if (!address || isVerifying) return;
 
     const normalizedAddress = address.toLowerCase();
-    if (autoVerifyAttemptedForAddressRef.current === normalizedAddress) {
+    if (!force && autoVerifyAttemptedForAddressRef.current === normalizedAddress) {
       return;
     }
 
     autoVerifyAttemptedForAddressRef.current = normalizedAddress;
+    setVerificationError(null);
     setIsVerifying(true);
     try {
       const pendingReferrer = REFERRAL_BAIT_ENABLED ? getPendingReferrer() : null;
@@ -556,6 +558,7 @@ export function useWalletAuth() {
 
       const token = data.session_token || address.toLowerCase();
       setIsVerified(true);
+      setVerificationError(null);
       sessionTokenRef.current = token;
       storeWalletSession(address, token);
       
@@ -577,6 +580,7 @@ export function useWalletAuth() {
       console.error('Wallet verification failed:', err);
       const description = await getWalletVerificationErrorMessage(err);
       setIsVerified(false);
+      setVerificationError(description);
       toast({
         title: 'Wallet verification failed',
         description,
@@ -647,6 +651,7 @@ export function useWalletAuth() {
       saveInFlightRef.current = false;
       restoredRef.current = false;
       autoVerifyAttemptedForAddressRef.current = null;
+      setVerificationError(null);
       clearStoredWalletSession();
     }
 
@@ -660,10 +665,15 @@ export function useWalletAuth() {
     isVerifying,
     savedPlayer,
     savedGameProgress,
+    verificationError,
     referralSummary,
     saveProgress,
     saveGameProgress,
     syncServerPlayerRecord: (playerRecord: PlayerRecord) => applyVerifiedPlayerPayload(playerRecord),
+    retryVerifyWallet: () => {
+      autoVerifyAttemptedForAddressRef.current = null;
+      return verifyWallet(true);
+    },
     disconnect,
   };
 }

@@ -115,6 +115,8 @@ const FishingGame: React.FC = () => {
   const {
     isConnected,
     isVerified,
+    isVerifying,
+    verificationError,
     savedPlayer,
     savedGameProgress,
     address,
@@ -122,6 +124,7 @@ const FishingGame: React.FC = () => {
     saveProgress,
     saveGameProgress,
     syncServerPlayerRecord,
+    retryVerifyWallet,
   } = useWalletAuth();
   const {
     messages: inboxMessages,
@@ -932,6 +935,9 @@ const FishingGame: React.FC = () => {
               onSetNickname={isConnected ? setNickname : undefined}
               isConnected={isConnected}
               isVerified={isVerified}
+              isVerifying={isVerifying}
+              verificationError={verificationError}
+              onRetryWalletVerification={retryVerifyWallet}
               walletAddress={address}
               onAvatarUploaded={setAvatarUrl}
               referralSummary={referralSummary}

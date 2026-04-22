@@ -23,6 +23,9 @@ interface PlayerPanelProps {
   onSetNickname?: (nickname: string) => void;
   isConnected?: boolean;
   isVerified?: boolean;
+  isVerifying?: boolean;
+  verificationError?: string | null;
+  onRetryWalletVerification?: () => Promise<unknown> | void;
   walletAddress?: string;
   onAvatarUploaded?: (url: string) => void;
   referralSummary?: ReferralSummary | null;
@@ -37,6 +40,9 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({
   onSetNickname,
   isConnected = false,
   isVerified = false,
+  isVerifying = false,
+  verificationError = null,
+  onRetryWalletVerification,
   walletAddress,
   onAvatarUploaded,
   referralSummary,
@@ -94,6 +100,10 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({
 
         <SettingsDialog
           isConnected={isConnected}
+          isVerified={isVerified}
+          isVerifying={isVerifying}
+          verificationError={verificationError}
+          onRetryWalletVerification={onRetryWalletVerification}
           nickname={player.nickname || ''}
           onSetNickname={isConnected && !player.nickname ? onSetNickname : undefined}
           walletAddress={walletAddress}

@@ -27,6 +27,10 @@ import PlayerInboxPanel from '@/components/PlayerInboxPanel';
 
 interface SettingsDialogProps {
   isConnected: boolean;
+  isVerified?: boolean;
+  isVerifying?: boolean;
+  verificationError?: string | null;
+  onRetryWalletVerification?: () => Promise<unknown> | void;
   nickname: string;
   onSetNickname?: (nickname: string) => void;
   walletAddress?: string;
@@ -50,6 +54,10 @@ const NICKNAME_REGEX = /^[\p{L}0-9_-]{2,20}$/u;
 
 const SettingsDialog: React.FC<SettingsDialogProps> = ({
   isConnected,
+  isVerified = false,
+  isVerifying = false,
+  verificationError = null,
+  onRetryWalletVerification,
   nickname,
   onSetNickname,
   walletAddress,
@@ -321,9 +329,31 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
                         </span>
                       </div>
                     )}
-                    <p className="text-xs font-medium text-zinc-400">
-                      Connected wallets unlock referrals, future MON rewards, and cross-device progress.
-                    </p>
+                    {isVerified ? (
+                      <p className="text-xs font-medium text-zinc-400">
+                        Connected wallets unlock referrals, future MON rewards, and cross-device progress.
+                      </p>
+                    ) : (
+                      <div className="rounded-lg border border-amber-300/20 bg-amber-950/30 px-3 py-3">
+                        <p className="text-sm font-semibold text-amber-100">
+                          Wallet connected, but not verified yet.
+                        </p>
+                        <p className="mt-1 text-xs font-medium text-amber-100/80">
+                          Finish one signature to link progress and unlock wallet tasks.
+                        </p>
+                        {verificationError && (
+                          <p className="mt-2 text-xs font-semibold text-red-300">{verificationError}</p>
+                        )}
+                        <Button
+                          type="button"
+                          onClick={() => void onRetryWalletVerification?.()}
+                          disabled={!onRetryWalletVerification || isVerifying}
+                          className="mt-3 h-11 w-full gap-2 border border-cyan-300/25 bg-black text-cyan-100 hover:bg-zinc-950 disabled:border-zinc-800 disabled:bg-zinc-900 disabled:text-zinc-500"
+                        >
+                          {isVerifying ? 'Verifying wallet...' : 'Verify wallet'}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
               </ConnectButton.Custom>
@@ -346,7 +376,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
               </ConnectButton.Custom>
             )}
 
-            {isConnected && (
+            {isConnected && isVerified && (
               <div className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-3">
                 {nicknameAlreadySet ? (
                   <div className="space-y-1">
