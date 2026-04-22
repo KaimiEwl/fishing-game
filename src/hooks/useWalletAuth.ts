@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAccount, useSignMessage, useDisconnect } from 'wagmi';
-import { supabase } from '@/integrations/supabase/client';
+import { invokeEdgeFunctionHttp, supabase } from '@/integrations/supabase/client';
 import { type GameProgressSnapshot, type PlayerState, XP_PER_LEVEL } from '@/types/game';
 import {
   BAIT_BUCKETS_V2_ENABLED,
@@ -214,13 +214,50 @@ function serializePlayerProgress(player: PlayerState) {
 
 function getWalletVerificationErrorMessage(error: unknown) {
   const fallbackMessage = 'Could not verify your wallet right now. Please try again.';
-  const contextualError = error as { context?: { clone?: () => Response } };
+  const contextualError = error as {
+    context?: { clone?: () => Response };
+    responseData?: unknown;
+    responseBody?: string;
+    status?: number;
+  };
+
+  const pickMessageFromPayload = (payload: unknown) => {
+    if (payload && typeof payload === 'object') {
+      const payloadError = (payload as { error?: unknown }).error;
+      if (typeof payloadError === 'string' && payloadError.trim()) {
+        return payloadError.trim();
+      }
+    }
+
+    if (typeof payload === 'string' && payload.trim() && !payload.trim().startsWith('<')) {
+      return payload.trim();
+    }
+
+    return null;
+  };
+
+  const directMessage = pickMessageFromPayload(contextualError.responseData)
+    ?? pickMessageFromPayload(contextualError.responseBody);
+  if (directMessage) {
+    return Promise.resolve(directMessage);
+  }
 
   if (contextualError.context?.clone) {
-    return contextualError.context.clone().json()
-      .then((payload: { error?: string }) => {
-        if (typeof payload.error === 'string' && payload.error.trim()) {
-          return payload.error.trim();
+    const clonedResponse = contextualError.context.clone();
+    return clonedResponse.text()
+      .then((body) => {
+        const parsedBody = clonedResponse.headers.get('content-type')?.includes('application/json')
+          ? (() => {
+              try {
+                return JSON.parse(body);
+              } catch {
+                return body;
+              }
+            })()
+          : body;
+        const contextMessage = pickMessageFromPayload(parsedBody);
+        if (contextMessage) {
+          return contextMessage;
         }
         return fallbackMessage;
       })
@@ -377,6 +414,15 @@ export function useWalletAuth() {
     return nextStoredPlayer;
   }, [showReferralRewardToast, syncLocalPlayerFromServer, syncReferralSummary]);
 
+  const invokeVerifyWallet = useCallback((payload: Record<string, unknown>) => (
+    invokeEdgeFunctionHttp<{
+      player?: PlayerRecord;
+      session_token?: string;
+      latest_referral_reward?: ReferralRewardNotification | null;
+      error?: string;
+    }>('verify-wallet', { body: payload })
+  ), []);
+
   const persistWalletState = useCallback(async (bundle: WalletSaveBundle) => {
     if (!address || !isConnected || !isVerified || !sessionTokenRef.current) {
       return false;
@@ -470,11 +516,8 @@ export function useWalletAuth() {
     if (!stored || stored.address.toLowerCase() !== addr.toLowerCase()) return false;
 
     try {
-      const { data, error } = await supabase.functions.invoke('verify-wallet', {
-        body: { wallet_address: addr, session_token: stored.token },
-      });
-
-      if (error || !data?.player) return false;
+      const data = await invokeVerifyWallet({ wallet_address: addr, session_token: stored.token });
+      if (!data?.player) return false;
 
       setIsVerified(true);
       const nextToken = data.session_token || stored.token;
@@ -489,7 +532,7 @@ export function useWalletAuth() {
     } catch {
       return false;
     }
-  }, [applyVerifiedPlayerPayload]);
+  }, [applyVerifiedPlayerPayload, invokeVerifyWallet]);
 
   const refreshVerifiedSession = useCallback(async () => {
     if (
@@ -505,14 +548,11 @@ export function useWalletAuth() {
 
     refreshInFlightRef.current = true;
     try {
-      const { data, error } = await supabase.functions.invoke('verify-wallet', {
-        body: {
-          wallet_address: address,
-          session_token: sessionTokenRef.current,
-        },
+      const data = await invokeVerifyWallet({
+        wallet_address: address,
+        session_token: sessionTokenRef.current,
       });
-
-      if (error || !data?.player) return false;
+      if (!data?.player) return false;
 
       const nextToken = data.session_token || sessionTokenRef.current;
       sessionTokenRef.current = nextToken;
@@ -527,7 +567,7 @@ export function useWalletAuth() {
     } finally {
       refreshInFlightRef.current = false;
     }
-  }, [address, applyVerifiedPlayerPayload, isConnected, isVerified, isVerifying]);
+  }, [address, applyVerifiedPlayerPayload, invokeVerifyWallet, isConnected, isVerified, isVerifying]);
 
   const verifyWallet = useCallback(async (force = false) => {
     if (!address || isVerifying) return;
@@ -544,17 +584,13 @@ export function useWalletAuth() {
       const pendingReferrer = REFERRAL_BAIT_ENABLED ? getPendingReferrer() : null;
       const message = `Hook & Loot: Sign to verify your wallet\nAddress: ${address}\nTimestamp: ${Date.now()}`;
       const signature = await signMessageAsync({ account: address, message });
-      
-      const { data, error } = await supabase.functions.invoke('verify-wallet', {
-        body: {
-          wallet_address: address,
-          signature,
-          message,
-          referrer_wallet_address: pendingReferrer,
-        },
-      });
 
-      if (error) throw error;
+      const data = await invokeVerifyWallet({
+        wallet_address: address,
+        signature,
+        message,
+        referrer_wallet_address: pendingReferrer,
+      });
 
       const token = data.session_token || address.toLowerCase();
       setIsVerified(true);
@@ -577,7 +613,17 @@ export function useWalletAuth() {
         }
       }
     } catch (err) {
-      console.error('Wallet verification failed:', err);
+      const contextualError = err as {
+        status?: number;
+        responseBody?: string;
+        responseData?: unknown;
+      };
+      console.error('Wallet verification failed:', {
+        error: err,
+        status: contextualError.status ?? null,
+        responseData: contextualError.responseData ?? null,
+        responseBody: contextualError.responseBody ?? null,
+      });
       const description = await getWalletVerificationErrorMessage(err);
       setIsVerified(false);
       setVerificationError(description);
@@ -589,7 +635,7 @@ export function useWalletAuth() {
     } finally {
       setIsVerifying(false);
     }
-  }, [address, applyVerifiedPlayerPayload, isVerifying, signMessageAsync, toast]);
+  }, [address, applyVerifiedPlayerPayload, invokeVerifyWallet, isVerifying, signMessageAsync, toast]);
 
   useEffect(() => {
     if (!isConnected || !address || !isVerified) return;

@@ -23,6 +23,23 @@ const shouldUseSameOriginEdgeProxy = () => (
   typeof window !== 'undefined' && SAME_ORIGIN_EDGE_PROXY_HOSTS.has(window.location.hostname)
 );
 
+interface EdgeInvokeOptions {
+  body?: unknown;
+  headers?: HeadersInit;
+  method?: string;
+}
+
+interface EdgeFunctionErrorContext {
+  clone: () => Response;
+}
+
+export interface EdgeFunctionHttpError extends Error {
+  context: EdgeFunctionErrorContext;
+  status: number;
+  responseBody: string;
+  responseData: unknown;
+}
+
 const buildInvokeBody = (body: unknown): BodyInit | undefined => {
   if (body == null) return undefined;
   if (
@@ -39,6 +56,79 @@ const buildInvokeBody = (body: unknown): BodyInit | undefined => {
   return JSON.stringify(body);
 };
 
+const buildInvokeHeaders = (body: unknown, initialHeaders?: HeadersInit) => {
+  const headers = new Headers(initialHeaders ?? {});
+  if (!headers.has('Content-Type') && body != null && !(body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
+  }
+  if (!headers.has('apikey')) {
+    headers.set('apikey', SUPABASE_PUBLISHABLE_KEY);
+  }
+  if (!headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${SUPABASE_PUBLISHABLE_KEY}`);
+  }
+  return headers;
+};
+
+const buildInvokeUrl = (functionName: string) => (
+  shouldUseSameOriginEdgeProxy()
+    ? `/api/edge/${functionName}`
+    : `${SUPABASE_URL}/functions/v1/${functionName}`
+);
+
+const parseResponsePayload = (response: Response, responseBody: string) => {
+  if (response.status === 204 || !responseBody) return null;
+
+  const contentType = response.headers.get('content-type') ?? '';
+  if (contentType.includes('application/json')) {
+    try {
+      return JSON.parse(responseBody);
+    } catch {
+      return responseBody;
+    }
+  }
+
+  return responseBody;
+};
+
+const buildErrorContext = (response: Response, responseBody: string): EdgeFunctionErrorContext => ({
+  clone: () => new Response(responseBody, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: new Headers(response.headers),
+  }),
+});
+
+export const invokeEdgeFunctionHttp = async <T>(
+  functionName: string,
+  options?: EdgeInvokeOptions,
+): Promise<T> => {
+  const response = await fetch(buildInvokeUrl(functionName), {
+    method: options?.method ?? 'POST',
+    headers: buildInvokeHeaders(options?.body, options?.headers),
+    body: buildInvokeBody(options?.body),
+  });
+
+  const responseBody = response.status === 204 ? '' : await response.text();
+  const responseData = parseResponsePayload(response, responseBody);
+
+  if (!response.ok) {
+    const error = Object.assign(
+      new Error('Edge Function returned a non-2xx status code'),
+      {
+        context: buildErrorContext(response, responseBody),
+        status: response.status,
+        responseBody,
+        responseData,
+      },
+    ) as EdgeFunctionHttpError;
+
+    throw error;
+  }
+
+  return responseData as T;
+};
+
 (supabaseClient.functions as typeof supabaseClient.functions & {
   invoke: typeof originalInvoke;
 }).invoke = (async (functionName: string, options?: {
@@ -50,43 +140,17 @@ const buildInvokeBody = (body: unknown): BodyInit | undefined => {
     return originalInvoke(functionName, options as Parameters<typeof originalInvoke>[1]);
   }
 
-  const headers = new Headers(options?.headers ?? {});
-  if (!headers.has('Content-Type') && options?.body != null && !(options.body instanceof FormData)) {
-    headers.set('Content-Type', 'application/json');
+  try {
+    const data = await invokeEdgeFunctionHttp(functionName, options);
+    return { data, error: null };
+  } catch (error) {
+    return {
+      data: null,
+      error: error instanceof Error
+        ? error
+        : new Error('Edge Function returned a non-2xx status code'),
+    };
   }
-  if (!headers.has('apikey')) {
-    headers.set('apikey', SUPABASE_PUBLISHABLE_KEY);
-  }
-  if (!headers.has('Authorization')) {
-    headers.set('Authorization', `Bearer ${SUPABASE_PUBLISHABLE_KEY}`);
-  }
-
-  const response = await fetch(`/api/edge/${functionName}`, {
-    method: options?.method ?? 'POST',
-    headers,
-    body: buildInvokeBody(options?.body),
-  });
-
-  const contentType = response.headers.get('content-type') ?? '';
-  let data: unknown = null;
-
-  if (response.status !== 204) {
-    if (contentType.includes('application/json')) {
-      data = await response.json();
-    } else {
-      data = await response.text();
-    }
-  }
-
-  if (!response.ok) {
-    const error = Object.assign(
-      new Error('Edge Function returned a non-2xx status code'),
-      { context: response.clone() },
-    );
-    return { data: null, error };
-  }
-
-  return { data, error: null };
 }) as typeof originalInvoke;
 
 export const supabase = supabaseClient;

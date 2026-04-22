@@ -1,5 +1,11 @@
 # STATUS
 
+## Wallet verify hardening on VPS domain
+- Found a live migration-specific risk in the wallet path: the working Supabase `verify-wallet` endpoint still advertises `Access-Control-Allow-Origin: https://kaimiewl.github.io`, so direct browser calls from `https://www.hookloot.xyz` are not a safe source of truth after the domain move.
+- Hardened the frontend edge transport layer in `src/integrations/supabase/client.ts`: same-origin edge calls now preserve the real backend status/body in the thrown error instead of losing it behind a consumed `Response.clone()` path.
+- `useWalletAuth` no longer relies on the generic `supabase.functions.invoke('verify-wallet', ...)` path for the three critical wallet actions (`verify`, `restore session`, `refresh session`). Those calls now go through a dedicated same-origin HTTP helper, which keeps wallet verification pinned to `https://www.hookloot.xyz/api/edge/verify-wallet` and avoids falling back to the CORS-sensitive direct Supabase path.
+- Added richer console diagnostics for wallet verify failures so the next live error includes status/body context instead of only the old generic toast fallback.
+
 ## Fishing sound samples from Downloads
 - Added real audio samples from `C:\Users\WInter\Downloads\РЫБАЛКА` into `public/assets/audio/` for the fishing loop instead of relying only on synthetic WebAudio tones.
 - The multi-cast source track was sliced into seven short `cast_01.mp3` ... `cast_07.mp3` clips, and `useSoundEffects` now picks one at random on each cast so the rod throw no longer sounds identical every time.
