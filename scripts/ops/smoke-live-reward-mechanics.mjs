@@ -398,6 +398,8 @@ try {
       + getInventoryQuantity(inviteeTwoPlayer.inventory, 'pike')
       + getInventoryQuantity(inviteeTwoPlayer.inventory, 'leviathan');
     assert(afterCubeFish === beforeCubeFish + (appliedPrize.quantity ?? 1), `Fish cube prize mismatch, expected +${appliedPrize.quantity ?? 1} fish`);
+  } else if (appliedPrize.type === 'bait') {
+    assert(inviteeTwoPlayer.bait === beforeCubeBait + (appliedPrize.bait ?? 0), `Bait cube prize mismatch, expected +${appliedPrize.bait ?? 0} reserve bait`);
   } else if (appliedPrize.type === 'mon') {
     const monSummary = await invoke('player-mon', {
       action: 'get_mon_summary',
@@ -406,8 +408,6 @@ try {
     });
     assert(Number(monSummary.summary?.totalEarnedMon ?? 0) >= 1, 'MON cube prize did not hit MON ledger');
   }
-
-  assert(inviteeTwoPlayer.bait === beforeCubeBait, 'Cube reward unexpectedly changed reserve bait');
 
   let doubleCubeApplyBlocked = false;
   try {
