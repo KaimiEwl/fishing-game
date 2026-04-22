@@ -871,12 +871,13 @@ const FishingGame: React.FC = () => {
                   onNftMinted={mintNftRod}
                 />
               ) : activeTab === 'grill' ? (
-                <GrillScreen
-                  inventory={player.inventory}
-                  coins={player.coins}
-                  grillScore={gameProgress.grillScore}
-                  onCook={handleCookRecipe}
-                />
+                  <GrillScreen
+                    inventory={player.inventory}
+                    coins={player.coins}
+                    grillScore={gameProgress.grillScore}
+                    onCook={handleCookRecipe}
+                    onCookStartSound={sounds.playGrillCookSound}
+                  />
               ) : activeTab === 'wheel' ? (
                 <WheelScreen
                   coins={player.coins}

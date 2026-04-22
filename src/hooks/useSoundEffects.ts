@@ -17,6 +17,9 @@ const CAST_SAMPLE_URLS = [
   publicAsset('/assets/audio/cast_07.mp3'),
 ];
 const FISH_CATCH_SAMPLE_URL = publicAsset('/assets/audio/fish_catch_boat.mp3');
+const CUBE_SPIN_SAMPLE_URL = publicAsset('/assets/audio/cube_spin_launch.mp3');
+const GRILL_COOK_SAMPLE_URL = publicAsset('/assets/audio/grill_cook.mp3');
+const COIN_GAIN_SAMPLE_URL = publicAsset('/assets/audio/coin_gain.mp3');
 const sampleBuffers = new Map<string, AudioBuffer>();
 const sampleLoads = new Map<string, Promise<AudioBuffer | null>>();
 let sampleWarmStarted = false;
@@ -71,7 +74,13 @@ const ensureSampleLoaded = (url: string) => {
 };
 
 const warmSoundSamples = () =>
-  Promise.all([...CAST_SAMPLE_URLS, FISH_CATCH_SAMPLE_URL].map((url) => ensureSampleLoaded(url)));
+  Promise.all([
+    ...CAST_SAMPLE_URLS,
+    FISH_CATCH_SAMPLE_URL,
+    CUBE_SPIN_SAMPLE_URL,
+    GRILL_COOK_SAMPLE_URL,
+    COIN_GAIN_SAMPLE_URL,
+  ].map((url) => ensureSampleLoaded(url)));
 
 const requestSampleWarmup = () => {
   if (sampleWarmStarted) return;
@@ -273,12 +282,22 @@ export function useSoundEffects() {
   }, []);
 
   const playBuySound = useCallback(() => {
+    if (playSampleBuffer(COIN_GAIN_SAMPLE_URL, 0.24, 1.02)) {
+      return;
+    }
+
+    void ensureSampleLoaded(COIN_GAIN_SAMPLE_URL);
     playTone(1200, 0.08, 'triangle', 0.10);
     playTone(1500, 0.1, 'triangle', 0.12, undefined, 0.06);
     playTone(1800, 0.08, 'sine', 0.08, undefined, 0.12);
   }, []);
 
   const playSellSound = useCallback(() => {
+    if (playSampleBuffer(COIN_GAIN_SAMPLE_URL, 0.24, 0.98)) {
+      return;
+    }
+
+    void ensureSampleLoaded(COIN_GAIN_SAMPLE_URL);
     playTone(800, 0.06, 'sine', 0.10);
     playTone(1000, 0.06, 'sine', 0.10, undefined, 0.05);
     playTone(1200, 0.08, 'triangle', 0.12, undefined, 0.1);
@@ -298,9 +317,24 @@ export function useSoundEffects() {
   }, []);
 
   const playCubeSpinSound = useCallback(() => {
+    if (playSampleBuffer(CUBE_SPIN_SAMPLE_URL, 0.26)) {
+      return;
+    }
+
+    void ensureSampleLoaded(CUBE_SPIN_SAMPLE_URL);
     playTone(180, 0.3, 'sawtooth', 0.05, 260);
     playTone(240, 0.35, 'triangle', 0.04, 340, 0.08);
     playNoise(0.18, 0.025, 0.12);
+  }, []);
+
+  const playGrillCookSound = useCallback(() => {
+    if (playSampleBuffer(GRILL_COOK_SAMPLE_URL, 0.28)) {
+      return;
+    }
+
+    void ensureSampleLoaded(GRILL_COOK_SAMPLE_URL);
+    playNoise(0.2, 0.05);
+    playTone(220, 0.26, 'triangle', 0.06, 140, 0.05);
   }, []);
 
   const playCubeRevealSound = useCallback(() => {
@@ -324,6 +358,7 @@ export function useSoundEffects() {
     playFailSound,
     playBuySound,
     playSellSound,
+    playGrillCookSound,
     playLevelUpSound,
     playCubeSpinSound,
     playCubeRevealSound,

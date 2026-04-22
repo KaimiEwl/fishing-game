@@ -12,6 +12,7 @@ interface GrillScreenProps {
   inventory: CaughtFish[];
   grillScore: number;
   onCook: (recipe: GrillRecipe) => Promise<boolean> | boolean;
+  onCookStartSound?: () => void;
 }
 
 const COOKING_ANIMATION_MS = 1650;
@@ -21,7 +22,7 @@ const inventoryCount = (inventory: CaughtFish[], fishId: string) => (
   inventory.find((item) => item.fishId === fishId)?.quantity ?? 0
 );
 
-const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore, onCook }) => {
+const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore, onCook, onCookStartSound }) => {
   const [cookPhase, setCookPhase] = useState<'idle' | 'cooking' | 'result'>('idle');
   const [activeRecipe, setActiveRecipe] = useState<GrillRecipe | null>(null);
   const [cookProgress, setCookProgress] = useState(0);
@@ -43,6 +44,7 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
     setActiveRecipe(recipe);
     setCookPhase('cooking');
     setCookProgress(0);
+    onCookStartSound?.();
 
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => setCookProgress(100));
