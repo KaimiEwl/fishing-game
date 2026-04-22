@@ -22,6 +22,7 @@
     "ops:smoke:mutation": "node ./scripts/ops/smoke-live-mutation.mjs",
     "ops:smoke:rewards": "node ./scripts/ops/smoke-live-reward-mechanics.mjs",
     "ops:smoke:progress": "node ./scripts/ops/smoke-live-progress-persistence.mjs",
+    "ops:smoke:weekly": "node ./scripts/ops/smoke-live-weekly-collection.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
