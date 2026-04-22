@@ -65,6 +65,10 @@ export interface ReferralSummary {
 }
 
 const REFERRAL_STORAGE_KEY = 'hook_loot_pending_referrer_v1';
+const EDGE_FUNCTION_GENERIC_MESSAGES = [
+  'Edge Function returned a non-2xx status code',
+  'Failed to send a request to the Edge Function',
+];
 
 function normalizeWalletAddress(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
@@ -208,6 +212,31 @@ function serializePlayerProgress(player: PlayerState) {
   };
 }
 
+function getWalletVerificationErrorMessage(error: unknown) {
+  const fallbackMessage = 'Could not verify your wallet right now. Please try again.';
+  const contextualError = error as { context?: { clone?: () => Response } };
+
+  if (contextualError.context?.clone) {
+    return contextualError.context.clone().json()
+      .then((payload: { error?: string }) => {
+        if (typeof payload.error === 'string' && payload.error.trim()) {
+          return payload.error.trim();
+        }
+        return fallbackMessage;
+      })
+      .catch(() => fallbackMessage);
+  }
+
+  if (
+    error instanceof Error
+    && EDGE_FUNCTION_GENERIC_MESSAGES.some((message) => error.message.includes(message))
+  ) {
+    return Promise.resolve(fallbackMessage);
+  }
+
+  return Promise.resolve(error instanceof Error && error.message ? error.message : fallbackMessage);
+}
+
 function getPlayerProgressDigest(player: PlayerState) {
   return JSON.stringify(serializePlayerProgress(player));
 }
@@ -244,6 +273,7 @@ export function useWalletAuth() {
   const restoredRef = useRef(false);
   const refreshInFlightRef = useRef(false);
   const saveInFlightRef = useRef(false);
+  const autoVerifyAttemptedForAddressRef = useRef<string | null>(null);
   const queuedSaveRef = useRef<WalletSaveBundle | null>(null);
   const lastSavedPlayerDigestRef = useRef<string | null>(null);
   const lastSavedGameProgressDigestRef = useRef<string | null>(null);
@@ -500,7 +530,13 @@ export function useWalletAuth() {
 
   const verifyWallet = useCallback(async () => {
     if (!address || isVerifying) return;
-    
+
+    const normalizedAddress = address.toLowerCase();
+    if (autoVerifyAttemptedForAddressRef.current === normalizedAddress) {
+      return;
+    }
+
+    autoVerifyAttemptedForAddressRef.current = normalizedAddress;
     setIsVerifying(true);
     try {
       const pendingReferrer = REFERRAL_BAIT_ENABLED ? getPendingReferrer() : null;
@@ -539,11 +575,17 @@ export function useWalletAuth() {
       }
     } catch (err) {
       console.error('Wallet verification failed:', err);
-      disconnect();
+      const description = await getWalletVerificationErrorMessage(err);
+      setIsVerified(false);
+      toast({
+        title: 'Wallet verification failed',
+        description,
+        variant: 'destructive',
+      });
     } finally {
       setIsVerifying(false);
     }
-  }, [address, applyVerifiedPlayerPayload, isVerifying, signMessageAsync, disconnect]);
+  }, [address, applyVerifiedPlayerPayload, isVerifying, signMessageAsync, toast]);
 
   useEffect(() => {
     if (!isConnected || !address || !isVerified) return;
@@ -581,13 +623,14 @@ export function useWalletAuth() {
     if (isConnected && address && !isVerified && !isVerifying) {
       if (!restoredRef.current) {
         restoredRef.current = true;
+        autoVerifyAttemptedForAddressRef.current = null;
         tryRestoreSession(address).then((restored) => {
           if (cancelled) return;
           if (!restored) {
             verifyWallet();
           }
         });
-      } else {
+      } else if (autoVerifyAttemptedForAddressRef.current !== address.toLowerCase()) {
         verifyWallet();
       }
     }
@@ -603,6 +646,7 @@ export function useWalletAuth() {
       queuedSaveRef.current = null;
       saveInFlightRef.current = false;
       restoredRef.current = false;
+      autoVerifyAttemptedForAddressRef.current = null;
       clearStoredWalletSession();
     }
 

@@ -4,14 +4,89 @@ import type { Database } from './types';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'placeholder-key';
+const SAME_ORIGIN_EDGE_PROXY_HOSTS = new Set(['hookloot.xyz', 'www.hookloot.xyz']);
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+const supabaseClient = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
   }
 });
+
+const originalInvoke = supabaseClient.functions.invoke.bind(supabaseClient.functions);
+
+const shouldUseSameOriginEdgeProxy = () => (
+  typeof window !== 'undefined' && SAME_ORIGIN_EDGE_PROXY_HOSTS.has(window.location.hostname)
+);
+
+const buildInvokeBody = (body: unknown): BodyInit | undefined => {
+  if (body == null) return undefined;
+  if (
+    typeof body === 'string'
+    || body instanceof Blob
+    || body instanceof FormData
+    || body instanceof URLSearchParams
+    || body instanceof ReadableStream
+    || body instanceof ArrayBuffer
+  ) {
+    return body;
+  }
+
+  return JSON.stringify(body);
+};
+
+(supabaseClient.functions as typeof supabaseClient.functions & {
+  invoke: typeof originalInvoke;
+}).invoke = (async (functionName: string, options?: {
+  body?: unknown;
+  headers?: HeadersInit;
+  method?: string;
+}) => {
+  if (!shouldUseSameOriginEdgeProxy()) {
+    return originalInvoke(functionName, options as Parameters<typeof originalInvoke>[1]);
+  }
+
+  const headers = new Headers(options?.headers ?? {});
+  if (!headers.has('Content-Type') && options?.body != null && !(options.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
+  }
+  if (!headers.has('apikey')) {
+    headers.set('apikey', SUPABASE_PUBLISHABLE_KEY);
+  }
+  if (!headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${SUPABASE_PUBLISHABLE_KEY}`);
+  }
+
+  const response = await fetch(`/api/edge/${functionName}`, {
+    method: options?.method ?? 'POST',
+    headers,
+    body: buildInvokeBody(options?.body),
+  });
+
+  const contentType = response.headers.get('content-type') ?? '';
+  let data: unknown = null;
+
+  if (response.status !== 204) {
+    if (contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      data = await response.text();
+    }
+  }
+
+  if (!response.ok) {
+    const error = Object.assign(
+      new Error('Edge Function returned a non-2xx status code'),
+      { context: response.clone() },
+    );
+    return { data: null, error };
+  }
+
+  return { data, error: null };
+}) as typeof originalInvoke;
+
+export const supabase = supabaseClient;
