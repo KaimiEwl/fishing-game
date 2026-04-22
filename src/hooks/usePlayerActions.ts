@@ -10,6 +10,7 @@ import {
   type SocialTaskId,
   type SocialTaskProgress,
   type TaskId,
+  type WeeklyMissionId,
   type WalletCheckInSummary,
   type WheelPrize,
 } from '@/types/game';
@@ -149,7 +150,7 @@ export function usePlayerActions(walletAddress: string | undefined, enabled: boo
     })
   ), [callPlayerActions]);
 
-  const claimTaskReward = useCallback(async (taskId: TaskId) => (
+  const claimTaskReward = useCallback(async (taskId: TaskId | WeeklyMissionId) => (
     callPlayerActions<{ player: Tables<'players'> }>('claim_task_reward', {
       task_id: taskId,
     })

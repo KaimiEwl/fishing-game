@@ -9,7 +9,18 @@ export interface WeeklyPayoutPreviewEntry {
   amount_mon: number;
 }
 
-export const WEEKLY_GRILL_PAYOUTS = [5, 3, 1] as const;
+export const WEEKLY_GRILL_PAYOUTS = [
+  2.5,
+  1.75,
+  1.25,
+  1,
+  0.75,
+  0.5,
+  0.5,
+  0.5,
+  0.5,
+  0.5,
+] as const;
 
 export const getCurrentWeeklyPayoutKey = (date = new Date()) => {
   const current = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));

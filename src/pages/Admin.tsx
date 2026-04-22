@@ -395,7 +395,7 @@ export default function Admin() {
       syncUpdatedPlayer(updatedPlayer);
       await fetchStats();
       await loadSelectedPlayerContext(updatedPlayer, false);
-      toast({ title: 'Grant applied', description: `${amount} ${field.replaceAll('_', ' ')} granted.` });
+      toast({ title: 'Grant applied', description: `${amount} ${field.replace(/_/g, ' ')} granted.` });
     } catch (error: unknown) {
       toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
     }
@@ -550,7 +550,7 @@ export default function Admin() {
         status,
         verification.proofUrl ?? undefined,
       );
-      toast({ title: 'Social task updated', description: `${verification.taskTitle} -> ${status.replaceAll('_', ' ')}` });
+      toast({ title: 'Social task updated', description: `${verification.taskTitle} -> ${status.replace(/_/g, ' ')}` });
       await fetchSocialData();
     } catch (error: unknown) {
       toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });

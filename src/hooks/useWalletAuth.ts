@@ -35,12 +35,12 @@ export interface PlayerRecord {
   xp_to_next: number;
   rod_level: number;
   equipped_rod: number;
-  inventory: unknown[];
-  cooked_dishes?: unknown[];
-  game_progress?: GameProgressSnapshot | null;
+  inventory: unknown;
+  cooked_dishes?: unknown;
+  game_progress?: unknown;
   total_catches: number;
   login_streak: number;
-  nft_rods: number[];
+  nft_rods: unknown;
   nickname: string | null;
   avatar_url: string | null;
   referrer_wallet_address?: string | null;
@@ -144,13 +144,16 @@ function mapInventory(value: unknown): PlayerState['inventory'] {
   return value.flatMap((item) => {
     if (!item || typeof item !== 'object') return [];
 
-    const fishId = typeof (item as Record<string, unknown>).fishId === 'string'
-      ? (item as Record<string, unknown>).fishId.trim()
+    const record = item as Record<string, unknown>;
+    const fishIdRaw = record.fishId;
+    const fishId = typeof fishIdRaw === 'string'
+      ? fishIdRaw.trim()
       : '';
-    const quantity = typeof (item as Record<string, unknown>).quantity === 'number'
-      ? (item as Record<string, unknown>).quantity
-      : Number((item as Record<string, unknown>).quantity ?? 0);
-    const caughtAtRaw = (item as Record<string, unknown>).caughtAt;
+    const quantityRaw = record.quantity;
+    const quantity = typeof quantityRaw === 'number'
+      ? quantityRaw
+      : Number(quantityRaw ?? 0);
+    const caughtAtRaw = record.caughtAt;
     const caughtAt = caughtAtRaw instanceof Date ? caughtAtRaw : new Date(String(caughtAtRaw ?? ''));
 
     if (!fishId || !Number.isFinite(quantity) || quantity <= 0 || Number.isNaN(caughtAt.getTime())) {
@@ -171,13 +174,16 @@ function mapCookedDishes(value: unknown): PlayerState['cookedDishes'] {
   return value.flatMap((item) => {
     if (!item || typeof item !== 'object') return [];
 
-    const recipeId = typeof (item as Record<string, unknown>).recipeId === 'string'
-      ? (item as Record<string, unknown>).recipeId.trim()
+    const record = item as Record<string, unknown>;
+    const recipeIdRaw = record.recipeId;
+    const recipeId = typeof recipeIdRaw === 'string'
+      ? recipeIdRaw.trim()
       : '';
-    const quantity = typeof (item as Record<string, unknown>).quantity === 'number'
-      ? (item as Record<string, unknown>).quantity
-      : Number((item as Record<string, unknown>).quantity ?? 0);
-    const createdAtRaw = (item as Record<string, unknown>).createdAt;
+    const quantityRaw = record.quantity;
+    const quantity = typeof quantityRaw === 'number'
+      ? quantityRaw
+      : Number(quantityRaw ?? 0);
+    const createdAtRaw = record.createdAt;
     const createdAt = createdAtRaw instanceof Date ? createdAtRaw : new Date(String(createdAtRaw ?? ''));
 
     if (!recipeId || !Number.isFinite(quantity) || quantity <= 0 || Number.isNaN(createdAt.getTime())) {
@@ -196,6 +202,9 @@ function mapPlayerRecord(p: PlayerRecord): PlayerState {
   const syncedProgress = p.game_progress && typeof p.game_progress === 'object'
     ? p.game_progress as GameProgressSnapshot
     : null;
+  const nftRods = Array.isArray(p.nft_rods)
+    ? p.nft_rods.flatMap((value) => (typeof value === 'number' && Number.isFinite(value) ? [value] : []))
+    : [];
 
   return {
     coins: p.coins,
@@ -213,7 +222,7 @@ function mapPlayerRecord(p: PlayerRecord): PlayerState {
     totalCatches: p.total_catches,
     dailyBonusClaimed: false,
     loginStreak: p.login_streak || 1,
-    nftRods: (p.nft_rods || []) as number[],
+    nftRods,
     nickname: p.nickname || null,
     avatarUrl: p.avatar_url || null,
     collectionBook: syncedProgress?.collectionBook ?? null,

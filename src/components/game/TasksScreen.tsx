@@ -113,11 +113,13 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   };
 
   const renderRewardBadge = (task: DailyTaskProgress | SpecialTaskProgress | WeeklyMissionProgress) => {
-    if (task.rewardCubeCharge) {
+    const cubeChargeReward = 'rewardCubeCharge' in task ? (task.rewardCubeCharge ?? 0) : 0;
+
+    if (cubeChargeReward > 0) {
       return (
         <>
           <Box className="h-4 w-4 text-cyan-200" />
-          <span className="text-cyan-100">+{task.rewardCubeCharge} cube roll</span>
+          <span className="text-cyan-100">+{cubeChargeReward} cube roll</span>
         </>
       );
     }
@@ -147,6 +149,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
       {tasks.map((task) => {
         const complete = task.progress >= task.target;
         const progress = Math.min(100, (task.progress / task.target) * 100);
+        const cubeChargeReward = 'rewardCubeCharge' in task ? (task.rewardCubeCharge ?? 0) : 0;
         const isWalletCheckInTask = task.id === 'wallet_check_in';
         const hasConnectedWallet = Boolean(walletAddress);
         const walletCheckInStatusText = !hasConnectedWallet
@@ -262,7 +265,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                 </>
               ) : (
                 <>
-                  {task.rewardCubeCharge ? <Box className="mr-2 h-4 w-4" /> : task.rewardBait ? <Worm className="mr-2 h-4 w-4" /> : <Coins className="mr-2 h-4 w-4" />}
+                  {cubeChargeReward > 0 ? <Box className="mr-2 h-4 w-4" /> : task.rewardBait ? <Worm className="mr-2 h-4 w-4" /> : <Coins className="mr-2 h-4 w-4" />}
                   Claim reward
                 </>
               )}

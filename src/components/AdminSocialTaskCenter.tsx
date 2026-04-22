@@ -106,7 +106,7 @@ const AdminSocialTaskCenter: React.FC<AdminSocialTaskCenterProps> = ({
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm font-semibold text-zinc-100">{getPlayerLabel(verification)}</span>
                         <Badge className={cn('border', STATUS_TONES[verification.status])}>
-                          {verification.status.replaceAll('_', ' ')}
+                          {verification.status.replace(/_/g, ' ')}
                         </Badge>
                       </div>
                       <p className="font-mono text-[11px] text-zinc-400">{verification.walletAddress}</p>
@@ -137,7 +137,7 @@ const AdminSocialTaskCenter: React.FC<AdminSocialTaskCenterProps> = ({
                             verification.status === status && 'border-cyan-300/25 bg-cyan-300/10 text-cyan-100',
                           )}
                         >
-                          {isProcessing && verification.status !== status ? 'Saving...' : status.replaceAll('_', ' ')}
+                          {isProcessing && verification.status !== status ? 'Saving...' : status.replace(/_/g, ' ')}
                         </Button>
                       ))}
                     </div>

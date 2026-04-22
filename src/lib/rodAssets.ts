@@ -1,5 +1,15 @@
 import { publicAsset } from './assets';
 
+interface RodDisplayInfo {
+  name: string;
+  image: string;
+  color: string;
+  bonus: number;
+  bobber: string;
+  previewFit: 'cover' | 'contain';
+  previewScale: string;
+}
+
 export const INVENTORY_BUTTON_PANEL_SRC = publicAsset('assets/inventory_button_panel_v3.webp');
 export const FISH_GOT_AWAY_PANEL_SRC = publicAsset('assets/fish_got_away_panel_v3.jpg');
 export const BOOST_ICON_SRC = publicAsset('assets/boost_icon_v2.webp');
@@ -7,7 +17,7 @@ export const INVENTORY_SHORTCUT_ICON_SRC = publicAsset('assets/inventory_shortcu
 const ROD_PREVIEW_VERSION = 'rod-previews-20260418b';
 const versionedRodPreview = (file: string) => `${publicAsset(`assets/${file}`)}?v=${ROD_PREVIEW_VERSION}`;
 
-export const ROD_DISPLAY_INFO = [
+export const ROD_DISPLAY_INFO: readonly RodDisplayInfo[] = [
   { name: 'Starter', image: versionedRodPreview('rod_starter_icon_v3.png'), color: '#aaa', bonus: 0, bobber: 'Standard tackle', previewFit: 'cover' as const, previewScale: '' },
   { name: 'Bamboo', image: versionedRodPreview('rod_green_icon_v2.png'), color: '#22aa44', bonus: 5, bobber: 'Green bobber', previewFit: 'cover' as const, previewScale: '' },
   { name: 'Carbon', image: versionedRodPreview('rod_blue_icon_v2.png'), color: '#2255cc', bonus: 10, bobber: 'Blue bobber', previewFit: 'cover' as const, previewScale: '' },

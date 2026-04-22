@@ -50,20 +50,19 @@ PAGES_REPO_NAME=<new-repo-name> npm run build:pages
 ## Release preflight
 
 ```sh
-npm run build
-npm run build:pages
+npm run verify
 ```
 
 Notes:
-
-- `npm run lint` currently fails because of pre-existing repo-wide ESLint debt.
-- No automated test script is present in `package.json`.
+- `npm run verify` is the main local pre-merge / pre-deploy gate.
+- `npm run verify:ci` runs the same static checks but produces the GitHub Pages artifact build (`dist/404.html` included).
+- No dedicated unit or e2e runner is configured in `package.json` yet, so the verification gate is currently `lint + typecheck + build`.
 
 ## Deployment
 
 - CI workflow: `.github/workflows/deploy.yml`
 - Trigger: push to `main`
-- CI injects `VITE_BASE_PATH=/<repo-name>/` and publishes `dist/` to GitHub Pages
+- CI runs `npm run verify:ci`, injects `VITE_BASE_PATH=/<repo-name>/`, and publishes `dist/` to GitHub Pages
 
 ## VPS deployment
 

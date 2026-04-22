@@ -5,6 +5,8 @@ import { normalizeMonAmount } from '@/lib/monRewards';
 import { SOCIAL_TASKS, type SocialTaskId, type SocialTaskStatus } from '@/lib/taskRegistry';
 import { getStoredWalletSession } from '@/lib/walletSession';
 
+export type { SocialTaskStatus } from '@/lib/taskRegistry';
+
 const ADMIN_INVOKE_TIMEOUT_MS = 12000;
 
 export type AdminPlayer = Tables<'players'> & {

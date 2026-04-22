@@ -36,16 +36,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
+      - name: Verify and build Pages artifact
         env:
+          PAGES_REPO_NAME: ${{ github.event.repository.name }}
           VITE_BASE_PATH: /${{ github.event.repository.name }}/
           VITE_SUPABASE_PROJECT_ID: oyhyoqnhqifcwjyputif
           VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im95aHlvcW5ocWlmY3dqeXB1dGlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2MjU0NTAsImV4cCI6MjA5MjIwMTQ1MH0._pQj3OsEukijZgmFMBHepZYvKLmqR0oBldf8taUJu98
           VITE_SUPABASE_URL: https://oyhyoqnhqifcwjyputif.supabase.co
-        run: npm run build
-
-      - name: Add SPA fallback
-        run: cp dist/index.html dist/404.html
+        run: npm run verify:ci
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

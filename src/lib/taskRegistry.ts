@@ -9,6 +9,7 @@ import {
 } from '@/types/game';
 
 export { DAILY_TASKS, SPECIAL_TASKS, SOCIAL_TASKS };
+export type { DailyTaskId, SocialTaskId, SocialTaskStatus, SpecialTaskId };
 
 export type TaskRegistryId = DailyTaskId | SpecialTaskId | SocialTaskId;
 

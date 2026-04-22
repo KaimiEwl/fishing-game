@@ -79,11 +79,11 @@ const metaMaskExtensionWallet = (
 
       return {
         ...injected({
-          target: () => ({
+          target: (() => ({
             id: walletDetails.rkDetails.id,
             name: walletDetails.rkDetails.name,
-            provider: (targetWindow?: Window) => getMetaMaskProvider(targetWindow),
-          }),
+            provider: () => provider,
+          })) as Parameters<typeof injected>[0]['target'],
           unstable_shimAsyncInject: 1_000,
         })(config),
         ...walletDetails,

@@ -22,7 +22,7 @@ const FishDisplay: React.FC<FishDisplayProps> = ({
     lg: 'w-32 h-32',
   };
 
-  const imageSizes = {
+  const imageSizes: Record<NonNullable<FishDisplayProps['size']>, React.ComponentProps<typeof FishIcon>['size']> = {
     sm: 'lg',
     md: 'hero',
     lg: 'showcase',

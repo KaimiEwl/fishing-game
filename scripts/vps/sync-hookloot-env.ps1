@@ -52,12 +52,30 @@ foreach ($key in $required) {
   }
 }
 
-$content = @(
-  "VITE_BASE_PATH=/",
-  "VITE_SUPABASE_URL=$($envMap["VITE_SUPABASE_URL"])",
-  "VITE_SUPABASE_PUBLISHABLE_KEY=$($envMap["VITE_SUPABASE_PUBLISHABLE_KEY"])",
-  "VITE_WALLETCONNECT_PROJECT_ID=$walletConnectProjectId"
+$content = New-Object System.Collections.Generic.List[string]
+$content.Add("VITE_BASE_PATH=/")
+$content.Add("VITE_SUPABASE_URL=$($envMap["VITE_SUPABASE_URL"])")
+$content.Add("VITE_SUPABASE_PUBLISHABLE_KEY=$($envMap["VITE_SUPABASE_PUBLISHABLE_KEY"])")
+$content.Add("VITE_WALLETCONNECT_PROJECT_ID=$walletConnectProjectId")
+
+$excludedKeys = @(
+  "VITE_BASE_PATH",
+  "VITE_SUPABASE_URL",
+  "VITE_SUPABASE_PUBLISHABLE_KEY",
+  "VITE_WALLETCONNECT_PROJECT_ID"
 )
+
+foreach ($key in ($envMap.Keys | Sort-Object)) {
+  if (-not $key.StartsWith("VITE_")) {
+    continue
+  }
+
+  if ($excludedKeys -contains $key) {
+    continue
+  }
+
+  $content.Add("$key=$($envMap[$key])")
+}
 
 $tempFile = Join-Path $env:TEMP "hookloot.env.production"
 Set-Content -Path $tempFile -Value $content -NoNewline:$false

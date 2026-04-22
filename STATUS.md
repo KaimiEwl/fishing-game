@@ -1,5 +1,34 @@
 # STATUS
 
+## Weekly grill payouts aligned with the new economy budget
+- Closed a backend drift left over from the economy rollout: the admin weekly grill payout engine was still using the old hardcoded `[5, 3, 1] MON` top-3 schedule, while the new economy config already defined the safer `10 MON total / top 10` payout ladder.
+- `supabase/functions/_shared/weeklyPayouts.ts` now matches the intended budget:
+  - `#1 2.5`
+  - `#2 1.75`
+  - `#3 1.25`
+  - `#4 1.0`
+  - `#5 0.75`
+  - `#6-10 0.5`
+- This keeps admin preview/apply payouts consistent with the retention-first economy plan instead of accidentally overpaying the leaderboard after live deploy.
+
+## Economy rollout defaults now enable the new client layers
+- The last practical rollout blocker for the public client was removed: `PREMIUM_SESSIONS_ENABLED` and `WEEKLY_MISSIONS_ENABLED` now default to `true` in `src/lib/baitEconomy.ts` instead of `false`.
+- This means the new retention/economy UI layers no longer depend on an out-of-band VPS env sync to appear on `https://www.hookloot.xyz`:
+  - premium sessions
+  - weekly missions
+  - collection book
+  - cube rebalance
+- Public env flags can still override these defaults later, but the production build is no longer stuck in the old hidden-state just because `/opt/hookloot/.env.production` has not been manually refreshed.
+
+## Root verify script and CI now use the same gate
+- The active app repo now has one clear root verification entrypoint:
+  - `npm run verify` = `lint + typecheck + build`
+  - `npm run verify:ci` = `lint + typecheck + build:pages`
+- This repo is still a single-package npm app, not a workspace/turbo monorepo, so the new verification layer was added directly in the root `package.json` instead of introducing another runner.
+- `typecheck` is now an explicit root script based on the existing TypeScript build setup (`tsc -b --pretty false`), and the previously broken typecheck surface was fixed so the new gate is real instead of aspirational.
+- `.github/workflows/deploy.yml` now uses the same root script (`npm run verify:ci`) before publishing `dist/`, so local and CI verification no longer drift.
+- `AGENTS.md` and `README.md` were aligned to make `npm run verify` the mandatory final local check before merge or deploy.
+
 ## Live Supabase rollout locked to the working project
 - Local Supabase CLI auth is now configured on this machine for the Hook & Loot repo, and the working project is explicitly locked to `oyhyoqnhqifcwjyputif`. Future Supabase work for this game should continue against that single project instead of drifting back to duplicate environments.
 - Live backend rollout was completed on 2026-04-22 for the current economy/save foundation:
