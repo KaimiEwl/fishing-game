@@ -48,6 +48,7 @@ const createInitialState = (): GameProgressState => ({
   date: todayKey(),
   tasks: createTasks(),
   specialTasks: createSpecialTasks(),
+  lastWalletCheckInTxHash: null,
   wheelSpun: false,
   wheelPrize: null,
   dailyWheelRolls: 0,
@@ -114,6 +115,7 @@ const normalizeState = (parsed?: Partial<GameProgressState> | null): GameProgres
     return {
       ...baseState,
       grillScore: Math.max(0, Number(parsed.grillScore || 0)),
+      lastWalletCheckInTxHash: parsed.lastWalletCheckInTxHash ?? null,
       paidWheelRolls: Math.max(0, Number(parsed.paidWheelRolls || 0)),
     };
   }
@@ -128,6 +130,7 @@ const normalizeState = (parsed?: Partial<GameProgressState> | null): GameProgres
     tasks,
     specialTasks,
     wheelPrize: normalizeWheelPrize(parsed.wheelPrize as WheelPrize | null | undefined),
+    lastWalletCheckInTxHash: parsed.lastWalletCheckInTxHash ?? null,
     paidWheelRolls: Math.max(0, Number(parsed.paidWheelRolls || 0)),
     dailyWheelRolls: Math.max(0, Number(parsed.dailyWheelRolls || 0)),
     dailyRollRewardGranted: Boolean(parsed.dailyRollRewardGranted),
@@ -138,6 +141,7 @@ const normalizeState = (parsed?: Partial<GameProgressState> | null): GameProgres
     ...parsed,
     tasks,
     specialTasks,
+    lastWalletCheckInTxHash: parsed.lastWalletCheckInTxHash ?? null,
     wheelPrize: normalizeWheelPrize(parsed.wheelPrize as WheelPrize | null | undefined),
     dailyWheelRolls: rewardState.dailyWheelRolls,
     dailyRollRewardGranted: rewardState.dailyRollRewardGranted,
@@ -186,6 +190,7 @@ const mergeState = (serverState: GameProgressState, localState: GameProgressStat
     ...serverState,
     tasks,
     specialTasks,
+    lastWalletCheckInTxHash: localState.lastWalletCheckInTxHash ?? serverState.lastWalletCheckInTxHash ?? null,
     wheelSpun: serverState.wheelSpun || localState.wheelSpun,
     wheelPrize: localState.wheelPrize ?? serverState.wheelPrize,
     dailyWheelRolls: Math.max(serverState.dailyWheelRolls, localState.dailyWheelRolls),
@@ -336,22 +341,30 @@ export function useGameProgress(options?: UseGameProgressOptions) {
     });
   }, []);
 
-  const syncWalletCheckInTask = useCallback((checkedInToday: boolean) => {
+  const syncWalletCheckInTask = useCallback((checkedInToday: boolean, txHash?: string | null) => {
     setState((prev) => {
       const current = prev.specialTasks.wallet_check_in;
       const nextProgress = checkedInToday ? 1 : 0;
+      const nextTxHash = txHash ?? null;
+      const txChanged = checkedInToday && Boolean(nextTxHash) && nextTxHash !== prev.lastWalletCheckInTxHash;
 
-      if (!current || current.progress === nextProgress) {
+      if (!current) {
+        return prev;
+      }
+
+      if (current.progress === nextProgress && !txChanged) {
         return prev;
       }
 
       return {
         ...prev,
+        lastWalletCheckInTxHash: txChanged ? nextTxHash : (checkedInToday ? prev.lastWalletCheckInTxHash : null),
         specialTasks: {
           ...prev.specialTasks,
           wallet_check_in: {
             ...current,
             progress: nextProgress,
+            claimed: checkedInToday && txChanged ? false : (nextProgress === 0 ? false : current.claimed),
           },
         },
       };

@@ -22,6 +22,7 @@ import {
   formatStreakDays,
   WALLET_CHECK_IN_AMOUNT_MON,
   WALLET_CHECK_IN_RECEIVER_ADDRESS,
+  WALLET_CHECK_IN_REPEAT_TEST_MODE,
 } from '@/lib/walletCheckIn';
 
 interface TasksScreenProps {
@@ -110,14 +111,15 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
         const progress = Math.min(100, (task.progress / task.target) * 100);
         const isWalletCheckInTask = task.id === 'wallet_check_in';
         const hasConnectedWallet = Boolean(walletAddress);
-        const canCheckInWithWallet = hasConnectedWallet && isWalletVerified && !walletCheckInSummary?.todayCheckedIn && !walletCheckInSubmitting && !walletCheckInLoading;
         const walletCheckInStatusText = !hasConnectedWallet
           ? `Connect your wallet first, then send today's ${walletCheckInAmountMon} MON transaction to start or continue your streak.`
           : !isWalletVerified
             ? 'Preparing your verified wallet session so you can send the on-chain check-in.'
           : walletCheckInLoading
             ? 'Refreshing streak status...'
-            : walletCheckInSummary?.todayCheckedIn
+            : WALLET_CHECK_IN_REPEAT_TEST_MODE && walletCheckInSummary?.todayCheckedIn
+              ? `Test mode is enabled. Current streak: ${formatStreakDays(walletCheckInSummary.streakDays)}. You can send another ${walletCheckInAmountMon} MON check-in right now and claim the task again.`
+              : walletCheckInSummary?.todayCheckedIn
               ? `Checked in today. Streak: ${formatStreakDays(walletCheckInSummary.streakDays)}.`
               : walletCheckInSummary?.lastCheckInDate
                 ? `Current streak: ${formatStreakDays(walletCheckInSummary.streakDays)}. Send today's ${walletCheckInSummary.amountMon} MON check-in to keep it going.`
@@ -171,7 +173,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                   {({ openConnectModal }) => (
                     <Button
                       type="button"
-                      disabled={walletCheckInSummary?.todayCheckedIn || walletCheckInSubmitting || walletCheckInLoading || (hasConnectedWallet && !isWalletVerified)}
+                      disabled={walletCheckInSubmitting || walletCheckInLoading || (hasConnectedWallet && !isWalletVerified)}
                       onClick={() => {
                         if (!hasConnectedWallet) {
                           openConnectModal?.();
@@ -182,15 +184,15 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                       }}
                       className="mt-3 h-11 w-full rounded-xl border border-emerald-300/25 bg-emerald-500/10 text-sm font-bold text-emerald-100 hover:bg-emerald-500/20 disabled:border-zinc-800 disabled:bg-zinc-950 disabled:text-zinc-600"
                     >
-                      {walletCheckInSummary?.todayCheckedIn ? (
-                        <>
-                          <Check className="mr-2 h-4 w-4" />
-                          Checked in today
-                        </>
-                      ) : walletCheckInSubmitting ? (
+                      {walletCheckInSubmitting ? (
                         <>
                           <Clock3 className="mr-2 h-4 w-4" />
                           Verifying transaction
+                        </>
+                      ) : walletCheckInSummary?.todayCheckedIn && !WALLET_CHECK_IN_REPEAT_TEST_MODE ? (
+                        <>
+                          <Check className="mr-2 h-4 w-4" />
+                          Checked in today
                         </>
                       ) : !hasConnectedWallet ? (
                         <>
@@ -201,6 +203,11 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                         <>
                           <Clock3 className="mr-2 h-4 w-4" />
                           Preparing wallet
+                        </>
+                      ) : walletCheckInSummary?.todayCheckedIn && WALLET_CHECK_IN_REPEAT_TEST_MODE ? (
+                        <>
+                          <Repeat2 className="mr-2 h-4 w-4" />
+                          Send another test check-in
                         </>
                       ) : (
                         <>

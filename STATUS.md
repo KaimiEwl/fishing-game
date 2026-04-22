@@ -1,5 +1,12 @@
 # STATUS
 
+## Wallet check-in temporary repeatable test mode
+- Added a temporary frontend-only test mode for `wallet_check_in` so repeated MON check-ins can be exercised right now even while the live backend flow is still unstable.
+- The local RPC fallback no longer rejects a second same-day check-in if it comes with a new `txHash`; it now records the fresh transaction, keeps the streak stable for the same day, and updates the latest check-in hash.
+- `Tasks -> Special -> Wallet streak check-in` no longer hard-disables itself after the first successful check-in in this test mode. If a player sends another valid check-in transaction, the task card stays usable and explicitly shows that another test check-in can be sent.
+- `useGameProgress` now tracks the last wallet check-in `txHash` and reopens the `wallet_check_in` special task only when a genuinely new check-in transaction arrives, avoiding the old "claimed forever" lock while also avoiding false reopening on an ordinary page refresh.
+- In this temporary test mode, claiming the `wallet_check_in` reward uses the local special-task claim path even for verified wallets so testing is not blocked by the still-flaky live backend claim route.
+
 ## Wallet verify hardening on VPS domain
 - Found a live migration-specific risk in the wallet path: the working Supabase `verify-wallet` endpoint still advertises `Access-Control-Allow-Origin: https://kaimiewl.github.io`, so direct browser calls from `https://www.hookloot.xyz` are not a safe source of truth after the domain move.
 - Hardened the frontend edge transport layer in `src/integrations/supabase/client.ts`: same-origin edge calls now preserve the real backend status/body in the thrown error instead of losing it behind a consumed `Response.clone()` path.

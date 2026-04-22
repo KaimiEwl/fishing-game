@@ -38,6 +38,7 @@ import {
   getDefaultWalletCheckInSummary,
   loadLocalWalletCheckInSummary,
   normalizeWalletCheckInSummary,
+  WALLET_CHECK_IN_REPEAT_TEST_MODE,
   verifyLocalWalletCheckInTransaction,
 } from '@/lib/walletCheckIn';
 import travelIconSrc from '@/assets/map_travel_icon_cutout.webp';
@@ -487,8 +488,11 @@ const FishingGame: React.FC = () => {
   }, [syncReferralTask, referralSummary?.todayReferralAttachCount]);
 
   useEffect(() => {
-    syncWalletCheckInTask(walletCheckInSummary?.todayCheckedIn ?? false);
-  }, [syncWalletCheckInTask, walletCheckInSummary?.todayCheckedIn]);
+    syncWalletCheckInTask(
+      walletCheckInSummary?.todayCheckedIn ?? false,
+      walletCheckInSummary?.lastCheckInTxHash ?? null,
+    );
+  }, [syncWalletCheckInTask, walletCheckInSummary?.todayCheckedIn, walletCheckInSummary?.lastCheckInTxHash]);
 
   useEffect(() => {
     if (!isVerified) {
@@ -548,7 +552,7 @@ const FishingGame: React.FC = () => {
   const handleClaimTask = async (taskId: TaskId) => {
     const task = DAILY_TASKS.find((item) => item.id === taskId) ?? SPECIAL_TASKS.find((item) => item.id === taskId);
 
-    if (isVerified && taskId === 'wallet_check_in' && walletCheckInSummary?.source === 'local') {
+    if (taskId === 'wallet_check_in' && (WALLET_CHECK_IN_REPEAT_TEST_MODE || walletCheckInSummary?.source === 'local')) {
       const claimed = gameProgress.claimTask(taskId, ({ coins = 0, bait = 0 }) => {
         if (coins > 0) addCoins(coins);
         if (bait > 0) addBait(bait);
@@ -560,7 +564,7 @@ const FishingGame: React.FC = () => {
       }
 
       sounds.playBuySound();
-      toast.success('Wallet streak reward claimed.');
+      toast.success(WALLET_CHECK_IN_REPEAT_TEST_MODE ? 'Wallet check-in reward claimed. You can test it again with another check-in.' : 'Wallet streak reward claimed.');
       return;
     }
 

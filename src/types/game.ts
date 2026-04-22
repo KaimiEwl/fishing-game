@@ -134,6 +134,7 @@ export interface GameProgressSnapshot {
   date: string;
   tasks: DailyTaskStateMap;
   specialTasks: SpecialTaskStateMap;
+  lastWalletCheckInTxHash?: string | null;
   wheelSpun: boolean;
   wheelPrize: WheelPrize | null;
   dailyWheelRolls: number;
