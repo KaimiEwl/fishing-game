@@ -1,5 +1,14 @@
 # STATUS
 
+## Live Supabase rollout locked to the working project
+- Local Supabase CLI auth is now configured on this machine for the Hook & Loot repo, and the working project is explicitly locked to `oyhyoqnhqifcwjyputif`. Future Supabase work for this game should continue against that single project instead of drifting back to duplicate environments.
+- Live backend rollout was completed on 2026-04-22 for the current economy/save foundation:
+  - applied `20260422004500_remove_starting_bait.sql`
+  - applied `20260422013000_add_premium_fishing_sessions.sql`
+  - deployed `save-player-progress`
+  - deployed `player-actions`
+- Post-deploy smoke through `https://www.hookloot.xyz/api/edge/*` now reaches the updated functions and returns the expected auth error (`401 Invalid session`) for dummy payloads, which confirms the domain is hitting the live deployed backend rather than an old function image.
+
 ## Economy progress persistence hardened for collection and rod mastery
 - Closed the main save-sync gap created by the new retention layers: verified wallet saves can now round-trip `collectionBook` and `rodMastery` instead of only keeping them in local browser state.
 - `useWalletAuth` now serializes `collection_book` and `rod_mastery` with the wallet-bound player payload, and it restores those fields back into `PlayerState` from `player.game_progress` when a verified snapshot comes from the server.
