@@ -372,7 +372,7 @@ const MonadFishCanvas: React.FC<MonadFishCanvasProps> = ({ onCast, gameState, la
         };
 
         loadSceneImage(publicAsset('assets/bg_main.jpg'), (img) => { bgImgRef.current = img; });
-        loadSceneImage(publicAsset('assets/pepe_boat_v3.png'), (img) => { pepeImgRef.current = img; });
+        loadSceneImage(publicAsset('assets/pepe_boat_v3.webp'), (img) => { pepeImgRef.current = img; });
 
         const fishFiles = ['fish_carp.png', 'fish_perch.png', 'fish_bream.png', 'fish_pike.png', 'fish_catfish.png', 'fish_goldfish.png', 'fish_mutant.png', 'fish_leviathan.png'];
         fishFiles.forEach((file, i) => {

@@ -11,7 +11,7 @@ const GameTitleBanner: React.FC<GameTitleBannerProps> = ({
   alt = 'Hook and Loot title banner',
 }) => (
   <img
-    src={publicAsset('assets/title_banner_v2.png')}
+    src={publicAsset('assets/title_banner_v2.webp')}
     alt={alt}
     className={className}
     draggable={false}

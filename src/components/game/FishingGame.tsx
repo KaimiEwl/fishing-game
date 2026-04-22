@@ -40,7 +40,7 @@ import {
   normalizeWalletCheckInSummary,
   verifyLocalWalletCheckInTransaction,
 } from '@/lib/walletCheckIn';
-import travelIconSrc from '@/assets/map_travel_icon_cutout.png';
+import travelIconSrc from '@/assets/map_travel_icon_cutout.webp';
 import {
   deleteGlobalLeaderboardEntry,
   getLeaderboardPlayerId,
@@ -333,10 +333,7 @@ const FishingGame: React.FC = () => {
     }).then((assets) => {
       if (cancelled) return;
       setMainSceneAssets(assets);
-      warmPreloadAssets([
-        ...WARM_PRELOAD_ASSET_URLS,
-        FISH_GOT_AWAY_PANEL_SRC,
-      ]);
+      warmPreloadAssets(WARM_PRELOAD_ASSET_URLS);
 
       window.requestAnimationFrame(() => {
         window.requestAnimationFrame(() => {

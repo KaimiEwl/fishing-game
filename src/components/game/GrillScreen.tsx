@@ -5,7 +5,7 @@ import { FISH_DATA, GRILL_RECIPES, type CaughtFish, type GrillRecipe } from '@/t
 import GameScreenShell from './GameScreenShell';
 import FishIcon from './FishIcon';
 import { publicAsset } from '@/lib/assets';
-import grillForegroundSrc from '@/assets/grill-foreground.png';
+import grillForegroundSrc from '@/assets/grill-foreground.webp';
 
 interface GrillScreenProps {
   coins: number;

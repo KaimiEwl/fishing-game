@@ -91,8 +91,8 @@ const SECRET_COIN_CHANCE = 0.015;
 const REGULAR_COIN_PRIZES = WHEEL_PRIZES.filter((item) => !item.secret);
 const PAID_SPIN_COST_MON = '1';
 const RECEIVER_ADDRESS = '0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D' as const;
-const BUY_ROLL_ICON_SRC = publicAsset('assets/wheel_buy_roll_icon_v2.png');
-const ROLL_CUBE_ICON_SRC = publicAsset('assets/wheel_roll_cube_icon_v2.png');
+const BUY_ROLL_ICON_SRC = publicAsset('assets/wheel_buy_roll_icon_v2.webp');
+const ROLL_CUBE_ICON_SRC = publicAsset('assets/wheel_roll_cube_icon_v2.webp');
 
 type RotationState = { x: number; y: number; z: number };
 type SpinPhase = 'idle' | 'spinning' | 'selecting';

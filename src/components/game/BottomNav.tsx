@@ -1,7 +1,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import type { GameTab } from '@/types/game';
-import bottomNavArcadeStrip from '@/assets/bottom_nav_arcade_strip_v2.png';
+import bottomNavArcadeStrip from '@/assets/bottom_nav_arcade_strip_v2.webp';
 
 interface BottomNavProps {
   activeTab: GameTab;

@@ -1,5 +1,3 @@
-import bottomNavArcadeStrip from '@/assets/bottom_nav_arcade_strip_v2.png';
-import travelIconSrc from '@/assets/map_travel_icon_cutout.png';
 import { publicAsset } from './assets';
 import {
   BOOST_ICON_SRC,
@@ -39,24 +37,22 @@ export interface MainSceneAssets {
 
 export const CRITICAL_BOOT_ASSET_URLS = [
   publicAsset('assets/bg_main.jpg'),
-  publicAsset('assets/pepe_boat_v3.png'),
+  publicAsset('assets/pepe_boat_v3.webp'),
   ...MAIN_SCENE_FISH_FILES.map((file) => publicAsset(`assets/${file}`)),
   ...MAIN_SCENE_ROD_FILES.map((file) => publicAsset(`assets/${file}`)),
   publicAsset('assets/cast_button_blue.png'),
   publicAsset('assets/cast_button_green.png'),
-  bottomNavArcadeStrip,
 ] as const;
 
 export const WARM_PRELOAD_ASSET_URLS = [
   publicAsset('assets/bg_tasks.jpg'),
   publicAsset('assets/bg_wheel_v4.jpg'),
-  publicAsset('assets/wheel_buy_roll_icon_v2.png'),
-  publicAsset('assets/wheel_roll_cube_icon_v2.png'),
+  publicAsset('assets/wheel_buy_roll_icon_v2.webp'),
+  publicAsset('assets/wheel_roll_cube_icon_v2.webp'),
   FISH_GOT_AWAY_PANEL_SRC,
   INVENTORY_BUTTON_PANEL_SRC,
   INVENTORY_SHORTCUT_ICON_SRC,
   BOOST_ICON_SRC,
-  travelIconSrc,
   ...ROD_ICON_PRELOADS,
 ] as const;
 

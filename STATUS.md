@@ -1,5 +1,24 @@
 # STATUS
 
+## First-screen asset weight reduced
+- Audited the current runtime asset path and confirmed that the main fishing scene itself was not bottlenecked by the fish sprites or lake backgrounds: `bg_main.jpg`, `bg_tasks.jpg`, `bg_wheel_v4.jpg`, and the fish sprites were already relatively small. The heavier pain points were large imported PNG cutouts used by the UI shell around gameplay.
+- Re-encoded the heaviest actively used PNG cutouts to `.webp` and switched runtime imports to those optimized files:
+  - `bottom_nav_arcade_strip_v2`: `~696 KB -> ~127 KB`
+  - `map_travel_icon_cutout`: `~437 KB -> ~84 KB`
+  - `grill-foreground`: `~894 KB -> ~225 KB`
+  - each `map_*_cutout`: `~336-378 KB -> ~42-51 KB`
+  - boot-critical `public/assets/pepe_boat_v3`: `~830 KB -> ~83 KB`
+- Also re-encoded several still-active HUD/public assets that were not blocking boot but were unnecessarily heavy for routine runtime use:
+  - `title_banner_v2`: `~293 KB -> ~52 KB`
+  - `inventory_button_panel_v3`: `~244 KB -> ~45 KB`
+  - `inventory_shortcut_icon_v2`: `~281 KB -> ~36 KB`
+  - `boost_icon_v2`: `~369 KB -> ~51 KB`
+  - `wheel_buy_roll_icon_v2`: `~480 KB -> ~89 KB`
+  - `wheel_roll_cube_icon_v2`: `~187 KB -> ~37 KB`
+- Removed the bottom navigation strip from the blocking main-scene preload list so the loading screen no longer waits on that non-critical decorative asset before showing the lake.
+- Removed one redundant warm-preload duplication for `FISH_GOT_AWAY_PANEL_SRC`.
+- Repo audit note: there are still some large source assets in `src/assets/` such as `character-animation.webm` and `character-new.png`, plus older large public alternates like `pepe_boat_v2.png` and legacy panel/icon PNGs, but they are not part of the main fishing boot path that was causing the mobile pain here.
+
 ## Starting bait removed and mobile preload tightened
 - New accounts are now defined to start with `30` daily free bait and `0` reserve bait. The old `10` starter reserve bait was removed from the local initial player state, from the frontend bait-economy constant, and from the repo copy of `verify-wallet`.
 - Added a new migration `20260422004500_remove_starting_bait.sql` so the `players.bait` default becomes `0`, new `process_wallet_login` inserts explicitly start at `0` reserve bait, and the wallet-connect bait bonus path only runs when the configured bonus is actually greater than `0`.

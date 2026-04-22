@@ -1,9 +1,9 @@
 import { publicAsset } from './assets';
 
-export const INVENTORY_BUTTON_PANEL_SRC = publicAsset('assets/inventory_button_panel_v3.png');
+export const INVENTORY_BUTTON_PANEL_SRC = publicAsset('assets/inventory_button_panel_v3.webp');
 export const FISH_GOT_AWAY_PANEL_SRC = publicAsset('assets/fish_got_away_panel_v3.jpg');
-export const BOOST_ICON_SRC = publicAsset('assets/boost_icon_v2.png');
-export const INVENTORY_SHORTCUT_ICON_SRC = publicAsset('assets/inventory_shortcut_icon_v2.png');
+export const BOOST_ICON_SRC = publicAsset('assets/boost_icon_v2.webp');
+export const INVENTORY_SHORTCUT_ICON_SRC = publicAsset('assets/inventory_shortcut_icon_v2.webp');
 const ROD_PREVIEW_VERSION = 'rod-previews-20260418b';
 const versionedRodPreview = (file: string) => `${publicAsset(`assets/${file}`)}?v=${ROD_PREVIEW_VERSION}`;
 

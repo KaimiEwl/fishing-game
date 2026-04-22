@@ -6,12 +6,12 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import mapTreasureVaultSrc from '@/assets/map_treasure_vault_cutout.png';
-import mapSkullCoveSrc from '@/assets/map_skull_cove_cutout.png';
-import mapCoralCastleSrc from '@/assets/map_coral_castle_cutout.png';
-import mapVolcanoGrillSrc from '@/assets/map_volcano_grill_cutout.png';
-import mapIslandMarketSrc from '@/assets/map_island_market_cutout.png';
-import mapWheelPierSrc from '@/assets/map_wheel_pier_cutout.png';
+import mapTreasureVaultSrc from '@/assets/map_treasure_vault_cutout.webp';
+import mapSkullCoveSrc from '@/assets/map_skull_cove_cutout.webp';
+import mapCoralCastleSrc from '@/assets/map_coral_castle_cutout.webp';
+import mapVolcanoGrillSrc from '@/assets/map_volcano_grill_cutout.webp';
+import mapIslandMarketSrc from '@/assets/map_island_market_cutout.webp';
+import mapWheelPierSrc from '@/assets/map_wheel_pier_cutout.webp';
 import GameScreenShell from './GameScreenShell';
 
 interface MapScreenProps {
