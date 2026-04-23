@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { Box, Check, Clock3, Coins, Copy, ExternalLink, Heart, MessageCircle, Repeat2, Send, Worm } from 'lucide-react';
+import { Box, Check, Clock3, Coins, Copy, ExternalLink, Heart, Lock, MessageCircle, Repeat2, Send, Trophy, Worm } from 'lucide-react';
 import { useSendTransaction } from 'wagmi';
 import { parseEther } from 'viem';
 import { toast } from 'sonner';
@@ -20,8 +20,8 @@ import type {
 } from '@/types/game';
 import { getErrorMessage, isUserRejectedError } from '@/lib/errorUtils';
 import CoinIcon from './CoinIcon';
-import DailyQuestBoard from './DailyQuestBoard';
 import GameScreenShell from './GameScreenShell';
+import QuestBoard, { QuestBoardCard, QuestBoardPlaque } from './QuestBoard';
 import { publicAsset } from '@/lib/assets';
 import { REFERRAL_BAIT_ENABLED } from '@/lib/baitEconomy';
 import {
@@ -174,14 +174,25 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
     );
   };
 
-  const renderTaskList = (
+  const getQuestStatusLabel = (task: DailyTaskProgress | SpecialTaskProgress | WeeklyMissionProgress) => {
+    if (task.claimed) return 'Claimed';
+    if (task.progress >= task.target) return 'Ready';
+    if (task.progress > 0) return 'In progress';
+    return 'Not started';
+  };
+
+  const renderTaskBoard = (
+    imagePath: string,
     tasks: Array<DailyTaskProgress | SpecialTaskProgress | WeeklyMissionProgress>,
     onClaim: (id: TaskId | WeeklyMissionId) => void,
+    footer: React.ReactNode,
   ) => (
-    <div className="grid gap-3">
-      {tasks.map((task) => {
+    <QuestBoard imagePath={imagePath} footer={footer}>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
+        {tasks.map((task) => {
         const complete = task.progress >= task.target;
         const progress = Math.min(100, (task.progress / task.target) * 100);
+        const statusLabel = getQuestStatusLabel(task);
         const cubeChargeReward = 'rewardCubeCharge' in task ? (task.rewardCubeCharge ?? 0) : 0;
         const isWalletCheckInTask = task.id === 'wallet_check_in';
         const isInviteFriendTask = task.id === 'invite_friend';
@@ -201,39 +212,41 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                 : `Start your streak with a ${walletCheckInAmountMon} MON check-in today.`;
 
         return (
-          <article key={task.id} className="rounded-xl border border-cyan-300/15 bg-black/60 p-4 shadow-lg shadow-black/20 backdrop-blur-md">
+          <QuestBoardCard key={task.id} className={isWalletCheckInTask || isInviteFriendTask ? 'md:col-span-2' : ''}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <h2 className="text-lg font-bold text-white drop-shadow-sm">{task.title}</h2>
-                <p className="mt-1 text-sm text-white/70">{task.description}</p>
+                <h2 className="pr-2 text-[1.05rem] font-black uppercase tracking-[0.05em] text-[#f3c777] drop-shadow-[0_1px_0_rgba(0,0,0,0.6)] sm:text-[1.2rem]">
+                  {task.title}
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-[#f8e8bf]/88 sm:text-[0.97rem]">{task.description}</p>
               </div>
-              <div className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-bold shadow-sm">
+              <div className="inline-flex shrink-0 items-center gap-1.5 rounded-2xl border border-[#c89745] bg-[linear-gradient(180deg,rgba(48,31,14,0.95)_0%,rgba(30,19,10,0.92)_100%)] px-3 py-2 text-sm font-black text-[#ffd56d] shadow-[0_8px_16px_rgba(0,0,0,0.28)]">
                 {renderRewardBadge(task)}
               </div>
             </div>
 
             <div className="mt-4">
-              <div className="mb-2 flex items-center justify-between text-xs text-white/60">
+              <div className="mb-2 flex items-center justify-between text-sm text-[#f8e8bf]/82">
                 <span>{task.progress}/{task.target}</span>
-                <span>{complete ? 'Ready' : 'In progress'}</span>
+                <span>{statusLabel}</span>
               </div>
-              <div className="h-2 overflow-hidden rounded-full bg-zinc-900 ring-1 ring-zinc-800">
-              <div
-                  className="h-full rounded-full bg-cyan-300 shadow-[0_0_10px_rgba(34,211,238,0.35)]"
+              <div className="h-4 rounded-full border border-[#684623] bg-[#120d09] px-1 py-[3px] shadow-[inset_0_2px_5px_rgba(0,0,0,0.55)]">
+                <div
+                  className="h-full rounded-full bg-[linear-gradient(180deg,#8cecff_0%,#55dbff_100%)] shadow-[0_0_16px_rgba(96,223,255,0.7)] transition-all duration-300"
                   style={{ width: `${progress}%` }}
                 />
               </div>
             </div>
 
             {isWalletCheckInTask && (
-              <div className="mt-4 rounded-xl border border-emerald-400/15 bg-emerald-400/5 p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-emerald-100/85">
+              <div className="mt-4 rounded-[1.2rem] border border-[#8f6a38] bg-[linear-gradient(180deg,rgba(30,22,15,0.82)_0%,rgba(20,15,10,0.9)_100%)] p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[#f8e8bf]/80">
                   <span>Streak: {formatStreakDays(walletCheckInSummary?.streakDays ?? 0)}</span>
                   {walletCheckInSummary?.lastCheckInAt && (
                     <span>Last check-in {new Date(walletCheckInSummary.lastCheckInAt).toLocaleString()}</span>
                   )}
                 </div>
-                <p className="mt-2 text-sm text-white/75">{walletCheckInStatusText}</p>
+                <p className="mt-2 text-sm text-[#f8e8bf]/82">{walletCheckInStatusText}</p>
                 <ConnectButton.Custom>
                   {({ openConnectModal }) => (
                     <Button
@@ -245,9 +258,9 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                           return;
                         }
 
-                        void handleWalletCheckIn();
+                          void handleWalletCheckIn();
                       }}
-                      className="mt-3 h-11 w-full rounded-xl border border-emerald-300/25 bg-emerald-500/10 text-sm font-bold text-emerald-100 hover:bg-emerald-500/20 disabled:border-zinc-800 disabled:bg-zinc-950 disabled:text-zinc-600"
+                      className="mt-3 h-11 w-full rounded-[1rem] border border-[#7f5227] bg-[linear-gradient(180deg,#8c531f_0%,#6e4117_42%,#4f2f14_100%)] text-sm font-black uppercase tracking-[0.04em] text-[#f8db9a] shadow-[inset_0_1px_0_rgba(255,220,160,0.22),0_10px_16px_rgba(0,0,0,0.28)] transition-all duration-200 hover:brightness-110 disabled:border-[#3a2817] disabled:bg-[linear-gradient(180deg,#2f241c_0%,#231b15_100%)] disabled:text-[#8c7b63] disabled:shadow-none"
                     >
                       {walletCheckInSubmitting ? (
                         <>
@@ -287,18 +300,18 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
             )}
 
             {isInviteFriendTask && REFERRAL_BAIT_ENABLED && (
-              <div className="mt-4 rounded-xl border border-cyan-300/15 bg-cyan-300/5 p-3">
+              <div className="mt-4 rounded-[1.2rem] border border-[#8f6a38] bg-[linear-gradient(180deg,rgba(30,22,15,0.82)_0%,rgba(20,15,10,0.9)_100%)] p-3">
                 {hasConnectedWallet && referralSummary?.referralLink ? (
                   <>
-                    <div className="flex items-center justify-between gap-3 rounded-lg border border-cyan-300/12 bg-black/50 px-3 py-2">
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-[#8f6a38] bg-[rgba(15,10,7,0.7)] px-3 py-2">
                       <div>
-                        <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-cyan-100/75">Rewarded referrals</p>
-                        <p className="mt-1 text-lg font-black text-zinc-100">
+                        <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#f3c777]/80">Rewarded referrals</p>
+                        <p className="mt-1 text-lg font-black text-[#f8e8bf]">
                           {referralSummary.rewardedReferralCount}
-                          <span className="ml-1 text-sm font-bold text-zinc-400">/ {referralSummary.maxRewardedReferrals}</span>
+                          <span className="ml-1 text-sm font-bold text-[#c8ab7d]">/ {referralSummary.maxRewardedReferrals}</span>
                         </p>
                       </div>
-                      <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-cyan-100">
+                      <span className="rounded-full border border-[#9a7a33] bg-[rgba(92,70,21,0.42)] px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-[#f3d47e]">
                         +10 bait
                       </span>
                     </div>
@@ -306,13 +319,13 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                       <Input
                         value={referralSummary.referralLink}
                         readOnly
-                        className="h-11 flex-1 border-zinc-800 bg-black text-zinc-100"
+                        className="h-11 flex-1 border-[#6f4928] bg-[rgba(15,10,7,0.7)] text-[#f8e8bf]"
                       />
                       <Button
                         type="button"
                         variant="outline"
                         onClick={() => void handleCopyReferralLink()}
-                        className="h-11 gap-2 border-zinc-800 bg-black px-4 text-zinc-100 hover:bg-zinc-900"
+                        className="h-11 gap-2 border-[#6f4928] bg-[rgba(15,10,7,0.7)] px-4 text-[#f8e8bf] hover:bg-[rgba(30,22,15,0.88)]"
                       >
                         {copiedReferral ? (
                           <>
@@ -327,14 +340,14 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                         )}
                       </Button>
                     </div>
-                    <p className="mt-2 text-sm text-white/75">
+                    <p className="mt-2 text-sm text-[#f8e8bf]/82">
                       Invite friends from here. Each invited wallet is locked to the first valid referrer link.
                     </p>
                   </>
                 ) : (
-                  <div className="space-y-2 text-sm text-white/75">
+                  <div className="space-y-2 text-sm text-[#f8e8bf]/82">
                     <p>Connect and verify your wallet first, then your referral link will appear here.</p>
-                    <p>The reward stays in Special tasks, not in Settings.</p>
+                    <p>The reward stays in Blockchain quests, not in Settings.</p>
                   </div>
                 )}
               </div>
@@ -344,7 +357,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
               type="button"
               disabled={!complete || task.claimed}
               onClick={() => onClaim(task.id)}
-              className="mt-4 h-12 w-full rounded-xl border border-cyan-300/25 bg-zinc-950 text-base font-bold text-cyan-100 shadow-lg shadow-black/30 transition-all hover:bg-black disabled:border-zinc-800 disabled:bg-zinc-950 disabled:text-zinc-600 disabled:shadow-none"
+              className="mt-4 h-[3.25rem] w-full rounded-[1.2rem] border border-[#7f5227] bg-[linear-gradient(180deg,#8c531f_0%,#6e4117_42%,#4f2f14_100%)] text-[1.02rem] font-black uppercase tracking-[0.04em] text-[#f8db9a] shadow-[inset_0_1px_0_rgba(255,220,160,0.22),0_10px_16px_rgba(0,0,0,0.28)] transition-all duration-200 hover:brightness-110 disabled:border-[#3a2817] disabled:bg-[linear-gradient(180deg,#2f241c_0%,#231b15_100%)] disabled:text-[#8c7b63] disabled:shadow-none"
             >
               {task.claimed ? (
                 <>
@@ -358,46 +371,56 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                 </>
               )}
             </Button>
-          </article>
+          </QuestBoardCard>
         );
       })}
-    </div>
+      </div>
+    </QuestBoard>
   );
 
-  const renderSocialTaskList = () => (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+  const renderSocialTaskBoard = (footer: React.ReactNode) => (
+    <QuestBoard imagePath="assets/social_quests_board_reference.png" footer={footer}>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
       {socialTaskCards.map((task) => {
         const Icon = task.icon;
 
         return (
-          <button
+          <QuestBoardCard
             key={task.id}
-            type="button"
-            onClick={() => toast.info(`${task.title} coming soon`)}
-            className="rounded-xl border border-cyan-300/15 bg-black/60 p-4 text-left shadow-lg shadow-black/20 backdrop-blur-md transition-all hover:border-cyan-300/30 hover:bg-black/70"
+            className="min-h-[12.75rem] text-left"
           >
             <div className="flex items-start justify-between gap-3">
-              <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-cyan-300/20 bg-zinc-950 text-cyan-100 shadow-lg shadow-black/30">
+              <div className="inline-flex h-12 w-12 items-center justify-center rounded-[1rem] border border-[#8f6a38] bg-[rgba(15,10,7,0.72)] text-[#f3c777] shadow-[0_8px_16px_rgba(0,0,0,0.28)]">
                 <Icon className="h-5 w-5" />
               </div>
-              <span className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-300">
+              <span className="rounded-full border border-[#9a7a33] bg-[rgba(92,70,21,0.42)] px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-[#f3d47e]">
                 Coming soon
               </span>
             </div>
-            <h2 className="mt-4 text-lg font-bold text-white drop-shadow-sm">{task.title}</h2>
-            <p className="mt-1 text-sm text-white/70">
+            <h2 className="mt-4 pr-2 text-[1.05rem] font-black uppercase tracking-[0.05em] text-[#f3c777] drop-shadow-[0_1px_0_rgba(0,0,0,0.6)] sm:text-[1.2rem]">
+              {task.title}
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-[#f8e8bf]/88 sm:text-[0.97rem]">
               This social action is planned but not live yet. Tap to see upcoming tasks only.
             </p>
-          </button>
+            <Button
+              type="button"
+              onClick={() => toast.info(`${task.title} coming soon`)}
+              className="mt-4 h-[3.25rem] w-full rounded-[1.2rem] border border-[#7f5227] bg-[linear-gradient(180deg,#8c531f_0%,#6e4117_42%,#4f2f14_100%)] text-[1.02rem] font-black uppercase tracking-[0.04em] text-[#f8db9a] shadow-[inset_0_1px_0_rgba(255,220,160,0.22),0_10px_16px_rgba(0,0,0,0.28)] transition-all duration-200 hover:brightness-110"
+            >
+              Explore task
+            </Button>
+          </QuestBoardCard>
         );
       })}
-    </div>
+      </div>
+    </QuestBoard>
   );
 
   return (
     <GameScreenShell
-      title="Daily Tasks"
-      subtitle="Claim daily rewards, clear special objectives, and unlock 3 cube rolls."
+      title="Quest Board"
+      subtitle="Daily, blockchain, weekly, and social progression all live here."
       coins={coins}
       backgroundImage={publicAsset('assets/bg_tasks.jpg')}
       contentScrollable
@@ -405,43 +428,86 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
       <Tabs defaultValue="daily" className="min-w-0 pb-3">
         <TabsList className={`grid w-full ${weeklyMissionsEnabled ? 'grid-cols-4' : 'grid-cols-3'} rounded-lg border border-cyan-300/15 bg-black/85 shadow-lg shadow-black/30`}>
           <TabsTrigger value="daily" className="rounded-lg text-zinc-200 data-[state=active]:border data-[state=active]:border-cyan-300/25 data-[state=active]:bg-zinc-950 data-[state=active]:text-cyan-50">Daily</TabsTrigger>
-          <TabsTrigger value="special" className="rounded-lg text-zinc-200 data-[state=active]:border data-[state=active]:border-cyan-300/25 data-[state=active]:bg-zinc-950 data-[state=active]:text-cyan-50">Special</TabsTrigger>
+          <TabsTrigger value="blockchain" className="rounded-lg text-zinc-200 data-[state=active]:border data-[state=active]:border-cyan-300/25 data-[state=active]:bg-zinc-950 data-[state=active]:text-cyan-50">Blockchain</TabsTrigger>
           {weeklyMissionsEnabled && (
             <TabsTrigger value="weekly" className="rounded-lg text-zinc-200 data-[state=active]:border data-[state=active]:border-cyan-300/25 data-[state=active]:bg-zinc-950 data-[state=active]:text-cyan-50">Weekly</TabsTrigger>
           )}
           <TabsTrigger value="social" className="rounded-lg text-zinc-200 data-[state=active]:border data-[state=active]:border-cyan-300/25 data-[state=active]:bg-zinc-950 data-[state=active]:text-cyan-50">Social</TabsTrigger>
         </TabsList>
         <TabsContent value="daily" className="mt-3">
-          <DailyQuestBoard
-            tasks={dailyTasks}
-            claimedCount={claimedCount}
-            dailyTaskClaimsMet={dailyTaskClaimsMet}
-            availableWheelRolls={availableWheelRolls}
-            onClaimTask={onClaimTask}
-            onOpenWheel={onOpenWheel}
-          />
+          {renderTaskBoard(
+            'assets/daily_quests_board_reference.png',
+            dailyTasks,
+            onClaimTask,
+            <QuestBoardPlaque
+              eyebrow="Daily prize cube"
+              description={
+                <>
+                  {claimedCount}/{dailyTasks.length} claimed. {availableWheelRolls > 0 ? `${availableWheelRolls} roll${availableWheelRolls === 1 ? '' : 's'} ready.` : dailyTaskClaimsMet ? 'Done for today.' : 'Claim 3 daily tasks to unlock it.'}
+                </>
+              }
+              action={
+                <Button
+                  type="button"
+                  disabled={availableWheelRolls <= 0}
+                  onClick={onOpenWheel}
+                  className="h-11 shrink-0 rounded-[1rem] border border-[#7f5227] bg-[linear-gradient(180deg,#8c531f_0%,#6e4117_42%,#4f2f14_100%)] px-4 text-sm font-black uppercase tracking-[0.04em] text-[#f8db9a] shadow-[inset_0_1px_0_rgba(255,220,160,0.22),0_10px_16px_rgba(0,0,0,0.28)] transition-all duration-200 hover:brightness-110 disabled:border-[#3a2817] disabled:bg-[linear-gradient(180deg,#2f241c_0%,#231b15_100%)] disabled:text-[#8c7b63] disabled:shadow-none"
+                >
+                  {availableWheelRolls > 0 ? (
+                    <>
+                      <Trophy className="mr-2 h-4 w-4" />
+                      Open cube
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="mr-2 h-4 w-4" />
+                      Locked
+                    </>
+                  )}
+                </Button>
+              }
+            />,
+          )}
         </TabsContent>
-        <TabsContent value="special" className="mt-3">
-          <div className="mb-3 rounded-xl border border-cyan-300/15 bg-black/60 p-4 text-sm text-white/70 shadow-lg shadow-black/20 backdrop-blur-md">
-            Wallet check-in and friend invites live here now. Settings no longer carries wallet or referral actions.
-          </div>
-          {renderTaskList(specialTasks, onClaimTask)}
+        <TabsContent value="blockchain" className="mt-3">
+          {renderTaskBoard(
+            'assets/blockchain_quests_board_reference.png',
+            specialTasks,
+            onClaimTask,
+            <QuestBoardPlaque
+              eyebrow="Wallet-linked"
+              description={
+                isWalletVerified
+                  ? 'Wallet check-in and friend-invite rewards live here now.'
+                  : 'Connect and verify your wallet to unlock blockchain quests and referral rewards.'
+              }
+            />,
+          )}
         </TabsContent>
         {weeklyMissionsEnabled && (
           <TabsContent value="weekly" className="mt-3">
-            <div className="mb-3 rounded-xl border border-cyan-300/15 bg-black/60 p-4 text-sm text-white/70 shadow-lg shadow-black/20 backdrop-blur-md">
-              Weekly missions are the longer ladder. Keep coming back through the week for bigger rewards, including bonus cube charges.
-            </div>
-            {renderTaskList(weeklyMissions, onClaimWeeklyMission)}
+            {renderTaskBoard(
+              'assets/weekly_quests_board_reference.png',
+              weeklyMissions,
+              onClaimWeeklyMission,
+              <QuestBoardPlaque
+                eyebrow="Long ladder"
+                description="Weekly quests track bigger goals and can award bonus cube charges."
+              />,
+            )}
           </TabsContent>
         )}
         <TabsContent value="social" className="mt-3">
-          <div className="mb-3 rounded-xl border border-cyan-300/15 bg-black/60 p-4 text-sm text-white/70 shadow-lg shadow-black/20 backdrop-blur-md">
-            {isWalletVerified
-              ? (socialTasksLoading ? 'Preparing future social tasks...' : 'Social tasks are not live yet. For now, only the platform icons remain here and each one will show Coming soon.')
-              : 'Connect your wallet first. Social tasks, future MON rewards, and verified progress sync only work on wallet-linked accounts.'}
-          </div>
-          {renderSocialTaskList()}
+          {renderSocialTaskBoard(
+            <QuestBoardPlaque
+              eyebrow="Community loop"
+              description={
+                isWalletVerified
+                  ? (socialTasksLoading ? 'Preparing future social tasks...' : 'Social quests are not live yet. These cards preview the upcoming community actions.')
+                  : 'Connect your wallet first. Social quests and future verified rewards only work on wallet-linked accounts.'
+              }
+            />,
+          )}
         </TabsContent>
       </Tabs>
     </GameScreenShell>
