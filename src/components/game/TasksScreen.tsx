@@ -58,7 +58,6 @@ interface TasksScreenProps {
 type QuestTab = 'daily' | 'blockchain' | 'weekly' | 'social';
 
 const TasksScreen: React.FC<TasksScreenProps> = ({
-  coins,
   walletAddress,
   dailyTasks,
   specialTasks,
@@ -108,7 +107,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
             left: '16.2%',
             right: '16.2%',
             top: '16.2%',
-            bottom: '27.4%',
+            bottom: '18.6%',
           },
         }
       : {
@@ -241,12 +240,6 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
         )}
         <TabsTrigger value="social" className={`h-9 rounded-[0.8rem] px-2 text-[0.68rem] font-black uppercase tracking-[0.03em] text-[#ead4aa] data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab] sm:h-10 sm:rounded-[0.95rem] sm:text-[0.82rem] sm:tracking-[0.05em] ${!weeklyMissionsEnabled ? 'col-span-2 sm:col-span-1' : ''}`}>Social</TabsTrigger>
       </TabsList>
-      <div className="flex items-center justify-end">
-        <div className="inline-flex h-9 shrink-0 items-center gap-2 rounded-[1rem] border border-[#8f6a38]/70 bg-[rgba(16,11,8,0.84)] px-3 text-[0.82rem] font-black text-[#f8dfab] shadow-[0_12px_30px_rgba(0,0,0,0.3)] backdrop-blur-md sm:h-10 sm:rounded-2xl sm:px-3.5 sm:text-sm">
-          <CoinIcon size="md" />
-          {coins.toLocaleString()}
-        </div>
-      </div>
     </div>
   );
 
@@ -512,7 +505,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
       backgroundFit="cover"
       overlayClassName="bg-[linear-gradient(180deg,rgba(8,6,3,0.18)_0%,rgba(10,8,5,0.2)_48%,rgba(6,5,3,0.26)_100%)]"
       headerHidden
-      shellPaddingClassName="px-0 pb-[calc(var(--bottom-nav-clearance,6rem)+0.9rem)] pt-0"
+      shellPaddingClassName="px-0 pb-[calc(var(--bottom-nav-clearance,6rem)+0.35rem)] pt-0"
       contentWrapperClassName="mx-auto mt-0 min-h-0 w-full flex-1 overflow-hidden"
     >
       <Tabs

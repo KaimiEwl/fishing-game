@@ -1100,8 +1100,6 @@ const FishingGame: React.FC = () => {
               ) : activeTab === 'grill' ? (
                   <GrillScreen
                     inventory={player.inventory}
-                    coins={player.coins}
-                    grillScore={gameProgress.grillScore}
                     onCook={handleCookRecipe}
                     onCookStartSound={sounds.playGrillCookSound}
                   />

@@ -5,13 +5,10 @@ import { FISH_DATA, GRILL_RECIPES, type CaughtFish, type GrillRecipe } from '@/t
 import GameScreenShell from './GameScreenShell';
 import FishIcon from './FishIcon';
 import { publicAsset } from '@/lib/assets';
-import grillForegroundSrc from '@/assets/grill-foreground.webp';
-import QuestBoard, { QuestBoardCard, QuestBoardPlaque } from './QuestBoard';
+import QuestBoard, { QuestBoardCard } from './QuestBoard';
 
 interface GrillScreenProps {
-  coins: number;
   inventory: CaughtFish[];
-  grillScore: number;
   onCook: (recipe: GrillRecipe) => Promise<boolean> | boolean;
   onCookStartSound?: () => void;
 }
@@ -23,7 +20,7 @@ const inventoryCount = (inventory: CaughtFish[], fishId: string) => (
   inventory.find((item) => item.fishId === fishId)?.quantity ?? 0
 );
 
-const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore, onCook, onCookStartSound }) => {
+const GrillScreen: React.FC<GrillScreenProps> = ({ inventory, onCook, onCookStartSound }) => {
   const [cookPhase, setCookPhase] = useState<'idle' | 'cooking' | 'result'>('idle');
   const [activeRecipe, setActiveRecipe] = useState<GrillRecipe | null>(null);
   const [cookProgress, setCookProgress] = useState(0);
@@ -54,15 +51,15 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
           left: '16.4%',
           right: '16.4%',
           top: '16.0%',
-          bottom: '28.5%',
+          bottom: '18.6%',
         },
       }
     : {
         desktop: {
           left: '13.4%',
           right: '13.2%',
-          top: '18.0%',
-          bottom: '12.8%',
+          top: '17.0%',
+          bottom: '13.8%',
         },
       };
 
@@ -109,7 +106,7 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
       backgroundFit="cover"
       overlayClassName="bg-[linear-gradient(180deg,rgba(8,6,3,0.14)_0%,rgba(10,8,5,0.18)_48%,rgba(6,5,3,0.24)_100%)]"
       headerHidden
-      shellPaddingClassName="px-0 pb-[calc(var(--bottom-nav-clearance,6rem)+0.9rem)] pt-0"
+      shellPaddingClassName="px-0 pb-[calc(var(--bottom-nav-clearance,6rem)+0.35rem)] pt-0"
       contentWrapperClassName="mx-auto mt-0 min-h-0 w-full flex-1 overflow-hidden"
     >
       <div className="relative h-full">
@@ -160,106 +157,62 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
 
         <QuestBoard
           layout={isMobileLayout ? 'mobile' : 'desktop'}
-          headerPlacement={isMobileLayout ? 'inline' : 'fixed'}
-          footerPlacement="inline"
           viewportInsets={boardViewportInsets}
-          header={(
-            <QuestBoardPlaque
-              eyebrow="Grill ledger"
-              description={(
-                <>
-                  Total score: <span className="text-[#f3c777]">{grillScore.toLocaleString()}</span>. Dishes are saved in Inventory {'->'} Dishes and can be sold there later for gold.
-                </>
-              )}
-              action={(
-                <div className="inline-flex h-10 items-center gap-2 rounded-2xl border border-[#8f6a38]/70 bg-[rgba(16,11,8,0.84)] px-3.5 text-sm font-black text-[#f8dfab] shadow-[0_12px_30px_rgba(0,0,0,0.3)]">
-                  <Trophy className="h-4 w-4 text-[#f3c777]" />
-                  {coins.toLocaleString()}
-                </div>
-              )}
-            />
-          )}
         >
-          <div className="grid gap-2.5 lg:grid-cols-[0.82fr_1.18fr] lg:items-start lg:gap-4">
-            <QuestBoardCard className={isMobileLayout ? 'hidden' : ''}>
-              <div className="flex h-full flex-col gap-4">
-                <div>
-                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-lg border border-[#8f6a38]/70 bg-[rgba(16,11,8,0.84)] text-[#f3c777]">
-                    <Trophy className="h-6 w-6" />
-                  </div>
-                  <h2 className="mt-4 text-2xl font-black text-[#f8e8bf]">{grillScore.toLocaleString()}</h2>
-                  <p className="mt-1 text-sm text-[#f8e8bf]/70">total grill score</p>
-                </div>
-                <div className="pointer-events-none relative -mx-2 flex justify-center overflow-hidden py-1">
-                  <div className="absolute inset-x-8 bottom-3 h-10 rounded-full bg-orange-500/20 blur-2xl" />
-                  <img
-                    src={grillForegroundSrc}
-                    alt=""
-                    className="relative max-h-28 w-full max-w-sm object-contain drop-shadow-[0_18px_28px_rgba(0,0,0,0.65)] sm:max-h-[140px] lg:max-h-44"
-                    draggable={false}
-                  />
-                </div>
-                <div className="rounded-lg border border-[#6f4928] bg-[rgba(15,10,7,0.72)] p-3 text-[0.8rem] leading-5 text-[#f8e8bf]/82 sm:text-sm sm:leading-6">
-                  Stronger fish make stronger dishes. Every cooked dish is saved in Inventory {'->'} Dishes, can be sold there for gold, and still adds leaderboard score now.
-                </div>
-              </div>
-            </QuestBoardCard>
+          <div className="grid gap-2.5 md:grid-cols-2 md:gap-3">
+            {GRILL_RECIPES.map((recipe) => {
+              const canCook = Object.entries(recipe.ingredients).every(([fishId, amount]) => (
+                inventoryCount(inventory, fishId) >= amount
+              ));
 
-            <div className="grid gap-3">
-              {GRILL_RECIPES.map((recipe) => {
-                const canCook = Object.entries(recipe.ingredients).every(([fishId, amount]) => (
-                  inventoryCount(inventory, fishId) >= amount
-                ));
-
-                return (
-                  <QuestBoardCard key={recipe.id}>
-                    <div className="flex h-full flex-col">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <h2 className="text-[1rem] font-black text-[#f8e8bf] sm:text-lg">{recipe.name}</h2>
-                          <p className="mt-1 text-[0.78rem] leading-5 text-[#f8e8bf]/70 sm:text-sm sm:leading-6">{recipe.description}</p>
-                        </div>
-                        <div className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-[#8f6a38]/70 bg-[rgba(16,11,8,0.84)] px-2 py-1 text-sm font-black text-[#f3c777]">
-                          <Trophy className="h-4 w-4" />
-                          {recipe.score}
-                        </div>
+              return (
+                <QuestBoardCard key={recipe.id}>
+                  <div className="flex h-full flex-col">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h2 className="text-[1rem] font-black text-[#f8e8bf] sm:text-lg">{recipe.name}</h2>
+                        <p className="mt-1 text-[0.78rem] leading-5 text-[#f8e8bf]/70 sm:text-sm sm:leading-6">{recipe.description}</p>
                       </div>
-
-                      <div className="mt-3 flex flex-wrap gap-2 sm:mt-4">
-                        {Object.entries(recipe.ingredients).map(([fishId, amount]) => {
-                          const fish = FISH_DATA.find((item) => item.id === fishId);
-                          const owned = inventoryCount(inventory, fishId);
-                          if (!fish) return null;
-
-                          return (
-                            <div
-                              key={fishId}
-                              className="inline-flex items-center gap-2 rounded-lg border border-[#6f4928] bg-[rgba(15,10,7,0.72)] px-2 py-1.5 text-xs text-[#f8e8bf]"
-                            >
-                              <FishIcon fish={fish} size="sm" />
-                              <span>{fish.name}</span>
-                              <span className={owned >= amount ? 'text-emerald-300' : 'text-red-300'}>
-                                {owned}/{amount}
-                              </span>
-                            </div>
-                          );
-                        })}
+                      <div className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-[#8f6a38]/70 bg-[rgba(16,11,8,0.84)] px-2 py-1 text-sm font-black text-[#f3c777]">
+                        <Trophy className="h-4 w-4" />
+                        {recipe.score}
                       </div>
-
-                      <Button
-                        type="button"
-                        disabled={!canCook || cookingLocked}
-                        onClick={() => startCooking(recipe)}
-                        className="mt-auto h-10 w-full rounded-[1rem] border border-[#7f5227] bg-[linear-gradient(180deg,#8c531f_0%,#6e4117_42%,#4f2f14_100%)] text-[0.82rem] font-black uppercase tracking-[0.04em] text-[#f8db9a] shadow-[inset_0_1px_0_rgba(255,220,160,0.22),0_10px_16px_rgba(0,0,0,0.28)] transition-all duration-200 hover:brightness-110 disabled:border-[#3a2817] disabled:bg-[linear-gradient(180deg,#2f241c_0%,#231b15_100%)] disabled:text-[#8c7b63] disabled:shadow-none sm:h-11 sm:text-sm"
-                      >
-                        <ChefHat className="mr-2 h-4 w-4" />
-                        {cookingLocked && activeRecipe?.id === recipe.id ? 'Cooking...' : 'Cook dish'}
-                      </Button>
                     </div>
-                  </QuestBoardCard>
-                );
-              })}
-            </div>
+
+                    <div className="mt-3 flex flex-wrap gap-2 sm:mt-4">
+                      {Object.entries(recipe.ingredients).map(([fishId, amount]) => {
+                        const fish = FISH_DATA.find((item) => item.id === fishId);
+                        const owned = inventoryCount(inventory, fishId);
+                        if (!fish) return null;
+
+                        return (
+                          <div
+                            key={fishId}
+                            className="inline-flex items-center gap-2 rounded-lg border border-[#6f4928] bg-[rgba(15,10,7,0.72)] px-2 py-1.5 text-xs text-[#f8e8bf]"
+                          >
+                            <FishIcon fish={fish} size="sm" />
+                            <span>{fish.name}</span>
+                            <span className={owned >= amount ? 'text-emerald-300' : 'text-red-300'}>
+                              {owned}/{amount}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <Button
+                      type="button"
+                      disabled={!canCook || cookingLocked}
+                      onClick={() => startCooking(recipe)}
+                      className="mt-auto h-10 w-full rounded-[1rem] border border-[#7f5227] bg-[linear-gradient(180deg,#8c531f_0%,#6e4117_42%,#4f2f14_100%)] text-[0.82rem] font-black uppercase tracking-[0.04em] text-[#f8db9a] shadow-[inset_0_1px_0_rgba(255,220,160,0.22),0_10px_16px_rgba(0,0,0,0.28)] transition-all duration-200 hover:brightness-110 disabled:border-[#3a2817] disabled:bg-[linear-gradient(180deg,#2f241c_0%,#231b15_100%)] disabled:text-[#8c7b63] disabled:shadow-none sm:h-11 sm:text-sm"
+                    >
+                      <ChefHat className="mr-2 h-4 w-4" />
+                      {cookingLocked && activeRecipe?.id === recipe.id ? 'Cooking...' : 'Cook dish'}
+                    </Button>
+                  </div>
+                </QuestBoardCard>
+              );
+            })}
           </div>
         </QuestBoard>
       </div>
