@@ -1,5 +1,12 @@
 # STATUS
 
+## Audio settings split into separate music and sound toggles
+- `Settings` no longer treats all audio as one global mute switch. It now exposes two independent persisted toggles:
+  - sound effects on/off
+  - music on/off
+- Both are enabled by default for new players, and both remember the player's last choice through local storage.
+- The old background-music hook had been wired to the same `sound_muted` key/event used by SFX. It now listens to its own `music_muted` state, so turning off music no longer kills cast/catch/grill sounds, and turning off sounds no longer forces the music loop off.
+
 ## Daily check-in server drift fixed and MON rod purchases added
 - Found a real verified-player regression in the daily task claim path: the client always treats `Daily check-in` as immediately ready for the current day, but the backend shared `game_progress` defaults still seeded `check_in` with `progress: 0`. That made wallet-backed players see a ready card in the UI and then get a backend reject on `claim_task_reward`.
 - The shared backend `gameProgress` sanitizer/default layer now force-seeds `check_in` to `progress: 1` whenever the task is not already claimed, so old rows and fresh rows self-heal instead of depending on a manual seeded save.

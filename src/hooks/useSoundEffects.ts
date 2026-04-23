@@ -2,6 +2,9 @@ import { publicAsset } from '@/lib/assets';
 import { useCallback, useEffect } from 'react';
 
 export const SOUND_MUTED_EVENT = 'monadfish:sound-muted-changed';
+export const MUSIC_MUTED_EVENT = 'monadfish:music-muted-changed';
+const SOUND_MUTED_STORAGE_KEY = 'sound_muted';
+const MUSIC_MUTED_STORAGE_KEY = 'music_muted';
 
 // Один общий AudioContext (лениво создаётся)
 let audioContext: AudioContext | null = null;
@@ -118,31 +121,61 @@ const playSampleBuffer = (url: string, volume: number, playbackRate: number = 1)
 
 const pickRandom = <T,>(items: readonly T[]) => items[Math.floor(Math.random() * items.length)];
 
-const readMutedFromStorage = () => {
+const readLegacyMutedFallback = () => {
   if (typeof window === 'undefined') return false;
   try {
-    return window.localStorage.getItem('sound_muted') === 'true';
+    return window.localStorage.getItem(SOUND_MUTED_STORAGE_KEY) === 'true';
   } catch {
     return false;
   }
 };
 
+const readScopedMutedFromStorage = (key: string) => {
+  if (typeof window === 'undefined') return false;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (raw == null) {
+      return readLegacyMutedFallback();
+    }
+    return raw === 'true';
+  } catch {
+    return readLegacyMutedFallback();
+  }
+};
+
 // Global mute state
-let globalMuted = readMutedFromStorage();
+let globalMuted = readScopedMutedFromStorage(SOUND_MUTED_STORAGE_KEY);
+let globalMusicMuted = readScopedMutedFromStorage(MUSIC_MUTED_STORAGE_KEY);
 
 export function isSoundMuted() {
   return globalMuted;
+}
+
+export function isMusicMuted() {
+  return globalMusicMuted;
 }
 
 export function setSoundMuted(muted: boolean) {
   globalMuted = muted;
   if (typeof window !== 'undefined') {
     try {
-      window.localStorage.setItem('sound_muted', String(muted));
+      window.localStorage.setItem(SOUND_MUTED_STORAGE_KEY, String(muted));
     } catch {
       // ignore storage errors
     }
     window.dispatchEvent(new CustomEvent<boolean>(SOUND_MUTED_EVENT, { detail: muted }));
+  }
+}
+
+export function setMusicMuted(muted: boolean) {
+  globalMusicMuted = muted;
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem(MUSIC_MUTED_STORAGE_KEY, String(muted));
+    } catch {
+      // ignore storage errors
+    }
+    window.dispatchEvent(new CustomEvent<boolean>(MUSIC_MUTED_EVENT, { detail: muted }));
   }
 }
 

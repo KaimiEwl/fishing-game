@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -11,7 +11,14 @@ import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Camera, Settings, Volume2, VolumeX } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { isSoundMuted, setSoundMuted } from '@/hooks/useSoundEffects';
+import {
+  isMusicMuted,
+  isSoundMuted,
+  MUSIC_MUTED_EVENT,
+  SOUND_MUTED_EVENT,
+  setMusicMuted,
+  setSoundMuted,
+} from '@/hooks/useSoundEffects';
 import { supabase } from '@/integrations/supabase/client';
 import type { TablesUpdate } from '@/integrations/supabase/types';
 
@@ -36,10 +43,26 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
 }) => {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [muted, setMuted] = useState(isSoundMuted());
+  const [soundMuted, setSoundMutedState] = useState(isSoundMuted());
+  const [musicMuted, setMusicMutedState] = useState(isMusicMuted());
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const adminNavigateTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const syncAudioState = () => {
+      setSoundMutedState(isSoundMuted());
+      setMusicMutedState(isMusicMuted());
+    };
+
+    window.addEventListener(SOUND_MUTED_EVENT, syncAudioState as EventListener);
+    window.addEventListener(MUSIC_MUTED_EVENT, syncAudioState as EventListener);
+
+    return () => {
+      window.removeEventListener(SOUND_MUTED_EVENT, syncAudioState as EventListener);
+      window.removeEventListener(MUSIC_MUTED_EVENT, syncAudioState as EventListener);
+    };
+  }, []);
 
   const avatarFallback = nickname
     ? nickname
@@ -51,10 +74,16 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
         .join('')
     : 'HL';
 
-  const handleToggleSound = (checked: boolean) => {
+  const handleToggleSoundEffects = (checked: boolean) => {
     const newMuted = !checked;
-    setMuted(newMuted);
+    setSoundMutedState(newMuted);
     setSoundMuted(newMuted);
+  };
+
+  const handleToggleMusic = (checked: boolean) => {
+    const newMuted = !checked;
+    setMusicMutedState(newMuted);
+    setMusicMuted(newMuted);
   };
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -163,13 +192,22 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
           )}
 
           <div className="space-y-2">
-            <p className="text-base font-bold text-zinc-100 sm:text-sm sm:font-medium">Sound</p>
-            <div className="flex min-h-12 items-center justify-between rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2.5">
-              <div className="flex items-center gap-2 text-base text-zinc-100 sm:text-sm">
-                {muted ? <VolumeX className="h-4 w-4 text-zinc-300" /> : <Volume2 className="h-4 w-4 text-cyan-100" />}
-                {muted ? 'Sound off' : 'Sound on'}
+            <p className="text-base font-bold text-zinc-100 sm:text-sm sm:font-medium">Audio</p>
+            <div className="space-y-2">
+              <div className="flex min-h-12 items-center justify-between rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2.5">
+                <div className="flex items-center gap-2 text-base text-zinc-100 sm:text-sm">
+                  {soundMuted ? <VolumeX className="h-4 w-4 text-zinc-300" /> : <Volume2 className="h-4 w-4 text-cyan-100" />}
+                  {soundMuted ? 'Sounds off' : 'Sounds on'}
+                </div>
+                <Switch checked={!soundMuted} onCheckedChange={handleToggleSoundEffects} />
               </div>
-              <Switch checked={!muted} onCheckedChange={handleToggleSound} />
+              <div className="flex min-h-12 items-center justify-between rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2.5">
+                <div className="flex items-center gap-2 text-base text-zinc-100 sm:text-sm">
+                  {musicMuted ? <VolumeX className="h-4 w-4 text-zinc-300" /> : <Volume2 className="h-4 w-4 text-cyan-100" />}
+                  {musicMuted ? 'Music off' : 'Music on'}
+                </div>
+                <Switch checked={!musicMuted} onCheckedChange={handleToggleMusic} />
+              </div>
             </div>
           </div>
 

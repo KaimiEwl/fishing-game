@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { publicAsset } from '@/lib/assets';
-import { SOUND_MUTED_EVENT, isSoundMuted } from '@/hooks/useSoundEffects';
+import { MUSIC_MUTED_EVENT, isMusicMuted } from '@/hooks/useSoundEffects';
 
 const MUSIC_TRACK_URL = publicAsset('/assets/audio/bg_gone_fishin.mp3');
 const MUSIC_VOLUME = 0.28;
@@ -26,7 +26,7 @@ const ensureMusicState = (): MusicState | null => {
   audio.setAttribute('playsinline', 'true');
   audio.setAttribute('webkit-playsinline', 'true');
   audio.volume = MUSIC_VOLUME;
-  audio.muted = isSoundMuted();
+  audio.muted = isMusicMuted();
 
   window.__monadFishMusicState = {
     audio,
@@ -39,7 +39,7 @@ const ensureMusicState = (): MusicState | null => {
 const startMusic = async () => {
   const state = ensureMusicState();
   if (!state) return false;
-  if (document.visibilityState !== 'visible' || isSoundMuted()) {
+  if (document.visibilityState !== 'visible' || isMusicMuted()) {
     return false;
   }
 
@@ -68,7 +68,7 @@ export function useBackgroundMusic() {
     if (!state) return undefined;
 
     const syncMute = () => {
-      const muted = isSoundMuted();
+      const muted = isMusicMuted();
       state.audio.muted = muted;
       state.audio.volume = MUSIC_VOLUME;
 
@@ -109,7 +109,7 @@ export function useBackgroundMusic() {
     };
 
     syncMute();
-    window.addEventListener(SOUND_MUTED_EVENT, syncMute as EventListener);
+    window.addEventListener(MUSIC_MUTED_EVENT, syncMute as EventListener);
     document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('pointerdown', handleFirstInteraction, { passive: true });
     window.addEventListener('pointerup', handleFirstInteraction, { passive: true });
@@ -119,7 +119,7 @@ export function useBackgroundMusic() {
     window.addEventListener('touchend', handleFirstInteraction, { passive: true });
 
     return () => {
-      window.removeEventListener(SOUND_MUTED_EVENT, syncMute as EventListener);
+      window.removeEventListener(MUSIC_MUTED_EVENT, syncMute as EventListener);
       document.removeEventListener('visibilitychange', handleVisibility);
       removeUnlockListeners();
     };
