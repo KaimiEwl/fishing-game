@@ -207,7 +207,7 @@ const FishingGame: React.FC = () => {
   const applyServerPlayerSnapshot = useCallback((playerRecord: Parameters<typeof syncServerPlayerRecord>[0]) => {
     syncServerPlayerRecord(playerRecord);
   }, [syncServerPlayerRecord]);
-  const refreshPremiumSession = useCallback(async () => {
+  const refreshPremiumSession = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     if (!economyFeatures.premiumSessions || !isVerified) {
       setPremiumSession(null);
       setPremiumSessionLoading(false);
@@ -220,10 +220,14 @@ const FishingGame: React.FC = () => {
       applyServerPlayerSnapshot(result.player);
       setPremiumSession(result.premiumSession);
     } catch (error) {
-      showBackgroundActionError(
-        'premium-session-refresh',
-        error instanceof Error ? error.message : 'Could not refresh premium session state.',
-      );
+      if (!silent) {
+        showBackgroundActionError(
+          'premium-session-refresh',
+          error instanceof Error ? error.message : 'Could not refresh premium session state.',
+        );
+      } else {
+        console.error('Premium session refresh failed:', error);
+      }
     } finally {
       setPremiumSessionLoading(false);
     }
@@ -593,7 +597,7 @@ const FishingGame: React.FC = () => {
 
   useEffect(() => {
     if (activeTab === 'fish' && economyFeatures.premiumSessions && isVerified) {
-      void refreshPremiumSession();
+      void refreshPremiumSession({ silent: true });
       return;
     }
 
@@ -993,7 +997,7 @@ const FishingGame: React.FC = () => {
     } catch (error) {
       resetPremiumCastState();
       toast.error(error instanceof Error ? error.message : 'Could not resolve premium cast.');
-      void refreshPremiumSession();
+      void refreshPremiumSession({ silent: true });
     } finally {
       premiumCastResolveInFlightRef.current = false;
     }

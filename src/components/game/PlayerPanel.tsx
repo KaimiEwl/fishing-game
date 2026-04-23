@@ -10,6 +10,7 @@ import { ChevronDown, Info, Package, Trophy, Worm } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import SettingsDialog from './SettingsDialog';
+import WalletDialog from './WalletDialog';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useAdminAccess } from '@/hooks/useAdminAccess';
 import { cn } from '@/lib/utils';
@@ -97,6 +98,17 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({
             </div>
           </PopoverContent>
         </Popover>
+
+        <WalletDialog
+          isConnected={isConnected}
+          isVerified={isVerified}
+          isVerifying={isVerifying}
+          verificationError={verificationError}
+          onRetryWalletVerification={onRetryWalletVerification}
+          nickname={player.nickname || ''}
+          onSetNickname={isConnected && !player.nickname ? onSetNickname : undefined}
+          walletAddress={walletAddress}
+        />
 
         <SettingsDialog
           isConnected={isConnected}
