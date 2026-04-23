@@ -115,6 +115,21 @@ const sanitizeTaskStateMap = <T extends string>(value: unknown, ids: readonly T[
   })) as Record<T, { progress: number; claimed: boolean }>;
 };
 
+const applyDailyCheckInReadyState = <T extends Record<string, { progress: number; claimed: boolean }>>(tasks: T): T => {
+  if (!('check_in' in tasks)) return tasks;
+
+  const current = tasks.check_in;
+  if (current.claimed || current.progress >= 1) return tasks;
+
+  return {
+    ...tasks,
+    check_in: {
+      ...current,
+      progress: 1,
+    },
+  };
+};
+
 const sanitizeWheelPrize = (value: unknown): CubePrizeSnapshot | null => {
   if (!value || typeof value !== 'object') return null;
 
@@ -225,7 +240,7 @@ const sanitizeRodMastery = (value: unknown): RodMasterySnapshot | null => {
 export const createDefaultGameProgress = (): GameProgressSnapshot => ({
   date: todayKey(),
   weekKey: weekKey(),
-  tasks: sanitizeTaskStateMap({}, DAILY_TASK_IDS),
+  tasks: applyDailyCheckInReadyState(sanitizeTaskStateMap({}, DAILY_TASK_IDS)),
   specialTasks: sanitizeTaskStateMap({}, SPECIAL_TASK_IDS),
   weeklyMissions: sanitizeTaskStateMap({}, WEEKLY_MISSION_IDS),
   lastWeeklyCubeUnlockDate: null,
@@ -254,7 +269,7 @@ export const sanitizeGameProgress = (value: unknown): GameProgressSnapshot => {
       ? source.date
       : fallback.date,
     weekKey: parsedWeekKey,
-    tasks: sanitizeTaskStateMap(source.tasks, DAILY_TASK_IDS),
+    tasks: applyDailyCheckInReadyState(sanitizeTaskStateMap(source.tasks, DAILY_TASK_IDS)),
     specialTasks: sanitizeTaskStateMap(source.specialTasks, SPECIAL_TASK_IDS),
     weeklyMissions: parsedWeekKey === fallback.weekKey
       ? sanitizeTaskStateMap(source.weeklyMissions, WEEKLY_MISSION_IDS)

@@ -254,6 +254,7 @@ const FishingGame: React.FC = () => {
     sellCookedDish,
     buyBait,
     buyRod,
+    unlockRodWithMon,
     equipRod,
     addCoins,
     addBait,
@@ -630,6 +631,12 @@ const FishingGame: React.FC = () => {
     const purchased = buyRod(level, cost);
     if (!purchased) return;
     gameProgress.recordCoinsSpent(cost);
+    sounds.playBuySound();
+  };
+
+  const handleUnlockRodWithMon = (level: number, monAmount: string) => {
+    const unlocked = unlockRodWithMon(level, monAmount);
+    if (!unlocked) return;
     sounds.playBuySound();
   };
 
@@ -1111,6 +1118,7 @@ const FishingGame: React.FC = () => {
                   nftRods={player.nftRods}
                   onBuyBait={handleBuyBait}
                   onBuyRod={handleBuyRod}
+                  onBuyRodWithMon={handleUnlockRodWithMon}
                   onCoinsAdded={addCoins}
                   onNftMinted={mintNftRod}
                 />

@@ -1,5 +1,17 @@
 # STATUS
 
+## Daily check-in server drift fixed and MON rod purchases added
+- Found a real verified-player regression in the daily task claim path: the client always treats `Daily check-in` as immediately ready for the current day, but the backend shared `game_progress` defaults still seeded `check_in` with `progress: 0`. That made wallet-backed players see a ready card in the UI and then get a backend reject on `claim_task_reward`.
+- The shared backend `gameProgress` sanitizer/default layer now force-seeds `check_in` to `progress: 1` whenever the task is not already claimed, so old rows and fresh rows self-heal instead of depending on a manual seeded save.
+- `Shop` safe-area was also pushed lower so the `Bait / Rods` header no longer rides so high under the desktop/mobile browser chrome.
+- Added a new direct MON rod purchase path as a convenience layer separate from NFT minting:
+  - Bamboo: `0.05 MON`
+  - Carbon: `0.15 MON`
+  - Pro: `0.4 MON`
+  - Legendary: `0.9 MON`
+- These prices were chosen to stay well below the absurd pure coin-conversion equivalent while still preserving NFT mint value on top. In practice they function as time-skip unlocks, not as a replacement for NFT rods.
+- The existing `verify-purchase` function now supports `rod_purchase_level` as a separate purchase kind from `rod_level` NFT minting, and the client MON market dialog now exposes a dedicated `Rods` tab for those direct purchases.
+
 ## Grill cook path fixed after client/server recipe drift
 - Found a real live regression in the grill flow: the frontend recipe table had already moved `Deepwater Platter` to the safer `catfish x2 + bream x1` recipe, but `supabase/functions/_shared/grillConfig.ts` still used the old `pike + catfish` ingredients.
 - Because `player-actions -> cook_recipe` trusts the server-side grill config, the live cook flow could reject a valid client-side recipe and surface the generic cook failure path.

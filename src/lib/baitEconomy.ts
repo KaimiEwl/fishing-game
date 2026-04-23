@@ -52,6 +52,33 @@ export const BAIT_PACKAGES = [
   { amount: 50, cost: 4000, label: 'Bulk bait box' },
 ] as const;
 
+export const MON_ROD_PURCHASES = [
+  {
+    level: 1,
+    monAmount: '0.05',
+    label: 'Bamboo instant unlock',
+    positioning: 'About 1-2 days of rod grind skipped.',
+  },
+  {
+    level: 2,
+    monAmount: '0.15',
+    label: 'Carbon instant unlock',
+    positioning: 'About a week of rod grind skipped.',
+  },
+  {
+    level: 3,
+    monAmount: '0.4',
+    label: 'Pro instant unlock',
+    positioning: 'About a month of rod grind skipped.',
+  },
+  {
+    level: 4,
+    monAmount: '0.9',
+    label: 'Legendary instant unlock',
+    positioning: 'Late-game shortcut without replacing NFT value.',
+  },
+] as const;
+
 export interface PremiumMonDropTierConfig {
   id: PremiumDropTierId;
   chance: number;

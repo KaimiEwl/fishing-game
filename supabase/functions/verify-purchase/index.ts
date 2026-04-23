@@ -25,6 +25,12 @@ const NFT_ROD_MINT_COSTS: Record<number, string> = {
   3: '0.5',
   4: '1.0',
 };
+const MON_ROD_PURCHASE_COSTS: Record<number, string> = {
+  1: '0.05',
+  2: '0.15',
+  3: '0.4',
+  4: '0.9',
+};
 
 const readFlag = (value: string | undefined, fallback: boolean) => {
   if (!value) return fallback;
@@ -47,12 +53,20 @@ serve(async (req) => {
   }
 
   try {
-    const { tx_hash, wallet_address, expected_coins, expected_mon, rod_level } = await req.json();
+    const { tx_hash, wallet_address, expected_coins, expected_mon, rod_level, rod_purchase_level } = await req.json();
     const isNftRodMint = Number.isInteger(rod_level);
+    const isRodPurchase = Number.isInteger(rod_purchase_level);
 
-    if (!tx_hash || !wallet_address || !expected_mon || (!isNftRodMint && !expected_coins)) {
+    if (!tx_hash || !wallet_address || !expected_mon || (!isNftRodMint && !isRodPurchase && !expected_coins)) {
       return new Response(
         JSON.stringify({ success: false, error: 'Missing required fields' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (isNftRodMint && isRodPurchase) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Choose one purchase type only' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -60,6 +74,13 @@ serve(async (req) => {
     if (isNftRodMint && !(rod_level in NFT_ROD_MINT_COSTS)) {
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid rod level' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (isRodPurchase && !(rod_purchase_level in MON_ROD_PURCHASE_COSTS)) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid direct rod level' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -125,10 +146,10 @@ serve(async (req) => {
       }
 
       // Use the retried receipt
-      return await processReceipt(retryData.result, wallet_address, expected_coins, expected_mon, tx_hash, rod_level);
+      return await processReceipt(retryData.result, wallet_address, expected_coins, expected_mon, tx_hash, rod_level, rod_purchase_level);
     }
 
-    return await processReceipt(receipt, wallet_address, expected_coins, expected_mon, tx_hash, rod_level);
+    return await processReceipt(receipt, wallet_address, expected_coins, expected_mon, tx_hash, rod_level, rod_purchase_level);
   } catch (err) {
     console.error('verify-purchase error:', err);
     return new Response(
@@ -145,6 +166,7 @@ async function processReceipt(
   expected_mon: string,
   tx_hash: string,
   rod_level?: number,
+  rod_purchase_level?: number,
 ) {
   // Check transaction was successful
   if (receipt.status !== '0x1') {
@@ -196,6 +218,8 @@ async function processReceipt(
   const valueBigInt = BigInt(tx.value);
   const expectedMonAmount = Number.isInteger(rod_level)
     ? NFT_ROD_MINT_COSTS[rod_level!]
+    : Number.isInteger(rod_purchase_level)
+      ? MON_ROD_PURCHASE_COSTS[rod_purchase_level!]
     : expected_mon;
   const expectedWei = BigInt(Math.round(parseFloat(expectedMonAmount) * 1e18));
   
@@ -260,6 +284,62 @@ async function processReceipt(
 
     return new Response(
       JSON.stringify({ success: true, nft_rods: updatedNftRods, rod_level }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  if (Number.isInteger(rod_purchase_level)) {
+    const { data: player } = await supabase
+      .from('players')
+      .select('rod_level, equipped_rod')
+      .eq('wallet_address', normalizedWallet)
+      .single();
+
+    if (!player) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Player not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const currentRodLevel = Number(player.rod_level || 0);
+    if (currentRodLevel >= rod_purchase_level!) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Rod already unlocked' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const nextRodLevel = rod_purchase_level!;
+    const nextEquippedRod = Math.max(Number(player.equipped_rod || 0), nextRodLevel);
+
+    await supabase
+      .from('players')
+      .update({ rod_level: nextRodLevel, equipped_rod: nextEquippedRod })
+      .eq('wallet_address', normalizedWallet);
+
+    if (PLAYER_AUDIT_LOGS_ENABLED) {
+      await insertPlayerAuditLog(supabase, {
+        walletAddress: normalizedWallet,
+        eventType: 'rod_purchase_verified',
+        eventSource: 'server',
+        beforeState: playerAuditBefore,
+        afterState: sanitizeAuditSnapshot({
+          ...playerAuditBefore,
+          rodLevel: nextRodLevel,
+          equippedRod: nextEquippedRod,
+        }),
+        metadata: {
+          txHash: tx_hash,
+          rodLevel: nextRodLevel,
+          previousRodLevel: currentRodLevel,
+          expectedMon: expected_mon,
+        },
+      });
+    }
+
+    return new Response(
+      JSON.stringify({ success: true, rod_level: nextRodLevel, equipped_rod: nextEquippedRod }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

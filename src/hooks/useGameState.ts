@@ -704,6 +704,33 @@ export function useGameState(options?: UseGameStateOptions) {
     return true;
   }, [player.coins, player.rodLevel, queueAuditEvent]);
 
+  const unlockRodWithMon = useCallback((level: number, monAmount: string) => {
+    if (player.rodLevel >= level) return false;
+
+    setPlayer(prev => {
+      if (prev.rodLevel >= level) return prev;
+      const nextPlayer = {
+        ...prev,
+        rodLevel: level,
+        equippedRod: level,
+      };
+
+      queueAuditEvent({
+        eventType: 'rod_bought_with_mon',
+        beforeState: toPlayerAuditSnapshot(prev),
+        afterState: toPlayerAuditSnapshot(nextPlayer),
+        metadata: {
+          rodLevel: level,
+          monAmount,
+        },
+      });
+
+      return nextPlayer;
+    });
+
+    return true;
+  }, [player.rodLevel, queueAuditEvent]);
+
   const equipRod = useCallback((level: number) => {
     setPlayer(prev => {
       if (level > prev.rodLevel || level < 0) return prev;
@@ -810,6 +837,7 @@ export function useGameState(options?: UseGameStateOptions) {
     sellCookedDish,
     buyBait,
     buyRod,
+    unlockRodWithMon,
     equipRod,
     addCoins,
     addBait,

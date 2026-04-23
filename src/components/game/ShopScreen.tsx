@@ -20,6 +20,7 @@ interface ShopScreenProps {
   nftRods?: number[];
   onBuyBait: (amount: number, cost: number) => void;
   onBuyRod: (level: number, cost: number) => void;
+  onBuyRodWithMon: (level: number, monAmount: string) => void;
   onCoinsAdded: (amount: number) => void;
   onNftMinted: (rodLevel: number) => void;
 }
@@ -40,6 +41,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
   nftRods = [],
   onBuyBait,
   onBuyRod,
+  onBuyRodWithMon,
   onCoinsAdded,
   onNftMinted,
 }) => {
@@ -61,7 +63,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
         mobile: {
           left: '8.4%',
           right: '8.4%',
-          top: '16.8%',
+          top: '20.2%',
           bottom: '18.6%',
         },
       }
@@ -69,7 +71,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
         desktop: {
           left: '20.8%',
           right: '26.0%',
-          top: '17.2%',
+          top: '20.1%',
           bottom: '17.4%',
         },
       };
@@ -118,6 +120,9 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                       rodLevel={rodLevel}
                       nftRods={nftRods}
                       onNftMinted={onNftMinted}
+                      onRodPurchased={onBuyRodWithMon}
+                      initialTab="coins"
+                      triggerLabel="MON Market"
                     />
                   )}
                 />
@@ -175,6 +180,24 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                   </>
                 )}
               />
+              {walletAddress && (
+                <QuestBoardPlaque
+                  eyebrow="Instant unlock"
+                  description="Buy rods directly with MON if you want a clean time-skip instead of farming the full gold cost."
+                  action={(
+                    <BuyCoinsDialog
+                      walletAddress={walletAddress}
+                      onCoinsAdded={onCoinsAdded}
+                      rodLevel={rodLevel}
+                      nftRods={nftRods}
+                      onNftMinted={onNftMinted}
+                      onRodPurchased={onBuyRodWithMon}
+                      initialTab="rods"
+                      triggerLabel="Buy rods with MON"
+                    />
+                  )}
+                />
+              )}
               <div className="grid gap-2.5 sm:gap-3 lg:grid-cols-2">
               {ROD_UPGRADES.map((rod) => {
                 const isOwned = rodLevel >= rod.level;

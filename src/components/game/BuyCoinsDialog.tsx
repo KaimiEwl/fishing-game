@@ -18,6 +18,7 @@ import CoinIcon from './CoinIcon';
 import { Check, Coins, ShipWheel } from 'lucide-react';
 import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
 import { getErrorMessage, isUserRejectedError } from '@/lib/errorUtils';
+import { MON_ROD_PURCHASES } from '@/lib/baitEconomy';
 
 const RECEIVER_ADDRESS = '0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D' as const;
 
@@ -39,12 +40,25 @@ interface BuyCoinsDialogProps {
   rodLevel: number;
   nftRods: number[];
   onNftMinted: (rodLevel: number) => void;
+  onRodPurchased: (rodLevel: number, monAmount: string) => void;
+  initialTab?: 'coins' | 'rods' | 'nft';
+  triggerLabel?: string;
 }
 
-const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({ walletAddress, onCoinsAdded, rodLevel, nftRods, onNftMinted }) => {
+const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
+  walletAddress,
+  onCoinsAdded,
+  rodLevel,
+  nftRods,
+  onNftMinted,
+  onRodPurchased,
+  initialTab = 'coins',
+  triggerLabel = 'MON Market',
+}) => {
   const [selectedPackage, setSelectedPackage] = useState<typeof COIN_PACKAGES[0] | null>(null);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [mintingLevel, setMintingLevel] = useState<number | null>(null);
+  const [buyingRodLevel, setBuyingRodLevel] = useState<number | null>(null);
 
   const { sendTransactionAsync } = useSendTransaction();
 
@@ -75,7 +89,7 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({ walletAddress, onCoinsA
       if (!data?.success) throw new Error(data?.error || 'Verification failed');
 
       onCoinsAdded(pkg.coins);
-      toast.success(`+${pkg.coins} coins! 🎉`);
+      toast.success(`+${pkg.coins} coins added.`);
     } catch (err: unknown) {
       console.error('Purchase failed:', err);
       if (isUserRejectedError(err)) {
@@ -118,7 +132,7 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({ walletAddress, onCoinsA
       }
 
       onNftMinted(nftRod.rodLevel);
-      toast.success(`🎉 NFT ${ROD_NAMES[nftRod.rodLevel]} minted!`);
+      toast.success(`${ROD_NAMES[nftRod.rodLevel]} NFT minted.`);
     } catch (err: unknown) {
       console.error('NFT mint failed:', err);
       if (isUserRejectedError(err)) {
@@ -131,29 +145,71 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({ walletAddress, onCoinsA
     }
   };
 
+  const handleRodPurchase = async (rodOffer: typeof MON_ROD_PURCHASES[number]) => {
+    if (!walletAddress || buyingRodLevel !== null) {
+      return;
+    }
+
+    setBuyingRodLevel(rodOffer.level);
+    try {
+      const txHash = await sendTransactionAsync({
+        to: RECEIVER_ADDRESS as `0x${string}`,
+        value: parseEther(rodOffer.monAmount),
+      });
+
+      toast.info('Transaction sent, verifying rod unlock...');
+
+      const { data, error } = await supabase.functions.invoke('verify-purchase', {
+        body: {
+          tx_hash: txHash,
+          wallet_address: walletAddress,
+          rod_purchase_level: rodOffer.level,
+          expected_mon: rodOffer.monAmount,
+        },
+      });
+
+      if (error || !data?.success) {
+        throw new Error(data?.error || 'Verification failed');
+      }
+
+      onRodPurchased(rodOffer.level, rodOffer.monAmount);
+      toast.success(`${ROD_NAMES[rodOffer.level]} Rod unlocked.`);
+    } catch (err: unknown) {
+      console.error('MON rod purchase failed:', err);
+      if (isUserRejectedError(err)) {
+        toast.error('Transaction cancelled');
+      } else {
+        toast.error(`Rod purchase error: ${getErrorMessage(err)}`);
+      }
+    } finally {
+      setBuyingRodLevel(null);
+    }
+  };
+
   return (
     <Dialog>
       <DialogTrigger asChild>
         <Button
           variant="outline"
           className="h-12 min-w-12 gap-2 rounded-lg border border-cyan-300/20 bg-black/85 px-3 text-cyan-100 shadow-lg backdrop-blur-md hover:border-cyan-300/40 hover:bg-zinc-950 sm:h-14 sm:min-w-[8.25rem]"
-          aria-label="Buy gold with MON"
+          aria-label={triggerLabel}
         >
           <Coins className="h-5 w-5 sm:h-6 sm:w-6" />
-          <span className="hidden text-sm font-bold sm:inline">Buy Gold</span>
+          <span className="hidden text-sm font-bold sm:inline">{triggerLabel}</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[calc(100svh-1rem)] max-w-[calc(100vw-1rem)] border border-cyan-300/15 bg-black/95 text-zinc-100 shadow-2xl backdrop-blur-md sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl text-zinc-100">
             <Coins className="h-5 w-5 text-cyan-100" />
-            Buy Gold with MON
+            MON Market
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="coins" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-zinc-950">
+        <Tabs defaultValue={initialTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3 bg-zinc-950">
             <TabsTrigger value="coins" className="flex items-center gap-1 data-[state=active]:bg-black data-[state=active]:text-cyan-100"><CoinIcon size="sm" /> Coins</TabsTrigger>
+            <TabsTrigger value="rods" className="gap-1.5 data-[state=active]:bg-black data-[state=active]:text-cyan-100"><ShipWheel className="h-4 w-4" /> Rods</TabsTrigger>
             <TabsTrigger value="nft" className="gap-1.5 data-[state=active]:bg-black data-[state=active]:text-cyan-100"><ShipWheel className="h-4 w-4" /> NFT Rods</TabsTrigger>
           </TabsList>
 
@@ -186,6 +242,54 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({ walletAddress, onCoinsA
             <p className="mt-3 text-center text-xs text-zinc-500">
               Transaction confirmed automatically
             </p>
+          </TabsContent>
+
+          <TabsContent value="rods" className="mt-4">
+            <p className="mb-3 text-sm text-zinc-500">
+              Instant rod unlocks with MON. Priced below NFT minting so NFTs keep their premium value.
+            </p>
+            <ScrollArea className="h-[min(220px,35vh)] pr-2">
+              <div className="space-y-3">
+                {MON_ROD_PURCHASES.map((rodOffer) => {
+                  const isOwned = rodLevel >= rodOffer.level;
+                  const isBuying = buyingRodLevel === rodOffer.level;
+                  const rodImage = ROD_IMAGES[rodOffer.level];
+
+                  return (
+                    <div
+                      key={rodOffer.level}
+                      className={`flex items-center gap-3 rounded-lg border p-3 transition-colors ${
+                        isOwned
+                          ? 'border-cyan-300/35 bg-zinc-950'
+                          : 'border-zinc-800 bg-zinc-950 hover:border-cyan-300/25'
+                      }`}
+                    >
+                      <div className={`relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg bg-black/70 ${isOwned ? 'ring-2 ring-cyan-300/40' : ''}`}>
+                        <img src={rodImage} alt={ROD_NAMES[rodOffer.level]} className="h-10 object-contain" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold text-sm text-zinc-100">{ROD_NAMES[rodOffer.level]} Rod</div>
+                        <div className="text-xs text-zinc-500">{rodOffer.positioning}</div>
+                      </div>
+                      {isOwned ? (
+                        <span className="inline-flex whitespace-nowrap text-sm font-bold text-cyan-100">
+                          <Check className="h-4 w-4" /> Owned
+                        </span>
+                      ) : (
+                        <Button
+                          size="sm"
+                          disabled={isBuying || !walletAddress}
+                          onClick={() => void handleRodPurchase(rodOffer)}
+                          className="whitespace-nowrap border border-cyan-300/25 bg-zinc-950 text-cyan-100 hover:bg-black"
+                        >
+                          {isBuying ? '...' : `${rodOffer.monAmount} MON`}
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </ScrollArea>
           </TabsContent>
 
           <TabsContent value="nft" className="mt-4">
