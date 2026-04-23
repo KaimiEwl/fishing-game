@@ -1,5 +1,15 @@
 # STATUS
 
+## Passive fishing net added as a daily shop utility
+- Added a new permanent `Auto Fishing Net` utility item to `Shop -> Bait`.
+- It is a one-time coin purchase priced at `6000 coins`, chosen to land around a `~14 day` payback at the current average fish-table value while still feeling attractive as a passive convenience purchase.
+- Once bought, the net can fill with `10 random fish` at a time:
+  - first purchase fills it immediately for a good first-use experience
+  - after collection, it refills once per new daily cycle
+  - it does **not** bypass the core loop by granting XP or daily catch-task progress; it is inventory value and cooking fuel, not a full gameplay replacement
+- Net ownership and ready/full state live in `gameProgress`, so they now round-trip through the existing wallet save sync instead of being trapped in one browser.
+- The main game now surfaces a toast when the net becomes full, and `Shop` shows both the idle description and the current ready-to-collect state.
+
 ## Audio settings split into separate music and sound toggles
 - `Settings` no longer treats all audio as one global mute switch. It now exposes two independent persisted toggles:
   - sound effects on/off

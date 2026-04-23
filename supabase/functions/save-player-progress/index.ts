@@ -23,6 +23,7 @@ const SPECIAL_TASK_IDS = ['invite_friend', 'wallet_check_in'] as const;
 const WEEKLY_MISSION_IDS = ['catch_60_fish', 'catch_6_rare', 'cook_5_dishes', 'sell_3_dishes', 'cube_3_days', 'complete_1_premium_session'] as const;
 const COLLECTION_FISH_IDS = ['carp', 'perch', 'bream', 'catfish', 'goldfish', 'mutant', 'pike', 'leviathan'] as const;
 const COLLECTION_PAGE_IDS = ['lake_basics', 'deepwater_odds', 'trophy_legends'] as const;
+const DAY_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 interface InventoryEntry {
   fishId: string;
@@ -92,6 +93,20 @@ interface RodMasteryPayload {
   tracks: Record<string, RodMasteryTrackPayload>;
 }
 
+interface FishingNetCatchPayload {
+  fishId: string;
+  quantity: number;
+}
+
+interface FishingNetPayload {
+  owned: boolean;
+  purchasedAt: string | null;
+  readyDate: string | null;
+  lastCollectedDate: string | null;
+  lastNotificationDate: string | null;
+  pendingCatch: FishingNetCatchPayload[];
+}
+
 interface GameProgressPayload {
   date: string;
   weekKey?: string;
@@ -101,6 +116,7 @@ interface GameProgressPayload {
   lastWeeklyCubeUnlockDate?: string | null;
   collectionBook?: CollectionBookPayload | null;
   rodMastery?: RodMasteryPayload | null;
+  fishingNet?: FishingNetPayload | null;
   wheelSpun: boolean;
   wheelPrize: Record<string, unknown> | null;
   dailyWheelRolls: number;
@@ -275,6 +291,100 @@ const sanitizeIsoOrNull = (value: unknown) => {
   if (typeof value !== 'string' || !value.trim()) return null;
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+};
+
+const sanitizeDayOrNull = (value: unknown) => (
+  typeof value === 'string' && DAY_KEY_PATTERN.test(value) ? value : null
+);
+
+const createFishingNet = (): FishingNetPayload => ({
+  owned: false,
+  purchasedAt: null,
+  readyDate: null,
+  lastCollectedDate: null,
+  lastNotificationDate: null,
+  pendingCatch: [],
+});
+
+const sanitizeFishingNetCatch = (value: unknown): FishingNetCatchPayload[] => {
+  if (!Array.isArray(value)) return [];
+
+  const quantities = new Map<string, number>();
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue;
+    const fishId = typeof (item as Record<string, unknown>).fishId === 'string'
+      ? (item as Record<string, unknown>).fishId.trim()
+      : '';
+    const quantity = clampInt((item as Record<string, unknown>).quantity, 0, 0, 99999);
+    if (!fishId || quantity <= 0) continue;
+
+    quantities.set(fishId, (quantities.get(fishId) ?? 0) + quantity);
+  }
+
+  return Array.from(quantities.entries()).map(([fishId, quantity]) => ({ fishId, quantity }));
+};
+
+const sanitizeFishingNet = (value: unknown): FishingNetPayload => {
+  if (!value || typeof value !== 'object') return createFishingNet();
+
+  const source = value as Record<string, unknown>;
+  const owned = Boolean(source.owned);
+  if (!owned) return createFishingNet();
+
+  return {
+    owned,
+    purchasedAt: sanitizeIsoOrNull(source.purchasedAt),
+    readyDate: sanitizeDayOrNull(source.readyDate),
+    lastCollectedDate: sanitizeDayOrNull(source.lastCollectedDate),
+    lastNotificationDate: sanitizeDayOrNull(source.lastNotificationDate),
+    pendingCatch: sanitizeFishingNetCatch(source.pendingCatch),
+  };
+};
+
+const getFishingNetCatchCount = (fishingNet: FishingNetPayload | null | undefined) => (
+  fishingNet?.pendingCatch.reduce((sum, entry) => sum + entry.quantity, 0) ?? 0
+);
+
+const mergeFishingNet = (
+  currentNet: FishingNetPayload | null | undefined,
+  nextNet: FishingNetPayload | null | undefined,
+): FishingNetPayload => {
+  const sanitizedCurrent = sanitizeFishingNet(currentNet);
+  const sanitizedNext = sanitizeFishingNet(nextNet);
+  const currentPendingCount = getFishingNetCatchCount(sanitizedCurrent);
+  const nextPendingCount = getFishingNetCatchCount(sanitizedNext);
+
+  let pendingSource = sanitizedCurrent;
+  if (nextPendingCount > 0 && currentPendingCount === 0) {
+    pendingSource = sanitizedNext;
+  } else if (nextPendingCount > 0 && currentPendingCount > 0) {
+    pendingSource = (sanitizedNext.readyDate ?? '') >= (sanitizedCurrent.readyDate ?? '')
+      ? sanitizedNext
+      : sanitizedCurrent;
+  }
+
+  return {
+    owned: sanitizedCurrent.owned || sanitizedNext.owned,
+    purchasedAt: [sanitizedCurrent.purchasedAt, sanitizedNext.purchasedAt]
+      .filter((value): value is string => Boolean(value))
+      .sort()
+      .at(0) ?? null,
+    readyDate: getFishingNetCatchCount(pendingSource) > 0
+      ? pendingSource.readyDate
+      : [sanitizedCurrent.readyDate, sanitizedNext.readyDate]
+        .filter((value): value is string => Boolean(value))
+        .sort()
+        .at(-1) ?? null,
+    lastCollectedDate: [sanitizedCurrent.lastCollectedDate, sanitizedNext.lastCollectedDate]
+      .filter((value): value is string => Boolean(value))
+      .sort()
+      .at(-1) ?? null,
+    lastNotificationDate: [sanitizedCurrent.lastNotificationDate, sanitizedNext.lastNotificationDate]
+      .filter((value): value is string => Boolean(value))
+      .sort()
+      .at(-1) ?? null,
+    pendingCatch: getFishingNetCatchCount(pendingSource) > 0 ? pendingSource.pendingCatch : [],
+  };
 };
 
 const pickEarlierIso = (current: string | null, next: string | null) => {
@@ -467,6 +577,7 @@ const sanitizeGameProgress = (value: unknown, fallbackDate: string): GameProgres
       : null,
     collectionBook: sanitizeCollectionBook(source.collectionBook),
     rodMastery: sanitizeRodMastery(source.rodMastery),
+    fishingNet: sanitizeFishingNet(source.fishingNet),
     wheelSpun: Boolean(source.wheelSpun),
     wheelPrize: sanitizeWheelPrize(source.wheelPrize),
     dailyWheelRolls: clampInt(source.dailyWheelRolls, 0, 0, 99999),
@@ -488,6 +599,7 @@ const mergeGameProgress = (
       ...newerProgress,
       collectionBook: mergeCollectionBook(currentProgress.collectionBook, nextProgress.collectionBook),
       rodMastery: mergeRodMastery(currentProgress.rodMastery, nextProgress.rodMastery),
+      fishingNet: mergeFishingNet(currentProgress.fishingNet, nextProgress.fishingNet),
       grillScore: Math.max(currentProgress.grillScore, nextProgress.grillScore),
       paidWheelRolls: Math.max(currentProgress.paidWheelRolls, nextProgress.paidWheelRolls),
       dailyWheelRolls: Math.max(currentProgress.dailyWheelRolls, nextProgress.dailyWheelRolls),
@@ -534,6 +646,7 @@ const mergeGameProgress = (
       : currentProgress.lastWeeklyCubeUnlockDate ?? nextProgress.lastWeeklyCubeUnlockDate,
     collectionBook: mergeCollectionBook(currentProgress.collectionBook, nextProgress.collectionBook),
     rodMastery: mergeRodMastery(currentProgress.rodMastery, nextProgress.rodMastery),
+    fishingNet: mergeFishingNet(currentProgress.fishingNet, nextProgress.fishingNet),
     wheelSpun: currentProgress.wheelSpun || nextProgress.wheelSpun,
     wheelPrize: nextProgress.wheelPrize ?? currentProgress.wheelPrize,
     dailyWheelRolls: Math.max(currentProgress.dailyWheelRolls, nextProgress.dailyWheelRolls),

@@ -1,9 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Check, Package, ShipWheel, Worm } from 'lucide-react';
+import { Check, Fish, Package, ShipWheel, Worm } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ROD_BONUSES } from '@/types/game';
-import { BAIT_PACKAGES } from '@/lib/baitEconomy';
+import { FISH_DATA, type FishingNetState, ROD_BONUSES } from '@/types/game';
+import {
+  BAIT_PACKAGES,
+  FISHING_NET_DAILY_FISH_COUNT,
+  FISHING_NET_PAYBACK_DAYS_ESTIMATE,
+  FISHING_NET_PRICE_COINS,
+} from '@/lib/baitEconomy';
 import { publicAsset } from '@/lib/assets';
 import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
 import CoinIcon from './CoinIcon';
@@ -17,9 +22,12 @@ interface ShopScreenProps {
   dailyFreeBait?: number;
   walletAddress?: string;
   rodLevel: number;
+  fishingNet: FishingNetState;
   nftRods?: number[];
   onBuyBait: (amount: number, cost: number) => void;
   onBuyRod: (level: number, cost: number) => void;
+  onBuyFishingNet: (cost: number) => void;
+  onClaimFishingNet: () => void;
   onBuyRodWithMon: (level: number, monAmount: string) => void;
   onCoinsAdded: (amount: number) => void;
   onNftMinted: (rodLevel: number) => void;
@@ -38,9 +46,12 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
   dailyFreeBait = 0,
   walletAddress,
   rodLevel,
+  fishingNet,
   nftRods = [],
   onBuyBait,
   onBuyRod,
+  onBuyFishingNet,
+  onClaimFishingNet,
   onBuyRodWithMon,
   onCoinsAdded,
   onNftMinted,
@@ -57,6 +68,16 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
     mediaQuery.addEventListener('change', handleChange);
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
+
+  const fishingNetPendingCount = fishingNet.pendingCatch.reduce((sum, entry) => sum + entry.quantity, 0);
+  const fishingNetPreview = fishingNet.pendingCatch
+    .map((entry) => {
+      const fish = FISH_DATA.find((item) => item.id === entry.fishId);
+      return fish ? `${fish.name} x${entry.quantity}` : null;
+    })
+    .filter(Boolean)
+    .slice(0, 4)
+    .join(', ');
 
   const boardViewportInsets = isMobileLayout
     ? {
@@ -140,6 +161,67 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                   </>
                 )}
               />
+              <QuestBoardCard className="md:min-h-0">
+                <div className="flex h-full flex-col gap-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-[0.64rem] font-black uppercase tracking-[0.18em] text-[#f3c777]/85">
+                        Passive catch
+                      </div>
+                      <div className="mt-1 text-lg font-black text-[#f8e8bf] sm:text-xl">Auto Fishing Net</div>
+                      <p className="mt-1 text-sm leading-5 text-[#f8e8bf]/78">
+                        Buy it once and let the net think for you. It fills with {FISHING_NET_DAILY_FISH_COUNT} random fish every 24 hours.
+                      </p>
+                    </div>
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#6f4928] bg-[rgba(15,10,7,0.72)] shadow-inner">
+                      <Fish className="h-6 w-6 text-[#f3c777]" />
+                    </div>
+                  </div>
+
+                  {fishingNet.owned ? (
+                    <>
+                      <div className="rounded-[0.9rem] border border-[#6f4928] bg-[rgba(15,10,7,0.72)] px-3 py-2.5 text-sm text-[#f8e8bf]/82">
+                        {fishingNetPendingCount > 0 ? (
+                          <>
+                            <span className="font-black text-[#f3c777]">Your net is full.</span>{' '}
+                            {fishingNetPendingCount} fish are waiting.
+                            {fishingNetPreview ? (
+                              <span className="mt-1 block text-xs text-[#f8e8bf]/70">{fishingNetPreview}</span>
+                            ) : null}
+                          </>
+                        ) : (
+                          <>
+                            <span className="font-black text-[#f3c777]">Net deployed.</span>{' '}
+                            It already worked today and will refill after the next daily reset.
+                          </>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={onClaimFishingNet}
+                        disabled={fishingNetPendingCount <= 0}
+                        className="min-h-11 rounded-[1rem] border border-[#7f5227] bg-[linear-gradient(180deg,#8c531f_0%,#6e4117_42%,#4f2f14_100%)] text-[#f8db9a] hover:brightness-110 disabled:border-[#3a2817] disabled:bg-[linear-gradient(180deg,#2f241c_0%,#231b15_100%)] disabled:text-[#8c7b63]"
+                      >
+                        Collect {FISHING_NET_DAILY_FISH_COUNT} fish
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="rounded-[0.9rem] border border-[#6f4928] bg-[rgba(15,10,7,0.72)] px-3 py-2.5 text-sm text-[#f8e8bf]/82">
+                        Passive value priced around a {FISHING_NET_PAYBACK_DAYS_ESTIMATE}-day payback at average fish value, so it feels good without crushing bait or rods.
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={() => onBuyFishingNet(FISHING_NET_PRICE_COINS)}
+                        disabled={coins < FISHING_NET_PRICE_COINS}
+                        className="min-h-11 rounded-[1rem] border border-[#7f5227] bg-[linear-gradient(180deg,#8c531f_0%,#6e4117_42%,#4f2f14_100%)] text-[#f8db9a] hover:brightness-110 disabled:border-[#3a2817] disabled:bg-[linear-gradient(180deg,#2f241c_0%,#231b15_100%)] disabled:text-[#8c7b63]"
+                      >
+                        <CoinIcon size="sm" /> {FISHING_NET_PRICE_COINS}
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </QuestBoardCard>
               <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
                 {BAIT_PACKAGES.map((pkg) => {
                   return (

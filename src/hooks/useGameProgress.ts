@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CUBE_REBALANCE_ENABLED,
+  FISHING_NET_DAILY_FISH_COUNT,
   WEEKLY_MISSION_CONFIG,
   WEEKLY_MISSIONS_ENABLED,
 } from '@/lib/baitEconomy';
@@ -13,6 +14,8 @@ import {
   type DailyTaskId,
   type DailyTaskProgress,
   type Fish,
+  type FishingNetCatchEntry,
+  type FishingNetState,
   type GameProgressSnapshot,
   type SpecialTaskId,
   type SpecialTaskProgress,
@@ -26,11 +29,13 @@ type GameProgressState = GameProgressSnapshot;
 type DailyTaskMap = GameProgressState['tasks'];
 type SpecialTaskMap = GameProgressState['specialTasks'];
 type WeeklyMissionMap = NonNullable<GameProgressState['weeklyMissions']>;
+type FishingNetSnapshot = FishingNetState;
 
 const STORAGE_KEY = 'monadfish_progress_v1';
 const RARE_RANK = new Set(['rare', 'epic', 'legendary', 'mythical', 'secret']);
 const DAILY_TASK_CLAIMS_REQUIRED = 3;
 const DAILY_CUBE_ROLL_REWARD = 3;
+const DAY_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const todayKey = () => {
   const now = new Date();
@@ -49,6 +54,157 @@ const currentWeekKey = () => {
   const m = String(now.getMonth() + 1).padStart(2, '0');
   const d = String(now.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
+};
+
+const normalizeDayValue = (value: unknown) => (
+  typeof value === 'string' && DAY_KEY_PATTERN.test(value) ? value : null
+);
+
+const normalizeIsoValue = (value: unknown) => {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+};
+
+const createFishingNetState = (): FishingNetSnapshot => ({
+  owned: false,
+  purchasedAt: null,
+  readyDate: null,
+  lastCollectedDate: null,
+  lastNotificationDate: null,
+  pendingCatch: [],
+});
+
+const sanitizeFishingNetCatch = (value: unknown): FishingNetCatchEntry[] => {
+  if (!Array.isArray(value)) return [];
+
+  const quantities = new Map<string, number>();
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue;
+    const fishIdValue = (item as Record<string, unknown>).fishId;
+    const fishId = typeof fishIdValue === 'string'
+      ? fishIdValue.trim()
+      : '';
+    const quantity = Math.max(0, Math.floor(Number((item as Record<string, unknown>).quantity ?? 0)));
+    if (!fishId || !Number.isFinite(quantity) || quantity <= 0) continue;
+
+    quantities.set(fishId, (quantities.get(fishId) ?? 0) + quantity);
+  }
+
+  return Array.from(quantities.entries()).map(([fishId, quantity]) => ({ fishId, quantity }));
+};
+
+const sanitizeFishingNet = (value: unknown): FishingNetSnapshot => {
+  if (!value || typeof value !== 'object') return createFishingNetState();
+
+  const source = value as Record<string, unknown>;
+  const owned = Boolean(source.owned);
+  if (!owned) {
+    return createFishingNetState();
+  }
+
+  return {
+    owned,
+    purchasedAt: normalizeIsoValue(source.purchasedAt),
+    readyDate: normalizeDayValue(source.readyDate),
+    lastCollectedDate: normalizeDayValue(source.lastCollectedDate),
+    lastNotificationDate: normalizeDayValue(source.lastNotificationDate),
+    pendingCatch: sanitizeFishingNetCatch(source.pendingCatch),
+  };
+};
+
+const chooseFishForNet = () => {
+  const totalChance = FISH_DATA.reduce((sum, fish) => sum + fish.chance, 0);
+  let roll = Math.random() * totalChance;
+
+  for (const fish of FISH_DATA) {
+    roll -= fish.chance;
+    if (roll <= 0) return fish;
+  }
+
+  return FISH_DATA[0];
+};
+
+const rollFishingNetCatch = (): FishingNetCatchEntry[] => {
+  const fishCounts = new Map<string, number>();
+
+  for (let index = 0; index < FISHING_NET_DAILY_FISH_COUNT; index += 1) {
+    const fish = chooseFishForNet();
+    fishCounts.set(fish.id, (fishCounts.get(fish.id) ?? 0) + 1);
+  }
+
+  return Array.from(fishCounts.entries()).map(([fishId, quantity]) => ({ fishId, quantity }));
+};
+
+const getFishingNetCatchCount = (fishingNet: FishingNetSnapshot | null | undefined) => (
+  fishingNet?.pendingCatch.reduce((sum, entry) => sum + entry.quantity, 0) ?? 0
+);
+
+const ensureFishingNetReady = (state: GameProgressState): GameProgressState => {
+  const fishingNet = sanitizeFishingNet(state.fishingNet);
+  if (!fishingNet.owned) {
+    const existingNet = state.fishingNet ? sanitizeFishingNet(state.fishingNet) : null;
+    if (existingNet && (existingNet.owned || getFishingNetCatchCount(existingNet) > 0)) {
+      return { ...state, fishingNet };
+    }
+    return state.fishingNet ? { ...state, fishingNet } : state;
+  }
+
+  if (getFishingNetCatchCount(fishingNet) > 0 || fishingNet.lastCollectedDate === state.date) {
+    return { ...state, fishingNet };
+  }
+
+  return {
+    ...state,
+    fishingNet: {
+      ...fishingNet,
+      readyDate: state.date,
+      lastNotificationDate: null,
+      pendingCatch: rollFishingNetCatch(),
+    },
+  };
+};
+
+const mergeFishingNet = (
+  currentNet: FishingNetSnapshot | null | undefined,
+  nextNet: FishingNetSnapshot | null | undefined,
+): FishingNetSnapshot => {
+  const sanitizedCurrent = sanitizeFishingNet(currentNet);
+  const sanitizedNext = sanitizeFishingNet(nextNet);
+  const currentPendingCount = getFishingNetCatchCount(sanitizedCurrent);
+  const nextPendingCount = getFishingNetCatchCount(sanitizedNext);
+
+  let pendingSource = sanitizedCurrent;
+  if (nextPendingCount > 0 && currentPendingCount === 0) {
+    pendingSource = sanitizedNext;
+  } else if (nextPendingCount > 0 && currentPendingCount > 0) {
+    pendingSource = (sanitizedNext.readyDate ?? '') >= (sanitizedCurrent.readyDate ?? '')
+      ? sanitizedNext
+      : sanitizedCurrent;
+  }
+
+  return {
+    owned: sanitizedCurrent.owned || sanitizedNext.owned,
+    purchasedAt: [sanitizedCurrent.purchasedAt, sanitizedNext.purchasedAt]
+      .filter((value): value is string => Boolean(value))
+      .sort()
+      .at(0) ?? null,
+    readyDate: getFishingNetCatchCount(pendingSource) > 0
+      ? pendingSource.readyDate
+      : [sanitizedCurrent.readyDate, sanitizedNext.readyDate]
+        .filter((value): value is string => Boolean(value))
+        .sort()
+        .at(-1) ?? null,
+    lastCollectedDate: [sanitizedCurrent.lastCollectedDate, sanitizedNext.lastCollectedDate]
+      .filter((value): value is string => Boolean(value))
+      .sort()
+      .at(-1) ?? null,
+    lastNotificationDate: [sanitizedCurrent.lastNotificationDate, sanitizedNext.lastNotificationDate]
+      .filter((value): value is string => Boolean(value))
+      .sort()
+      .at(-1) ?? null,
+    pendingCatch: getFishingNetCatchCount(pendingSource) > 0 ? pendingSource.pendingCatch : [],
+  };
 };
 
 const createTasks = (): DailyTaskMap => ({
@@ -81,6 +237,7 @@ const createInitialState = (): GameProgressState => ({
   weeklyMissions: createWeeklyMissions(),
   lastWeeklyCubeUnlockDate: null,
   premiumSession: null,
+  fishingNet: createFishingNetState(),
   lastWalletCheckInTxHash: null,
   wheelSpun: false,
   wheelPrize: null,
@@ -237,6 +394,7 @@ const normalizeState = (parsed?: Partial<GameProgressState> | null): GameProgres
       lastWalletCheckInTxHash: parsed.lastWalletCheckInTxHash ?? null,
       paidWheelRolls: Math.max(0, Number(parsed.paidWheelRolls || 0)),
       premiumSession: parsed.premiumSession ?? null,
+      fishingNet: sanitizeFishingNet(parsed.fishingNet),
     };
   }
 
@@ -267,6 +425,7 @@ const normalizeState = (parsed?: Partial<GameProgressState> | null): GameProgres
     weeklyMissions,
     lastWeeklyCubeUnlockDate,
     premiumSession: parsed.premiumSession ?? null,
+    fishingNet: sanitizeFishingNet(parsed.fishingNet),
     lastWalletCheckInTxHash: parsed.lastWalletCheckInTxHash ?? null,
     wheelPrize: normalizeWheelPrize(parsed.wheelPrize as WheelPrize | null | undefined),
     dailyWheelRolls: rewardState.dailyWheelRolls,
@@ -329,6 +488,7 @@ const mergeState = (serverState: GameProgressState, localState: GameProgressStat
       dailyWheelRolls: Math.max(serverState.dailyWheelRolls, localState.dailyWheelRolls),
       dailyRollRewardGranted: newerState.dailyRollRewardGranted || olderState.dailyRollRewardGranted,
       premiumSession: localState.premiumSession ?? serverState.premiumSession ?? null,
+      fishingNet: mergeFishingNet(serverState.fishingNet, localState.fishingNet),
       lastWalletCheckInTxHash: localState.lastWalletCheckInTxHash ?? serverState.lastWalletCheckInTxHash ?? null,
     });
   }
@@ -363,6 +523,7 @@ const mergeState = (serverState: GameProgressState, localState: GameProgressStat
     weeklyMissions: mergedWeeklyState.weeklyMissions,
     lastWeeklyCubeUnlockDate: mergedWeeklyState.lastWeeklyCubeUnlockDate,
     premiumSession: localState.premiumSession ?? serverState.premiumSession ?? null,
+    fishingNet: mergeFishingNet(serverState.fishingNet, localState.fishingNet),
     lastWalletCheckInTxHash: localState.lastWalletCheckInTxHash ?? serverState.lastWalletCheckInTxHash ?? null,
     wheelSpun: serverState.wheelSpun || localState.wheelSpun,
     wheelPrize: localState.wheelPrize ?? serverState.wheelPrize,
@@ -404,6 +565,10 @@ export function useGameProgress(options?: UseGameProgressOptions) {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initializedRef = useRef(false);
 
+  const syncDailyState = useCallback(() => {
+    setState((prev) => ensureFishingNetReady(normalizeState(prev)));
+  }, []);
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
@@ -416,6 +581,24 @@ export function useGameProgress(options?: UseGameProgressOptions) {
       ));
     }
   }, [savedProgress]);
+
+  useEffect(() => {
+    syncDailyState();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        syncDailyState();
+      }
+    };
+
+    window.addEventListener('focus', syncDailyState);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', syncDailyState);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [syncDailyState]);
 
   useEffect(() => {
     initializedRef.current = true;
@@ -550,6 +733,72 @@ export function useGameProgress(options?: UseGameProgressOptions) {
     });
   }, []);
 
+  const purchaseFishingNet = useCallback(() => {
+    let purchased = false;
+
+    setState((prev) => {
+      const currentNet = sanitizeFishingNet(prev.fishingNet);
+      if (currentNet.owned) {
+        return prev;
+      }
+
+      purchased = true;
+      return ensureFishingNetReady({
+        ...prev,
+        fishingNet: {
+          ...currentNet,
+          owned: true,
+          purchasedAt: new Date().toISOString(),
+          lastNotificationDate: null,
+        },
+      });
+    });
+
+    return purchased;
+  }, []);
+
+  const markFishingNetNotified = useCallback(() => {
+    setState((prev) => {
+      const currentNet = sanitizeFishingNet(prev.fishingNet);
+      if (!currentNet.owned || !currentNet.readyDate || currentNet.lastNotificationDate === currentNet.readyDate) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        fishingNet: {
+          ...currentNet,
+          lastNotificationDate: currentNet.readyDate,
+        },
+      };
+    });
+  }, []);
+
+  const claimFishingNet = useCallback(() => {
+    let claimedCatch: FishingNetCatchEntry[] | null = null;
+
+    setState((prev) => {
+      const currentNet = sanitizeFishingNet(prev.fishingNet);
+      if (!currentNet.owned || getFishingNetCatchCount(currentNet) <= 0) {
+        return prev;
+      }
+
+      claimedCatch = currentNet.pendingCatch;
+      return {
+        ...prev,
+        fishingNet: {
+          ...currentNet,
+          readyDate: null,
+          lastCollectedDate: prev.date,
+          lastNotificationDate: null,
+          pendingCatch: [],
+        },
+      };
+    });
+
+    return claimedCatch;
+  }, []);
+
   const syncReferralTask = useCallback((todayReferralAttachCount: number) => {
     setState((prev) => {
       const current = prev.specialTasks.invite_friend;
@@ -633,6 +882,9 @@ export function useGameProgress(options?: UseGameProgressOptions) {
   const dailyTaskClaimsMet = claimedDailyCount >= DAILY_TASK_CLAIMS_REQUIRED;
   const wheelUnlocked = dailyTaskClaimsMet || state.dailyWheelRolls > 0 || state.paidWheelRolls > 0;
   const wheelReady = state.dailyWheelRolls > 0 || state.paidWheelRolls > 0;
+  const fishingNet = useMemo(() => sanitizeFishingNet(state.fishingNet), [state.fishingNet]);
+  const fishingNetReady = getFishingNetCatchCount(fishingNet) > 0;
+  const fishingNetPendingCount = getFishingNetCatchCount(fishingNet);
 
   const claimTask = useCallback((id: TaskId, onReward: (reward: RewardPayload) => void) => {
     const task = getTaskDefinition(id);
@@ -783,6 +1035,9 @@ export function useGameProgress(options?: UseGameProgressOptions) {
     dailyTasks,
     specialTasks,
     weeklyMissions,
+    fishingNet,
+    fishingNetReady,
+    fishingNetPendingCount,
     allTasksComplete,
     allTasksClaimed,
     claimedDailyCount,
@@ -801,6 +1056,9 @@ export function useGameProgress(options?: UseGameProgressOptions) {
     recordDishSold,
     recordPremiumSessionCompleted,
     recordCoinsSpent,
+    purchaseFishingNet,
+    markFishingNetNotified,
+    claimFishingNet,
     syncReferralTask,
     syncWalletCheckInTask,
     claimTask,

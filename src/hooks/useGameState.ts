@@ -704,6 +704,30 @@ export function useGameState(options?: UseGameStateOptions) {
     return true;
   }, [player.coins, player.rodLevel, queueAuditEvent]);
 
+  const buyFishingNet = useCallback((cost: number) => {
+    if (player.coins < cost) return false;
+
+    setPlayer(prev => {
+      const nextPlayer = {
+        ...prev,
+        coins: prev.coins - cost,
+      };
+
+      queueAuditEvent({
+        eventType: 'fishing_net_bought_with_coins',
+        beforeState: toPlayerAuditSnapshot(prev),
+        afterState: toPlayerAuditSnapshot(nextPlayer),
+        metadata: {
+          coinCost: cost,
+        },
+      });
+
+      return nextPlayer;
+    });
+
+    return true;
+  }, [player.coins, queueAuditEvent]);
+
   const unlockRodWithMon = useCallback((level: number, monAmount: string) => {
     if (player.rodLevel >= level) return false;
 
@@ -837,6 +861,7 @@ export function useGameState(options?: UseGameStateOptions) {
     sellCookedDish,
     buyBait,
     buyRod,
+    buyFishingNet,
     unlockRodWithMon,
     equipRod,
     addCoins,

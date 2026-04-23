@@ -176,6 +176,20 @@ export interface PremiumSessionState {
   lastCastAt: string | null;
 }
 
+export interface FishingNetCatchEntry {
+  fishId: string;
+  quantity: number;
+}
+
+export interface FishingNetState {
+  owned: boolean;
+  purchasedAt: string | null;
+  readyDate: string | null;
+  lastCollectedDate: string | null;
+  lastNotificationDate: string | null;
+  pendingCatch: FishingNetCatchEntry[];
+}
+
 export interface CollectionSpeciesState {
   fishId: string;
   discovered: boolean;
@@ -238,6 +252,7 @@ export interface GameProgressSnapshot {
   collectionBook?: CollectionBookState | null;
   rodMastery?: RodMasteryState | null;
   premiumSession?: PremiumSessionState | null;
+  fishingNet?: FishingNetState | null;
   lastWalletCheckInTxHash?: string | null;
   wheelSpun: boolean;
   wheelPrize: WheelPrize | null;

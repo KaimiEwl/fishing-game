@@ -53,6 +53,20 @@ export interface RodMasterySnapshot {
   tracks: Record<string, RodMasteryTrackSnapshot>;
 }
 
+export interface FishingNetCatchSnapshot {
+  fishId: string;
+  quantity: number;
+}
+
+export interface FishingNetSnapshot {
+  owned: boolean;
+  purchasedAt: string | null;
+  readyDate: string | null;
+  lastCollectedDate: string | null;
+  lastNotificationDate: string | null;
+  pendingCatch: FishingNetCatchSnapshot[];
+}
+
 export interface GameProgressSnapshot {
   date: string;
   weekKey: string;
@@ -62,6 +76,7 @@ export interface GameProgressSnapshot {
   lastWeeklyCubeUnlockDate: string | null;
   collectionBook: CollectionBookSnapshot | null;
   rodMastery: RodMasterySnapshot | null;
+  fishingNet: FishingNetSnapshot;
   wheelSpun: boolean;
   wheelPrize: CubePrizeSnapshot | null;
   dailyWheelRolls: number;
@@ -73,6 +88,7 @@ export interface GameProgressSnapshot {
 
 const COLLECTION_FISH_IDS = ['carp', 'perch', 'bream', 'catfish', 'goldfish', 'mutant', 'pike', 'leviathan'] as const;
 const COLLECTION_PAGE_IDS = ['lake_basics', 'deepwater_odds', 'trophy_legends'] as const;
+const DAY_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const clampInt = (value: unknown, fallback: number, min = 0, max = Number.MAX_SAFE_INTEGER) => {
   const parsed = typeof value === 'number' ? value : Number(value);
@@ -167,6 +183,53 @@ const sanitizeIsoOrNull = (value: unknown) => {
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 };
 
+const sanitizeDayOrNull = (value: unknown) => (
+  typeof value === 'string' && DAY_KEY_PATTERN.test(value) ? value : null
+);
+
+const createFishingNet = (): FishingNetSnapshot => ({
+  owned: false,
+  purchasedAt: null,
+  readyDate: null,
+  lastCollectedDate: null,
+  lastNotificationDate: null,
+  pendingCatch: [],
+});
+
+const sanitizeFishingNetCatch = (value: unknown): FishingNetCatchSnapshot[] => {
+  if (!Array.isArray(value)) return [];
+
+  const quantities = new Map<string, number>();
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue;
+    const fishId = typeof (item as Record<string, unknown>).fishId === 'string'
+      ? (item as Record<string, unknown>).fishId.trim()
+      : '';
+    const quantity = clampInt((item as Record<string, unknown>).quantity, 0, 0, 99999);
+    if (!fishId || quantity <= 0) continue;
+    quantities.set(fishId, (quantities.get(fishId) ?? 0) + quantity);
+  }
+
+  return Array.from(quantities.entries()).map(([fishId, quantity]) => ({ fishId, quantity }));
+};
+
+const sanitizeFishingNet = (value: unknown): FishingNetSnapshot => {
+  if (!value || typeof value !== 'object') return createFishingNet();
+
+  const source = value as Record<string, unknown>;
+  const owned = Boolean(source.owned);
+  if (!owned) return createFishingNet();
+
+  return {
+    owned,
+    purchasedAt: sanitizeIsoOrNull(source.purchasedAt),
+    readyDate: sanitizeDayOrNull(source.readyDate),
+    lastCollectedDate: sanitizeDayOrNull(source.lastCollectedDate),
+    lastNotificationDate: sanitizeDayOrNull(source.lastNotificationDate),
+    pendingCatch: sanitizeFishingNetCatch(source.pendingCatch),
+  };
+};
+
 const sanitizeCollectionBook = (value: unknown): CollectionBookSnapshot | null => {
   if (!value || typeof value !== 'object') return null;
 
@@ -246,6 +309,7 @@ export const createDefaultGameProgress = (): GameProgressSnapshot => ({
   lastWeeklyCubeUnlockDate: null,
   collectionBook: null,
   rodMastery: null,
+  fishingNet: createFishingNet(),
   wheelSpun: false,
   wheelPrize: null,
   dailyWheelRolls: 0,
@@ -281,6 +345,7 @@ export const sanitizeGameProgress = (value: unknown): GameProgressSnapshot => {
       : null,
     collectionBook: sanitizeCollectionBook(source.collectionBook),
     rodMastery: sanitizeRodMastery(source.rodMastery),
+    fishingNet: sanitizeFishingNet(source.fishingNet),
     wheelSpun: Boolean(source.wheelSpun),
     wheelPrize: sanitizeWheelPrize(source.wheelPrize),
     dailyWheelRolls: clampInt(source.dailyWheelRolls, 0, 0, 99999),

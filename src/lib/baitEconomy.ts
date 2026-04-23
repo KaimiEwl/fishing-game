@@ -52,6 +52,10 @@ export const BAIT_PACKAGES = [
   { amount: 50, cost: 4000, label: 'Bulk bait box' },
 ] as const;
 
+export const FISHING_NET_PRICE_COINS = 6000;
+export const FISHING_NET_DAILY_FISH_COUNT = 10;
+export const FISHING_NET_PAYBACK_DAYS_ESTIMATE = 14;
+
 export const MON_ROD_PURCHASES = [
   {
     level: 1,

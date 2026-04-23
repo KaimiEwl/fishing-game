@@ -19,6 +19,8 @@ import { useBackgroundMusic } from '@/hooks/useBackgroundMusic';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
+  FISHING_NET_DAILY_FISH_COUNT,
+  FISHING_NET_PRICE_COINS,
   getEconomyFeatureAvailability,
   getVisibleBaitTotal,
   PREMIUM_SESSION_COST_MON,
@@ -254,6 +256,7 @@ const FishingGame: React.FC = () => {
     sellCookedDish,
     buyBait,
     buyRod,
+    buyFishingNet,
     unlockRodWithMon,
     equipRod,
     addCoins,
@@ -291,6 +294,8 @@ const FishingGame: React.FC = () => {
     return Math.floor(5 * (1 + nftBonus / 100));
   }, [player.equippedRod, player.nftRods]);
   const totalBait = useMemo(() => getVisibleBaitTotal(player), [player]);
+  const fishingNet = gameProgress.fishingNet;
+  const fishingNetPendingCount = gameProgress.fishingNetPendingCount;
   const pendingTaskCount = useMemo(() => (
     [
       ...gameProgress.dailyTasks,
@@ -620,11 +625,46 @@ const FishingGame: React.FC = () => {
     }
   }, [activeTab, economyFeatures.premiumSessions, isVerified, refreshPremiumSession]);
 
+  useEffect(() => {
+    if (
+      !fishingNet.owned
+      || !fishingNet.readyDate
+      || fishingNetPendingCount <= 0
+      || fishingNet.lastNotificationDate === fishingNet.readyDate
+    ) {
+      return;
+    }
+
+    gameProgress.markFishingNetNotified();
+    sounds.playSuccessSound();
+    toast.success(`Your fishing net is full. ${FISHING_NET_DAILY_FISH_COUNT} fish are waiting in the shop.`);
+  }, [
+    fishingNet,
+    fishingNetPendingCount,
+    gameProgress,
+    sounds,
+  ]);
+
   const handleBuyBait = (amount: number, cost: number) => {
     const purchased = buyBait(amount, cost);
     if (!purchased) return;
     gameProgress.recordCoinsSpent(cost);
     sounds.playBuySound();
+  };
+
+  const handleBuyFishingNet = (cost: number) => {
+    if (player.coins < cost || fishingNet.owned) return;
+
+    const purchased = buyFishingNet(cost);
+    if (!purchased) return;
+
+    if (!gameProgress.purchaseFishingNet()) {
+      return;
+    }
+
+    gameProgress.recordCoinsSpent(cost);
+    sounds.playBuySound();
+    toast.success('Auto Fishing Net deployed. It will keep filling with fish for you.');
   };
 
   const handleBuyRod = (level: number, cost: number) => {
@@ -643,6 +683,30 @@ const FishingGame: React.FC = () => {
   const handleSellFish = (fishId: string) => {
     const sellPrice = sellFish(fishId);
     sounds.playSellSound();
+  };
+
+  const handleClaimFishingNet = () => {
+    const claimedCatch = gameProgress.claimFishingNet();
+    if (!claimedCatch || claimedCatch.length === 0) {
+      toast.error('Your fishing net is empty right now.');
+      return;
+    }
+
+    claimedCatch.forEach((entry) => {
+      grantFishReward(entry.fishId, entry.quantity);
+    });
+
+    const summary = claimedCatch
+      .map((entry) => {
+        const fish = FISH_DATA.find((item) => item.id === entry.fishId);
+        return fish ? `${fish.name} x${entry.quantity}` : null;
+      })
+      .filter(Boolean)
+      .slice(0, 3)
+      .join(', ');
+
+    sounds.playSuccessSound();
+    toast.success(summary ? `Net collected: ${summary}.` : `Net collected: ${FISHING_NET_DAILY_FISH_COUNT} fish added.`);
   };
 
   const handleSellCookedDish = async (recipeId: string) => {
@@ -1115,8 +1179,11 @@ const FishingGame: React.FC = () => {
                   dailyFreeBait={player.dailyFreeBait}
                   walletAddress={address}
                   rodLevel={player.rodLevel}
+                  fishingNet={fishingNet}
                   nftRods={player.nftRods}
                   onBuyBait={handleBuyBait}
+                  onBuyFishingNet={handleBuyFishingNet}
+                  onClaimFishingNet={handleClaimFishingNet}
                   onBuyRod={handleBuyRod}
                   onBuyRodWithMon={handleUnlockRodWithMon}
                   onCoinsAdded={addCoins}
