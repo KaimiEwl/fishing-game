@@ -48,6 +48,24 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
 
+  const boardViewportInsets = isMobileLayout
+    ? {
+        mobile: {
+          left: '19.0%',
+          right: '19.2%',
+          top: '15.2%',
+          bottom: '22.9%',
+        },
+      }
+    : {
+        desktop: {
+          left: '14.8%',
+          right: '14.7%',
+          top: '16.1%',
+          bottom: '9.1%',
+        },
+      };
+
   const startCooking = (recipe: GrillRecipe) => {
     if (cookingLocked) return;
 
@@ -142,6 +160,9 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
 
         <QuestBoard
           layout={isMobileLayout ? 'mobile' : 'desktop'}
+          headerPlacement="inline"
+          footerPlacement="inline"
+          viewportInsets={boardViewportInsets}
           header={(
             <QuestBoardPlaque
               eyebrow="Grill ledger"
@@ -151,7 +172,7 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
                 </>
               )}
               action={(
-                <div className="inline-flex h-10 items-center gap-2 rounded-2xl border border-[#8f6a38]/70 bg-[rgba(16,11,8,0.84)] px-4 text-sm font-black text-[#f8dfab] shadow-[0_12px_30px_rgba(0,0,0,0.3)]">
+                <div className="inline-flex h-10 items-center gap-2 rounded-2xl border border-[#8f6a38]/70 bg-[rgba(16,11,8,0.84)] px-3.5 text-sm font-black text-[#f8dfab] shadow-[0_12px_30px_rgba(0,0,0,0.3)]">
                   <Trophy className="h-4 w-4 text-[#f3c777]" />
                   {coins.toLocaleString()}
                 </div>
@@ -159,7 +180,7 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
             />
           )}
         >
-          <div className="grid gap-3 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
+          <div className="grid gap-2.5 lg:grid-cols-[0.82fr_1.18fr] lg:items-start lg:gap-4">
             <QuestBoardCard>
               <div className="flex h-full flex-col gap-4">
                 <div>
@@ -178,7 +199,7 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
                     draggable={false}
                   />
                 </div>
-                <div className="rounded-lg border border-[#6f4928] bg-[rgba(15,10,7,0.72)] p-3 text-sm text-[#f8e8bf]/82">
+                <div className="rounded-lg border border-[#6f4928] bg-[rgba(15,10,7,0.72)] p-3 text-[0.8rem] leading-5 text-[#f8e8bf]/82 sm:text-sm sm:leading-6">
                   Stronger fish make stronger dishes. Every cooked dish is saved in Inventory {'->'} Dishes, can be sold there for gold, and still adds leaderboard score now.
                 </div>
               </div>
@@ -195,8 +216,8 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
                     <div className="flex h-full flex-col">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <h2 className="text-lg font-black text-[#f8e8bf]">{recipe.name}</h2>
-                          <p className="mt-1 text-sm text-[#f8e8bf]/70">{recipe.description}</p>
+                          <h2 className="text-[1rem] font-black text-[#f8e8bf] sm:text-lg">{recipe.name}</h2>
+                          <p className="mt-1 text-[0.78rem] leading-5 text-[#f8e8bf]/70 sm:text-sm sm:leading-6">{recipe.description}</p>
                         </div>
                         <div className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-[#8f6a38]/70 bg-[rgba(16,11,8,0.84)] px-2 py-1 text-sm font-black text-[#f3c777]">
                           <Trophy className="h-4 w-4" />
@@ -204,7 +225,7 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
                         </div>
                       </div>
 
-                      <div className="mt-4 flex flex-wrap gap-2">
+                      <div className="mt-3 flex flex-wrap gap-2 sm:mt-4">
                         {Object.entries(recipe.ingredients).map(([fishId, amount]) => {
                           const fish = FISH_DATA.find((item) => item.id === fishId);
                           const owned = inventoryCount(inventory, fishId);
@@ -229,7 +250,7 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
                         type="button"
                         disabled={!canCook || cookingLocked}
                         onClick={() => startCooking(recipe)}
-                        className="mt-auto h-11 w-full rounded-[1rem] border border-[#7f5227] bg-[linear-gradient(180deg,#8c531f_0%,#6e4117_42%,#4f2f14_100%)] text-sm font-black uppercase tracking-[0.04em] text-[#f8db9a] shadow-[inset_0_1px_0_rgba(255,220,160,0.22),0_10px_16px_rgba(0,0,0,0.28)] transition-all duration-200 hover:brightness-110 disabled:border-[#3a2817] disabled:bg-[linear-gradient(180deg,#2f241c_0%,#231b15_100%)] disabled:text-[#8c7b63] disabled:shadow-none"
+                        className="mt-auto h-10 w-full rounded-[1rem] border border-[#7f5227] bg-[linear-gradient(180deg,#8c531f_0%,#6e4117_42%,#4f2f14_100%)] text-[0.82rem] font-black uppercase tracking-[0.04em] text-[#f8db9a] shadow-[inset_0_1px_0_rgba(255,220,160,0.22),0_10px_16px_rgba(0,0,0,0.28)] transition-all duration-200 hover:brightness-110 disabled:border-[#3a2817] disabled:bg-[linear-gradient(180deg,#2f241c_0%,#231b15_100%)] disabled:text-[#8c7b63] disabled:shadow-none sm:h-11 sm:text-sm"
                       >
                         <ChefHat className="mr-2 h-4 w-4" />
                         {cookingLocked && activeRecipe?.id === recipe.id ? 'Cooking...' : 'Cook dish'}

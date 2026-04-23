@@ -101,6 +101,25 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
             : Send,
   })), [socialTasks]);
   const boardLayout = isMobileLayout ? 'mobile' : 'desktop';
+  const boardViewportInsets = useMemo(() => (
+    isMobileLayout
+      ? {
+          mobile: {
+            left: '18.8%',
+            right: '18.5%',
+            top: '14.8%',
+            bottom: '20.4%',
+          },
+        }
+      : {
+          desktop: {
+            left: '12.8%',
+            right: '11.8%',
+            top: '14.6%',
+            bottom: '14.4%',
+          },
+        }
+  ), [isMobileLayout]);
   const questBackgrounds = useMemo<Record<QuestTab, string>>(() => (
     isMobileLayout
       ? {
@@ -223,7 +242,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
         <TabsTrigger value="social" className={`h-10 rounded-[0.95rem] text-[0.74rem] font-black uppercase tracking-[0.05em] text-[#ead4aa] data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab] sm:text-[0.82rem] ${!weeklyMissionsEnabled ? 'col-span-2 sm:col-span-1' : ''}`}>Social</TabsTrigger>
       </TabsList>
       <div className="flex items-center justify-end">
-        <div className="inline-flex h-10 shrink-0 items-center gap-2 rounded-2xl border border-[#8f6a38]/70 bg-[rgba(16,11,8,0.84)] px-4 text-sm font-black text-[#f8dfab] shadow-[0_12px_30px_rgba(0,0,0,0.3)] backdrop-blur-md">
+        <div className="inline-flex h-10 shrink-0 items-center gap-2 rounded-2xl border border-[#8f6a38]/70 bg-[rgba(16,11,8,0.84)] px-3.5 text-sm font-black text-[#f8dfab] shadow-[0_12px_30px_rgba(0,0,0,0.3)] backdrop-blur-md">
           <CoinIcon size="md" />
           {coins.toLocaleString()}
         </div>
@@ -236,8 +255,15 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
     onClaim: (id: TaskId | WeeklyMissionId) => void,
     footer: React.ReactNode,
   ) => (
-    <QuestBoard layout={boardLayout} header={boardHeader} footer={footer} mobileFooterPlacement="inline">
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-5">
+    <QuestBoard
+      layout={boardLayout}
+      header={boardHeader}
+      footer={footer}
+      headerPlacement="inline"
+      footerPlacement="inline"
+      viewportInsets={boardViewportInsets}
+    >
+      <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 md:gap-4">
         {tasks.map((task) => {
         const complete = task.progress >= task.target;
         const progress = Math.min(100, (task.progress / task.target) * 100);
@@ -264,23 +290,23 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
           <QuestBoardCard key={task.id} className={isWalletCheckInTask || isInviteFriendTask ? 'md:col-span-2' : ''}>
             <div className="flex h-full flex-col">
             <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h2 className="pr-2 text-[1.05rem] font-black uppercase tracking-[0.05em] text-[#f3c777] drop-shadow-[0_1px_0_rgba(0,0,0,0.6)] sm:text-[1.2rem]">
+              <div className="min-w-0 flex-1">
+                <h2 className="pr-2 text-[0.96rem] font-black uppercase tracking-[0.04em] text-[#f3c777] drop-shadow-[0_1px_0_rgba(0,0,0,0.6)] sm:text-[1.2rem]">
                   {task.title}
                 </h2>
-                <p className="mt-2 text-sm leading-6 text-[#f8e8bf]/88 sm:text-[0.97rem]">{task.description}</p>
+                <p className="mt-1.5 text-[0.8rem] leading-5 text-[#f8e8bf]/88 sm:mt-2 sm:text-[0.97rem] sm:leading-6">{task.description}</p>
               </div>
-              <div className="inline-flex shrink-0 items-center gap-1.5 rounded-2xl border border-[#c89745] bg-[linear-gradient(180deg,rgba(48,31,14,0.95)_0%,rgba(30,19,10,0.92)_100%)] px-3 py-2 text-sm font-black text-[#ffd56d] shadow-[0_8px_16px_rgba(0,0,0,0.28)]">
+              <div className="inline-flex shrink-0 items-center gap-1.5 rounded-2xl border border-[#c89745] bg-[linear-gradient(180deg,rgba(48,31,14,0.95)_0%,rgba(30,19,10,0.92)_100%)] px-2.5 py-1.5 text-[0.8rem] font-black text-[#ffd56d] shadow-[0_8px_16px_rgba(0,0,0,0.28)] sm:px-3 sm:py-2 sm:text-sm">
                 {renderRewardBadge(task)}
               </div>
             </div>
 
-            <div className="mt-4">
-              <div className="mb-2 flex items-center justify-between text-sm text-[#f8e8bf]/82">
+            <div className="mt-3">
+              <div className="mb-1.5 flex items-center justify-between text-[0.78rem] text-[#f8e8bf]/82 sm:mb-2 sm:text-sm">
                 <span>{task.progress}/{task.target}</span>
                 <span>{statusLabel}</span>
               </div>
-              <div className="h-4 rounded-full border border-[#684623] bg-[#120d09] px-1 py-[3px] shadow-[inset_0_2px_5px_rgba(0,0,0,0.55)]">
+              <div className="h-3.5 rounded-full border border-[#684623] bg-[#120d09] px-1 py-[3px] shadow-[inset_0_2px_5px_rgba(0,0,0,0.55)] sm:h-4">
                 <div
                   className="h-full rounded-full bg-[linear-gradient(180deg,#8cecff_0%,#55dbff_100%)] shadow-[0_0_16px_rgba(96,223,255,0.7)] transition-all duration-300"
                   style={{ width: `${progress}%` }}
@@ -289,14 +315,14 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
             </div>
 
             {isWalletCheckInTask && (
-              <div className="mt-4 rounded-[1.2rem] border border-[#8f6a38] bg-[linear-gradient(180deg,rgba(30,22,15,0.82)_0%,rgba(20,15,10,0.9)_100%)] p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[#f8e8bf]/80">
+              <div className="mt-3 rounded-[1.05rem] border border-[#8f6a38] bg-[linear-gradient(180deg,rgba(30,22,15,0.82)_0%,rgba(20,15,10,0.9)_100%)] p-3 sm:mt-4 sm:rounded-[1.2rem]">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#f8e8bf]/80 sm:text-xs">
                   <span>Streak: {formatStreakDays(walletCheckInSummary?.streakDays ?? 0)}</span>
                   {walletCheckInSummary?.lastCheckInAt && (
                     <span>Last check-in {new Date(walletCheckInSummary.lastCheckInAt).toLocaleString()}</span>
                   )}
                 </div>
-                <p className="mt-2 text-sm text-[#f8e8bf]/82">{walletCheckInStatusText}</p>
+                <p className="mt-2 text-[0.78rem] leading-5 text-[#f8e8bf]/82 sm:text-sm">{walletCheckInStatusText}</p>
                 <ConnectButton.Custom>
                   {({ openConnectModal }) => (
                     <Button
@@ -310,7 +336,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
 
                           void handleWalletCheckIn();
                       }}
-                      className="mt-3 h-11 w-full rounded-[1rem] border border-[#7f5227] bg-[linear-gradient(180deg,#8c531f_0%,#6e4117_42%,#4f2f14_100%)] text-sm font-black uppercase tracking-[0.04em] text-[#f8db9a] shadow-[inset_0_1px_0_rgba(255,220,160,0.22),0_10px_16px_rgba(0,0,0,0.28)] transition-all duration-200 hover:brightness-110 disabled:border-[#3a2817] disabled:bg-[linear-gradient(180deg,#2f241c_0%,#231b15_100%)] disabled:text-[#8c7b63] disabled:shadow-none"
+                      className="mt-3 h-10 w-full rounded-[1rem] border border-[#7f5227] bg-[linear-gradient(180deg,#8c531f_0%,#6e4117_42%,#4f2f14_100%)] text-[0.78rem] font-black uppercase tracking-[0.04em] text-[#f8db9a] shadow-[inset_0_1px_0_rgba(255,220,160,0.22),0_10px_16px_rgba(0,0,0,0.28)] transition-all duration-200 hover:brightness-110 disabled:border-[#3a2817] disabled:bg-[linear-gradient(180deg,#2f241c_0%,#231b15_100%)] disabled:text-[#8c7b63] disabled:shadow-none sm:h-11 sm:text-sm"
                     >
                       {walletCheckInSubmitting ? (
                         <>
@@ -350,7 +376,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
             )}
 
             {isInviteFriendTask && REFERRAL_BAIT_ENABLED && (
-              <div className="mt-4 rounded-[1.2rem] border border-[#8f6a38] bg-[linear-gradient(180deg,rgba(30,22,15,0.82)_0%,rgba(20,15,10,0.9)_100%)] p-3">
+              <div className="mt-3 rounded-[1.05rem] border border-[#8f6a38] bg-[linear-gradient(180deg,rgba(30,22,15,0.82)_0%,rgba(20,15,10,0.9)_100%)] p-3 sm:mt-4 sm:rounded-[1.2rem]">
                 {hasConnectedWallet && referralSummary?.referralLink ? (
                   <>
                     <div className="flex items-center justify-between gap-3 rounded-xl border border-[#8f6a38] bg-[rgba(15,10,7,0.7)] px-3 py-2">
@@ -390,12 +416,12 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                         )}
                       </Button>
                     </div>
-                    <p className="mt-2 text-sm text-[#f8e8bf]/82">
+                    <p className="mt-2 text-[0.78rem] leading-5 text-[#f8e8bf]/82 sm:text-sm">
                       Invite friends from here. Each invited wallet is locked to the first valid referrer link.
                     </p>
                   </>
                 ) : (
-                  <div className="space-y-2 text-sm text-[#f8e8bf]/82">
+                  <div className="space-y-2 text-[0.78rem] leading-5 text-[#f8e8bf]/82 sm:text-sm">
                     <p>Connect and verify your wallet first, then your referral link will appear here.</p>
                     <p>The reward stays in Blockchain quests, not in Settings.</p>
                   </div>
@@ -408,7 +434,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                   type="button"
                   disabled={!complete || task.claimed}
                   onClick={() => onClaim(task.id)}
-                  className="h-[3.25rem] w-full rounded-[1.2rem] border border-[#7f5227] bg-[linear-gradient(180deg,#8c531f_0%,#6e4117_42%,#4f2f14_100%)] text-[1.02rem] font-black uppercase tracking-[0.04em] text-[#f8db9a] shadow-[inset_0_1px_0_rgba(255,220,160,0.22),0_10px_16px_rgba(0,0,0,0.28)] transition-all duration-200 hover:brightness-110 disabled:border-[#3a2817] disabled:bg-[linear-gradient(180deg,#2f241c_0%,#231b15_100%)] disabled:text-[#8c7b63] disabled:shadow-none"
+                  className="h-11 w-full rounded-[1rem] border border-[#7f5227] bg-[linear-gradient(180deg,#8c531f_0%,#6e4117_42%,#4f2f14_100%)] text-[0.86rem] font-black uppercase tracking-[0.04em] text-[#f8db9a] shadow-[inset_0_1px_0_rgba(255,220,160,0.22),0_10px_16px_rgba(0,0,0,0.28)] transition-all duration-200 hover:brightness-110 disabled:border-[#3a2817] disabled:bg-[linear-gradient(180deg,#2f241c_0%,#231b15_100%)] disabled:text-[#8c7b63] disabled:shadow-none sm:h-[3.25rem] sm:rounded-[1.2rem] sm:text-[1.02rem]"
                 >
                   {task.claimed ? (
                     <>
@@ -432,16 +458,20 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   );
 
   const renderSocialTaskBoard = (footer: React.ReactNode) => (
-    <QuestBoard layout={boardLayout} header={boardHeader} footer={footer} mobileFooterPlacement="inline">
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-5">
+    <QuestBoard
+      layout={boardLayout}
+      header={boardHeader}
+      footer={footer}
+      headerPlacement="inline"
+      footerPlacement="inline"
+      viewportInsets={boardViewportInsets}
+    >
+      <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 md:gap-4">
       {socialTaskCards.map((task) => {
         const Icon = task.icon;
 
         return (
-          <QuestBoardCard
-            key={task.id}
-            className="min-h-[12.75rem] text-left"
-          >
+          <QuestBoardCard key={task.id} className="min-h-[11rem] text-left md:min-h-[12.75rem]">
             <div className="flex h-full flex-col">
             <div className="flex items-start justify-between gap-3">
               <div className="inline-flex h-12 w-12 items-center justify-center rounded-[1rem] border border-[#8f6a38] bg-[rgba(15,10,7,0.72)] text-[#f3c777] shadow-[0_8px_16px_rgba(0,0,0,0.28)]">
@@ -451,17 +481,17 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                 Coming soon
               </span>
             </div>
-            <h2 className="mt-4 pr-2 text-[1.05rem] font-black uppercase tracking-[0.05em] text-[#f3c777] drop-shadow-[0_1px_0_rgba(0,0,0,0.6)] sm:text-[1.2rem]">
+            <h2 className="mt-3 pr-2 text-[0.96rem] font-black uppercase tracking-[0.04em] text-[#f3c777] drop-shadow-[0_1px_0_rgba(0,0,0,0.6)] sm:mt-4 sm:text-[1.2rem]">
               {task.title}
             </h2>
-            <p className="mt-2 text-sm leading-6 text-[#f8e8bf]/88 sm:text-[0.97rem]">
+            <p className="mt-1.5 text-[0.8rem] leading-5 text-[#f8e8bf]/88 sm:mt-2 sm:text-[0.97rem] sm:leading-6">
               This social action is planned but not live yet. Tap to see upcoming tasks only.
             </p>
               <div className="mt-auto pt-4">
                 <Button
                   type="button"
                   onClick={() => toast.info(`${task.title} coming soon`)}
-                  className="h-[3.25rem] w-full rounded-[1.2rem] border border-[#7f5227] bg-[linear-gradient(180deg,#8c531f_0%,#6e4117_42%,#4f2f14_100%)] text-[1.02rem] font-black uppercase tracking-[0.04em] text-[#f8db9a] shadow-[inset_0_1px_0_rgba(255,220,160,0.22),0_10px_16px_rgba(0,0,0,0.28)] transition-all duration-200 hover:brightness-110"
+                  className="h-11 w-full rounded-[1rem] border border-[#7f5227] bg-[linear-gradient(180deg,#8c531f_0%,#6e4117_42%,#4f2f14_100%)] text-[0.86rem] font-black uppercase tracking-[0.04em] text-[#f8db9a] shadow-[inset_0_1px_0_rgba(255,220,160,0.22),0_10px_16px_rgba(0,0,0,0.28)] transition-all duration-200 hover:brightness-110 sm:h-[3.25rem] sm:rounded-[1.2rem] sm:text-[1.02rem]"
                 >
                   Explore task
                 </Button>
