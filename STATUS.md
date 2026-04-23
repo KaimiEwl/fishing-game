@@ -1,5 +1,14 @@
 # STATUS
 
+## Daily quests redesigned around the painted quest board reference
+- `Tasks -> Daily` now uses the provided painted quest-board artwork as the actual board frame instead of the old generic card grid.
+- The daily list is rendered inside a fixed 2x2 board viewport on desktop:
+  - 4 quest cards are visible at once
+  - extra daily quests scroll vertically inside the board area
+  - claim buttons, hover lift, progress bars, and reward chips remain interactive
+- The old right-side cube promo panel was folded into the board itself through a bottom cube plaque, so the daily screen now reads as one stronger retention surface instead of a split grid + aside layout.
+- Special / Weekly / Social tabs keep the simpler existing task layout; the heavy visual treatment is focused on Daily where the user wanted the biggest engagement lift.
+
 ## Wallet, referral, and inbox removed from Settings
 - `Settings` is now trimmed back to actual settings/admin/profile functions: avatar upload, sound toggle, guide link, and admin entry stay there, but wallet actions, referral tools, MON withdraw UI, and inbox are no longer mixed into that dialog.
 - Wallet management and MON reward/withdraw status now live only in the separate HUD wallet button, which keeps connection, verification, nickname binding, and MON payout history in one dedicated place.

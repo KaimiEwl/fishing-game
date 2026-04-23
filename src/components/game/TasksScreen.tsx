@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { Box, Check, Clock3, Coins, Copy, ExternalLink, Heart, Lock, MessageCircle, Repeat2, Send, Trophy, Worm } from 'lucide-react';
+import { Box, Check, Clock3, Coins, Copy, ExternalLink, Heart, MessageCircle, Repeat2, Send, Worm } from 'lucide-react';
 import { useSendTransaction } from 'wagmi';
 import { parseEther } from 'viem';
 import { toast } from 'sonner';
@@ -20,6 +20,7 @@ import type {
 } from '@/types/game';
 import { getErrorMessage, isUserRejectedError } from '@/lib/errorUtils';
 import CoinIcon from './CoinIcon';
+import DailyQuestBoard from './DailyQuestBoard';
 import GameScreenShell from './GameScreenShell';
 import { publicAsset } from '@/lib/assets';
 import { REFERRAL_BAIT_ENABLED } from '@/lib/baitEconomy';
@@ -401,76 +402,48 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
       backgroundImage={publicAsset('assets/bg_tasks.jpg')}
       contentScrollable
     >
-      <div className="grid gap-3 pb-3 lg:grid-cols-[1fr_0.72fr] lg:items-start">
-        <Tabs defaultValue="daily" className="min-w-0">
-          <TabsList className={`grid w-full ${weeklyMissionsEnabled ? 'grid-cols-4' : 'grid-cols-3'} rounded-lg border border-cyan-300/15 bg-black/85 shadow-lg shadow-black/30`}>
-            <TabsTrigger value="daily" className="rounded-lg text-zinc-200 data-[state=active]:border data-[state=active]:border-cyan-300/25 data-[state=active]:bg-zinc-950 data-[state=active]:text-cyan-50">Daily</TabsTrigger>
-            <TabsTrigger value="special" className="rounded-lg text-zinc-200 data-[state=active]:border data-[state=active]:border-cyan-300/25 data-[state=active]:bg-zinc-950 data-[state=active]:text-cyan-50">Special</TabsTrigger>
-            {weeklyMissionsEnabled && (
-              <TabsTrigger value="weekly" className="rounded-lg text-zinc-200 data-[state=active]:border data-[state=active]:border-cyan-300/25 data-[state=active]:bg-zinc-950 data-[state=active]:text-cyan-50">Weekly</TabsTrigger>
-            )}
-            <TabsTrigger value="social" className="rounded-lg text-zinc-200 data-[state=active]:border data-[state=active]:border-cyan-300/25 data-[state=active]:bg-zinc-950 data-[state=active]:text-cyan-50">Social</TabsTrigger>
-          </TabsList>
-          <TabsContent value="daily" className="mt-3">
-            {renderTaskList(dailyTasks, onClaimTask)}
-          </TabsContent>
-          <TabsContent value="special" className="mt-3">
-            <div className="mb-3 rounded-xl border border-cyan-300/15 bg-black/60 p-4 text-sm text-white/70 shadow-lg shadow-black/20 backdrop-blur-md">
-              Wallet check-in and friend invites live here now. Settings no longer carries wallet or referral actions.
-            </div>
-            {renderTaskList(specialTasks, onClaimTask)}
-          </TabsContent>
+      <Tabs defaultValue="daily" className="min-w-0 pb-3">
+        <TabsList className={`grid w-full ${weeklyMissionsEnabled ? 'grid-cols-4' : 'grid-cols-3'} rounded-lg border border-cyan-300/15 bg-black/85 shadow-lg shadow-black/30`}>
+          <TabsTrigger value="daily" className="rounded-lg text-zinc-200 data-[state=active]:border data-[state=active]:border-cyan-300/25 data-[state=active]:bg-zinc-950 data-[state=active]:text-cyan-50">Daily</TabsTrigger>
+          <TabsTrigger value="special" className="rounded-lg text-zinc-200 data-[state=active]:border data-[state=active]:border-cyan-300/25 data-[state=active]:bg-zinc-950 data-[state=active]:text-cyan-50">Special</TabsTrigger>
           {weeklyMissionsEnabled && (
-            <TabsContent value="weekly" className="mt-3">
-              <div className="mb-3 rounded-xl border border-cyan-300/15 bg-black/60 p-4 text-sm text-white/70 shadow-lg shadow-black/20 backdrop-blur-md">
-                Weekly missions are the longer ladder. Keep coming back through the week for bigger rewards, including bonus cube charges.
-              </div>
-              {renderTaskList(weeklyMissions, onClaimWeeklyMission)}
-            </TabsContent>
+            <TabsTrigger value="weekly" className="rounded-lg text-zinc-200 data-[state=active]:border data-[state=active]:border-cyan-300/25 data-[state=active]:bg-zinc-950 data-[state=active]:text-cyan-50">Weekly</TabsTrigger>
           )}
-          <TabsContent value="social" className="mt-3">
-            <div className="mb-3 rounded-xl border border-cyan-300/15 bg-black/60 p-4 text-sm text-white/70 shadow-lg shadow-black/20 backdrop-blur-md">
-              {isWalletVerified
-                ? (socialTasksLoading ? 'Preparing future social tasks...' : 'Social tasks are not live yet. For now, only the platform icons remain here and each one will show Coming soon.')
-                : 'Connect your wallet first. Social tasks, future MON rewards, and verified progress sync only work on wallet-linked accounts.'}
-            </div>
-            {renderSocialTaskList()}
-          </TabsContent>
-        </Tabs>
-
-        <aside className="rounded-xl border border-cyan-300/15 bg-black/60 p-5 shadow-xl backdrop-blur-md">
-          <div className="flex flex-col gap-5">
-            <div>
-              <div className="inline-flex h-14 w-14 items-center justify-center rounded-xl border border-cyan-300/20 bg-zinc-950 text-cyan-100 shadow-lg shadow-black/30">
-                <Trophy className="h-7 w-7" />
-              </div>
-              <h2 className="mt-5 text-2xl font-black text-white drop-shadow-md">Daily prize cube</h2>
-              <p className="mt-2 text-base text-white/70 leading-relaxed">
-                {claimedCount}/{dailyTasks.length} claimed rewards. {availableWheelRolls > 0 ? `${availableWheelRolls} cube rolls ready.` : dailyTaskClaimsMet ? 'Today\'s cube rolls are finished. Come back tomorrow.' : `Claim any 3 daily tasks to unlock cube rolls. ${completedCount}/${dailyTasks.length} are ready so far.`}
-              </p>
-            </div>
-
-            <Button
-              type="button"
-              disabled={availableWheelRolls <= 0}
-              onClick={onOpenWheel}
-              className="h-14 rounded-xl border border-cyan-300/25 bg-zinc-950 text-lg font-bold text-cyan-100 shadow-lg shadow-black/30 transition-all hover:bg-black hover:shadow-xl disabled:border-zinc-800 disabled:bg-zinc-950 disabled:text-zinc-600 disabled:shadow-none"
-            >
-              {availableWheelRolls > 0 ? (
-                <>
-                  <Box className="mr-2 h-5 w-5" />
-                  Open cube
-                </>
-              ) : (
-                <>
-                  <Lock className="mr-2 h-5 w-5" />
-                  Locked
-                </>
-              )}
-            </Button>
+          <TabsTrigger value="social" className="rounded-lg text-zinc-200 data-[state=active]:border data-[state=active]:border-cyan-300/25 data-[state=active]:bg-zinc-950 data-[state=active]:text-cyan-50">Social</TabsTrigger>
+        </TabsList>
+        <TabsContent value="daily" className="mt-3">
+          <DailyQuestBoard
+            tasks={dailyTasks}
+            claimedCount={claimedCount}
+            dailyTaskClaimsMet={dailyTaskClaimsMet}
+            availableWheelRolls={availableWheelRolls}
+            onClaimTask={onClaimTask}
+            onOpenWheel={onOpenWheel}
+          />
+        </TabsContent>
+        <TabsContent value="special" className="mt-3">
+          <div className="mb-3 rounded-xl border border-cyan-300/15 bg-black/60 p-4 text-sm text-white/70 shadow-lg shadow-black/20 backdrop-blur-md">
+            Wallet check-in and friend invites live here now. Settings no longer carries wallet or referral actions.
           </div>
-        </aside>
-      </div>
+          {renderTaskList(specialTasks, onClaimTask)}
+        </TabsContent>
+        {weeklyMissionsEnabled && (
+          <TabsContent value="weekly" className="mt-3">
+            <div className="mb-3 rounded-xl border border-cyan-300/15 bg-black/60 p-4 text-sm text-white/70 shadow-lg shadow-black/20 backdrop-blur-md">
+              Weekly missions are the longer ladder. Keep coming back through the week for bigger rewards, including bonus cube charges.
+            </div>
+            {renderTaskList(weeklyMissions, onClaimWeeklyMission)}
+          </TabsContent>
+        )}
+        <TabsContent value="social" className="mt-3">
+          <div className="mb-3 rounded-xl border border-cyan-300/15 bg-black/60 p-4 text-sm text-white/70 shadow-lg shadow-black/20 backdrop-blur-md">
+            {isWalletVerified
+              ? (socialTasksLoading ? 'Preparing future social tasks...' : 'Social tasks are not live yet. For now, only the platform icons remain here and each one will show Coming soon.')
+              : 'Connect your wallet first. Social tasks, future MON rewards, and verified progress sync only work on wallet-linked accounts.'}
+          </div>
+          {renderSocialTaskList()}
+        </TabsContent>
+      </Tabs>
     </GameScreenShell>
   );
 };
