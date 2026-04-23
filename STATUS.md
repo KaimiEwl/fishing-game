@@ -1,5 +1,10 @@
 # STATUS
 
+## Grill cook path fixed after client/server recipe drift
+- Found a real live regression in the grill flow: the frontend recipe table had already moved `Deepwater Platter` to the safer `catfish x2 + bream x1` recipe, but `supabase/functions/_shared/grillConfig.ts` still used the old `pike + catfish` ingredients.
+- Because `player-actions -> cook_recipe` trusts the server-side grill config, the live cook flow could reject a valid client-side recipe and surface the generic cook failure path.
+- The backend grill config is now aligned with the frontend recipe table again, so `cook_recipe` uses the same `Deepwater Platter` ingredient set as the UI.
+
 ## Share preview and in-game toast layer cleaned up
 - The site share preview metadata no longer points at the old external Lovable image. `index.html` now uses the new local `social_preview_hookloot.jpg` art built from the latest image in `Downloads`, with absolute `https://www.hookloot.xyz/...` Open Graph and Twitter image URLs.
 - The old placeholder share copy was removed:

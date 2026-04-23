@@ -27,7 +27,7 @@ export const GRILL_RECIPES: ReadonlyArray<GrillRecipeDefinition> = [
   {
     id: 'deepwater_platter',
     name: 'Deepwater Platter',
-    ingredients: { pike: 1, catfish: 1 },
+    ingredients: { catfish: 2, bream: 1 },
     score: 420,
   },
   {
