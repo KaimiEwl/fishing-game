@@ -51,18 +51,18 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
   const boardViewportInsets = isMobileLayout
     ? {
         mobile: {
-          left: '17.6%',
-          right: '17.6%',
-          top: '15.2%',
-          bottom: '24.2%',
+          left: '16.4%',
+          right: '16.4%',
+          top: '16.0%',
+          bottom: '28.5%',
         },
       }
     : {
         desktop: {
           left: '13.4%',
           right: '13.2%',
-          top: '15.8%',
-          bottom: '9.2%',
+          top: '18.0%',
+          bottom: '12.8%',
         },
       };
 
@@ -160,7 +160,7 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
 
         <QuestBoard
           layout={isMobileLayout ? 'mobile' : 'desktop'}
-          headerPlacement="inline"
+          headerPlacement={isMobileLayout ? 'inline' : 'fixed'}
           footerPlacement="inline"
           viewportInsets={boardViewportInsets}
           header={(

@@ -105,18 +105,18 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
     isMobileLayout
       ? {
           mobile: {
-            left: '17.2%',
-            right: '17.2%',
-            top: '14.8%',
-            bottom: '21.8%',
+            left: '16.2%',
+            right: '16.2%',
+            top: '16.2%',
+            bottom: '27.4%',
           },
         }
       : {
           desktop: {
             left: '11.6%',
             right: '10.8%',
-            top: '14.6%',
-            bottom: '14.4%',
+            top: '18.2%',
+            bottom: '18.8%',
           },
         }
   ), [isMobileLayout]);
@@ -259,11 +259,11 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
       layout={boardLayout}
       header={boardHeader}
       footer={footer}
-      headerPlacement="inline"
-      footerPlacement="inline"
+      headerPlacement={isMobileLayout ? 'inline' : 'fixed'}
+      footerPlacement={isMobileLayout ? 'inline' : 'fixed'}
       viewportInsets={boardViewportInsets}
     >
-      <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 md:gap-4">
+      <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 md:gap-3">
         {tasks.map((task) => {
         const complete = task.progress >= task.target;
         const progress = Math.min(100, (task.progress / task.target) * 100);
@@ -462,11 +462,11 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
       layout={boardLayout}
       header={boardHeader}
       footer={footer}
-      headerPlacement="inline"
-      footerPlacement="inline"
+      headerPlacement={isMobileLayout ? 'inline' : 'fixed'}
+      footerPlacement={isMobileLayout ? 'inline' : 'fixed'}
       viewportInsets={boardViewportInsets}
     >
-      <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 md:gap-4">
+      <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 md:gap-3">
       {socialTaskCards.map((task) => {
         const Icon = task.icon;
 
