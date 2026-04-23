@@ -10,10 +10,13 @@ interface GameScreenShellProps {
   overlayClassName?: string;
   contentScrollable?: boolean;
   headerHidden?: boolean;
+  shellPaddingClassName?: string;
+  contentWrapperClassName?: string;
   children: React.ReactNode;
 }
 
 const DEFAULT_OVERLAY = 'bg-[radial-gradient(circle_at_50%_0%,rgba(124,92,255,0.26),transparent_34%),linear-gradient(180deg,rgba(16,16,44,0.45)_0%,rgba(8,9,20,0.50)_48%,rgba(5,7,13,0.65)_100%)]';
+const DEFAULT_SHELL_PADDING = 'px-3 pb-[calc(var(--bottom-nav-clearance,6rem)+1rem)] pt-3 sm:px-6 sm:pt-5';
 
 const GameScreenShell: React.FC<GameScreenShellProps> = ({
   title,
@@ -24,8 +27,12 @@ const GameScreenShell: React.FC<GameScreenShellProps> = ({
   overlayClassName = DEFAULT_OVERLAY,
   contentScrollable = false,
   headerHidden = false,
+  shellPaddingClassName = DEFAULT_SHELL_PADDING,
+  contentWrapperClassName,
   children,
 }) => {
+  const resolvedContentWrapperClassName = contentWrapperClassName ?? `mx-auto ${headerHidden ? 'mt-0 max-w-none' : 'mt-4 max-w-5xl sm:mt-6'} min-h-0 w-full flex-1 ${contentScrollable ? 'overflow-y-auto overscroll-contain pr-1' : 'overflow-hidden'}`;
+
   return (
     <section className="absolute inset-0 overflow-hidden bg-[#080914] text-white">
       {backgroundImage && (
@@ -39,7 +46,7 @@ const GameScreenShell: React.FC<GameScreenShellProps> = ({
         />
       )}
       <div className={`pointer-events-none absolute inset-0 ${overlayClassName}`} />
-      <div className="relative z-10 flex h-full flex-col px-3 pb-[calc(var(--bottom-nav-clearance,6rem)+1rem)] pt-3 sm:px-6 sm:pt-5">
+      <div className={`relative z-10 flex h-full flex-col ${shellPaddingClassName}`}>
         {!headerHidden && (
           <header className="mx-auto flex w-full max-w-5xl items-start justify-between gap-3 rounded-xl border border-cyan-300/15 bg-black/65 px-3 py-2.5 shadow-xl shadow-black/30 backdrop-blur-md sm:px-4 sm:py-3">
             <div className="min-w-0">
@@ -55,7 +62,7 @@ const GameScreenShell: React.FC<GameScreenShellProps> = ({
           </header>
         )}
 
-        <div className={`mx-auto ${headerHidden ? 'mt-0 max-w-none' : 'mt-4 max-w-5xl sm:mt-6'} min-h-0 w-full flex-1 ${contentScrollable ? 'overflow-y-auto overscroll-contain pr-1' : 'overflow-hidden'}`}>
+        <div className={resolvedContentWrapperClassName}>
           {children}
         </div>
       </div>

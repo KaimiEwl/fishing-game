@@ -212,13 +212,32 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
     return 'Not started';
   };
 
+  const boardHeader = (
+    <div className="space-y-2.5">
+      <TabsList className={`grid h-auto w-full gap-1.5 rounded-[1.35rem] border border-[#8f6a38]/70 bg-[rgba(16,11,8,0.84)] p-1.5 shadow-[0_18px_40px_rgba(0,0,0,0.35)] backdrop-blur-md ${isMobileLayout ? 'grid-cols-2' : weeklyMissionsEnabled ? 'grid-cols-4' : 'grid-cols-3'}`}>
+        <TabsTrigger value="daily" className="h-10 rounded-[0.95rem] text-[0.74rem] font-black uppercase tracking-[0.05em] text-[#ead4aa] data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab] sm:text-[0.82rem]">Daily</TabsTrigger>
+        <TabsTrigger value="blockchain" className="h-10 rounded-[0.95rem] text-[0.74rem] font-black uppercase tracking-[0.05em] text-[#ead4aa] data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab] sm:text-[0.82rem]">Blockchain</TabsTrigger>
+        {weeklyMissionsEnabled && (
+          <TabsTrigger value="weekly" className="h-10 rounded-[0.95rem] text-[0.74rem] font-black uppercase tracking-[0.05em] text-[#ead4aa] data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab] sm:text-[0.82rem]">Weekly</TabsTrigger>
+        )}
+        <TabsTrigger value="social" className={`h-10 rounded-[0.95rem] text-[0.74rem] font-black uppercase tracking-[0.05em] text-[#ead4aa] data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab] sm:text-[0.82rem] ${!weeklyMissionsEnabled ? 'col-span-2 sm:col-span-1' : ''}`}>Social</TabsTrigger>
+      </TabsList>
+      <div className="flex items-center justify-end">
+        <div className="inline-flex h-10 shrink-0 items-center gap-2 rounded-2xl border border-[#8f6a38]/70 bg-[rgba(16,11,8,0.84)] px-4 text-sm font-black text-[#f8dfab] shadow-[0_12px_30px_rgba(0,0,0,0.3)] backdrop-blur-md">
+          <CoinIcon size="md" />
+          {coins.toLocaleString()}
+        </div>
+      </div>
+    </div>
+  );
+
   const renderTaskBoard = (
     tasks: Array<DailyTaskProgress | SpecialTaskProgress | WeeklyMissionProgress>,
     onClaim: (id: TaskId | WeeklyMissionId) => void,
     footer: React.ReactNode,
   ) => (
-    <QuestBoard layout={boardLayout} footer={footer}>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
+    <QuestBoard layout={boardLayout} header={boardHeader} footer={footer} mobileFooterPlacement="inline">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-5">
         {tasks.map((task) => {
         const complete = task.progress >= task.target;
         const progress = Math.min(100, (task.progress / task.target) * 100);
@@ -413,8 +432,8 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   );
 
   const renderSocialTaskBoard = (footer: React.ReactNode) => (
-    <QuestBoard layout={boardLayout} footer={footer}>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
+    <QuestBoard layout={boardLayout} header={boardHeader} footer={footer} mobileFooterPlacement="inline">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-5">
       {socialTaskCards.map((task) => {
         const Icon = task.icon;
 
@@ -463,28 +482,15 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
       backgroundFit="cover"
       overlayClassName="bg-[linear-gradient(180deg,rgba(8,6,3,0.18)_0%,rgba(10,8,5,0.2)_48%,rgba(6,5,3,0.26)_100%)]"
       headerHidden
+      shellPaddingClassName="px-0 pb-[calc(var(--bottom-nav-clearance,6rem)+0.4rem)] pt-0"
+      contentWrapperClassName="mx-auto mt-0 min-h-0 w-full flex-1 overflow-hidden"
     >
       <Tabs
         value={activeTab}
         onValueChange={(value) => setActiveTab(value as QuestTab)}
-        className="flex h-full min-h-0 flex-col pb-3"
+        className="flex h-full min-h-0 flex-col"
       >
-        <div className="mx-auto mb-3 flex w-full max-w-5xl flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-          <TabsList className={`grid w-full flex-1 ${weeklyMissionsEnabled ? 'grid-cols-4' : 'grid-cols-3'} rounded-2xl border border-[#8f6a38]/70 bg-[rgba(16,11,8,0.82)] p-1 shadow-[0_18px_40px_rgba(0,0,0,0.35)] backdrop-blur-md`}>
-            <TabsTrigger value="daily" className="rounded-xl text-[#ead4aa] data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab]">Daily</TabsTrigger>
-            <TabsTrigger value="blockchain" className="rounded-xl text-[#ead4aa] data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab]">Blockchain</TabsTrigger>
-            {weeklyMissionsEnabled && (
-              <TabsTrigger value="weekly" className="rounded-xl text-[#ead4aa] data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab]">Weekly</TabsTrigger>
-            )}
-            <TabsTrigger value="social" className="rounded-xl text-[#ead4aa] data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab]">Social</TabsTrigger>
-          </TabsList>
-          <div className="inline-flex h-12 shrink-0 self-end items-center gap-2 rounded-2xl border border-[#8f6a38]/70 bg-[rgba(16,11,8,0.82)] px-4 text-sm font-black text-[#f8dfab] shadow-[0_18px_40px_rgba(0,0,0,0.35)] backdrop-blur-md sm:self-auto">
-            <CoinIcon size="md" />
-            {coins.toLocaleString()}
-          </div>
-        </div>
-
-        <TabsContent value="daily" className="mt-0 min-h-0 flex-1">
+        <TabsContent value="daily" className="mt-0 min-h-0 flex-1 overflow-hidden">
           {renderTaskBoard(
             dailyTasks,
             onClaimTask,
@@ -518,7 +524,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
             />,
           )}
         </TabsContent>
-        <TabsContent value="blockchain" className="mt-0 min-h-0 flex-1">
+        <TabsContent value="blockchain" className="mt-0 min-h-0 flex-1 overflow-hidden">
           {renderTaskBoard(
             specialTasks,
             onClaimTask,
@@ -533,7 +539,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
           )}
         </TabsContent>
         {weeklyMissionsEnabled && (
-          <TabsContent value="weekly" className="mt-0 min-h-0 flex-1">
+          <TabsContent value="weekly" className="mt-0 min-h-0 flex-1 overflow-hidden">
             {renderTaskBoard(
               weeklyMissions,
               onClaimWeeklyMission,
@@ -544,7 +550,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
             )}
           </TabsContent>
         )}
-        <TabsContent value="social" className="mt-0 min-h-0 flex-1">
+        <TabsContent value="social" className="mt-0 min-h-0 flex-1 overflow-hidden">
           {renderSocialTaskBoard(
             <QuestBoardPlaque
               eyebrow="Community loop"

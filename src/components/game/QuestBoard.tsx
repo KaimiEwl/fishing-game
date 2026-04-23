@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 interface QuestBoardProps {
   layout?: 'desktop' | 'mobile';
   children: React.ReactNode;
+  header?: React.ReactNode;
   footer?: React.ReactNode;
+  mobileFooterPlacement?: 'inline' | 'fixed';
 }
 
 interface QuestBoardCardProps {
@@ -17,27 +19,129 @@ interface QuestBoardPlaqueProps {
   action?: React.ReactNode;
 }
 
-const QuestBoard: React.FC<QuestBoardProps> = ({ layout = 'desktop', children, footer }) => {
+const BOARD_ASPECTS = {
+  desktop: 1536 / 1024,
+  mobile: 853 / 1844,
+} as const;
+
+const BOARD_VIEWPORT = {
+  desktop: {
+    left: '12.75%',
+    right: '12.75%',
+    top: '16.1%',
+    bottom: '8.8%',
+  },
+  mobile: {
+    left: '17.8%',
+    right: '17.8%',
+    top: '15.1%',
+    bottom: '11.6%',
+  },
+} as const;
+
+const QuestBoard: React.FC<QuestBoardProps> = ({
+  layout = 'desktop',
+  children,
+  header,
+  footer,
+  mobileFooterPlacement = 'inline',
+}) => {
   const isMobile = layout === 'mobile';
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
+
+    const updateSize = () => {
+      const rect = node.getBoundingClientRect();
+      setContainerSize({
+        width: rect.width,
+        height: rect.height,
+      });
+    };
+
+    updateSize();
+
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(node);
+    window.addEventListener('resize', updateSize);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateSize);
+    };
+  }, []);
+
+  const coverStage = useMemo(() => {
+    if (!containerSize.width || !containerSize.height) return null;
+
+    const sourceAspect = BOARD_ASPECTS[layout];
+    const containerAspect = containerSize.width / containerSize.height;
+
+    if (containerAspect > sourceAspect) {
+      return {
+        width: containerSize.width,
+        height: containerSize.width / sourceAspect,
+      };
+    }
+
+    return {
+      width: containerSize.height * sourceAspect,
+      height: containerSize.height,
+    };
+  }, [containerSize, layout]);
+
+  const viewport = BOARD_VIEWPORT[layout];
+  const footerInlineOnMobile = isMobile && mobileFooterPlacement === 'inline';
 
   return (
-    <div className="mx-auto h-full w-full max-w-6xl pb-4">
-      <div
-        className="relative mx-auto h-full max-h-full w-auto max-w-full"
-        style={{ aspectRatio: isMobile ? '384 / 704' : '3 / 2' }}
-      >
-        <div className={isMobile ? 'absolute left-[18.1%] right-[18.1%] top-[15.7%] bottom-[13.6%]' : 'absolute left-[12.75%] right-[12.75%] top-[16.9%] bottom-[15.2%]'}>
-          <div className="h-full overflow-y-auto overflow-x-visible px-2 pb-4 pt-3 sm:px-3">
-            {children}
+    <div ref={containerRef} className="relative h-full w-full">
+      {coverStage && (
+        <div className="absolute inset-0 overflow-hidden">
+          <div
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+            style={{
+              width: coverStage.width,
+              height: coverStage.height,
+            }}
+          >
+            <div
+              className="absolute"
+              style={{
+                left: viewport.left,
+                right: viewport.right,
+                top: viewport.top,
+                bottom: viewport.bottom,
+              }}
+            >
+              <div className="pointer-events-auto flex h-full min-h-0 flex-col">
+                {header ? (
+                  <div className={isMobile ? 'shrink-0 pb-3' : 'shrink-0 pb-4'}>
+                    {header}
+                  </div>
+                ) : null}
+
+                <div className={`min-h-0 flex-1 overflow-y-auto overflow-x-visible ${isMobile ? 'pr-1' : 'pr-2'}`}>
+                  {footerInlineOnMobile && footer ? (
+                    <div className="pb-3">
+                      {footer}
+                    </div>
+                  ) : null}
+                  {children}
+                </div>
+
+                {!footerInlineOnMobile && footer ? (
+                  <div className="shrink-0 pt-3">
+                    {footer}
+                  </div>
+                ) : null}
+              </div>
+            </div>
           </div>
         </div>
-
-        {footer ? (
-          <div className={isMobile ? 'absolute bottom-[4.4%] left-1/2 w-[72%] -translate-x-1/2' : 'absolute bottom-[3.7%] left-1/2 w-[min(72%,35rem)] -translate-x-1/2'}>
-            {footer}
-          </div>
-        ) : null}
-      </div>
+      )}
     </div>
   );
 };
@@ -45,7 +149,7 @@ const QuestBoard: React.FC<QuestBoardProps> = ({ layout = 'desktop', children, f
 export const QuestBoardCard: React.FC<QuestBoardCardProps> = ({ children, className = '' }) => {
   return (
     <article
-      className={`relative flex min-h-[13.75rem] flex-col rounded-[1.7rem] border border-[#725130] bg-[linear-gradient(180deg,rgba(38,25,16,0.95)_0%,rgba(31,21,14,0.92)_100%)] p-4 text-[#f0d09b] shadow-[inset_0_0_0_1px_rgba(255,215,150,0.06),0_12px_24px_rgba(0,0,0,0.34)] transition-all duration-200 hover:border-[#9d7141] hover:shadow-[inset_0_0_0_1px_rgba(255,215,150,0.1),0_16px_26px_rgba(0,0,0,0.38)] ${className}`}
+      className={`relative flex min-h-[10.75rem] flex-col rounded-[1.35rem] border border-[#725130] bg-[linear-gradient(180deg,rgba(38,25,16,0.95)_0%,rgba(31,21,14,0.92)_100%)] p-3.5 text-[#f0d09b] shadow-[inset_0_0_0_1px_rgba(255,215,150,0.06),0_12px_24px_rgba(0,0,0,0.34)] transition-colors duration-200 hover:border-[#9d7141] md:min-h-[13.75rem] md:rounded-[1.7rem] md:p-4 ${className}`}
     >
       {children}
     </article>
@@ -54,7 +158,7 @@ export const QuestBoardCard: React.FC<QuestBoardCardProps> = ({ children, classN
 
 export const QuestBoardPlaque: React.FC<QuestBoardPlaqueProps> = ({ eyebrow, description, action }) => {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-[1.25rem] border border-[#6f4928] bg-[linear-gradient(180deg,rgba(38,25,16,0.98)_0%,rgba(28,20,13,0.98)_100%)] px-4 py-3 text-[#f0d09b] shadow-[inset_0_0_0_1px_rgba(255,215,150,0.06),0_12px_24px_rgba(0,0,0,0.34)]">
+    <div className="flex flex-col gap-3 rounded-[1.25rem] border border-[#6f4928] bg-[linear-gradient(180deg,rgba(38,25,16,0.98)_0%,rgba(28,20,13,0.98)_100%)] px-4 py-3 text-[#f0d09b] shadow-[inset_0_0_0_1px_rgba(255,215,150,0.06),0_12px_24px_rgba(0,0,0,0.34)] sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         {eyebrow ? (
           <div className="text-[0.66rem] font-black uppercase tracking-[0.22em] text-[#f3c777]/85">

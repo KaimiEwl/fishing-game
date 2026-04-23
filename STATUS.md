@@ -13,6 +13,17 @@
   - card containers are flex-column based
   - action buttons pin to the bottom
   - hover emphasis no longer clips the top row
+- The board viewport now has separate desktop/mobile safe-area behavior:
+  - tabs and the coin chip live inside the board viewport instead of floating above it as a separate layer
+  - mobile moves the info plaque into the scroll flow, so it no longer fights the bottom nav or overlaps the task list
+  - viewport sizing now follows the same cover-math as the fullscreen backdrop, so the card area fills the central grey zone more cleanly
+
+## Grill board now uses the new painted grill artwork
+- `Grill` now follows the same fullscreen painted-board direction instead of the old generic `bg_grill.jpg` background:
+  - desktop uses the new wide grill board from `Downloads`
+  - mobile uses the new tall grill board from `Downloads`
+  - both are served as optimized `webp` assets
+- The grill UI now renders inside the same centered safe-area viewport logic as the quest boards, so the score panel and recipe list stay aligned within the grey center instead of floating over the full-screen art.
 
 ## Wallet, referral, and inbox removed from Settings
 - `Settings` is now trimmed back to actual settings/admin/profile functions: avatar upload, sound toggle, guide link, and admin entry stay there, but wallet actions, referral tools, MON withdraw UI, and inbox are no longer mixed into that dialog.
