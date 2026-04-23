@@ -51,18 +51,18 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
   const boardViewportInsets = isMobileLayout
     ? {
         mobile: {
-          left: '19.0%',
-          right: '19.2%',
+          left: '17.6%',
+          right: '17.6%',
           top: '15.2%',
-          bottom: '22.9%',
+          bottom: '24.2%',
         },
       }
     : {
         desktop: {
-          left: '14.8%',
-          right: '14.7%',
-          top: '16.1%',
-          bottom: '9.1%',
+          left: '13.4%',
+          right: '13.2%',
+          top: '15.8%',
+          bottom: '9.2%',
         },
       };
 
@@ -109,7 +109,7 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
       backgroundFit="cover"
       overlayClassName="bg-[linear-gradient(180deg,rgba(8,6,3,0.14)_0%,rgba(10,8,5,0.18)_48%,rgba(6,5,3,0.24)_100%)]"
       headerHidden
-      shellPaddingClassName="px-0 pb-[calc(var(--bottom-nav-clearance,6rem)+0.4rem)] pt-0"
+      shellPaddingClassName="px-0 pb-[calc(var(--bottom-nav-clearance,6rem)+0.9rem)] pt-0"
       contentWrapperClassName="mx-auto mt-0 min-h-0 w-full flex-1 overflow-hidden"
     >
       <div className="relative h-full">
@@ -181,7 +181,7 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ coins, inventory, grillScore,
           )}
         >
           <div className="grid gap-2.5 lg:grid-cols-[0.82fr_1.18fr] lg:items-start lg:gap-4">
-            <QuestBoardCard>
+            <QuestBoardCard className={isMobileLayout ? 'hidden' : ''}>
               <div className="flex h-full flex-col gap-4">
                 <div>
                   <div className="inline-flex h-12 w-12 items-center justify-center rounded-lg border border-[#8f6a38]/70 bg-[rgba(16,11,8,0.84)] text-[#f3c777]">
