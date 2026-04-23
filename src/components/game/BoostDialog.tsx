@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { BOOST_ICON_SRC } from '@/lib/rodAssets';
 import { isUserRejectedError } from '@/lib/errorUtils';
 import { wagmiConfig } from '@/lib/wagmi';
+import { publicAsset } from '@/lib/assets';
 import {
   PREMIUM_SESSION_CASTS,
   PREMIUM_SESSION_COST_MON,
@@ -139,42 +140,31 @@ const BoostDialog: React.FC<BoostDialogProps> = ({
           />
         </button>
       </DialogTrigger>
-      <DialogContent className="max-w-[calc(100vw-1rem)] border border-cyan-300/15 bg-black/95 text-zinc-100 shadow-2xl backdrop-blur-md sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl text-zinc-100">
+      <DialogContent
+        className="h-[min(90svh,46rem)] w-[min(72rem,calc(100vw-0.75rem))] max-w-none overflow-hidden border-0 bg-transparent p-0 text-[#f0d09b] shadow-[0_32px_80px_rgba(0,0,0,0.72)]"
+        style={{
+          backgroundImage: `url(${publicAsset('assets/boost_board_reference.webp')})`,
+          backgroundPosition: 'center',
+          backgroundSize: 'cover',
+        }}
+      >
+        <DialogHeader className="sr-only">
+          <DialogTitle>
             <Zap className="h-5 w-5 text-amber-300" />
             {canOfferPremiumSession ? 'Boosts & Sessions' : 'Boost'}
           </DialogTitle>
-          <DialogDescription className="text-sm text-zinc-400">
+          <DialogDescription>
             {canOfferPremiumSession
               ? 'Buy instant boosts or launch a premium MON fishing session.'
               : 'Buy boost with MON from the main screen.'}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="rounded-2xl border border-cyan-300/15 bg-zinc-950/80 p-3">
-          <div className="mb-3 flex items-center gap-3">
-            <img
-              src={BOOST_ICON_SRC}
-              alt=""
-              aria-hidden="true"
-              className="h-16 w-16 object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.3)]"
-              draggable={false}
-            />
-            <div>
-              <p className="text-base font-black text-amber-300">
-                {canOfferPremiumSession ? 'Premium boosts and sessions' : 'Premium Boost'}
-              </p>
-              <p className="text-sm text-zinc-400">
-                {canOfferPremiumSession
-                  ? 'Quick MON purchases without leaving the lake.'
-                  : 'Fast purchase flow directly from the fishing screen.'}
-              </p>
-            </div>
-          </div>
-
+        <div className="relative z-10 flex h-full min-h-0 flex-col px-[7.5%] pb-[8.8%] pt-[18.5%] sm:px-[20.4%] sm:pb-[16%] sm:pt-[19.4%]">
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 [touch-action:pan-y]">
+          <div className="grid gap-3">
           {canOfferPremiumSession && hasActivePremiumSession && (
-            <div className="mb-3 rounded-xl border border-emerald-300/25 bg-emerald-950/30 p-3 text-sm text-emerald-100">
+            <div className="rounded-[1rem] border border-emerald-300/25 bg-[rgba(16,38,26,0.78)] p-3 text-sm text-emerald-100 shadow-[0_12px_24px_rgba(0,0,0,0.34)]">
               <div className="flex items-center gap-2 font-black uppercase tracking-[0.12em] text-emerald-200">
                 <Crown className="h-4 w-4" />
                 MON Expedition Active
@@ -193,7 +183,7 @@ const BoostDialog: React.FC<BoostDialogProps> = ({
             </div>
           )}
 
-          <div className="space-y-3">
+          <div className="grid gap-3">
             {boostPackages.map((pkg) => {
               const isBusy = selectedBoostId === pkg.id;
               const isPremiumSession = pkg.id === 'premium_session';
@@ -204,31 +194,31 @@ const BoostDialog: React.FC<BoostDialogProps> = ({
               return (
                 <div
                   key={pkg.id}
-                  className="rounded-xl border border-zinc-800 bg-black/70 p-3 shadow-lg shadow-black/20"
+                  className="rounded-[1.05rem] border border-[#725130] bg-[linear-gradient(180deg,rgba(38,25,16,0.95)_0%,rgba(31,21,14,0.92)_100%)] p-3 text-[#f0d09b] shadow-[inset_0_0_0_1px_rgba(255,215,150,0.06),0_12px_24px_rgba(0,0,0,0.34)] transition-colors duration-200 hover:border-[#9d7141]"
                 >
                   <div className="mb-3 flex items-start justify-between gap-3">
                     <div>
-                      <p className="flex items-center gap-2 font-bold text-zinc-100">
+                      <p className="flex items-center gap-2 font-black text-[#f8e8bf]">
                         {isPremiumSession ? <Sparkles className="h-4 w-4 text-emerald-300" /> : null}
                         {pkg.title}
                       </p>
-                      <p className="text-sm text-zinc-400">{pkg.description}</p>
+                      <p className="text-sm text-[#f8e8bf]/72">{pkg.description}</p>
                       {isPremiumSession ? (
-                        <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold text-zinc-300">
-                          <span className="rounded-lg border border-zinc-800 bg-zinc-950/80 px-2 py-1">
+                        <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold text-[#f8e8bf]/80">
+                          <span className="rounded-lg border border-[#6f4928] bg-[rgba(15,10,7,0.72)] px-2 py-1">
                             <Fish className="mr-1 inline h-3.5 w-3.5 text-cyan-300" />
                             Fish always
                           </span>
-                          <span className="rounded-lg border border-zinc-800 bg-zinc-950/80 px-2 py-1">
+                          <span className="rounded-lg border border-[#6f4928] bg-[rgba(15,10,7,0.72)] px-2 py-1">
                             +12 coins / +18 XP
                           </span>
-                          <span className="rounded-lg border border-zinc-800 bg-zinc-950/80 px-2 py-1">
+                          <span className="rounded-lg border border-[#6f4928] bg-[rgba(15,10,7,0.72)] px-2 py-1">
                             Luck Meter active
                           </span>
                         </div>
                       ) : null}
                     </div>
-                    <span className="inline-flex items-center gap-1 rounded-lg border border-cyan-300/15 bg-zinc-950 px-2.5 py-1 text-sm font-bold text-cyan-100">
+                    <span className="inline-flex items-center gap-1 rounded-lg border border-[#8f6a38]/70 bg-[rgba(16,11,8,0.84)] px-2.5 py-1 text-sm font-black text-[#f3c777]">
                       <Coins className="h-4 w-4" />
                       {pkg.monAmount} MON
                     </span>
@@ -236,7 +226,7 @@ const BoostDialog: React.FC<BoostDialogProps> = ({
                   <Button
                     onClick={() => handlePurchase(pkg.id, pkg.monAmount, { isPremiumSession })}
                     disabled={isDisabled}
-                    className="w-full rounded-xl border border-cyan-300/25 bg-zinc-950 font-bold text-cyan-100 hover:bg-black disabled:border-zinc-700 disabled:bg-zinc-900 disabled:text-zinc-400"
+                    className="w-full rounded-[1rem] border border-[#7f5227] bg-[linear-gradient(180deg,#8c531f_0%,#6e4117_42%,#4f2f14_100%)] font-black uppercase tracking-[0.04em] text-[#f8db9a] hover:brightness-110 disabled:border-[#3a2817] disabled:bg-[linear-gradient(180deg,#2f241c_0%,#231b15_100%)] disabled:text-[#8c7b63]"
                   >
                     <Rocket className="mr-2 h-4 w-4" />
                     {isBusy
@@ -253,10 +243,12 @@ const BoostDialog: React.FC<BoostDialogProps> = ({
           </div>
 
           {!walletAddress && (
-            <p className="mt-3 text-center text-xs text-zinc-500">
+            <p className="text-center text-xs font-semibold text-[#f8e8bf]/58">
               Connect wallet to pay with MON.
             </p>
           )}
+        </div>
+        </div>
         </div>
       </DialogContent>
     </Dialog>

@@ -1121,7 +1121,6 @@ const FishingGame: React.FC = () => {
                 />
               ) : activeTab === 'map' ? (
                 <MapScreen
-                  coins={player.coins}
                   onBack={() => setActiveTab('fish')}
                 />
               ) : (

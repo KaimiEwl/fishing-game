@@ -17,6 +17,7 @@ import InventoryDialogTrigger from '@/components/InventoryDialogTrigger';
 import InventoryFishItem from '@/components/InventoryFishItem';
 import InventoryRodCard from '@/components/InventoryRodCard';
 import InventoryDishItem from '@/components/InventoryDishItem';
+import { publicAsset } from '@/lib/assets';
 
 interface InventoryDialogProps {
   inventory: CaughtFish[];
@@ -84,26 +85,34 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({
           <InventoryDialogTrigger totalFish={totalItems} variant={triggerVariant} />
         </button>
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100svh-1rem)] w-[min(36rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] overflow-x-hidden border border-cyan-300/15 bg-black/95 text-zinc-100 shadow-2xl backdrop-blur-md sm:max-w-[36rem]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl text-zinc-100">
+      <DialogContent
+        className="h-[min(90svh,46rem)] w-[min(72rem,calc(100vw-0.75rem))] max-w-none overflow-hidden border-0 bg-transparent p-0 text-[#f0d09b] shadow-[0_32px_80px_rgba(0,0,0,0.72)]"
+        style={{
+          backgroundImage: `url(${publicAsset('assets/inventory_board_reference.webp')})`,
+          backgroundPosition: 'center',
+          backgroundSize: 'cover',
+        }}
+      >
+        <DialogHeader className="sr-only">
+          <DialogTitle>
             <Backpack className="h-5 w-5 text-cyan-100" />
             Inventory
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="fish" className="w-full">
-          <TabsList className={`grid w-full ${tabsColumnClass} bg-zinc-950`}>
-            <TabsTrigger value="fish" className="gap-1.5 text-zinc-200 data-[state=active]:bg-black data-[state=active]:text-cyan-100"><FishIcon fishId="carp" size="badge" /> Fish ({totalFish})</TabsTrigger>
-            <TabsTrigger value="dishes" className="gap-1.5 text-zinc-200 data-[state=active]:bg-black data-[state=active]:text-amber-100"><ChefHat className="h-4 w-4" /> Dishes ({totalDishes})</TabsTrigger>
+        <div className="relative z-10 flex h-full min-h-0 flex-col px-[7.5%] pb-[8.8%] pt-[18.5%] sm:px-[17.2%] sm:pb-[9.4%] sm:pt-[18.8%]">
+        <Tabs defaultValue="fish" className="flex h-full min-h-0 w-full flex-col">
+          <TabsList className={`grid h-auto w-full ${tabsColumnClass} gap-1 rounded-[1.1rem] border border-[#8f6a38]/70 bg-[rgba(16,11,8,0.86)] p-1 shadow-[0_18px_40px_rgba(0,0,0,0.35)] backdrop-blur-md sm:gap-1.5 sm:rounded-[1.35rem] sm:p-1.5`}>
+            <TabsTrigger value="fish" className="h-9 gap-1 rounded-[0.8rem] px-1.5 text-[0.62rem] font-black uppercase tracking-[0.02em] text-[#ead4aa] data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab] sm:h-10 sm:rounded-[0.95rem] sm:px-2 sm:text-[0.78rem]"><FishIcon fishId="carp" size="badge" /> Fish ({totalFish})</TabsTrigger>
+            <TabsTrigger value="dishes" className="h-9 gap-1 rounded-[0.8rem] px-1.5 text-[0.62rem] font-black uppercase tracking-[0.02em] text-[#ead4aa] data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab] sm:h-10 sm:rounded-[0.95rem] sm:px-2 sm:text-[0.78rem]"><ChefHat className="h-4 w-4" /> Dishes ({totalDishes})</TabsTrigger>
             {showCollectionTab && (
-              <TabsTrigger value="album" className="gap-1.5 text-zinc-200 data-[state=active]:bg-black data-[state=active]:text-emerald-100"><BookOpen className="h-4 w-4" /> Album</TabsTrigger>
+              <TabsTrigger value="album" className="h-9 gap-1 rounded-[0.8rem] px-1.5 text-[0.62rem] font-black uppercase tracking-[0.02em] text-[#ead4aa] data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab] sm:h-10 sm:rounded-[0.95rem] sm:px-2 sm:text-[0.78rem]"><BookOpen className="h-4 w-4" /> Album</TabsTrigger>
             )}
-            <TabsTrigger value="rods" className="gap-1.5 text-zinc-200 data-[state=active]:bg-black data-[state=active]:text-cyan-100"><ShipWheel className="h-4 w-4" /> Rods ({ownedRods.length})</TabsTrigger>
+            <TabsTrigger value="rods" className="h-9 gap-1 rounded-[0.8rem] px-1.5 text-[0.62rem] font-black uppercase tracking-[0.02em] text-[#ead4aa] data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab] sm:h-10 sm:rounded-[0.95rem] sm:px-2 sm:text-[0.78rem]"><ShipWheel className="h-4 w-4" /> Rods ({ownedRods.length})</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="fish" className="mt-4 min-w-0">
-            <ScrollArea className="h-[min(300px,42vh)] pr-2">
+          <TabsContent value="fish" className="mt-3 min-h-0 min-w-0 flex-1 overflow-hidden">
+            <ScrollArea className="h-full pr-2">
               {inventoryItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center py-12">
                   <div className="mb-4">
@@ -129,8 +138,8 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({
             </ScrollArea>
           </TabsContent>
 
-          <TabsContent value="dishes" className="mt-4 min-w-0">
-            <ScrollArea className="h-[min(300px,42vh)] pr-2">
+          <TabsContent value="dishes" className="mt-3 min-h-0 min-w-0 flex-1 overflow-hidden">
+            <ScrollArea className="h-full pr-2">
               {cookedDishItems.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center py-12 text-center">
                   <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-amber-300/20 bg-amber-300/10">
@@ -157,8 +166,8 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({
           </TabsContent>
 
           {showCollectionTab && (
-            <TabsContent value="album" className="mt-4 min-w-0">
-              <ScrollArea className="h-[min(300px,42vh)] pr-2">
+            <TabsContent value="album" className="mt-3 min-h-0 min-w-0 flex-1 overflow-hidden">
+              <ScrollArea className="h-full pr-2">
                 <div className="space-y-3 pr-2">
                   <div className="grid gap-2 sm:grid-cols-2">
                     <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-3">
@@ -242,8 +251,8 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({
             </TabsContent>
           )}
 
-          <TabsContent value="rods" className="mt-4 min-w-0">
-            <ScrollArea className="h-[min(300px,42vh)] pr-2">
+          <TabsContent value="rods" className="mt-3 min-h-0 min-w-0 flex-1 overflow-hidden">
+            <ScrollArea className="h-full pr-2">
               <div className="space-y-2">
                 {ownedRods.map((level) => {
                   const isEquipped = equippedRod === level;
@@ -263,6 +272,7 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({
             </ScrollArea>
           </TabsContent>
         </Tabs>
+        </div>
       </DialogContent>
     </Dialog>
   );

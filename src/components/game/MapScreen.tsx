@@ -12,10 +12,10 @@ import mapCoralCastleSrc from '@/assets/map_coral_castle_cutout.webp';
 import mapVolcanoGrillSrc from '@/assets/map_volcano_grill_cutout.webp';
 import mapIslandMarketSrc from '@/assets/map_island_market_cutout.webp';
 import mapWheelPierSrc from '@/assets/map_wheel_pier_cutout.webp';
+import { publicAsset } from '@/lib/assets';
 import GameScreenShell from './GameScreenShell';
 
 interface MapScreenProps {
-  coins: number;
   onBack: () => void;
 }
 
@@ -58,44 +58,35 @@ const locations = [
   },
 ] as const;
 
-const MapScreen: React.FC<MapScreenProps> = ({ coins, onBack }) => {
+const MapScreen: React.FC<MapScreenProps> = ({ onBack }) => {
   const [activeLocation, setActiveLocation] = useState<string | null>(null);
 
   return (
     <GameScreenShell
       title="Travel Map"
       subtitle="Locked islands are coming soon. Hover or tap a place to preview it."
-      coins={coins}
-      contentScrollable
+      backgroundImage={publicAsset('assets/travel_board_reference.webp')}
+      backgroundFit="cover"
+      overlayClassName="bg-[radial-gradient(circle_at_50%_10%,rgba(255,204,91,0.08),transparent_38%),linear-gradient(180deg,rgba(5,4,3,0.12)_0%,rgba(4,3,2,0.30)_100%)]"
+      headerHidden
+      shellPaddingClassName="px-0 pb-[calc(var(--bottom-nav-clearance,6rem)+0.2rem)] pt-0"
+      contentWrapperClassName="mx-auto mt-0 min-h-0 w-full flex-1 overflow-hidden"
     >
-      <div className="flex min-h-full flex-col gap-3">
-        <Button
-          type="button"
-          onClick={onBack}
-          className="h-11 w-fit rounded-lg border border-cyan-300/25 bg-black/85 px-4 font-bold text-cyan-100 shadow-lg shadow-black/30 hover:bg-zinc-950"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to lake
-        </Button>
+      <div className="relative h-full min-h-0">
+        <div className="absolute left-[4.2%] top-[3.4%] z-20 sm:left-[11.6%] sm:top-[8.2%]">
+          <Button
+            type="button"
+            onClick={onBack}
+            className="h-9 rounded-[0.8rem] border border-[#8f6a38]/70 bg-[rgba(18,11,7,0.84)] px-3 text-xs font-black uppercase tracking-[0.06em] text-[#f8dfab] shadow-[0_10px_24px_rgba(0,0,0,0.42)] hover:bg-[rgba(38,24,13,0.92)] sm:h-10 sm:px-4 sm:text-sm"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
+          </Button>
+        </div>
 
-        <div className="relative min-h-[34rem] overflow-hidden rounded-lg border border-cyan-300/20 bg-[#07131f] shadow-[0_24px_70px_rgba(0,0,0,0.55)] sm:min-h-[38rem]">
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,#0b2f4a_0%,#0aa6c8_42%,#064b72_100%)]" />
-          <div className="absolute inset-0 opacity-55 bg-[radial-gradient(circle_at_22%_30%,rgba(250,204,21,0.42),transparent_14%),radial-gradient(circle_at_78%_30%,rgba(236,72,153,0.34),transparent_16%),radial-gradient(circle_at_50%_56%,rgba(52,211,153,0.32),transparent_18%),radial-gradient(circle_at_25%_75%,rgba(248,113,113,0.36),transparent_15%),radial-gradient(circle_at_78%_74%,rgba(56,189,248,0.34),transparent_17%)]" />
-          <div className="absolute inset-x-0 top-0 h-24 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.8),transparent_3%),radial-gradient(circle_at_10%_30%,rgba(255,255,255,0.7),transparent_2%),radial-gradient(circle_at_86%_26%,rgba(255,255,255,0.55),transparent_2%)] opacity-70" />
-
-          <div className="absolute left-[5%] top-[8%] h-10 w-[90%] border-t border-dashed border-white/35" />
-          <div className="absolute left-[8%] top-[9%] flex gap-5">
-            <span className="h-0 w-0 border-l-[16px] border-r-[16px] border-t-[28px] border-l-transparent border-r-transparent border-t-yellow-300" />
-            <span className="h-0 w-0 border-l-[16px] border-r-[16px] border-t-[28px] border-l-transparent border-r-transparent border-t-rose-400" />
-            <span className="h-0 w-0 border-l-[16px] border-r-[16px] border-t-[28px] border-l-transparent border-r-transparent border-t-cyan-300" />
-          </div>
-          <div className="absolute right-[8%] top-[9%] flex gap-5">
-            <span className="h-0 w-0 border-l-[16px] border-r-[16px] border-t-[28px] border-l-transparent border-r-transparent border-t-orange-300" />
-            <span className="h-0 w-0 border-l-[16px] border-r-[16px] border-t-[28px] border-l-transparent border-r-transparent border-t-lime-300" />
-            <span className="h-0 w-0 border-l-[16px] border-r-[16px] border-t-[28px] border-l-transparent border-r-transparent border-t-sky-300" />
-          </div>
-
-          <div className="relative z-10 mx-auto grid w-full max-w-6xl grid-cols-2 gap-x-4 gap-y-6 px-4 pb-24 pt-24 sm:grid-cols-3 sm:gap-x-8 sm:gap-y-8 sm:px-8 sm:pt-28 lg:gap-x-10">
+        <div className="mx-auto flex h-full max-w-[96rem] flex-col px-[5%] pb-[calc(var(--bottom-nav-clearance,6rem)+1.2rem)] pt-[12.6%] sm:px-[13.8%] sm:pb-[8.4%] sm:pt-[16.8%]">
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 [touch-action:pan-y]">
+            <div className="grid min-h-full grid-cols-2 content-start gap-x-3 gap-y-4 pb-5 sm:grid-cols-3 sm:gap-x-6 sm:gap-y-6 lg:gap-x-8">
             {locations.map((location) => {
               const isActive = activeLocation === location.id;
 
@@ -118,13 +109,13 @@ const MapScreen: React.FC<MapScreenProps> = ({ coins, onBack }) => {
                   >
                     <span
                       className={cn(
-                        'pointer-events-none absolute inset-[4.5%] rounded-[1.9rem] opacity-0 transition-opacity duration-200',
-                        'bg-[radial-gradient(circle,rgba(250,204,21,0.22)_0%,rgba(56,189,248,0.16)_40%,rgba(56,189,248,0)_76%)]',
+                        'pointer-events-none absolute inset-[4.5%] rounded-[1.4rem] opacity-0 transition-opacity duration-200 sm:rounded-[1.9rem]',
+                        'bg-[radial-gradient(circle,rgba(250,204,21,0.22)_0%,rgba(245,158,11,0.16)_40%,rgba(245,158,11,0)_76%)]',
                         isActive ? 'opacity-100' : 'group-hover:opacity-75 group-focus-visible:opacity-75 group-active:opacity-75',
                       )}
                       aria-hidden="true"
                     />
-                    <span className="relative block w-[14rem] max-w-full overflow-hidden rounded-[1.9rem] sm:w-[15.25rem]">
+                    <span className="relative block w-[10.25rem] max-w-full overflow-hidden rounded-[1.35rem] border border-[#6e4a25]/70 bg-[rgba(14,9,6,0.66)] shadow-[inset_0_0_0_1px_rgba(255,218,143,0.08)] sm:w-[15rem] sm:rounded-[1.9rem]">
                       <img
                         src={location.image}
                         alt=""
@@ -134,17 +125,18 @@ const MapScreen: React.FC<MapScreenProps> = ({ coins, onBack }) => {
                         )}
                       />
                     </span>
-                    <span className="absolute left-1/2 top-1/2 inline-flex h-10 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-lg border border-black/35 bg-zinc-200/95 shadow-[0_8px_18px_rgba(0,0,0,0.5)] transition-transform duration-200 group-hover:scale-105 group-active:scale-95 sm:h-12 sm:w-14">
-                      <Lock className="h-5 w-5 text-zinc-900 sm:h-6 sm:w-6" />
+                    <span className="absolute left-1/2 top-1/2 inline-flex h-9 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-lg border border-[#2c1a0c] bg-[#e6c781]/95 shadow-[0_8px_18px_rgba(0,0,0,0.5)] transition-transform duration-200 group-hover:scale-105 group-active:scale-95 sm:h-12 sm:w-14">
+                      <Lock className="h-5 w-5 text-[#2a1708] sm:h-6 sm:w-6" />
                     </span>
                   </button>
                 </div>
               );
             })}
+            </div>
           </div>
 
-          <div className="absolute bottom-5 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-white/20 bg-black/70 px-3 py-2 text-xs font-bold text-cyan-50 shadow-xl backdrop-blur-md">
-            <MapPin className="h-4 w-4 text-cyan-200" />
+          <div className="mx-auto mt-2 flex w-fit items-center gap-2 rounded-[0.85rem] border border-[#8f6a38]/55 bg-[rgba(15,10,7,0.78)] px-3 py-2 text-xs font-black uppercase tracking-[0.08em] text-[#f8dfab] shadow-xl backdrop-blur-md sm:mt-3">
+            <MapPin className="h-4 w-4 text-[#f1c36f]" />
             More islands unlock later
           </div>
         </div>

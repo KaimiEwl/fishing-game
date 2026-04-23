@@ -1,5 +1,11 @@
 # STATUS
 
+## Inventory, Boost, and Travel now use the new painted board artwork
+- `Inventory` keeps its modal-over-game behavior, but the modal now uses the new inventory board artwork from `Downloads` instead of the old plain black dialog shell.
+- `Boost` now uses the new boost board artwork for its purchase/session modal, with the existing boost and MON Expedition flows preserved.
+- `Travel` now uses the new travel board artwork as its full-screen backdrop. The old synthetic blue ocean background was removed from the screen, and locked island cards now sit inside the board-aligned central viewport without the extra top-right coin chip.
+- All three new backgrounds are served as optimized `webp` assets under `public/assets/`.
+
 ## Quest boards now use the painted artwork set for all task tabs
 - `Tasks -> Daily`, `Blockchain`, `Weekly`, and `Social` now use the painted quest-board artwork set from `Downloads` as the active quest-screen backdrop set instead of the old generic `bg_tasks.jpg` task background.
 - The quest UI now switches backgrounds by tab:
