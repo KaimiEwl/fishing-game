@@ -28,7 +28,7 @@ const App = () => (
       <RainbowKitProvider theme={darkTheme({ accentColor: 'hsl(258, 89%, 66%)' })}>
         <TooltipProvider>
           <Toaster />
-          <Sonner />
+          <Sonner position="top-center" closeButton richColors />
           <BrowserRouter basename={import.meta.env.BASE_URL}>
             <Routes>
               <Route path="/" element={<Index />} />

@@ -1,5 +1,14 @@
 # STATUS
 
+## Share preview and in-game toast layer cleaned up
+- The site share preview metadata no longer points at the old external Lovable image. `index.html` now uses the new local `social_preview_hookloot.jpg` art built from the latest image in `Downloads`, with absolute `https://www.hookloot.xyz/...` Open Graph and Twitter image URLs.
+- The old placeholder share copy was removed:
+  - `Lovable Generated Project` is gone from `description`, `og:description`, and `twitter:description`
+  - author metadata now points to Hook & Loot instead of Lovable
+- The album/feedback popups were still inheriting a system/light Sonner look, which made some first-catch notifications appear as plain white default toasts against the dark game UI.
+- The active Sonner layer is now forced to the dark game theme and anchored at the top center, so cast/album/status popups no longer sit over the lower fishing controls.
+- Album first-catch rewards still use the lightweight toast path, but they now go through the single themed toast layer instead of producing the old white duplicate popup.
+
 ## Grill desktop alignment and background music refreshed
 - `Grill` desktop cards were nudged slightly lower inside the painted board safe-area so the recipe blocks no longer sit as high against the top wood trim as before. Mobile grill layout was left unchanged in this pass because it was already behaving acceptably.
 - The old procedural WebAudio background loop was removed. The game now uses a real looping music track loaded from `public/assets/audio/bg_gone_fishin.mp3`, which replaced the synthetic “bleepy” tone generator.

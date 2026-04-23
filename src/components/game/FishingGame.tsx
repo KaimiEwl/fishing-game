@@ -552,6 +552,7 @@ const FishingGame: React.FC = () => {
 
     toast.success(`Album updated: ${albumRewardInfo.fishName}`, {
       description: `First catch bonus +${albumRewardInfo.bonusCoins} coins. Species discovered: ${albumRewardInfo.totalSpeciesCaught}.${completedPagesNote}`,
+      duration: 3200,
     });
     dismissAlbumReward();
   }, [albumRewardInfo, dismissAlbumReward]);
