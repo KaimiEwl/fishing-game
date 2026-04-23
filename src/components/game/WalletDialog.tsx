@@ -11,6 +11,9 @@ import { Input } from '@/components/ui/input';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useBalance } from 'wagmi';
 import { Check, ExternalLink, ShieldAlert, ShieldCheck, Wallet } from 'lucide-react';
+import type { MonBalanceSummary, PlayerWithdrawRequest } from '@/hooks/usePlayerMon';
+import { formatMonAmount } from '@/lib/monRewards';
+import { cn } from '@/lib/utils';
 
 interface WalletDialogProps {
   isConnected: boolean;
@@ -21,6 +24,11 @@ interface WalletDialogProps {
   nickname: string;
   onSetNickname?: (nickname: string) => void;
   walletAddress?: string;
+  monSummary?: MonBalanceSummary;
+  monRequests?: PlayerWithdrawRequest[];
+  monLoading?: boolean;
+  monRequesting?: boolean;
+  onRequestMonWithdraw?: () => Promise<unknown> | void;
 }
 
 const NICKNAME_REGEX = /^[\p{L}0-9_-]{2,20}$/u;
@@ -34,6 +42,11 @@ const WalletDialog: React.FC<WalletDialogProps> = ({
   nickname,
   onSetNickname,
   walletAddress,
+  monSummary,
+  monRequests = [],
+  monLoading = false,
+  monRequesting = false,
+  onRequestMonWithdraw,
 }) => {
   const [open, setOpen] = useState(false);
   const [nickInput, setNickInput] = useState(nickname);
@@ -43,6 +56,12 @@ const WalletDialog: React.FC<WalletDialogProps> = ({
   const walletModalTimerRef = useRef<number | null>(null);
 
   const nicknameAlreadySet = !!nickname && nickname.length > 0;
+  const canRequestWithdraw = Boolean(
+    isConnected
+    && monSummary
+    && monSummary.withdrawableMon >= monSummary.minWithdrawMon
+    && !monRequesting,
+  );
 
   const { data: balanceData } = useBalance({
     address: walletAddress as `0x${string}` | undefined,
@@ -252,6 +271,86 @@ const WalletDialog: React.FC<WalletDialogProps> = ({
                           <p className="text-xs font-medium text-zinc-400">Use 2-20 letters, digits, _ or -.</p>
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {isVerified && monSummary && (
+                    <div className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-3">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400">MON Rewards</p>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <div className="rounded-lg border border-zinc-800 bg-black/70 px-3 py-2">
+                          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400">Pending hold</p>
+                          <p className="mt-1 text-lg font-black text-zinc-100">
+                            {formatMonAmount(monSummary.pendingHoldMon)} MON
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-zinc-800 bg-black/70 px-3 py-2">
+                          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400">Withdrawable</p>
+                          <p className="mt-1 text-lg font-black text-emerald-300">
+                            {formatMonAmount(monSummary.withdrawableMon)} MON
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-medium text-zinc-400">
+                        <span>Minimum withdraw: {formatMonAmount(monSummary.minWithdrawMon)} MON</span>
+                        <span className="text-zinc-600">|</span>
+                        <span>Hold: {monSummary.holdDays} days</span>
+                        <span className="text-zinc-600">|</span>
+                        <span>Pending requests: {formatMonAmount(monSummary.pendingRequestMon)} MON</span>
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => void onRequestMonWithdraw?.()}
+                        disabled={!canRequestWithdraw || !onRequestMonWithdraw}
+                        className="mt-3 h-11 w-full justify-between border-zinc-800 bg-black px-4 text-zinc-100 hover:bg-zinc-900 disabled:text-zinc-500"
+                      >
+                        <span>{monRequesting ? 'Requesting...' : 'Request withdraw'}</span>
+                        <span className="font-black uppercase tracking-[0.12em] text-cyan-100">
+                          {formatMonAmount(monSummary.withdrawableMon)} MON
+                        </span>
+                      </Button>
+
+                      <div className="mt-3 space-y-2">
+                        <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400">Recent requests</p>
+                        {monLoading && monRequests.length === 0 ? (
+                          <p className="text-xs font-medium text-zinc-500">Loading requests...</p>
+                        ) : monRequests.length > 0 ? (
+                          monRequests.slice(0, 4).map((request) => (
+                            <div key={request.id} className="rounded-lg border border-zinc-800 bg-black/60 px-3 py-2">
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-sm font-semibold text-zinc-100">
+                                  {formatMonAmount(request.amountMon)} MON
+                                </span>
+                                <span className={cn(
+                                  'rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em]',
+                                  request.status === 'pending' && 'bg-yellow-400/10 text-yellow-200',
+                                  request.status === 'approved' && 'bg-cyan-300/10 text-cyan-100',
+                                  request.status === 'rejected' && 'bg-red-400/10 text-red-200',
+                                  request.status === 'paid' && 'bg-emerald-400/10 text-emerald-200',
+                                )}>
+                                  {request.status}
+                                </span>
+                              </div>
+                              <p className="mt-1 text-xs text-zinc-400">
+                                {new Date(request.requestedAt).toLocaleString()}
+                              </p>
+                              {request.payoutTxHash && (
+                                <p className="mt-1 truncate text-[11px] font-medium text-zinc-500">
+                                  Tx: {request.payoutTxHash}
+                                </p>
+                              )}
+                              {request.adminNote && (
+                                <p className="mt-1 text-xs text-zinc-400">{request.adminNote}</p>
+                              )}
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-xs font-medium text-zinc-500">No withdraw requests yet.</p>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>

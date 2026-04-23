@@ -1,5 +1,11 @@
 # STATUS
 
+## Wallet, referral, and inbox removed from Settings
+- `Settings` is now trimmed back to actual settings/admin/profile functions: avatar upload, sound toggle, guide link, and admin entry stay there, but wallet actions, referral tools, MON withdraw UI, and inbox are no longer mixed into that dialog.
+- Wallet management and MON reward/withdraw status now live only in the separate HUD wallet button, which keeps connection, verification, nickname binding, and MON payout history in one dedicated place.
+- Inbox now has its own HUD mail icon and only appears when there are unread admin messages, so `Settings` no longer carries a message center.
+- Referral utility for the existing `invite_friend` special task moved into `Tasks -> Special`: players can now copy their referral link and see rewarded-referral progress directly on the task card instead of opening `Settings`.
+
 ## Weekly grill payouts aligned with the new economy budget
 - Closed a backend drift left over from the economy rollout: the admin weekly grill payout engine was still using the old hardcoded `[5, 3, 1] MON` top-3 schedule, while the new economy config already defined the safer `10 MON total / top 10` payout ladder.
 - `supabase/functions/_shared/weeklyPayouts.ts` now matches the intended budget:

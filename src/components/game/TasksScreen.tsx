@@ -1,11 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { Box, Check, Clock3, Coins, ExternalLink, Heart, Lock, MessageCircle, Repeat2, Send, Trophy, Worm } from 'lucide-react';
+import { Box, Check, Clock3, Coins, Copy, ExternalLink, Heart, Lock, MessageCircle, Repeat2, Send, Trophy, Worm } from 'lucide-react';
 import { useSendTransaction } from 'wagmi';
 import { parseEther } from 'viem';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import type { ReferralSummary } from '@/hooks/useWalletAuth';
 import type {
   DailyTaskProgress,
   SocialTaskId,
@@ -20,6 +22,7 @@ import { getErrorMessage, isUserRejectedError } from '@/lib/errorUtils';
 import CoinIcon from './CoinIcon';
 import GameScreenShell from './GameScreenShell';
 import { publicAsset } from '@/lib/assets';
+import { REFERRAL_BAIT_ENABLED } from '@/lib/baitEconomy';
 import {
   formatStreakDays,
   WALLET_CHECK_IN_AMOUNT_MON,
@@ -40,6 +43,7 @@ interface TasksScreenProps {
   availableWheelRolls: number;
   socialTasksLoading?: boolean;
   isWalletVerified: boolean;
+  referralSummary?: ReferralSummary | null;
   onClaimTask: (id: TaskId) => void;
   onClaimWeeklyMission: (id: WeeklyMissionId) => void;
   onWalletCheckIn: (txHash: string) => Promise<void>;
@@ -63,6 +67,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   availableWheelRolls,
   socialTasksLoading = false,
   isWalletVerified,
+  referralSummary,
   onClaimTask,
   onClaimWeeklyMission,
   onWalletCheckIn,
@@ -72,6 +77,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   const completedCount = dailyTasks.filter((task) => task.progress >= task.target).length;
   const claimedCount = dailyTasks.filter((task) => task.claimed).length;
   const [walletCheckInSubmitting, setWalletCheckInSubmitting] = useState(false);
+  const [copiedReferral, setCopiedReferral] = useState(false);
   const { sendTransactionAsync } = useSendTransaction();
   const walletCheckInAmountMon = walletCheckInSummary?.amountMon ?? WALLET_CHECK_IN_AMOUNT_MON;
   const walletCheckInReceiverAddress = walletCheckInSummary?.receiverAddress ?? WALLET_CHECK_IN_RECEIVER_ADDRESS;
@@ -87,6 +93,32 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
             ? MessageCircle
             : Send,
   })), [socialTasks]);
+
+  const handleCopyReferralLink = async () => {
+    if (!referralSummary?.referralLink) return;
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(referralSummary.referralLink);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = referralSummary.referralLink;
+        textarea.setAttribute('readonly', 'true');
+        textarea.style.position = 'absolute';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+
+      setCopiedReferral(true);
+      window.setTimeout(() => setCopiedReferral(false), 1800);
+    } catch (error) {
+      console.error('Referral link copy failed:', error);
+      toast.error('Copy failed. Please copy the link manually.');
+    }
+  };
 
   const handleWalletCheckIn = async () => {
     if (!walletAddress || walletCheckInSubmitting) return;
@@ -151,6 +183,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
         const progress = Math.min(100, (task.progress / task.target) * 100);
         const cubeChargeReward = 'rewardCubeCharge' in task ? (task.rewardCubeCharge ?? 0) : 0;
         const isWalletCheckInTask = task.id === 'wallet_check_in';
+        const isInviteFriendTask = task.id === 'invite_friend';
         const hasConnectedWallet = Boolean(walletAddress);
         const walletCheckInStatusText = !hasConnectedWallet
           ? `Connect your wallet first, then send today's ${walletCheckInAmountMon} MON transaction to start or continue your streak.`
@@ -252,6 +285,60 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
               </div>
             )}
 
+            {isInviteFriendTask && REFERRAL_BAIT_ENABLED && (
+              <div className="mt-4 rounded-xl border border-cyan-300/15 bg-cyan-300/5 p-3">
+                {hasConnectedWallet && referralSummary?.referralLink ? (
+                  <>
+                    <div className="flex items-center justify-between gap-3 rounded-lg border border-cyan-300/12 bg-black/50 px-3 py-2">
+                      <div>
+                        <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-cyan-100/75">Rewarded referrals</p>
+                        <p className="mt-1 text-lg font-black text-zinc-100">
+                          {referralSummary.rewardedReferralCount}
+                          <span className="ml-1 text-sm font-bold text-zinc-400">/ {referralSummary.maxRewardedReferrals}</span>
+                        </p>
+                      </div>
+                      <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-cyan-100">
+                        +10 bait
+                      </span>
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                      <Input
+                        value={referralSummary.referralLink}
+                        readOnly
+                        className="h-11 flex-1 border-zinc-800 bg-black text-zinc-100"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => void handleCopyReferralLink()}
+                        className="h-11 gap-2 border-zinc-800 bg-black px-4 text-zinc-100 hover:bg-zinc-900"
+                      >
+                        {copiedReferral ? (
+                          <>
+                            <Check className="h-4 w-4" />
+                            Copied
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-4 w-4" />
+                            Copy link
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    <p className="mt-2 text-sm text-white/75">
+                      Invite friends from here. Each invited wallet is locked to the first valid referrer link.
+                    </p>
+                  </>
+                ) : (
+                  <div className="space-y-2 text-sm text-white/75">
+                    <p>Connect and verify your wallet first, then your referral link will appear here.</p>
+                    <p>The reward stays in Special tasks, not in Settings.</p>
+                  </div>
+                )}
+              </div>
+            )}
+
             <Button
               type="button"
               disabled={!complete || task.claimed}
@@ -329,7 +416,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
           </TabsContent>
           <TabsContent value="special" className="mt-3">
             <div className="mb-3 rounded-xl border border-cyan-300/15 bg-black/60 p-4 text-sm text-white/70 shadow-lg shadow-black/20 backdrop-blur-md">
-              Special tasks now mix referral rewards with a wallet streak check-in. Keep your MON check-in streak alive and still invite one new friend per day.
+              Wallet check-in and friend invites live here now. Settings no longer carries wallet or referral actions.
             </div>
             {renderTaskList(specialTasks, onClaimTask)}
           </TabsContent>

@@ -1075,6 +1075,7 @@ const FishingGame: React.FC = () => {
                   availableWheelRolls={gameProgress.availableWheelRolls}
                   socialTasksLoading={socialTasksLoading}
                   isWalletVerified={isVerified}
+                  referralSummary={referralSummary}
                   onClaimTask={handleClaimTask}
                   onClaimWeeklyMission={handleClaimWeeklyMission}
                   onWalletCheckIn={handleWalletCheckIn}
@@ -1216,7 +1217,6 @@ const FishingGame: React.FC = () => {
               onRetryWalletVerification={retryVerifyWallet}
               walletAddress={address}
               onAvatarUploaded={setAvatarUrl}
-              referralSummary={referralSummary}
               inboxMessages={inboxMessages}
               unreadMessageCount={unreadMessageCount}
               inboxLoading={inboxLoading}

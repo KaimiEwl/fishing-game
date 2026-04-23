@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { PlayerState, FISH_DATA } from '@/types/game';
-import type { ReferralSummary } from '@/hooks/useWalletAuth';
 import type { PlayerInboxMessage } from '@/hooks/usePlayerMessages';
 import { usePlayerMon } from '@/hooks/usePlayerMon';
 import CoinIcon from './CoinIcon';
@@ -10,6 +9,7 @@ import { ChevronDown, Info, Package, Trophy, Worm } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import SettingsDialog from './SettingsDialog';
+import InboxDialog from './InboxDialog';
 import WalletDialog from './WalletDialog';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useAdminAccess } from '@/hooks/useAdminAccess';
@@ -29,7 +29,6 @@ interface PlayerPanelProps {
   onRetryWalletVerification?: () => Promise<unknown> | void;
   walletAddress?: string;
   onAvatarUploaded?: (url: string) => void;
-  referralSummary?: ReferralSummary | null;
   inboxMessages?: PlayerInboxMessage[];
   unreadMessageCount?: number;
   inboxLoading?: boolean;
@@ -46,7 +45,6 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({
   onRetryWalletVerification,
   walletAddress,
   onAvatarUploaded,
-  referralSummary,
   inboxMessages = [],
   unreadMessageCount = 0,
   inboxLoading = false,
@@ -108,31 +106,28 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({
           nickname={player.nickname || ''}
           onSetNickname={isConnected && !player.nickname ? onSetNickname : undefined}
           walletAddress={walletAddress}
-        />
-
-        <SettingsDialog
-          isConnected={isConnected}
-          isVerified={isVerified}
-          isVerifying={isVerifying}
-          verificationError={verificationError}
-          onRetryWalletVerification={onRetryWalletVerification}
-          nickname={player.nickname || ''}
-          onSetNickname={isConnected && !player.nickname ? onSetNickname : undefined}
-          walletAddress={walletAddress}
-          avatarUrl={player.avatarUrl}
-          onAvatarUploaded={onAvatarUploaded}
-          referralSummary={referralSummary}
-          inboxMessages={inboxMessages}
-          unreadMessageCount={unreadMessageCount}
-          inboxLoading={inboxLoading}
-          onMarkMessageRead={onMarkMessageRead}
-          showAdminPanelEntry={isAdmin === true}
-          adminPendingWithdrawCount={pendingWithdrawCount}
           monSummary={monEnabled ? monRewards.summary : undefined}
           monRequests={monEnabled ? monRewards.requests : []}
           monLoading={monEnabled ? monRewards.loading : false}
           monRequesting={monEnabled ? monRewards.requesting : false}
           onRequestMonWithdraw={monEnabled ? monRewards.createWithdrawRequest : undefined}
+        />
+
+        <InboxDialog
+          messages={inboxMessages}
+          unreadMessageCount={unreadMessageCount}
+          inboxLoading={inboxLoading}
+          onMarkMessageRead={onMarkMessageRead}
+        />
+
+        <SettingsDialog
+          isConnected={isConnected}
+          nickname={player.nickname || ''}
+          walletAddress={walletAddress}
+          avatarUrl={player.avatarUrl}
+          onAvatarUploaded={onAvatarUploaded}
+          showAdminPanelEntry={isAdmin === true}
+          adminPendingWithdrawCount={pendingWithdrawCount}
         />
 
         <button
