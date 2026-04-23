@@ -357,6 +357,7 @@ export function useWalletAuth() {
   
   const [isVerified, setIsVerified] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [walletSessionResolving, setWalletSessionResolving] = useState(false);
   const [verificationError, setVerificationError] = useState<string | null>(null);
   const [savedPlayer, setSavedPlayer] = useState<PlayerState | null>(null);
   const [savedGameProgress, setSavedGameProgress] = useState<GameProgressSnapshot | null>(null);
@@ -572,7 +573,6 @@ export function useWalletAuth() {
       const data = await invokeVerifyWallet({ wallet_address: addr, session_token: stored.token });
       if (!data?.player) return false;
 
-      setIsVerified(true);
       const nextToken = data.session_token || stored.token;
       sessionTokenRef.current = nextToken;
       storeWalletSession(addr, nextToken);
@@ -581,6 +581,7 @@ export function useWalletAuth() {
         playerRecord,
         (data.latest_referral_reward as ReferralRewardNotification | null | undefined) ?? null,
       );
+      setIsVerified(true);
       return true;
     } catch {
       return false;
@@ -632,6 +633,7 @@ export function useWalletAuth() {
 
     autoVerifyAttemptedForAddressRef.current = normalizedAddress;
     setVerificationError(null);
+    setWalletSessionResolving(true);
     setIsVerifying(true);
     try {
       const pendingReferrer = REFERRAL_BAIT_ENABLED ? getPendingReferrer() : null;
@@ -646,7 +648,6 @@ export function useWalletAuth() {
       });
 
       const token = data.session_token || address.toLowerCase();
-      setIsVerified(true);
       setVerificationError(null);
       sessionTokenRef.current = token;
       storeWalletSession(address, token);
@@ -665,6 +666,7 @@ export function useWalletAuth() {
           clearPendingReferrer();
         }
       }
+      setIsVerified(true);
     } catch (err) {
       const contextualError = err as {
         status?: number;
@@ -687,6 +689,7 @@ export function useWalletAuth() {
       });
     } finally {
       setIsVerifying(false);
+      setWalletSessionResolving(false);
     }
   }, [address, applyVerifiedPlayerPayload, invokeVerifyWallet, isVerifying, signMessageAsync, toast]);
 
@@ -727,14 +730,22 @@ export function useWalletAuth() {
       if (!restoredRef.current) {
         restoredRef.current = true;
         autoVerifyAttemptedForAddressRef.current = null;
+        setWalletSessionResolving(true);
         tryRestoreSession(address).then((restored) => {
           if (cancelled) return;
           if (!restored) {
-            verifyWallet();
+            void verifyWallet();
+            return;
           }
+          setWalletSessionResolving(false);
         });
       } else if (autoVerifyAttemptedForAddressRef.current !== address.toLowerCase()) {
-        verifyWallet();
+        void verifyWallet();
+      }
+    }
+    if (isConnected && (isVerified || isVerifying)) {
+      if (isVerified) {
+        setWalletSessionResolving(false);
       }
     }
     if (!isConnected) {
@@ -742,6 +753,7 @@ export function useWalletAuth() {
       setSavedPlayer(null);
       setSavedGameProgress(null);
       setReferralSummary(null);
+      setWalletSessionResolving(false);
       sessionTokenRef.current = null;
       serverUpdatedAtRef.current = null;
       lastSavedPlayerDigestRef.current = null;
@@ -764,6 +776,7 @@ export function useWalletAuth() {
     isVerifying,
     savedPlayer,
     savedGameProgress,
+    walletSessionResolving,
     verificationError,
     referralSummary,
     saveProgress,

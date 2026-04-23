@@ -757,13 +757,34 @@ export function useGameState(options?: UseGameStateOptions) {
     });
   }, []);
 
+  const persistIdentitySnapshot = useCallback((nextPlayer: PlayerState) => {
+    storePlayerLocally(nextPlayer);
+    onSave?.(nextPlayer);
+  }, [onSave]);
+
   const setNickname = useCallback((nickname: string | null) => {
-    setPlayer(prev => ({ ...prev, nickname }));
-  }, []);
+    let nextSnapshot: PlayerState | null = null;
+    setPlayer(prev => {
+      nextSnapshot = { ...prev, nickname };
+      return nextSnapshot;
+    });
+
+    if (nextSnapshot) {
+      persistIdentitySnapshot(nextSnapshot);
+    }
+  }, [persistIdentitySnapshot]);
 
   const setAvatarUrl = useCallback((avatarUrl: string | null) => {
-    setPlayer(prev => ({ ...prev, avatarUrl }));
-  }, []);
+    let nextSnapshot: PlayerState | null = null;
+    setPlayer(prev => {
+      nextSnapshot = { ...prev, avatarUrl };
+      return nextSnapshot;
+    });
+
+    if (nextSnapshot) {
+      persistIdentitySnapshot(nextSnapshot);
+    }
+  }, [persistIdentitySnapshot]);
 
   // Cleanup on unmount
   useEffect(() => {

@@ -752,9 +752,7 @@ serve(async (req) => {
       nft_rods: isStaleBase
         ? Array.from(new Set([...sanitizeNftRods(currentPlayerRow.nft_rods), ...sanitizedNftRods])).sort((a, b) => a - b)
         : sanitizedNftRods,
-      nickname: isStaleBase
-        ? (currentPlayerRow.nickname ?? normalizeNullableText(clientPayload.nickname, 20))
-        : normalizeNullableText(clientPayload.nickname, 20),
+      nickname: currentPlayerRow.nickname ?? normalizeNullableText(clientPayload.nickname, 20),
       avatar_url: isStaleBase
         ? (currentPlayerRow.avatar_url ?? normalizeNullableText(clientPayload.avatar_url, 2048))
         : normalizeNullableText(clientPayload.avatar_url, 2048),

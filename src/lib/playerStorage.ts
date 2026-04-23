@@ -239,8 +239,9 @@ export const mergeSyncedPlayerState = (
     dailyBonusClaimed: normalizedLocalPlayer.dailyBonusClaimed,
     loginStreak: Math.max(normalizedServerPlayer.loginStreak, normalizedLocalPlayer.loginStreak),
     nftRods: Array.from(new Set([...normalizedServerPlayer.nftRods, ...normalizedLocalPlayer.nftRods])).sort((a, b) => a - b),
-    // Wallet-bound identity fields must come from the server row for this wallet.
-    nickname: normalizedServerPlayer.nickname,
+    // Wallet-bound identity should come from the server once it exists.
+    // Before the wallet row has a nickname, preserve the local first-run name seed.
+    nickname: normalizedServerPlayer.nickname ?? normalizedLocalPlayer.nickname,
     avatarUrl: normalizedServerPlayer.avatarUrl,
     collectionBook: mergeCollectionBooks(normalizedServerPlayer.collectionBook, normalizedLocalPlayer.collectionBook),
     rodMastery: mergeRodMastery(normalizedServerPlayer.rodMastery, normalizedLocalPlayer.rodMastery),

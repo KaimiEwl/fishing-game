@@ -7,6 +7,7 @@ import InventoryDialog from './InventoryDialog';
 import BoostDialog from './BoostDialog';
 import BottomNav from './BottomNav';
 import LeaderboardNameDialog from './LeaderboardNameDialog';
+import PlayerNameDialog from './PlayerNameDialog';
 import LevelUpCelebration from './LevelUpCelebration';
 import GameLoadingScreen from './GameLoadingScreen';
 import { useGameState } from '@/hooks/useGameState';
@@ -128,6 +129,7 @@ const FishingGame: React.FC = () => {
     verificationError,
     savedPlayer,
     savedGameProgress,
+    walletSessionResolving,
     address,
     referralSummary,
     saveProgress,
@@ -149,6 +151,7 @@ const FishingGame: React.FC = () => {
   const [leaderboardEntries, setLeaderboardEntries] = useState<GrillLeaderboardEntry[]>(() => loadLeaderboardEntries());
   const [leaderboardPlayerId, setLeaderboardPlayerId] = useState(() => getLeaderboardPlayerId(address));
   const [leaderboardNameOpen, setLeaderboardNameOpen] = useState(false);
+  const [playerNameDialogOpen, setPlayerNameDialogOpen] = useState(false);
   const [pendingLeaderboardScore, setPendingLeaderboardScore] = useState(0);
   const [pendingLeaderboardDishes, setPendingLeaderboardDishes] = useState(0);
   const economyFeatures = useMemo(() => getEconomyFeatureAvailability(address), [address]);
@@ -554,6 +557,14 @@ const FishingGame: React.FC = () => {
   }, [albumRewardInfo, dismissAlbumReward]);
 
   useEffect(() => {
+    if (!assetsReady) return;
+    if (walletSessionResolving || isVerifying) return;
+    if (leaderboardNameOpen) return;
+
+    setPlayerNameDialogOpen(!player.nickname?.trim());
+  }, [assetsReady, isVerifying, leaderboardNameOpen, player.nickname, walletSessionResolving]);
+
+  useEffect(() => {
     if (
       gameProgress.grillScore > 0
       && !hasCustomLeaderboardName(currentLeaderboardEntry?.name)
@@ -885,6 +896,11 @@ const FishingGame: React.FC = () => {
     setPendingLeaderboardDishes(0);
     setPendingLeaderboardScore(0);
   };
+
+  const handleSavePlayerName = useCallback((name: string) => {
+    setNickname(name);
+    setPlayerNameDialogOpen(false);
+  }, [setNickname]);
 
   const handleSubmitSocialTask = async (taskId: SocialTaskId, proofUrl?: string) => {
     if (!isVerified) {
@@ -1275,6 +1291,11 @@ const FishingGame: React.FC = () => {
               : player.nickname}
             score={Math.max(pendingLeaderboardScore, gameProgress.grillScore)}
             onSave={handleSaveLeaderboardName}
+          />
+          <PlayerNameDialog
+            open={playerNameDialogOpen}
+            walletLinked={isConnected && isVerified}
+            onSave={handleSavePlayerName}
           />
           {levelUpInfo && (
             <LevelUpCelebration

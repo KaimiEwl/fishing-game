@@ -1,5 +1,15 @@
 # STATUS
 
+## Player name is now treated as a wallet-bound one-time identity
+- The first-run player name flow no longer depends on opening the wallet dialog. A dedicated first-entry name prompt now appears when the player has no saved name yet.
+- The chosen name is written into local player state immediately, so it no longer disappears during the delay before the normal debounced save runs.
+- Wallet/session restore no longer wipes a first-run local nickname just because the server wallet row is still empty. Until the server row gets its first nickname, the local first-run name is preserved as the seed.
+- `save-player-progress` now treats `nickname` as immutable after first write: once a wallet row has a nickname, later saves cannot silently rename that wallet.
+- This aligns the intended flow:
+  - player enters a name once
+  - later links a wallet
+  - that name binds to the wallet row and survives device changes through wallet restore
+
 ## Inventory, Boost, and Travel now use the new painted board artwork
 - `Inventory` keeps its modal-over-game behavior, but the modal now uses the new inventory board artwork from `Downloads` instead of the old plain black dialog shell.
 - `Boost` now uses the new boost board artwork for its purchase/session modal, with the existing boost and MON Expedition flows preserved.
