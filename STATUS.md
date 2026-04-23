@@ -1,5 +1,14 @@
 # STATUS
 
+## Grill desktop alignment and background music refreshed
+- `Grill` desktop cards were nudged slightly lower inside the painted board safe-area so the recipe blocks no longer sit as high against the top wood trim as before. Mobile grill layout was left unchanged in this pass because it was already behaving acceptably.
+- The old procedural WebAudio background loop was removed. The game now uses a real looping music track loaded from `public/assets/audio/bg_gone_fishin.mp3`, which replaced the synthetic “bleepy” tone generator.
+- The new music track is the free-use `Gone Fishin'` track from OpenGameArt, compressed down to a web-friendly `128 kbps` MP3 for production playback.
+- Music still follows the existing global sound mute flag and mobile unlock flow:
+  - first user interaction unlocks playback
+  - hidden tabs pause the track
+  - visible tabs resume it if sound is enabled
+
 ## Player name is now treated as a wallet-bound one-time identity
 - The first-run player name flow no longer depends on opening the wallet dialog. A dedicated first-entry name prompt now appears when the player has no saved name yet.
 - The chosen name is written into local player state immediately, so it no longer disappears during the delay before the normal debounced save runs.

@@ -58,8 +58,8 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ inventory, onCook, onCookStar
         desktop: {
           left: '13.4%',
           right: '13.2%',
-          top: '17.0%',
-          bottom: '13.8%',
+          top: '18.4%',
+          bottom: '12.4%',
         },
       };
 
