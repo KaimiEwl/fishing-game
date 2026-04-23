@@ -5,6 +5,7 @@
 - The old placeholder share copy was removed:
   - `Lovable Generated Project` is gone from `description`, `og:description`, and `twitter:description`
   - author metadata now points to Hook & Loot instead of Lovable
+- Referral links now append a static preview version query (`preview=2`) so newly copied invite links use a fresh URL shape instead of reusing the old cached messenger preview for the original `?ref=...` link format.
 - The album/feedback popups were still inheriting a system/light Sonner look, which made some first-catch notifications appear as plain white default toasts against the dark game UI.
 - The active Sonner layer is now forced to the dark game theme and anchored at the top center, so cast/album/status popups no longer sit over the lower fishing controls.
 - Album first-catch rewards still use the lightweight toast path, but they now go through the single themed toast layer instead of producing the old white duplicate popup.

@@ -135,6 +135,7 @@ function buildReferralLink(walletAddress: string | null | undefined): string | n
 
   const referralUrl = new URL(import.meta.env.BASE_URL || '/', window.location.origin);
   referralUrl.searchParams.set('ref', normalizedAddress);
+  referralUrl.searchParams.set('preview', '2');
   return referralUrl.toString();
 }
 
