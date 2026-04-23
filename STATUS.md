@@ -1,14 +1,18 @@
 # STATUS
 
 ## Quest boards now use the painted artwork set for all task tabs
-- `Tasks -> Daily`, `Blockchain`, `Weekly`, and `Social` now all render inside the new painted quest-board frames from `Downloads`, instead of mixing one stylized tab with three plain cyan card lists.
-- Daily now uses the updated blank-center board image, so the cards sit on the intended gray field instead of fighting the original baked-in mockup.
-- All board tabs now share the same framed viewport behavior:
-  - desktop shows a fixed 2x2 quest viewport for the normal task grids
-  - extra quests scroll vertically inside the board area
-  - cards remain clickable with progress bars, reward chips, and claim buttons
+- `Tasks -> Daily`, `Blockchain`, `Weekly`, and `Social` now use the painted quest-board artwork set from `Downloads` as the active quest-screen backdrop set instead of the old generic `bg_tasks.jpg` task background.
+- The quest UI now switches backgrounds by tab:
+  - desktop uses the wide board art
+  - mobile uses the new tall board art
+  - both paths are served as optimized `webp` assets, not raw runtime PNG
+  - both paths now render as fullscreen `cover` backdrops instead of a contained image layer
+- Cards now sit in one responsive board-aligned viewport per tab instead of an “image inside another image” composition.
 - The old `Special` label was renamed to `Blockchain`, so wallet-linked quests and referral rewards now read as a first-class blockchain category instead of a vague misc bucket.
-- The previous hover clipping on the top cards was removed by switching to a shared board frame with inner padding and shadow-only hover emphasis instead of lift that could get cut by the board viewport.
+- Quest cards were also rebalanced to line up better:
+  - card containers are flex-column based
+  - action buttons pin to the bottom
+  - hover emphasis no longer clips the top row
 
 ## Wallet, referral, and inbox removed from Settings
 - `Settings` is now trimmed back to actual settings/admin/profile functions: avatar upload, sound toggle, guide link, and admin entry stay there, but wallet actions, referral tools, MON withdraw UI, and inbox are no longer mixed into that dialog.

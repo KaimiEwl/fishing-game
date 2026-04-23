@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Box, Check, Clock3, Coins, Copy, ExternalLink, Heart, Lock, MessageCircle, Repeat2, Send, Trophy, Worm } from 'lucide-react';
 import { useSendTransaction } from 'wagmi';
@@ -55,6 +55,8 @@ interface TasksScreenProps {
   weeklyMissionsEnabled?: boolean;
 }
 
+type QuestTab = 'daily' | 'blockchain' | 'weekly' | 'social';
+
 const TasksScreen: React.FC<TasksScreenProps> = ({
   coins,
   walletAddress,
@@ -77,6 +79,10 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
 }) => {
   const completedCount = dailyTasks.filter((task) => task.progress >= task.target).length;
   const claimedCount = dailyTasks.filter((task) => task.claimed).length;
+  const [activeTab, setActiveTab] = useState<QuestTab>('daily');
+  const [isMobileLayout, setIsMobileLayout] = useState(() => (
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  ));
   const [walletCheckInSubmitting, setWalletCheckInSubmitting] = useState(false);
   const [copiedReferral, setCopiedReferral] = useState(false);
   const { sendTransactionAsync } = useSendTransaction();
@@ -94,6 +100,31 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
             ? MessageCircle
             : Send,
   })), [socialTasks]);
+  const boardLayout = isMobileLayout ? 'mobile' : 'desktop';
+  const questBackgrounds = useMemo<Record<QuestTab, string>>(() => (
+    isMobileLayout
+      ? {
+          daily: publicAsset('assets/daily_quests_mobile_reference.webp'),
+          blockchain: publicAsset('assets/blockchain_quests_mobile_reference.webp'),
+          weekly: publicAsset('assets/weekly_quests_mobile_reference.webp'),
+          social: publicAsset('assets/social_quests_mobile_reference.webp'),
+        }
+      : {
+          daily: publicAsset('assets/daily_quests_board_reference.webp'),
+          blockchain: publicAsset('assets/blockchain_quests_board_reference.webp'),
+          weekly: publicAsset('assets/weekly_quests_board_reference.webp'),
+          social: publicAsset('assets/social_quests_board_reference.webp'),
+        }
+  ), [isMobileLayout]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 767px)');
+    const handleChange = (event: MediaQueryListEvent) => setIsMobileLayout(event.matches);
+
+    setIsMobileLayout(mediaQuery.matches);
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
 
   const handleCopyReferralLink = async () => {
     if (!referralSummary?.referralLink) return;
@@ -182,12 +213,11 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   };
 
   const renderTaskBoard = (
-    imagePath: string,
     tasks: Array<DailyTaskProgress | SpecialTaskProgress | WeeklyMissionProgress>,
     onClaim: (id: TaskId | WeeklyMissionId) => void,
     footer: React.ReactNode,
   ) => (
-    <QuestBoard imagePath={imagePath} footer={footer}>
+    <QuestBoard layout={boardLayout} footer={footer}>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
         {tasks.map((task) => {
         const complete = task.progress >= task.target;
@@ -213,6 +243,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
 
         return (
           <QuestBoardCard key={task.id} className={isWalletCheckInTask || isInviteFriendTask ? 'md:col-span-2' : ''}>
+            <div className="flex h-full flex-col">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h2 className="pr-2 text-[1.05rem] font-black uppercase tracking-[0.05em] text-[#f3c777] drop-shadow-[0_1px_0_rgba(0,0,0,0.6)] sm:text-[1.2rem]">
@@ -353,24 +384,27 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
               </div>
             )}
 
-            <Button
-              type="button"
-              disabled={!complete || task.claimed}
-              onClick={() => onClaim(task.id)}
-              className="mt-4 h-[3.25rem] w-full rounded-[1.2rem] border border-[#7f5227] bg-[linear-gradient(180deg,#8c531f_0%,#6e4117_42%,#4f2f14_100%)] text-[1.02rem] font-black uppercase tracking-[0.04em] text-[#f8db9a] shadow-[inset_0_1px_0_rgba(255,220,160,0.22),0_10px_16px_rgba(0,0,0,0.28)] transition-all duration-200 hover:brightness-110 disabled:border-[#3a2817] disabled:bg-[linear-gradient(180deg,#2f241c_0%,#231b15_100%)] disabled:text-[#8c7b63] disabled:shadow-none"
-            >
-              {task.claimed ? (
-                <>
-                  <Check className="mr-2 h-4 w-4" />
-                  Claimed
-                </>
-              ) : (
-                <>
-                  {cubeChargeReward > 0 ? <Box className="mr-2 h-4 w-4" /> : task.rewardBait ? <Worm className="mr-2 h-4 w-4" /> : <Coins className="mr-2 h-4 w-4" />}
-                  Claim reward
-                </>
-              )}
-            </Button>
+              <div className="mt-auto pt-4">
+                <Button
+                  type="button"
+                  disabled={!complete || task.claimed}
+                  onClick={() => onClaim(task.id)}
+                  className="h-[3.25rem] w-full rounded-[1.2rem] border border-[#7f5227] bg-[linear-gradient(180deg,#8c531f_0%,#6e4117_42%,#4f2f14_100%)] text-[1.02rem] font-black uppercase tracking-[0.04em] text-[#f8db9a] shadow-[inset_0_1px_0_rgba(255,220,160,0.22),0_10px_16px_rgba(0,0,0,0.28)] transition-all duration-200 hover:brightness-110 disabled:border-[#3a2817] disabled:bg-[linear-gradient(180deg,#2f241c_0%,#231b15_100%)] disabled:text-[#8c7b63] disabled:shadow-none"
+                >
+                  {task.claimed ? (
+                    <>
+                      <Check className="mr-2 h-4 w-4" />
+                      Claimed
+                    </>
+                  ) : (
+                    <>
+                      {cubeChargeReward > 0 ? <Box className="mr-2 h-4 w-4" /> : task.rewardBait ? <Worm className="mr-2 h-4 w-4" /> : <Coins className="mr-2 h-4 w-4" />}
+                      Claim reward
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
           </QuestBoardCard>
         );
       })}
@@ -379,7 +413,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   );
 
   const renderSocialTaskBoard = (footer: React.ReactNode) => (
-    <QuestBoard imagePath="assets/social_quests_board_reference.png" footer={footer}>
+    <QuestBoard layout={boardLayout} footer={footer}>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
       {socialTaskCards.map((task) => {
         const Icon = task.icon;
@@ -389,6 +423,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
             key={task.id}
             className="min-h-[12.75rem] text-left"
           >
+            <div className="flex h-full flex-col">
             <div className="flex items-start justify-between gap-3">
               <div className="inline-flex h-12 w-12 items-center justify-center rounded-[1rem] border border-[#8f6a38] bg-[rgba(15,10,7,0.72)] text-[#f3c777] shadow-[0_8px_16px_rgba(0,0,0,0.28)]">
                 <Icon className="h-5 w-5" />
@@ -403,13 +438,16 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
             <p className="mt-2 text-sm leading-6 text-[#f8e8bf]/88 sm:text-[0.97rem]">
               This social action is planned but not live yet. Tap to see upcoming tasks only.
             </p>
-            <Button
-              type="button"
-              onClick={() => toast.info(`${task.title} coming soon`)}
-              className="mt-4 h-[3.25rem] w-full rounded-[1.2rem] border border-[#7f5227] bg-[linear-gradient(180deg,#8c531f_0%,#6e4117_42%,#4f2f14_100%)] text-[1.02rem] font-black uppercase tracking-[0.04em] text-[#f8db9a] shadow-[inset_0_1px_0_rgba(255,220,160,0.22),0_10px_16px_rgba(0,0,0,0.28)] transition-all duration-200 hover:brightness-110"
-            >
-              Explore task
-            </Button>
+              <div className="mt-auto pt-4">
+                <Button
+                  type="button"
+                  onClick={() => toast.info(`${task.title} coming soon`)}
+                  className="h-[3.25rem] w-full rounded-[1.2rem] border border-[#7f5227] bg-[linear-gradient(180deg,#8c531f_0%,#6e4117_42%,#4f2f14_100%)] text-[1.02rem] font-black uppercase tracking-[0.04em] text-[#f8db9a] shadow-[inset_0_1px_0_rgba(255,220,160,0.22),0_10px_16px_rgba(0,0,0,0.28)] transition-all duration-200 hover:brightness-110"
+                >
+                  Explore task
+                </Button>
+              </div>
+            </div>
           </QuestBoardCard>
         );
       })}
@@ -421,22 +459,33 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
     <GameScreenShell
       title="Quest Board"
       subtitle="Daily, blockchain, weekly, and social progression all live here."
-      coins={coins}
-      backgroundImage={publicAsset('assets/bg_tasks.jpg')}
-      contentScrollable
+      backgroundImage={questBackgrounds[activeTab]}
+      backgroundFit="cover"
+      overlayClassName="bg-[linear-gradient(180deg,rgba(8,6,3,0.18)_0%,rgba(10,8,5,0.2)_48%,rgba(6,5,3,0.26)_100%)]"
+      headerHidden
     >
-      <Tabs defaultValue="daily" className="min-w-0 pb-3">
-        <TabsList className={`grid w-full ${weeklyMissionsEnabled ? 'grid-cols-4' : 'grid-cols-3'} rounded-lg border border-cyan-300/15 bg-black/85 shadow-lg shadow-black/30`}>
-          <TabsTrigger value="daily" className="rounded-lg text-zinc-200 data-[state=active]:border data-[state=active]:border-cyan-300/25 data-[state=active]:bg-zinc-950 data-[state=active]:text-cyan-50">Daily</TabsTrigger>
-          <TabsTrigger value="blockchain" className="rounded-lg text-zinc-200 data-[state=active]:border data-[state=active]:border-cyan-300/25 data-[state=active]:bg-zinc-950 data-[state=active]:text-cyan-50">Blockchain</TabsTrigger>
-          {weeklyMissionsEnabled && (
-            <TabsTrigger value="weekly" className="rounded-lg text-zinc-200 data-[state=active]:border data-[state=active]:border-cyan-300/25 data-[state=active]:bg-zinc-950 data-[state=active]:text-cyan-50">Weekly</TabsTrigger>
-          )}
-          <TabsTrigger value="social" className="rounded-lg text-zinc-200 data-[state=active]:border data-[state=active]:border-cyan-300/25 data-[state=active]:bg-zinc-950 data-[state=active]:text-cyan-50">Social</TabsTrigger>
-        </TabsList>
-        <TabsContent value="daily" className="mt-3">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as QuestTab)}
+        className="flex h-full min-h-0 flex-col pb-3"
+      >
+        <div className="mx-auto mb-3 flex w-full max-w-5xl flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+          <TabsList className={`grid w-full flex-1 ${weeklyMissionsEnabled ? 'grid-cols-4' : 'grid-cols-3'} rounded-2xl border border-[#8f6a38]/70 bg-[rgba(16,11,8,0.82)] p-1 shadow-[0_18px_40px_rgba(0,0,0,0.35)] backdrop-blur-md`}>
+            <TabsTrigger value="daily" className="rounded-xl text-[#ead4aa] data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab]">Daily</TabsTrigger>
+            <TabsTrigger value="blockchain" className="rounded-xl text-[#ead4aa] data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab]">Blockchain</TabsTrigger>
+            {weeklyMissionsEnabled && (
+              <TabsTrigger value="weekly" className="rounded-xl text-[#ead4aa] data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab]">Weekly</TabsTrigger>
+            )}
+            <TabsTrigger value="social" className="rounded-xl text-[#ead4aa] data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab]">Social</TabsTrigger>
+          </TabsList>
+          <div className="inline-flex h-12 shrink-0 self-end items-center gap-2 rounded-2xl border border-[#8f6a38]/70 bg-[rgba(16,11,8,0.82)] px-4 text-sm font-black text-[#f8dfab] shadow-[0_18px_40px_rgba(0,0,0,0.35)] backdrop-blur-md sm:self-auto">
+            <CoinIcon size="md" />
+            {coins.toLocaleString()}
+          </div>
+        </div>
+
+        <TabsContent value="daily" className="mt-0 min-h-0 flex-1">
           {renderTaskBoard(
-            'assets/daily_quests_board_reference.png',
             dailyTasks,
             onClaimTask,
             <QuestBoardPlaque
@@ -469,9 +518,8 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
             />,
           )}
         </TabsContent>
-        <TabsContent value="blockchain" className="mt-3">
+        <TabsContent value="blockchain" className="mt-0 min-h-0 flex-1">
           {renderTaskBoard(
-            'assets/blockchain_quests_board_reference.png',
             specialTasks,
             onClaimTask,
             <QuestBoardPlaque
@@ -485,9 +533,8 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
           )}
         </TabsContent>
         {weeklyMissionsEnabled && (
-          <TabsContent value="weekly" className="mt-3">
+          <TabsContent value="weekly" className="mt-0 min-h-0 flex-1">
             {renderTaskBoard(
-              'assets/weekly_quests_board_reference.png',
               weeklyMissions,
               onClaimWeeklyMission,
               <QuestBoardPlaque
@@ -497,7 +544,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
             )}
           </TabsContent>
         )}
-        <TabsContent value="social" className="mt-3">
+        <TabsContent value="social" className="mt-0 min-h-0 flex-1">
           {renderSocialTaskBoard(
             <QuestBoardPlaque
               eyebrow="Community loop"
