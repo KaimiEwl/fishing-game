@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 interface PlayerNameDialogProps {
   open: boolean;
   walletLinked?: boolean;
-  onSave: (name: string) => void;
+  onSave: (name: string) => Promise<unknown> | void;
 }
 
 const NICKNAME_REGEX = /^[\p{L}0-9_-]{2,20}$/u;
@@ -25,14 +25,16 @@ const PlayerNameDialog: React.FC<PlayerNameDialogProps> = ({
 }) => {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setName('');
     setError('');
+    setSaving(false);
   }, [open]);
 
-  const handleSave = (event?: React.FormEvent) => {
+  const handleSave = async (event?: React.FormEvent) => {
     event?.preventDefault();
     const trimmed = name.trim();
 
@@ -42,7 +44,14 @@ const PlayerNameDialog: React.FC<PlayerNameDialogProps> = ({
     }
 
     setError('');
-    onSave(trimmed);
+    setSaving(true);
+    try {
+      await onSave(trimmed);
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Could not save name.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -71,6 +80,7 @@ const PlayerNameDialog: React.FC<PlayerNameDialogProps> = ({
             autoFocus
             placeholder="Your player name"
             className="h-12 rounded-lg border-cyan-300/20 bg-zinc-950 text-base font-bold text-white placeholder:text-zinc-600 focus-visible:ring-cyan-300/30"
+            disabled={saving}
           />
 
           {error && (
@@ -83,10 +93,10 @@ const PlayerNameDialog: React.FC<PlayerNameDialogProps> = ({
 
           <Button
             type="submit"
-            disabled={!name.trim()}
+            disabled={!name.trim() || saving}
             className="h-12 rounded-lg border border-cyan-300/25 bg-zinc-950 text-base font-black text-cyan-100 shadow-lg shadow-black/30 hover:bg-black disabled:border-zinc-800 disabled:text-zinc-600"
           >
-            Save name
+            {saving ? 'Saving...' : 'Save name'}
           </Button>
         </form>
       </DialogContent>

@@ -68,6 +68,7 @@ const GameControls: React.FC<GameControlsProps> = ({
         : null
     : null;
   const primaryButtonImage = gameState === 'biting' ? CAST_BUTTON_GREEN : CAST_BUTTON_BLUE;
+  const showHookOverlay = gameState === 'biting';
 
   return (
     <>
@@ -117,11 +118,11 @@ const GameControls: React.FC<GameControlsProps> = ({
 
       {showPrimaryControl && (
         <div
-          className="fixed left-1/2 z-20 -translate-x-1/2"
+          className="fixed left-1/2 z-30 -translate-x-1/2"
           style={{
             bottom: isMobile
-              ? 'calc(var(--bottom-nav-clearance,0px) + 1.3rem)'
-              : 'calc(var(--bottom-nav-clearance,0px) + 5.75rem)',
+              ? 'calc(var(--bottom-nav-clearance,0px) + 2.25rem)'
+              : 'calc(var(--bottom-nav-clearance,0px) + 6.15rem)',
           }}
         >
           <div className="relative flex w-[11.75rem] justify-center sm:w-[13.5rem]">
@@ -165,6 +166,11 @@ const GameControls: React.FC<GameControlsProps> = ({
                   className={`block h-auto w-full select-none transition-all duration-200 ${primaryDisabled ? 'grayscale-[0.9] brightness-[0.72] opacity-90' : gameState === 'biting' ? 'drop-shadow-[0_10px_22px_rgba(163,230,53,0.22)]' : 'drop-shadow-[0_10px_22px_rgba(34,211,238,0.24)]'}`}
                   draggable={false}
                 />
+                {showHookOverlay && (
+                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center px-4 text-center text-[0.9rem] font-black uppercase tracking-[0.14em] text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.7)] sm:text-[1rem]">
+                    Hook fish
+                  </span>
+                )}
               </span>
               <span className="sr-only">{primaryLabel}</span>
             </Button>

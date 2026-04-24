@@ -21,7 +21,7 @@ import PlayerLevelAvatar from '@/components/PlayerLevelAvatar';
 
 interface PlayerPanelProps {
   player: PlayerState;
-  onSetNickname?: (nickname: string) => void;
+  onSetNickname?: (nickname: string) => Promise<unknown> | void;
   isConnected?: boolean;
   isVerified?: boolean;
   isVerifying?: boolean;

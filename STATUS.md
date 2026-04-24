@@ -1,5 +1,14 @@
 # STATUS
 
+## Settings and wallet name saves now use the same verified wallet-sync path, and the hook button sits higher above the bottom HUD
+- Fixed a split name-save flow where `Settings` and the wallet popup were still using the local-only `setNickname` path instead of the verified wallet-bound save handler.
+- All player-name entry points now go through the same async wallet sync confirmation:
+  - `Choose your name`
+  - `Wallet`
+  - `Settings`
+- The UI no longer treats a rename as saved until the verified wallet snapshot reflects the new nickname. If that sync is not confirmed, the rename is rolled back and the player sees an explicit save error instead of a fake-success state.
+- Raised the main fishing button stack higher above the bottom navigation and added an explicit `Hook fish` overlay during the bite state so the reel action is visible instead of disappearing under the HUD/art on smaller screens.
+
 ## Settings wallet-name saves now overwrite the old nickname instead of reviving it from the server
 - Fixed the wallet-name persistence bug behind renamed players in Settings.
 - The server-side save path had still been preferring the old persisted `players.nickname` over a newly requested wallet name, so a rename could appear to save on the client and then snap back after refresh.

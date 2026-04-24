@@ -22,7 +22,7 @@ interface WalletDialogProps {
   verificationError?: string | null;
   onRetryWalletVerification?: () => Promise<unknown> | void;
   nickname: string;
-  onSetNickname?: (nickname: string) => void;
+  onSetNickname?: (nickname: string) => Promise<unknown> | void;
   walletAddress?: string;
   monSummary?: MonBalanceSummary;
   monRequests?: PlayerWithdrawRequest[];
@@ -52,6 +52,7 @@ const WalletDialog: React.FC<WalletDialogProps> = ({
   const [nickInput, setNickInput] = useState(nickname);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const pendingWalletModalRef = useRef<(() => void) | null>(null);
   const walletModalTimerRef = useRef<number | null>(null);
 
@@ -91,6 +92,7 @@ const WalletDialog: React.FC<WalletDialogProps> = ({
     setNickInput(nickname);
     setSaved(false);
     setError('');
+    setSaving(false);
   }, [nickname]);
 
   useEffect(() => () => {
@@ -107,7 +109,7 @@ const WalletDialog: React.FC<WalletDialogProps> = ({
     setOpen(false);
   };
 
-  const handleSaveNick = () => {
+  const handleSaveNick = async () => {
     if (nicknameAlreadySet) return;
 
     const trimmed = nickInput.trim();
@@ -116,10 +118,19 @@ const WalletDialog: React.FC<WalletDialogProps> = ({
       return;
     }
 
+    if (!onSetNickname) return;
+
     setError('');
-    onSetNickname?.(trimmed);
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 2000);
+    setSaving(true);
+    try {
+      await onSetNickname(trimmed);
+      setSaved(true);
+      window.setTimeout(() => setSaved(false), 2000);
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Could not save name.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const statusTone = !isConnected
@@ -245,15 +256,15 @@ const WalletDialog: React.FC<WalletDialogProps> = ({
                               placeholder="Enter your name"
                               className="h-11 flex-1 border-zinc-800 bg-black text-zinc-100 placeholder:text-zinc-400"
                               maxLength={20}
-                              disabled={!onSetNickname}
+                              disabled={!onSetNickname || saving}
                               autoFocus={open}
                               onKeyDown={(event) => {
-                                if (event.key === 'Enter') handleSaveNick();
+                                if (event.key === 'Enter') void handleSaveNick();
                               }}
                             />
                             <Button
-                              onClick={handleSaveNick}
-                              disabled={!onSetNickname || saved}
+                              onClick={() => void handleSaveNick()}
+                              disabled={!onSetNickname || saved || saving}
                               size="sm"
                               className="h-11 gap-1 border border-cyan-300/25 bg-black px-4 text-cyan-100 hover:bg-zinc-950 disabled:border-zinc-800 disabled:bg-zinc-900 disabled:text-zinc-500"
                             >
@@ -262,6 +273,8 @@ const WalletDialog: React.FC<WalletDialogProps> = ({
                                   <Check className="h-3 w-3" />
                                   Saved
                                 </>
+                              ) : saving ? (
+                                'Saving...'
                               ) : (
                                 'Save'
                               )}

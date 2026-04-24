@@ -1232,54 +1232,63 @@ const FishingGame: React.FC = () => {
   };
 
   const handleSavePlayerName = useCallback(async (name: string) => {
+    const previousNickname = normalizeWalletNickname(savedPlayerSnapshotRef.current?.nickname)
+      || normalizeWalletNickname(player.nickname);
     const nextPlayerSnapshot = {
       ...player,
       nickname: name,
     };
 
     setNickname(name);
-    if (isVerified && address) {
-      storeCachedWalletNickname(address, name);
-      setCachedWalletNickname(name);
+
+    if (!isVerified || !address) {
+      setPlayerNameDialogOpen(false);
+      return;
     }
+
+    setPlayerNameSyncPending(true);
+    const persisted = await flushPlayerSave(nextPlayerSnapshot);
+    let walletNicknameSynced = false;
+
+    if (persisted) {
+      const deadline = Date.now() + 2500;
+      while (Date.now() < deadline) {
+        if (normalizeWalletNickname(savedPlayerSnapshotRef.current?.nickname) === name) {
+          walletNicknameSynced = true;
+          break;
+        }
+
+        await new Promise<void>((resolve) => {
+          window.setTimeout(resolve, 120);
+        });
+      }
+    }
+
+    setPlayerNameSyncPending(false);
+
+    if (!persisted || !walletNicknameSynced) {
+      const fallbackNickname = previousNickname || null;
+      setNickname(fallbackNickname);
+      storeCachedWalletNickname(address, previousNickname);
+      setCachedWalletNickname(previousNickname);
+      setPlayerNameDialogOpen(!previousNickname);
+      throw new Error('Could not save wallet name right now. Please try again.');
+    }
+
+    storeCachedWalletNickname(address, name);
+    setCachedWalletNickname(name);
     setPlayerNameDialogOpen(false);
 
-    if (isVerified && address) {
-      const effectiveScore = Math.max(currentLeaderboardEntry?.score ?? 0, gameProgress.grillScore);
-      if (effectiveScore > 0) {
-        setLeaderboardEntries((entries) => upsertLeaderboardEntry({
-          entries,
-          id: leaderboardPlayerId,
-          name,
-          score: effectiveScore,
-          dishesDelta: 0,
-          walletAddress: address,
-        }));
-      }
-
-      setPlayerNameSyncPending(true);
-      const persisted = await flushPlayerSave(nextPlayerSnapshot);
-      let walletNicknameSynced = false;
-
-      if (persisted) {
-        const deadline = Date.now() + 2500;
-        while (Date.now() < deadline) {
-          if (normalizeWalletNickname(savedPlayerSnapshotRef.current?.nickname) === name) {
-            walletNicknameSynced = true;
-            break;
-          }
-
-          await new Promise<void>((resolve) => {
-            window.setTimeout(resolve, 120);
-          });
-        }
-      }
-
-      setPlayerNameSyncPending(false);
-
-      if (!persisted || !walletNicknameSynced) {
-        toast.error('Could not confirm wallet-name sync yet, but this device will keep using your saved name.');
-      }
+    const effectiveScore = Math.max(currentLeaderboardEntry?.score ?? 0, gameProgress.grillScore);
+    if (effectiveScore > 0) {
+      setLeaderboardEntries((entries) => upsertLeaderboardEntry({
+        entries,
+        id: leaderboardPlayerId,
+        name,
+        score: effectiveScore,
+        dishesDelta: 0,
+        walletAddress: address,
+      }));
     }
   }, [
     address,
@@ -1621,7 +1630,7 @@ const FishingGame: React.FC = () => {
           {isFishingScreen && (
             <PlayerPanel
               player={player}
-              onSetNickname={isConnected ? setNickname : undefined}
+              onSetNickname={isConnected ? handleSavePlayerName : undefined}
               isConnected={isConnected}
               isVerified={isVerified}
               isVerifying={isVerifying}
