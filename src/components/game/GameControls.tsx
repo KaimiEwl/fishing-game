@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { GameResult, GameState } from '@/types/game';
 import { Button } from '@/components/ui/button';
 import FishDisplay from './FishDisplay';
@@ -68,11 +68,8 @@ const GameControls: React.FC<GameControlsProps> = ({
         : null
     : null;
   const primaryButtonImage = gameState === 'biting' ? CAST_BUTTON_GREEN : CAST_BUTTON_BLUE;
-  const [primaryButtonArtFailed, setPrimaryButtonArtFailed] = useState(false);
-
-  useEffect(() => {
-    setPrimaryButtonArtFailed(false);
-  }, [primaryButtonImage]);
+  const [failedButtonImages, setFailedButtonImages] = useState<Record<string, boolean>>({});
+  const primaryButtonArtFailed = Boolean(failedButtonImages[primaryButtonImage]);
 
   return (
     <>
@@ -175,12 +172,21 @@ const GameControls: React.FC<GameControlsProps> = ({
                 )}
                 {!primaryButtonArtFailed && (
                   <img
+                    key={primaryButtonImage}
                     src={primaryButtonImage}
                     alt=""
                     aria-hidden="true"
                     className={`relative block h-auto w-full select-none transition-all duration-200 ${primaryDisabled ? 'grayscale-[0.9] brightness-[0.72] opacity-90' : gameState === 'biting' ? 'drop-shadow-[0_10px_22px_rgba(163,230,53,0.22)]' : 'drop-shadow-[0_10px_22px_rgba(34,211,238,0.24)]'}`}
                     draggable={false}
-                    onError={() => setPrimaryButtonArtFailed(true)}
+                    onError={() => {
+                      setFailedButtonImages((current) => {
+                        if (current[primaryButtonImage]) return current;
+                        return {
+                          ...current,
+                          [primaryButtonImage]: true,
+                        };
+                      });
+                    }}
                   />
                 )}
                 {primaryButtonArtFailed && (

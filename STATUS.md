@@ -9,6 +9,15 @@
   - the glow/fallback pill now appears only when the button image itself actually fails to load
   - the inline `Hook fish` label now appears only in true fallback mode instead of sitting on top of the normal button art
 
+## Fish action button fallback now tracks blue and green art separately
+- Fixed the follow-up regression where a cast could return to an idle `Cast line` placeholder instead of the real button art.
+- Root cause:
+  - the button was keeping one shared `art failed` flag for both the blue cast button and the green hook button
+  - if one state tripped the fallback path, the next state could inherit that failure and stay stuck on the placeholder surface
+- Updated behavior:
+  - blue and green button assets now track failure independently
+  - switching back from `Hook fish` to `Cast line` no longer revives the fallback UI unless that specific image actually failed
+
 ## Wallet daily check-in is locked to one claim per day again
 - Disabled the old repeat-test mode that still let the blockchain daily check-in act like a reusable bait faucet.
 - Fixed three layers of the same bug:
