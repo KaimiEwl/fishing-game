@@ -1,5 +1,17 @@
 # STATUS
 
+## Saving a verified wallet name no longer throws a scary grill leaderboard error after success
+- The wallet name save itself is now treated as the primary action, and the grill leaderboard rename is treated as a background sync instead of a second user-facing failure point.
+- Root cause:
+  - after a successful `Choose your name` save, the client immediately tried a separate `update_grill_leaderboard` call
+  - if that non-critical follow-up failed, players still saw a red toast even though the wallet name had already been persisted
+- Hardened behavior:
+  - `save-player-name` now also updates the existing verified grill leaderboard row name server-side when that row already exists
+  - the frontend verified name-sync path falls back to a quiet direct leaderboard save instead of showing a red toast after a successful name save
+- Resulting behavior:
+  - players should stop seeing `Could not update the grill leaderboard right now` immediately after a successful wallet-name save
+  - verified leaderboard aliases should still converge to the saved wallet name without treating that background sync as a blocker
+
 ## Edge Functions now allow both live Hook & Loot domains instead of only the old GitHub Pages origin
 - Found the missing server-side half of the wallet-name save failure on production:
   - direct Supabase Function responses were still sending `Access-Control-Allow-Origin: https://kaimiewl.github.io`

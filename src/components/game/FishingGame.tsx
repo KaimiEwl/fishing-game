@@ -759,11 +759,31 @@ const FishingGame: React.FC = () => {
         syncServerLeaderboardEntry(result.leaderboard_entry);
       })
       .catch((error) => {
-        verifiedLeaderboardNameSyncRef.current = null;
-        showBackgroundActionError(
-          'leaderboard-name-sync',
-          error instanceof Error ? error.message : 'Could not sync your leaderboard name yet.',
-        );
+        console.error('Verified leaderboard name sync failed, trying direct fallback:', error);
+
+        const fallbackEntry = {
+          id: leaderboardPlayerId,
+          name: canonicalName,
+          score: effectiveScore,
+          dishes: currentLeaderboardEntry?.dishes ?? 0,
+          walletAddress: address,
+          updatedAt: new Date().toISOString(),
+        };
+
+        void saveGlobalLeaderboardEntry(fallbackEntry)
+          .then(() => {
+            syncServerLeaderboardEntry({
+              id: fallbackEntry.id,
+              name: fallbackEntry.name,
+              score: fallbackEntry.score,
+              dishes: fallbackEntry.dishes,
+              wallet_address: fallbackEntry.walletAddress ?? null,
+              updated_at: fallbackEntry.updatedAt,
+            });
+          })
+          .catch((fallbackError) => {
+            console.error('Verified leaderboard name fallback sync failed:', fallbackError);
+          });
       });
   }, [
     address,
@@ -772,7 +792,6 @@ const FishingGame: React.FC = () => {
     isVerified,
     leaderboardPlayerId,
     displayPlayer.nickname,
-    showBackgroundActionError,
     syncServerLeaderboardEntry,
     updateGrillLeaderboard,
   ]);

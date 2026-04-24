@@ -79,6 +79,16 @@ serve(async (req) => {
 
     if (updateError) throw updateError;
 
+    const leaderboardId = `wallet:${normalizedWalletAddress}`;
+    const { error: leaderboardRenameError } = await supabase
+      .from('grill_leaderboard')
+      .update({ name: normalizedNickname })
+      .eq('id', leaderboardId);
+
+    if (leaderboardRenameError) {
+      console.error('Save player name leaderboard rename warning:', leaderboardRenameError);
+    }
+
     return new Response(
       JSON.stringify({ player: updatedPlayer }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
