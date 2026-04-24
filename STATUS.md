@@ -1,5 +1,25 @@
 # STATUS
 
+## Wallet name prompt now waits for the verified wallet snapshot and does not reopen during name sync
+- Fixed a wallet-name dialog regression where the game could still ask for a name on app entry even after that verified wallet had already saved one before.
+- The root problem was that the prompt gate was looking at the live local `player.nickname` layer instead of the resolved wallet snapshot, while the wallet-bound name save path could still be in flight.
+- The wallet name requirement now uses the verified saved player snapshot as the authoritative source:
+  - no wallet snapshot yet => do not prompt
+  - verified wallet snapshot already has a nickname => do not prompt
+  - verified wallet snapshot is loaded and still has no nickname => prompt once
+- Saving the wallet-bound name now also waits for the explicit wallet-profile flush path before the flow is considered done, so the dialog no longer reopens in the middle of that save cycle.
+
+## Non-fishing tabs now have a recovery path instead of falling into a blank black screen
+- Fixed a screen-switch failure mode where moving from `Fish` into a lazy-loaded screen like `Shop` or `Tasks` could leave the game looking like a dead black screen.
+- The underlying problem was that those tabs are lazy-loaded, but there was no error boundary around the non-fishing tab area:
+  - chunk-load mismatch after a fresh deploy
+  - or a runtime crash inside a tab screen
+  - could bubble out into an effectively blank dark container
+- The non-fishing screen area now has a local recovery boundary:
+  - recoverable lazy-chunk load errors auto-reload the app once
+  - persistent failures show an explicit recovery panel instead of a silent black screen
+  - the player can reload the game or jump back to `Fish`
+
 ## Verified wallet names now override stale grill leaderboard aliases
 - Fixed a wallet identity drift where the player profile nickname and the grill leaderboard name could diverge for the same verified wallet.
 - The bad state looked like this:

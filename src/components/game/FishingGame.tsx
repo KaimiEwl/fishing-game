@@ -78,6 +78,7 @@ import {
   type WeeklyMissionId,
   type WheelPrize,
 } from '@/types/game';
+import { Button } from '@/components/ui/button';
 
 const TRAVEL_ICON_SRC = travelIconSrc;
 const TasksScreen = lazy(() => import('./TasksScreen'));
@@ -111,6 +112,88 @@ const ScreenLoadingFallback: React.FC = () => (
     </div>
   </div>
 );
+
+const TAB_SCREEN_RELOAD_GUARD_KEY = 'hookloot_tab_screen_reload_guard_at';
+const TAB_SCREEN_RELOAD_GUARD_MS = 15000;
+const RECOVERABLE_TAB_SCREEN_ERROR_PATTERNS = [
+  'Failed to fetch dynamically imported module',
+  'Importing a module script failed',
+  'Failed to load module script',
+  'Loading chunk',
+  'ChunkLoadError',
+];
+
+const isRecoverableTabScreenError = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  return RECOVERABLE_TAB_SCREEN_ERROR_PATTERNS.some((pattern) => message.includes(pattern));
+};
+
+interface TabScreenErrorBoundaryProps {
+  screenKey: string;
+  onBackToFish: () => void;
+  children: React.ReactNode;
+}
+
+interface TabScreenErrorBoundaryState {
+  error: Error | null;
+}
+
+class TabScreenErrorBoundary extends React.Component<TabScreenErrorBoundaryProps, TabScreenErrorBoundaryState> {
+  state: TabScreenErrorBoundaryState = {
+    error: null,
+  };
+
+  static getDerivedStateFromError(error: Error): TabScreenErrorBoundaryState {
+    return { error };
+  }
+
+  componentDidCatch(error: Error) {
+    if (typeof window === 'undefined' || !isRecoverableTabScreenError(error)) return;
+
+    const now = Date.now();
+    const previousAttempt = Number(window.sessionStorage.getItem(TAB_SCREEN_RELOAD_GUARD_KEY) ?? '0');
+    if (Number.isFinite(previousAttempt) && now - previousAttempt < TAB_SCREEN_RELOAD_GUARD_MS) {
+      return;
+    }
+
+    window.sessionStorage.setItem(TAB_SCREEN_RELOAD_GUARD_KEY, String(now));
+    window.location.reload();
+  }
+
+  render() {
+    if (!this.state.error) {
+      return this.props.children;
+    }
+
+    return (
+      <div className="flex h-full items-center justify-center bg-[#05060b] px-6 text-center">
+        <div className="w-full max-w-md rounded-2xl border border-red-300/20 bg-black/72 px-6 py-5 text-zinc-100 shadow-2xl backdrop-blur-md">
+          <div className="text-sm font-black uppercase tracking-[0.18em] text-red-200/80">Screen error</div>
+          <div className="mt-2 text-base font-semibold text-white/90">
+            This screen did not load correctly. Reload the game or go back to fishing.
+          </div>
+          <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+            <Button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="h-11 flex-1 rounded-xl border border-cyan-300/25 bg-black text-cyan-100 hover:bg-zinc-950"
+            >
+              Reload game
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={this.props.onBackToFish}
+              className="h-11 flex-1 rounded-xl border-zinc-700 bg-zinc-950 text-zinc-100 hover:bg-black hover:text-white"
+            >
+              Back to fish
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
 
 const createDefaultSocialTasks = (): SocialTaskProgress[] => (
   SOCIAL_TASKS.map((task) => ({
@@ -181,6 +264,7 @@ const FishingGame: React.FC = () => {
   const [leaderboardPlayerId, setLeaderboardPlayerId] = useState(() => getLeaderboardPlayerId(address));
   const [leaderboardNameOpen, setLeaderboardNameOpen] = useState(false);
   const [playerNameDialogOpen, setPlayerNameDialogOpen] = useState(false);
+  const [playerNameSyncPending, setPlayerNameSyncPending] = useState(false);
   const [pendingLeaderboardScore, setPendingLeaderboardScore] = useState(0);
   const [pendingLeaderboardDishes, setPendingLeaderboardDishes] = useState(0);
   const economyFeatures = useMemo(() => getEconomyFeatureAvailability(address), [address]);
@@ -584,17 +668,20 @@ const FishingGame: React.FC = () => {
   }, [albumRewardInfo, dismissAlbumReward]);
 
   useEffect(() => {
+    const walletNickname = savedPlayer?.nickname?.trim() ?? '';
     const shouldRequireWalletName = (
       assetsReady
+      && savedPlayer !== null
       && !walletSessionResolving
       && !isVerifying
       && !leaderboardNameOpen
+      && !playerNameSyncPending
       && isVerified
-      && !player.nickname?.trim()
+      && !walletNickname
     );
 
     setPlayerNameDialogOpen(shouldRequireWalletName);
-  }, [assetsReady, isVerified, isVerifying, leaderboardNameOpen, player.nickname, walletSessionResolving]);
+  }, [assetsReady, isVerified, isVerifying, leaderboardNameOpen, playerNameSyncPending, savedPlayer, walletSessionResolving]);
 
   useEffect(() => {
     if (isVerified) {
@@ -1099,28 +1186,45 @@ const FishingGame: React.FC = () => {
     setPendingLeaderboardScore(0);
   };
 
-  const handleSavePlayerName = useCallback((name: string) => {
+  const handleSavePlayerName = useCallback(async (name: string) => {
+    const nextPlayerSnapshot = {
+      ...player,
+      nickname: name,
+    };
+
     setNickname(name);
     setPlayerNameDialogOpen(false);
-    if (!isVerified || !address) return;
 
-    const effectiveScore = Math.max(currentLeaderboardEntry?.score ?? 0, gameProgress.grillScore);
-    if (effectiveScore <= 0) return;
+    if (isVerified && address) {
+      const effectiveScore = Math.max(currentLeaderboardEntry?.score ?? 0, gameProgress.grillScore);
+      if (effectiveScore > 0) {
+        setLeaderboardEntries((entries) => upsertLeaderboardEntry({
+          entries,
+          id: leaderboardPlayerId,
+          name,
+          score: effectiveScore,
+          dishesDelta: 0,
+          walletAddress: address,
+        }));
+      }
 
-    setLeaderboardEntries((entries) => upsertLeaderboardEntry({
-      entries,
-      id: leaderboardPlayerId,
-      name,
-      score: effectiveScore,
-      dishesDelta: 0,
-      walletAddress: address,
-    }));
+      setPlayerNameSyncPending(true);
+      const persisted = await flushPlayerSave(nextPlayerSnapshot);
+      setPlayerNameSyncPending(false);
+
+      if (!persisted) {
+        toast.error('Could not save your wallet-bound name yet. Please try again.');
+        setPlayerNameDialogOpen(true);
+      }
+    }
   }, [
     address,
     currentLeaderboardEntry?.score,
+    flushPlayerSave,
     gameProgress.grillScore,
     isVerified,
     leaderboardPlayerId,
+    player,
     setNickname,
   ]);
 
@@ -1298,87 +1402,89 @@ const FishingGame: React.FC = () => {
               assets={mainSceneAssets}
             />
           ) : (
-            <Suspense fallback={<ScreenLoadingFallback />}>
-              {activeTab === 'tasks' ? (
-                <TasksScreen
-                  coins={player.coins}
-                  walletAddress={address}
-                  dailyTasks={gameProgress.dailyTasks}
-                  specialTasks={gameProgress.specialTasks}
-                  weeklyMissions={gameProgress.weeklyMissions}
-                  weeklyMissionsEnabled={economyFeatures.weeklyMissions}
-                  socialTasks={socialTasks}
-                  walletCheckInSummary={walletCheckInSummary}
-                  walletCheckInLoading={walletCheckInLoading}
-                  dailyTaskClaimsMet={gameProgress.dailyTaskClaimsMet}
-                  availableWheelRolls={gameProgress.availableWheelRolls}
-                  socialTasksLoading={socialTasksLoading}
-                  isWalletVerified={isVerified}
-                  referralSummary={referralSummary}
-                  onClaimTask={handleClaimTask}
-                  onClaimWeeklyMission={handleClaimWeeklyMission}
-                  onWalletCheckIn={handleWalletCheckIn}
-                  onSubmitSocialTask={handleSubmitSocialTask}
-                  onClaimSocialTask={handleClaimSocialTask}
-                  onRefreshSocialTasks={() => void refreshSocialTasks()}
-                  onOpenWheel={() => setActiveTab('wheel')}
-                />
-              ) : activeTab === 'shop' ? (
-                <ShopScreen
-                  coins={player.coins}
-                  bait={totalBait}
-                  dailyFreeBait={player.dailyFreeBait}
-                  walletAddress={address}
-                  rodLevel={player.rodLevel}
-                  fishingNet={fishingNet}
-                  nftRods={player.nftRods}
-                  onBuyBait={handleBuyBait}
-                  onBuyFishingNetWithMon={handleBuyFishingNetWithMon}
-                  onClaimFishingNet={handleClaimFishingNet}
-                  onBuyRod={handleBuyRod}
-                  onBuyRodWithMon={handleUnlockRodWithMon}
-                  onBuyCubeRollsWithMon={handleBuyCubeRollsWithMon}
-                  onCoinsAdded={addCoins}
-                  onNftMinted={mintNftRod}
-                />
-              ) : activeTab === 'grill' ? (
-                  <GrillScreen
-                    inventory={player.inventory}
-                    onCook={handleCookRecipe}
-                    onCookStartSound={sounds.playGrillCookSound}
+            <TabScreenErrorBoundary key={activeTab} screenKey={activeTab} onBackToFish={() => setActiveTab('fish')}>
+              <Suspense fallback={<ScreenLoadingFallback />}>
+                {activeTab === 'tasks' ? (
+                  <TasksScreen
+                    coins={player.coins}
+                    walletAddress={address}
+                    dailyTasks={gameProgress.dailyTasks}
+                    specialTasks={gameProgress.specialTasks}
+                    weeklyMissions={gameProgress.weeklyMissions}
+                    weeklyMissionsEnabled={economyFeatures.weeklyMissions}
+                    socialTasks={socialTasks}
+                    walletCheckInSummary={walletCheckInSummary}
+                    walletCheckInLoading={walletCheckInLoading}
+                    dailyTaskClaimsMet={gameProgress.dailyTaskClaimsMet}
+                    availableWheelRolls={gameProgress.availableWheelRolls}
+                    socialTasksLoading={socialTasksLoading}
+                    isWalletVerified={isVerified}
+                    referralSummary={referralSummary}
+                    onClaimTask={handleClaimTask}
+                    onClaimWeeklyMission={handleClaimWeeklyMission}
+                    onWalletCheckIn={handleWalletCheckIn}
+                    onSubmitSocialTask={handleSubmitSocialTask}
+                    onClaimSocialTask={handleClaimSocialTask}
+                    onRefreshSocialTasks={() => void refreshSocialTasks()}
+                    onOpenWheel={() => setActiveTab('wheel')}
                   />
-              ) : activeTab === 'wheel' ? (
-                <WheelScreen
-                  coins={player.coins}
-                  availableRolls={gameProgress.availableWheelRolls}
-                  dailyWheelRolls={gameProgress.dailyWheelRolls}
-                  paidWheelRolls={gameProgress.paidWheelRolls}
-                  dailyTaskClaimsMet={gameProgress.dailyTaskClaimsMet}
-                  walletAddress={address}
-                  onRequestRoll={handleRequestCubeRoll}
-                  onResolveReward={handleResolveCubeReward}
-                  onBuySpin={gameProgress.addPaidWheelRolls}
-                  onOpenTasks={() => setActiveTab('tasks')}
-                  onSpinStartSound={sounds.playCubeSpinSound}
-                  onRevealSound={sounds.playCubeRevealSound}
-                  onRewardSound={sounds.playCubeRewardSound}
-                />
-              ) : activeTab === 'map' ? (
-                <MapScreen
-                  onBack={() => setActiveTab('fish')}
-                />
-              ) : (
-                <LeaderboardScreen
-                  coins={player.coins}
-                  grillScore={gameProgress.grillScore}
-                  entries={leaderboardEntries}
-                  currentPlayerId={leaderboardPlayerId}
-                  isConnected={isConnected}
-                  walletAddress={address}
-                  nickname={player.nickname}
-                />
-              )}
-            </Suspense>
+                ) : activeTab === 'shop' ? (
+                  <ShopScreen
+                    coins={player.coins}
+                    bait={totalBait}
+                    dailyFreeBait={player.dailyFreeBait}
+                    walletAddress={address}
+                    rodLevel={player.rodLevel}
+                    fishingNet={fishingNet}
+                    nftRods={player.nftRods}
+                    onBuyBait={handleBuyBait}
+                    onBuyFishingNetWithMon={handleBuyFishingNetWithMon}
+                    onClaimFishingNet={handleClaimFishingNet}
+                    onBuyRod={handleBuyRod}
+                    onBuyRodWithMon={handleUnlockRodWithMon}
+                    onBuyCubeRollsWithMon={handleBuyCubeRollsWithMon}
+                    onCoinsAdded={addCoins}
+                    onNftMinted={mintNftRod}
+                  />
+                ) : activeTab === 'grill' ? (
+                    <GrillScreen
+                      inventory={player.inventory}
+                      onCook={handleCookRecipe}
+                      onCookStartSound={sounds.playGrillCookSound}
+                    />
+                ) : activeTab === 'wheel' ? (
+                  <WheelScreen
+                    coins={player.coins}
+                    availableRolls={gameProgress.availableWheelRolls}
+                    dailyWheelRolls={gameProgress.dailyWheelRolls}
+                    paidWheelRolls={gameProgress.paidWheelRolls}
+                    dailyTaskClaimsMet={gameProgress.dailyTaskClaimsMet}
+                    walletAddress={address}
+                    onRequestRoll={handleRequestCubeRoll}
+                    onResolveReward={handleResolveCubeReward}
+                    onBuySpin={gameProgress.addPaidWheelRolls}
+                    onOpenTasks={() => setActiveTab('tasks')}
+                    onSpinStartSound={sounds.playCubeSpinSound}
+                    onRevealSound={sounds.playCubeRevealSound}
+                    onRewardSound={sounds.playCubeRewardSound}
+                  />
+                ) : activeTab === 'map' ? (
+                  <MapScreen
+                    onBack={() => setActiveTab('fish')}
+                  />
+                ) : (
+                  <LeaderboardScreen
+                    coins={player.coins}
+                    grillScore={gameProgress.grillScore}
+                    entries={leaderboardEntries}
+                    currentPlayerId={leaderboardPlayerId}
+                    isConnected={isConnected}
+                    walletAddress={address}
+                    nickname={player.nickname}
+                  />
+                )}
+              </Suspense>
+            </TabScreenErrorBoundary>
           )}
 
           {isFishingScreen && (
