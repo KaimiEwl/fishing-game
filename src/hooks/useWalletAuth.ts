@@ -644,7 +644,7 @@ export function useWalletAuth() {
     return lastSavedGameProgressDigestRef.current === targetDigest;
   }, [persistWalletState]);
 
-  const saveVerifiedNickname = useCallback(async (player: PlayerState, nickname: string, timeoutMs = 10000) => {
+  const saveVerifiedNickname = useCallback(async (_player: PlayerState, nickname: string, timeoutMs = 10000) => {
     const normalizedNickname = nickname.trim();
     if (!normalizedNickname || !address || !isConnected || !isVerified || !sessionTokenRef.current) {
       return null;
@@ -657,19 +657,13 @@ export function useWalletAuth() {
       return null;
     }
 
-    const nextPlayerSnapshot = {
-      ...player,
-      nickname: normalizedNickname,
-    };
-
     saveInFlightRef.current = true;
     try {
-      const { data, error } = await supabase.functions.invoke('save-player-progress', {
+      const { data, error } = await supabase.functions.invoke('save-player-name', {
         body: {
           wallet_address: address,
           session_token: sessionTokenRef.current,
-          base_updated_at: serverUpdatedAtRef.current,
-          player_data: serializePlayerProgress(nextPlayerSnapshot),
+          nickname: normalizedNickname,
         },
       });
 

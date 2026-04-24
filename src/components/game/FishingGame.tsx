@@ -695,13 +695,12 @@ const FishingGame: React.FC = () => {
       && !walletSessionResolving
       && !isVerifying
       && !leaderboardNameOpen
-      && !playerNameSyncPending
       && isVerified
       && !walletNickname
     );
 
     setPlayerNameDialogOpen(shouldRequireWalletName);
-  }, [assetsReady, isVerified, isVerifying, leaderboardNameOpen, playerNameSyncPending, savedPlayer, walletSessionResolving]);
+  }, [assetsReady, isVerified, isVerifying, leaderboardNameOpen, savedPlayer, walletSessionResolving]);
 
   useEffect(() => {
     if (isVerified) {
