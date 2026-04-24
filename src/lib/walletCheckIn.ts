@@ -4,7 +4,7 @@ import { monadMainnet } from '@/lib/wagmi';
 
 export const WALLET_CHECK_IN_RECEIVER_ADDRESS = '0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D' as const;
 export const WALLET_CHECK_IN_AMOUNT_MON = '0.0001' as const;
-export const WALLET_CHECK_IN_REPEAT_TEST_MODE = true as const;
+export const WALLET_CHECK_IN_REPEAT_TEST_MODE = false as const;
 const WALLET_CHECK_IN_STORAGE_KEY = 'hook_loot_wallet_check_in_v1';
 
 const walletCheckInClient = createPublicClient({

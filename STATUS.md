@@ -1,5 +1,15 @@
 # STATUS
 
+## Wallet daily check-in is locked to one claim per day again
+- Disabled the old repeat-test mode that still let the blockchain daily check-in act like a reusable bait faucet.
+- Fixed three layers of the same bug:
+  - the wallet check-in send button is now disabled once today's check-in is already recorded
+  - local wallet check-in sync no longer flips the special task back to `claimed: false` just because another same-day tx hash appears
+  - the local fallback claim path still works for client-verified check-ins, but it no longer advertises or supports repeat same-day claiming
+- Resulting behavior:
+  - `Daily check-in` can be completed and claimed once per day
+  - same-day repeat MON sends no longer reopen the bait reward
+
 ## Verified daily task claims no longer block on unrelated wallet save queue work
 - Fixed the `Could not sync your latest task progress yet. Try again in a second.` error that could still appear on ready verified tasks like `Daily check-in`.
 - Root cause:

@@ -964,13 +964,15 @@ export function useGameProgress(options?: UseGameProgressOptions) {
 
       return {
         ...prev,
-        lastWalletCheckInTxHash: txChanged ? nextTxHash : (checkedInToday ? prev.lastWalletCheckInTxHash : null),
+        lastWalletCheckInTxHash: checkedInToday
+          ? (nextTxHash ?? prev.lastWalletCheckInTxHash)
+          : null,
         specialTasks: {
           ...prev.specialTasks,
           wallet_check_in: {
             ...current,
             progress: nextProgress,
-            claimed: checkedInToday && txChanged ? false : (nextProgress === 0 ? false : current.claimed),
+            claimed: nextProgress === 0 ? false : current.claimed,
           },
         },
       };
