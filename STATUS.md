@@ -22,6 +22,10 @@
   - persistent failures show an explicit recovery panel instead of a silent black screen
   - the player can reload the game or jump back to `Fish`
 
+## Verified grill cooking now retries the wallet inventory snapshot before rejecting a recipe
+- Fixed a verified grill race where the UI could already show enough fish for a recipe, but the server-side `cook_recipe` action still read an older `players.inventory` row and rejected the cook with `Not enough fish to cook this dish`.
+- The cook path now retries the authoritative wallet inventory read a few times before failing, so a just-synced catch has time to land in the player row before the grill recipe is validated.
+
 ## Verified wallet names now override stale grill leaderboard aliases
 - Fixed a wallet identity drift where the player profile nickname and the grill leaderboard name could diverge for the same verified wallet.
 - The bad state looked like this:

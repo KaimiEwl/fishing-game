@@ -222,6 +222,10 @@ const normalizeIso = (value: unknown, fallback: string) => {
   return parsed.toISOString();
 };
 
+const sleep = (ms: number) => new Promise<void>((resolve) => {
+  setTimeout(resolve, ms);
+});
+
 const getUtcDayKey = (date = new Date()) => date.toISOString().slice(0, 10);
 
 const shiftUtcDayKey = (dayKey: string, offsetDays: number) => {
@@ -919,6 +923,33 @@ const updatePlayer = async (
     .single();
   if (error) throw error;
   return data as PlayerRow;
+};
+
+const loadCookablePlayerState = async (
+  supabase: ReturnType<typeof createClient>,
+  walletAddress: string,
+  ingredients: Record<string, number>,
+) => {
+  let player = await loadPlayer(supabase, walletAddress);
+  let inventory = sanitizeInventory(player.inventory);
+  let nextInventory = consumeInventoryFish(inventory, ingredients);
+
+  if (nextInventory) {
+    return { player, inventory, nextInventory };
+  }
+
+  for (const delayMs of [180, 320, 520]) {
+    await sleep(delayMs);
+    player = await loadPlayer(supabase, walletAddress);
+    inventory = sanitizeInventory(player.inventory);
+    nextInventory = consumeInventoryFish(inventory, ingredients);
+
+    if (nextInventory) {
+      return { player, inventory, nextInventory };
+    }
+  }
+
+  return { player, inventory, nextInventory: null };
 };
 
 const upsertGrillLeaderboard = async (
@@ -1898,11 +1929,13 @@ serve(async (req) => {
         const recipe = getGrillRecipe(recipeId);
         if (!recipe) return badRequest("Unknown recipe");
 
-        const player = await loadPlayer(supabase, walletAddress);
+        const { player, nextInventory } = await loadCookablePlayerState(
+          supabase,
+          walletAddress,
+          recipe.ingredients,
+        );
         const beforeState = await fetchPlayerAuditSnapshot(supabase, walletAddress);
-        const inventory = sanitizeInventory(player.inventory);
         const cookedDishes = sanitizeCookedDishes(player.cooked_dishes);
-        const nextInventory = consumeInventoryFish(inventory, recipe.ingredients);
         if (!nextInventory) return badRequest("Not enough fish to cook this dish");
 
         const progress = normalizeGameProgressForToday(player.game_progress);
