@@ -182,9 +182,12 @@ export const mergeLeaderboardEntries = ({
   if (!fromEntry) return entries;
 
   const toEntry = entries.find((entry) => entry.id === toId);
+  const canonicalWalletName = sanitizeLeaderboardName(fallbackName);
   const mergedEntry: GrillLeaderboardEntry = {
     id: toId,
-    name: sanitizeLeaderboardName(toEntry?.name || fromEntry.name || fallbackName),
+    name: walletAddress
+      ? (canonicalWalletName || sanitizeLeaderboardName(toEntry?.name || fromEntry.name) || DEFAULT_LEADERBOARD_NAME)
+      : (sanitizeLeaderboardName(toEntry?.name || fromEntry.name || fallbackName) || DEFAULT_LEADERBOARD_NAME),
     score: Math.max(toEntry?.score ?? 0, fromEntry.score),
     dishes: Math.max(toEntry?.dishes ?? 0, fromEntry.dishes),
     walletAddress: walletAddress || toEntry?.walletAddress || fromEntry.walletAddress,

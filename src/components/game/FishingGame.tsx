@@ -55,6 +55,7 @@ import {
   loadLeaderboardEntries,
   loadGlobalLeaderboardEntries,
   mergeLeaderboardEntries,
+  sanitizeLeaderboardName,
   saveGlobalLeaderboardEntry,
   upsertLeaderboardEntry,
 } from '@/lib/leaderboard';
@@ -311,6 +312,7 @@ const FishingGame: React.FC = () => {
   const prevGameState = useRef(gameState);
   const prevLevel = useRef(player.level);
   const prevLeaderboardPlayerId = useRef(leaderboardPlayerId);
+  const verifiedLeaderboardNameSyncRef = useRef<string | null>(null);
   const savedPlayerSnapshotRef = useRef(savedPlayer);
   const currentLeaderboardEntry = useMemo(() => (
     leaderboardEntries.find((entry) => entry.id === leaderboardPlayerId)
@@ -595,6 +597,11 @@ const FishingGame: React.FC = () => {
   }, [assetsReady, isVerified, isVerifying, leaderboardNameOpen, player.nickname, walletSessionResolving]);
 
   useEffect(() => {
+    if (isVerified) {
+      setLeaderboardNameOpen(false);
+      return;
+    }
+
     if (
       gameProgress.grillScore > 0
       && !hasCustomLeaderboardName(currentLeaderboardEntry?.name)
@@ -604,7 +611,64 @@ const FishingGame: React.FC = () => {
       setPendingLeaderboardDishes(0);
       setLeaderboardNameOpen(true);
     }
-  }, [currentLeaderboardEntry?.name, gameProgress.grillScore, leaderboardNameOpen]);
+  }, [currentLeaderboardEntry?.name, gameProgress.grillScore, isVerified, leaderboardNameOpen]);
+
+  useEffect(() => {
+    if (!isVerified || !address) {
+      verifiedLeaderboardNameSyncRef.current = null;
+      return;
+    }
+
+    const canonicalName = sanitizeLeaderboardName(player.nickname ?? '');
+    if (!canonicalName) return;
+
+    const effectiveScore = Math.max(currentLeaderboardEntry?.score ?? 0, gameProgress.grillScore);
+    if (effectiveScore <= 0) {
+      verifiedLeaderboardNameSyncRef.current = null;
+      return;
+    }
+
+    const currentName = sanitizeLeaderboardName(currentLeaderboardEntry?.name ?? '');
+    if (currentLeaderboardEntry && currentName === canonicalName) {
+      verifiedLeaderboardNameSyncRef.current = `${leaderboardPlayerId}:${canonicalName}:${effectiveScore}`;
+      return;
+    }
+
+    const syncKey = `${leaderboardPlayerId}:${canonicalName}:${effectiveScore}:${currentLeaderboardEntry?.dishes ?? 0}`;
+    if (verifiedLeaderboardNameSyncRef.current === syncKey) return;
+    verifiedLeaderboardNameSyncRef.current = syncKey;
+
+    setLeaderboardEntries((entries) => upsertLeaderboardEntry({
+      entries,
+      id: leaderboardPlayerId,
+      name: canonicalName,
+      score: effectiveScore,
+      dishesDelta: 0,
+      walletAddress: address,
+    }));
+
+    void updateGrillLeaderboard(canonicalName, effectiveScore, 0)
+      .then((result) => {
+        syncServerLeaderboardEntry(result.leaderboard_entry);
+      })
+      .catch((error) => {
+        verifiedLeaderboardNameSyncRef.current = null;
+        showBackgroundActionError(
+          'leaderboard-name-sync',
+          error instanceof Error ? error.message : 'Could not sync your leaderboard name yet.',
+        );
+      });
+  }, [
+    address,
+    currentLeaderboardEntry,
+    gameProgress.grillScore,
+    isVerified,
+    leaderboardPlayerId,
+    player.nickname,
+    showBackgroundActionError,
+    syncServerLeaderboardEntry,
+    updateGrillLeaderboard,
+  ]);
 
   useEffect(() => {
     syncReferralTask(referralSummary?.todayReferralAttachCount ?? 0);
@@ -1012,8 +1076,11 @@ const FishingGame: React.FC = () => {
 
   const handleSaveLeaderboardName = (name: string) => {
     const score = Math.max(pendingLeaderboardScore, gameProgress.grillScore);
+    const resolvedName = isVerified
+      ? (sanitizeLeaderboardName(player.nickname ?? '') || name)
+      : name;
     if (isVerified) {
-      void updateGrillLeaderboard(name, score, pendingLeaderboardDishes)
+      void updateGrillLeaderboard(resolvedName, score, pendingLeaderboardDishes)
         .then((result) => {
           syncServerLeaderboardEntry(result.leaderboard_entry);
           setLeaderboardNameOpen(false);
@@ -1026,7 +1093,7 @@ const FishingGame: React.FC = () => {
       return;
     }
 
-    saveCurrentLeaderboardEntry(name, score, pendingLeaderboardDishes);
+    saveCurrentLeaderboardEntry(resolvedName, score, pendingLeaderboardDishes);
     setLeaderboardNameOpen(false);
     setPendingLeaderboardDishes(0);
     setPendingLeaderboardScore(0);
@@ -1035,7 +1102,27 @@ const FishingGame: React.FC = () => {
   const handleSavePlayerName = useCallback((name: string) => {
     setNickname(name);
     setPlayerNameDialogOpen(false);
-  }, [setNickname]);
+    if (!isVerified || !address) return;
+
+    const effectiveScore = Math.max(currentLeaderboardEntry?.score ?? 0, gameProgress.grillScore);
+    if (effectiveScore <= 0) return;
+
+    setLeaderboardEntries((entries) => upsertLeaderboardEntry({
+      entries,
+      id: leaderboardPlayerId,
+      name,
+      score: effectiveScore,
+      dishesDelta: 0,
+      walletAddress: address,
+    }));
+  }, [
+    address,
+    currentLeaderboardEntry?.score,
+    gameProgress.grillScore,
+    isVerified,
+    leaderboardPlayerId,
+    setNickname,
+  ]);
 
   const handleSubmitSocialTask = async (taskId: SocialTaskId, proofUrl?: string) => {
     if (!isVerified) {

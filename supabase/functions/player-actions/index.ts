@@ -936,9 +936,13 @@ const upsertGrillLeaderboard = async (
     .maybeSingle();
   if (existingError) throw existingError;
 
+  const canonicalName = sanitizeLeaderboardName(fallbackName)
+    || sanitizeLeaderboardName(existing?.name)
+    || "Hook & Loot player";
+
   const payload = {
     id: leaderboardId,
-    name: sanitizeLeaderboardName(existing?.name ?? fallbackName),
+    name: canonicalName,
     score: Math.max(existing?.score ?? 0, score),
     dishes: Math.max(0, (existing?.dishes ?? 0) + dishesDelta),
     wallet_address: walletAddress,
@@ -2009,7 +2013,7 @@ serve(async (req) => {
         const leaderboardEntry = await upsertGrillLeaderboard(
           supabase,
           walletAddress,
-          name || player.nickname || "Hook & Loot player",
+          player.nickname || name || "Hook & Loot player",
           score,
           dishesDelta,
         );

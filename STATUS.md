@@ -1,5 +1,20 @@
 # STATUS
 
+## Verified wallet names now override stale grill leaderboard aliases
+- Fixed a wallet identity drift where the player profile nickname and the grill leaderboard name could diverge for the same verified wallet.
+- The bad state looked like this:
+  - wallet/player profile already had the new canonical name
+  - leaderboard row still kept an older guest or custom grill alias
+  - refreshing the board could keep reviving that stale alias instead of the wallet name
+- The canonical rule is now enforced in all three places that were fighting each other:
+  - frontend wallet merge into leaderboard entries now prefers the verified wallet nickname over an old guest name
+  - verified players no longer get a separate leaderboard-name prompt once they already have a wallet-bound name
+  - server `player-actions` now writes the current wallet nickname back into `grill_leaderboard` instead of preserving an older row name
+- Resulting behavior:
+  - a verified player should show one consistent name across profile and leaderboard
+  - changing the wallet-bound player name should also rename that player's leaderboard row instead of leaving the old alias behind
+  - existing stale rows are now eligible to self-heal the next time the verified session syncs leaderboard state
+
 ## Verified daily task claims now use the same UTC day boundary as the server
 - Fixed a day-boundary mismatch behind verified daily tasks like `Catch 1 rare fish`.
 - The client-side quest board was tracking daily task progress using the browser's local calendar day, while the verified server claim path normalized daily progress against the server day.
