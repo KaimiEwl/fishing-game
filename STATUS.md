@@ -10,6 +10,17 @@
   - `Daily check-in` can be completed and claimed once per day
   - same-day repeat MON sends no longer reopen the bait reward
 
+## Verified grill now trusts the wallet inventory instead of stale local fish stacks
+- Fixed the remaining split-brain behind `Grill` showing enough fish and then failing with `Not enough fish to cook this dish`.
+- Root cause:
+  - the verified wallet snapshot was still merging `inventory` and `cookedDishes` with old local browser state
+  - `Grill` could therefore render fish counts from stale local storage instead of the actual wallet row
+  - the client was also trying to pre-flush local `player.inventory` before cook, which kept the mismatch path alive instead of enforcing one source of truth
+- Updated behavior:
+  - verified wallet snapshots now keep server-authoritative `inventory` and `cookedDishes`
+  - verified `Grill` cook checks only the wallet snapshot before sending `cook_recipe`
+  - if wallet inventory is still catching up, the client now says that directly instead of pretending the recipe should already cook
+
 ## Verified daily task claims no longer block on unrelated wallet save queue work
 - Fixed the `Could not sync your latest task progress yet. Try again in a second.` error that could still appear on ready verified tasks like `Daily check-in`.
 - Root cause:

@@ -1131,31 +1131,16 @@ const FishingGame: React.FC = () => {
 
   const syncVerifiedInventoryForRecipe = useCallback(async (recipe: GrillRecipe) => {
     if (!isVerified) return true;
-    if (!hasRequiredFishForRecipe(player.inventory, recipe)) return false;
-
-    const flushed = await flushPlayerSave(player);
-    if (!flushed) return false;
-
-    const deadline = Date.now() + 2000;
-    while (Date.now() < deadline) {
-      const syncedPlayer = savedPlayerSnapshotRef.current;
-      if (syncedPlayer && hasRequiredFishForRecipe(syncedPlayer.inventory, recipe)) {
-        return true;
-      }
-
-      await new Promise<void>((resolve) => {
-        window.setTimeout(resolve, 120);
-      });
-    }
-
-    return false;
-  }, [flushPlayerSave, isVerified, player]);
+    const syncedPlayer = savedPlayerSnapshotRef.current;
+    if (!syncedPlayer) return false;
+    return hasRequiredFishForRecipe(syncedPlayer.inventory, recipe);
+  }, [isVerified]);
   const handleCookRecipe = async (recipe: GrillRecipe) => {
     if (isVerified) {
       try {
         const syncedInventoryReady = await syncVerifiedInventoryForRecipe(recipe);
         if (!syncedInventoryReady) {
-          throw new Error('Could not sync the latest fish to your wallet profile. Try again in a second.');
+          throw new Error('Your wallet inventory is still syncing. Wait a second and try again.');
         }
 
         const result = await requestCookRecipe(recipe.id);

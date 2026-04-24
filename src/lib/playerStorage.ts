@@ -262,28 +262,10 @@ export const mergeSyncedPlayerState = (
     xpToNextLevel: Math.max(normalizedServerPlayer.xpToNextLevel, normalizedLocalPlayer.xpToNextLevel),
     rodLevel: Math.max(normalizedServerPlayer.rodLevel, normalizedLocalPlayer.rodLevel),
     equippedRod: Math.max(normalizedServerPlayer.equippedRod, normalizedLocalPlayer.equippedRod),
-    inventory: mergeStacksByMax(
-      normalizedServerPlayer.inventory,
-      normalizedLocalPlayer.inventory,
-      (item) => item.fishId,
-      (preferred, alternate) => ({
-        ...preferred,
-        caughtAt: toTimeValue(preferred.caughtAt) >= toTimeValue(alternate.caughtAt)
-          ? preferred.caughtAt
-          : alternate.caughtAt,
-      }),
-    ),
-    cookedDishes: mergeStacksByMax(
-      normalizedServerPlayer.cookedDishes,
-      normalizedLocalPlayer.cookedDishes,
-      (item) => item.recipeId,
-      (preferred, alternate) => ({
-        ...preferred,
-        createdAt: toTimeValue(preferred.createdAt) >= toTimeValue(alternate.createdAt)
-          ? preferred.createdAt
-          : alternate.createdAt,
-      }),
-    ),
+    // For verified wallets, fish inventory and cooked dishes must reflect the
+    // actual wallet snapshot instead of reviving stale local browser state.
+    inventory: normalizedServerPlayer.inventory,
+    cookedDishes: normalizedServerPlayer.cookedDishes,
     totalCatches: Math.max(normalizedServerPlayer.totalCatches, normalizedLocalPlayer.totalCatches),
     dailyBonusClaimed: normalizedLocalPlayer.dailyBonusClaimed,
     loginStreak: Math.max(normalizedServerPlayer.loginStreak, normalizedLocalPlayer.loginStreak),
