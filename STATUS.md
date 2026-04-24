@@ -1,5 +1,20 @@
 # STATUS
 
+## Verified wallet names now save through a dedicated server-confirmed rename path
+- Fixed the remaining rename regression behind `Settings -> Player name` and the repeated post-refresh name prompt.
+- The old flow was still fragile because wallet-bound name saves were piggybacking on the same full-player autosave queue as inventory/progress:
+  - rename success depended on a later snapshot round-trip
+  - queued wallet saves could delay or muddy that confirmation
+  - the UI could treat the rename as unsaved even when the intent was correct
+- Verified name saves now use a dedicated server-confirmed `save-player-progress` rename path:
+  - the rename no longer depends on the generic autosave queue to be considered successful
+  - the returned wallet player row is applied as a server-authoritative snapshot
+  - the client only accepts the rename after the server response itself confirms the saved nickname
+- Resulting behavior:
+  - `Settings`, `Wallet`, and the blocking `Choose your name` dialog all rely on the same hardened save path
+  - wallet-bound names no longer depend on the general autosave queue to stick
+  - refreshes should keep the saved verified nickname instead of reopening the name prompt for the same wallet
+
 ## Manat Shop cube rolls and MON rods now use premium pricing, stronger buffs, and separate shop art
 - Raised Manat cube-roll pricing from cheap impulse amounts to `1 / 3 / 5 MON` for the `1 / 3 / 5` roll packs.
 - Raised MON rod-unlock pricing to `3 / 5 / 10 / 25 MON` so those shortcut purchases are no longer near-free compared with their impact.

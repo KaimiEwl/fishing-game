@@ -489,6 +489,22 @@ export function useWalletAuth() {
     }>('verify-wallet', { body: payload })
   ), []);
 
+  const waitForWalletSaveQueueToDrain = useCallback(async (timeoutMs = 8000) => {
+    const deadline = Date.now() + timeoutMs;
+
+    while (Date.now() < deadline) {
+      if (!saveInFlightRef.current && !queuedSaveRef.current) {
+        return true;
+      }
+
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, 120);
+      });
+    }
+
+    return !saveInFlightRef.current && !queuedSaveRef.current;
+  }, []);
+
   const persistWalletState = useCallback(async (bundle: WalletSaveBundle) => {
     if (!address || !isConnected || !isVerified || !sessionTokenRef.current) {
       return false;
@@ -612,6 +628,64 @@ export function useWalletAuth() {
 
     return lastSavedGameProgressDigestRef.current === targetDigest;
   }, [persistWalletState]);
+
+  const saveVerifiedNickname = useCallback(async (player: PlayerState, nickname: string, timeoutMs = 10000) => {
+    const normalizedNickname = nickname.trim();
+    if (!normalizedNickname || !address || !isConnected || !isVerified || !sessionTokenRef.current) {
+      return null;
+    }
+
+    const queueDrained = await waitForWalletSaveQueueToDrain(timeoutMs);
+    if (!queueDrained) {
+      return null;
+    }
+
+    const nextPlayerSnapshot = {
+      ...player,
+      nickname: normalizedNickname,
+    };
+
+    saveInFlightRef.current = true;
+    try {
+      const { data, error } = await supabase.functions.invoke('save-player-progress', {
+        body: {
+          wallet_address: address,
+          session_token: sessionTokenRef.current,
+          base_updated_at: serverUpdatedAtRef.current,
+          player_data: serializePlayerProgress(nextPlayerSnapshot),
+        },
+      });
+
+      if (error) throw error;
+      if (!data?.player) return null;
+
+      const nextSavedPlayer = applyVerifiedPlayerPayload(
+        data.player as PlayerRecord,
+        null,
+        { mergeMode: 'server' },
+      );
+
+      return nextSavedPlayer.nickname?.trim() === normalizedNickname
+        ? nextSavedPlayer
+        : null;
+    } catch (error) {
+      console.error('Wallet nickname save failed:', error);
+      return null;
+    } finally {
+      saveInFlightRef.current = false;
+
+      const queuedBundle = queuedSaveRef.current;
+      if (queuedBundle) {
+        queuedSaveRef.current = null;
+        if (
+          (queuedBundle.player && getPlayerProgressDigest(queuedBundle.player) !== lastSavedPlayerDigestRef.current)
+          || (queuedBundle.gameProgress && getGameProgressDigest(queuedBundle.gameProgress) !== lastSavedGameProgressDigestRef.current)
+        ) {
+          void persistWalletState(queuedBundle);
+        }
+      }
+    }
+  }, [address, applyVerifiedPlayerPayload, isConnected, isVerified, persistWalletState, waitForWalletSaveQueueToDrain]);
 
   useEffect(() => {
     if (!REFERRAL_BAIT_ENABLED) return;
@@ -847,6 +921,7 @@ export function useWalletAuth() {
     flushPlayerSave,
     flushGameProgressSave,
     saveGameProgress,
+    saveVerifiedNickname,
     syncServerPlayerRecord: (
       playerRecord: PlayerRecord,
       options?: { mergeMode?: PlayerSnapshotMergeMode },

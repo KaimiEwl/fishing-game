@@ -273,6 +273,7 @@ const FishingGame: React.FC = () => {
     flushPlayerSave,
     flushGameProgressSave,
     saveGameProgress,
+    saveVerifiedNickname,
     syncServerPlayerRecord,
     retryVerifyWallet,
   } = useWalletAuth();
@@ -1234,12 +1235,13 @@ const FishingGame: React.FC = () => {
   const handleSavePlayerName = useCallback(async (name: string) => {
     const previousNickname = normalizeWalletNickname(savedPlayerSnapshotRef.current?.nickname)
       || normalizeWalletNickname(player.nickname);
+    const normalizedName = name.trim();
     const nextPlayerSnapshot = {
       ...player,
-      nickname: name,
+      nickname: normalizedName,
     };
 
-    setNickname(name);
+    setNickname(normalizedName);
 
     if (!isVerified || !address) {
       setPlayerNameDialogOpen(false);
@@ -1247,26 +1249,10 @@ const FishingGame: React.FC = () => {
     }
 
     setPlayerNameSyncPending(true);
-    const persisted = await flushPlayerSave(nextPlayerSnapshot);
-    let walletNicknameSynced = false;
-
-    if (persisted) {
-      const deadline = Date.now() + 2500;
-      while (Date.now() < deadline) {
-        if (normalizeWalletNickname(savedPlayerSnapshotRef.current?.nickname) === name) {
-          walletNicknameSynced = true;
-          break;
-        }
-
-        await new Promise<void>((resolve) => {
-          window.setTimeout(resolve, 120);
-        });
-      }
-    }
-
+    const verifiedPlayer = await saveVerifiedNickname(nextPlayerSnapshot, normalizedName);
     setPlayerNameSyncPending(false);
 
-    if (!persisted || !walletNicknameSynced) {
+    if (!verifiedPlayer) {
       const fallbackNickname = previousNickname || null;
       setNickname(fallbackNickname);
       storeCachedWalletNickname(address, previousNickname);
@@ -1275,8 +1261,10 @@ const FishingGame: React.FC = () => {
       throw new Error('Could not save wallet name right now. Please try again.');
     }
 
-    storeCachedWalletNickname(address, name);
-    setCachedWalletNickname(name);
+    const savedNickname = normalizeWalletNickname(verifiedPlayer.nickname) || normalizedName;
+    setNickname(savedNickname);
+    storeCachedWalletNickname(address, savedNickname);
+    setCachedWalletNickname(savedNickname);
     setPlayerNameDialogOpen(false);
 
     const effectiveScore = Math.max(currentLeaderboardEntry?.score ?? 0, gameProgress.grillScore);
@@ -1284,7 +1272,7 @@ const FishingGame: React.FC = () => {
       setLeaderboardEntries((entries) => upsertLeaderboardEntry({
         entries,
         id: leaderboardPlayerId,
-        name,
+        name: savedNickname,
         score: effectiveScore,
         dishesDelta: 0,
         walletAddress: address,
@@ -1294,11 +1282,11 @@ const FishingGame: React.FC = () => {
     address,
     setCachedWalletNickname,
     currentLeaderboardEntry?.score,
-    flushPlayerSave,
     gameProgress.grillScore,
     isVerified,
     leaderboardPlayerId,
     player,
+    saveVerifiedNickname,
     setNickname,
   ]);
 
