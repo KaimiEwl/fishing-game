@@ -21,7 +21,6 @@ import PlayerLevelAvatar from '@/components/PlayerLevelAvatar';
 
 interface PlayerPanelProps {
   player: PlayerState;
-  onSetNickname?: (nickname: string) => Promise<unknown> | void;
   isConnected?: boolean;
   isVerified?: boolean;
   isVerifying?: boolean;
@@ -37,7 +36,6 @@ interface PlayerPanelProps {
 
 const PlayerPanel: React.FC<PlayerPanelProps> = ({
   player,
-  onSetNickname,
   isConnected = false,
   isVerified = false,
   isVerifying = false,
@@ -104,7 +102,6 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({
           verificationError={verificationError}
           onRetryWalletVerification={onRetryWalletVerification}
           nickname={player.nickname || ''}
-          onSetNickname={isConnected && isVerified && !player.nickname ? onSetNickname : undefined}
           walletAddress={walletAddress}
           monSummary={monEnabled ? monRewards.summary : undefined}
           monRequests={monEnabled ? monRewards.requests : []}
@@ -126,7 +123,6 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({
           nickname={player.nickname || ''}
           walletAddress={walletAddress}
           avatarUrl={player.avatarUrl}
-          onSaveNickname={isConnected && isVerified ? onSetNickname : undefined}
           onAvatarUploaded={onAvatarUploaded}
           showAdminPanelEntry={isAdmin === true}
           adminPendingWithdrawCount={pendingWithdrawCount}

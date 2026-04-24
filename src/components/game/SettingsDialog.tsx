@@ -7,10 +7,9 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Camera, Check, Settings, Volume2, VolumeX } from 'lucide-react';
+import { Camera, Settings, Volume2, VolumeX } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   isMusicMuted,
@@ -29,13 +28,10 @@ interface SettingsDialogProps {
   nickname: string;
   walletAddress?: string;
   avatarUrl?: string | null;
-  onSaveNickname?: (nickname: string) => Promise<unknown> | void;
   onAvatarUploaded?: (url: string) => void;
   showAdminPanelEntry?: boolean;
   adminPendingWithdrawCount?: number;
 }
-
-const NICKNAME_REGEX = /^[\p{L}0-9_-]{2,20}$/u;
 
 const SettingsDialog: React.FC<SettingsDialogProps> = ({
   isConnected,
@@ -43,7 +39,6 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
   nickname,
   walletAddress,
   avatarUrl,
-  onSaveNickname,
   onAvatarUploaded,
   showAdminPanelEntry = false,
   adminPendingWithdrawCount = 0,
@@ -53,10 +48,6 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
   const [soundMuted, setSoundMutedState] = useState(isSoundMuted());
   const [musicMuted, setMusicMutedState] = useState(isMusicMuted());
   const [uploading, setUploading] = useState(false);
-  const [nickInput, setNickInput] = useState(nickname);
-  const [nicknameError, setNicknameError] = useState('');
-  const [nicknameSaving, setNicknameSaving] = useState(false);
-  const [nicknameSaved, setNicknameSaved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const adminNavigateTimerRef = useRef<number | null>(null);
 
@@ -74,13 +65,6 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
       window.removeEventListener(MUSIC_MUTED_EVENT, syncAudioState as EventListener);
     };
   }, []);
-
-  useEffect(() => {
-    setNickInput(nickname);
-    setNicknameError('');
-    setNicknameSaved(false);
-    setNicknameSaving(false);
-  }, [nickname]);
 
   const avatarFallback = nickname
     ? nickname
@@ -151,32 +135,6 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
     }, 180);
   };
 
-  const handleSaveNickname = async () => {
-    const trimmed = nickInput.trim();
-    if (!NICKNAME_REGEX.test(trimmed)) {
-      setNicknameError('Use 2-20 letters, digits, _ or -.');
-      return;
-    }
-
-    if (!onSaveNickname || trimmed === nickname.trim()) {
-      setNicknameError('');
-      return;
-    }
-
-    setNicknameSaving(true);
-    setNicknameError('');
-    setNicknameSaved(false);
-    try {
-      await onSaveNickname(trimmed);
-      setNicknameSaved(true);
-      window.setTimeout(() => setNicknameSaved(false), 2000);
-    } catch (error) {
-      setNicknameError(error instanceof Error ? error.message : 'Could not save name.');
-    } finally {
-      setNicknameSaving(false);
-    }
-  };
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -208,44 +166,20 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
             <div className="space-y-2">
               <p className="text-base font-bold text-zinc-100 sm:text-sm sm:font-medium">Player name</p>
               <div className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-3">
-                <div className="flex gap-2">
-                  <Input
-                    value={nickInput}
-                    onChange={(event) => {
-                      setNickInput(event.target.value);
-                      setNicknameSaved(false);
-                    }}
-                    placeholder="Enter your name"
-                    className="h-11 flex-1 border-zinc-800 bg-black text-zinc-100 placeholder:text-zinc-400"
-                    maxLength={20}
-                    disabled={!onSaveNickname || nicknameSaving}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') {
-                        event.preventDefault();
-                        void handleSaveNickname();
-                      }
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    onClick={() => void handleSaveNickname()}
-                    disabled={!onSaveNickname || nicknameSaving || nickInput.trim() === nickname.trim()}
-                    className="h-11 gap-1 border border-cyan-300/25 bg-black px-4 text-cyan-100 hover:bg-zinc-950 disabled:border-zinc-800 disabled:bg-zinc-900 disabled:text-zinc-500"
-                  >
-                    {nicknameSaved ? (
-                      <>
-                        <Check className="h-3 w-3" />
-                        Saved
-                      </>
-                    ) : nicknameSaving ? 'Saving...' : 'Save'}
-                  </Button>
-                </div>
-                {nicknameError ? (
-                  <p className="mt-2 text-xs font-semibold text-red-300">{nicknameError}</p>
+                {nickname ? (
+                  <>
+                    <p className="text-base font-bold text-zinc-100">{nickname}</p>
+                    <p className="mt-2 text-xs font-medium text-zinc-400">
+                      This wallet name is managed in the required setup step right after wallet verification.
+                    </p>
+                  </>
                 ) : (
-                  <p className="mt-2 text-xs font-medium text-zinc-400">
-                    Save one wallet name and it stays attached to this wallet.
-                  </p>
+                  <>
+                    <p className="text-sm font-semibold text-zinc-100">Wallet name setup still required.</p>
+                    <p className="mt-2 text-xs font-medium text-zinc-400">
+                      The game will block progress with one `Choose your name` prompt until this wallet gets a name.
+                    </p>
+                  </>
                 )}
               </div>
             </div>

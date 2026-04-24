@@ -7,10 +7,9 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useBalance } from 'wagmi';
-import { Check, ExternalLink, ShieldAlert, ShieldCheck, Wallet } from 'lucide-react';
+import { ExternalLink, ShieldAlert, ShieldCheck, Wallet } from 'lucide-react';
 import type { MonBalanceSummary, PlayerWithdrawRequest } from '@/hooks/usePlayerMon';
 import { formatMonAmount } from '@/lib/monRewards';
 import { cn } from '@/lib/utils';
@@ -22,7 +21,6 @@ interface WalletDialogProps {
   verificationError?: string | null;
   onRetryWalletVerification?: () => Promise<unknown> | void;
   nickname: string;
-  onSetNickname?: (nickname: string) => Promise<unknown> | void;
   walletAddress?: string;
   monSummary?: MonBalanceSummary;
   monRequests?: PlayerWithdrawRequest[];
@@ -31,8 +29,6 @@ interface WalletDialogProps {
   onRequestMonWithdraw?: () => Promise<unknown> | void;
 }
 
-const NICKNAME_REGEX = /^[\p{L}0-9_-]{2,20}$/u;
-
 const WalletDialog: React.FC<WalletDialogProps> = ({
   isConnected,
   isVerified = false,
@@ -40,7 +36,6 @@ const WalletDialog: React.FC<WalletDialogProps> = ({
   verificationError = null,
   onRetryWalletVerification,
   nickname,
-  onSetNickname,
   walletAddress,
   monSummary,
   monRequests = [],
@@ -49,10 +44,6 @@ const WalletDialog: React.FC<WalletDialogProps> = ({
   onRequestMonWithdraw,
 }) => {
   const [open, setOpen] = useState(false);
-  const [nickInput, setNickInput] = useState(nickname);
-  const [error, setError] = useState('');
-  const [saved, setSaved] = useState(false);
-  const [saving, setSaving] = useState(false);
   const pendingWalletModalRef = useRef<(() => void) | null>(null);
   const walletModalTimerRef = useRef<number | null>(null);
 
@@ -88,13 +79,6 @@ const WalletDialog: React.FC<WalletDialogProps> = ({
     };
   }, [open]);
 
-  useEffect(() => {
-    setNickInput(nickname);
-    setSaved(false);
-    setError('');
-    setSaving(false);
-  }, [nickname]);
-
   useEffect(() => () => {
     if (walletModalTimerRef.current !== null) {
       window.clearTimeout(walletModalTimerRef.current);
@@ -107,30 +91,6 @@ const WalletDialog: React.FC<WalletDialogProps> = ({
 
     pendingWalletModalRef.current = openModal;
     setOpen(false);
-  };
-
-  const handleSaveNick = async () => {
-    if (nicknameAlreadySet) return;
-
-    const trimmed = nickInput.trim();
-    if (!NICKNAME_REGEX.test(trimmed)) {
-      setError('Use 2-20 letters, digits, _ or -.');
-      return;
-    }
-
-    if (!onSetNickname) return;
-
-    setError('');
-    setSaving(true);
-    try {
-      await onSetNickname(trimmed);
-      setSaved(true);
-      window.setTimeout(() => setSaved(false), 2000);
-    } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Could not save name.');
-    } finally {
-      setSaving(false);
-    }
   };
 
   const statusTone = !isConnected
@@ -233,57 +193,19 @@ const WalletDialog: React.FC<WalletDialogProps> = ({
 
                   {isVerified && (
                     <div className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-3">
-                      {nicknameAlreadySet ? (
-                        <div className="space-y-1">
-                          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400">Player name</p>
+                      <div className="space-y-1">
+                        <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400">Player name</p>
+                        {nicknameAlreadySet ? (
                           <p className="text-base font-bold text-zinc-100">{nickname}</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          <div>
-                            <p className="text-sm font-semibold text-zinc-100">Enter your name to finish wallet setup.</p>
-                            <p className="mt-1 text-xs font-medium text-zinc-400">
-                              Save it once and it will stay attached to your wallet progress.
+                        ) : (
+                          <>
+                            <p className="text-sm font-semibold text-zinc-100">Required right after wallet verification.</p>
+                            <p className="text-xs font-medium text-zinc-400">
+                              The game uses one wallet-bound name prompt. Once you confirm it there, it stays attached to this wallet.
                             </p>
-                          </div>
-                          <div className="flex gap-2">
-                            <Input
-                              value={nickInput}
-                              onChange={(event) => {
-                                setNickInput(event.target.value);
-                                setSaved(false);
-                              }}
-                              placeholder="Enter your name"
-                              className="h-11 flex-1 border-zinc-800 bg-black text-zinc-100 placeholder:text-zinc-400"
-                              maxLength={20}
-                              disabled={!onSetNickname || saving}
-                              autoFocus={open}
-                              onKeyDown={(event) => {
-                                if (event.key === 'Enter') void handleSaveNick();
-                              }}
-                            />
-                            <Button
-                              onClick={() => void handleSaveNick()}
-                              disabled={!onSetNickname || saved || saving}
-                              size="sm"
-                              className="h-11 gap-1 border border-cyan-300/25 bg-black px-4 text-cyan-100 hover:bg-zinc-950 disabled:border-zinc-800 disabled:bg-zinc-900 disabled:text-zinc-500"
-                            >
-                              {saved ? (
-                                <>
-                                  <Check className="h-3 w-3" />
-                                  Saved
-                                </>
-                              ) : saving ? (
-                                'Saving...'
-                              ) : (
-                                'Save'
-                              )}
-                            </Button>
-                          </div>
-                          {error && <p className="text-xs font-semibold text-red-300">{error}</p>}
-                          <p className="text-xs font-medium text-zinc-400">Use 2-20 letters, digits, _ or -.</p>
-                        </div>
-                      )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   )}
 

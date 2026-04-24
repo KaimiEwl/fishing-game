@@ -115,7 +115,6 @@ const ScreenLoadingFallback: React.FC = () => (
 
 const TAB_SCREEN_RELOAD_GUARD_KEY = 'hookloot_tab_screen_reload_guard_at';
 const TAB_SCREEN_RELOAD_GUARD_MS = 15000;
-const WALLET_NAME_CACHE_KEY_PREFIX = 'hookloot_wallet_name_v1:';
 const RECOVERABLE_TAB_SCREEN_ERROR_PATTERNS = [
   'Failed to fetch dynamically imported module',
   'Importing a module script failed',
@@ -224,30 +223,6 @@ const getPremiumReactionQuality = (
 
 const normalizeWalletNickname = (value: string | null | undefined) => value?.trim() ?? '';
 
-const getWalletNameCacheKey = (walletAddress: string) => (
-  `${WALLET_NAME_CACHE_KEY_PREFIX}${walletAddress.toLowerCase()}`
-);
-
-const loadCachedWalletNickname = (walletAddress: string | null | undefined) => {
-  if (!walletAddress || typeof window === 'undefined') return '';
-
-  try {
-    return normalizeWalletNickname(window.localStorage.getItem(getWalletNameCacheKey(walletAddress)));
-  } catch {
-    return '';
-  }
-};
-
-const storeCachedWalletNickname = (walletAddress: string, nickname: string) => {
-  if (typeof window === 'undefined') return;
-
-  try {
-    window.localStorage.setItem(getWalletNameCacheKey(walletAddress), nickname.trim());
-  } catch {
-    // ignore localStorage failures
-  }
-};
-
 const hasRequiredFishForRecipe = (
   inventory: { fishId: string; quantity: number }[],
   recipe: GrillRecipe,
@@ -293,7 +268,6 @@ const FishingGame: React.FC = () => {
   const [leaderboardNameOpen, setLeaderboardNameOpen] = useState(false);
   const [playerNameDialogOpen, setPlayerNameDialogOpen] = useState(false);
   const [playerNameSyncPending, setPlayerNameSyncPending] = useState(false);
-  const [cachedWalletNickname, setCachedWalletNickname] = useState(() => loadCachedWalletNickname(address));
   const [pendingLeaderboardScore, setPendingLeaderboardScore] = useState(0);
   const [pendingLeaderboardDishes, setPendingLeaderboardDishes] = useState(0);
   const economyFeatures = useMemo(() => getEconomyFeatureAvailability(address), [address]);
@@ -679,20 +653,6 @@ const FishingGame: React.FC = () => {
   }, [savedPlayer]);
 
   useEffect(() => {
-    setCachedWalletNickname(loadCachedWalletNickname(address));
-  }, [address]);
-
-  useEffect(() => {
-    if (!isVerified || !address) return;
-
-    const walletNickname = normalizeWalletNickname(savedPlayer?.nickname);
-    if (!walletNickname) return;
-
-    storeCachedWalletNickname(address, walletNickname);
-    setCachedWalletNickname((current) => (current === walletNickname ? current : walletNickname));
-  }, [address, isVerified, savedPlayer?.nickname]);
-
-  useEffect(() => {
     if (player.level > prevLevel.current) {
       sounds.playLevelUpSound();
     }
@@ -714,7 +674,7 @@ const FishingGame: React.FC = () => {
   }, [albumRewardInfo, dismissAlbumReward]);
 
   useEffect(() => {
-    const walletNickname = normalizeWalletNickname(savedPlayer?.nickname) || normalizeWalletNickname(cachedWalletNickname);
+    const walletNickname = normalizeWalletNickname(savedPlayer?.nickname);
     const shouldRequireWalletName = (
       assetsReady
       && savedPlayer !== null
@@ -727,7 +687,7 @@ const FishingGame: React.FC = () => {
     );
 
     setPlayerNameDialogOpen(shouldRequireWalletName);
-  }, [assetsReady, cachedWalletNickname, isVerified, isVerifying, leaderboardNameOpen, playerNameSyncPending, savedPlayer, walletSessionResolving]);
+  }, [assetsReady, isVerified, isVerifying, leaderboardNameOpen, playerNameSyncPending, savedPlayer, walletSessionResolving]);
 
   useEffect(() => {
     if (isVerified) {
@@ -1254,16 +1214,12 @@ const FishingGame: React.FC = () => {
     if (!verifiedPlayer) {
       const fallbackNickname = previousNickname || null;
       setNickname(fallbackNickname);
-      storeCachedWalletNickname(address, previousNickname);
-      setCachedWalletNickname(previousNickname);
       setPlayerNameDialogOpen(!previousNickname);
       throw new Error('Could not save wallet name right now. Please try again.');
     }
 
     const savedNickname = normalizeWalletNickname(verifiedPlayer.nickname) || normalizedName;
     setNickname(savedNickname);
-    storeCachedWalletNickname(address, savedNickname);
-    setCachedWalletNickname(savedNickname);
     setPlayerNameDialogOpen(false);
 
     const effectiveScore = Math.max(currentLeaderboardEntry?.score ?? 0, gameProgress.grillScore);
@@ -1279,7 +1235,6 @@ const FishingGame: React.FC = () => {
     }
   }, [
     address,
-    setCachedWalletNickname,
     currentLeaderboardEntry?.score,
     gameProgress.grillScore,
     isVerified,
@@ -1617,7 +1572,6 @@ const FishingGame: React.FC = () => {
           {isFishingScreen && (
             <PlayerPanel
               player={player}
-              onSetNickname={isConnected ? handleSavePlayerName : undefined}
               isConnected={isConnected}
               isVerified={isVerified}
               isVerifying={isVerifying}

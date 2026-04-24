@@ -1,5 +1,16 @@
 # STATUS
 
+## Verified wallets now have exactly one required name-entry flow
+- Removed the extra wallet/settings rename entry points so the game no longer offers multiple competing ways to set the player name.
+- The only remaining name-entry UI for a verified wallet is the blocking `Choose your name` dialog that appears after wallet verification when that wallet still has no saved nickname.
+- Current rule:
+  - no wallet or wallet not verified => no forced name prompt
+  - wallet verified and wallet nickname missing => one blocking name dialog opens
+  - wallet verified and wallet nickname already saved => no prompt and no duplicate editor
+- `Wallet` and `Settings` now show the current wallet-bound name as read-only status instead of acting like second rename forms.
+- The prompt gate now trusts only the verified wallet snapshot for nickname existence. The earlier local fallback cache was removed so the client can no longer silently treat a device-local cached name as equivalent to a saved wallet name.
+- The blocking name dialog also no longer exposes the standard close/escape path, so a verified wallet cannot continue without saving a name.
+
 ## Verified wallet names now save through a dedicated server-confirmed rename path
 - Fixed the remaining rename regression behind `Settings -> Player name` and the repeated post-refresh name prompt.
 - The old flow was still fragile because wallet-bound name saves were piggybacking on the same full-player autosave queue as inventory/progress:

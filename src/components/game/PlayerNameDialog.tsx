@@ -56,7 +56,12 @@ const PlayerNameDialog: React.FC<PlayerNameDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={() => undefined}>
-      <DialogContent className="max-w-[calc(100vw-1rem)] border border-cyan-300/20 bg-black/95 text-zinc-100 shadow-2xl shadow-black/60 backdrop-blur-md sm:max-w-sm">
+      <DialogContent
+        className="max-w-[calc(100vw-1rem)] border border-cyan-300/20 bg-black/95 text-zinc-100 shadow-2xl shadow-black/60 backdrop-blur-md [&>button:last-child]:hidden sm:max-w-sm"
+        onEscapeKeyDown={(event) => event.preventDefault()}
+        onInteractOutside={(event) => event.preventDefault()}
+        onPointerDownOutside={(event) => event.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-2xl font-black text-white">
             <UserRound className="h-6 w-6 text-cyan-100" />
@@ -64,7 +69,7 @@ const PlayerNameDialog: React.FC<PlayerNameDialogProps> = ({
           </DialogTitle>
           <DialogDescription className="text-sm font-medium text-cyan-50/75">
             {walletLinked
-              ? 'This name will be locked to your wallet and synced with your progress.'
+              ? 'Wallet verified. Enter one player name to lock it to this wallet before you continue.'
               : 'Link and verify your wallet first. After that, a player name becomes required for this account.'}
           </DialogDescription>
         </DialogHeader>
@@ -96,7 +101,7 @@ const PlayerNameDialog: React.FC<PlayerNameDialogProps> = ({
             disabled={!name.trim() || saving}
             className="h-12 rounded-lg border border-cyan-300/25 bg-zinc-950 text-base font-black text-cyan-100 shadow-lg shadow-black/30 hover:bg-black disabled:border-zinc-800 disabled:text-zinc-600"
           >
-            {saving ? 'Saving...' : 'Save name'}
+            {saving ? 'Saving...' : 'OK'}
           </Button>
         </form>
       </DialogContent>
