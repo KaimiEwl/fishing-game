@@ -1,5 +1,15 @@
 # STATUS
 
+## Verified daily task claims no longer block on unrelated wallet save queue work
+- Fixed the `Could not sync your latest task progress yet. Try again in a second.` error that could still appear on ready verified tasks like `Daily check-in`.
+- Root cause:
+  - task claim was waiting for `flushGameProgressSave(...)` to see the exact `game_progress` digest saved
+  - but the client also required the entire wallet save queue to be empty before it returned `true`
+  - unrelated queued player/profile saves could keep that queue non-empty even after the needed task progress had already been persisted
+- Updated behavior:
+  - verified task claims now proceed as soon as the required `game_progress` digest itself is saved
+  - unrelated queued wallet saves no longer block `Daily check-in` and other ready task claims
+
 ## Fishing HUD no longer loses the starter rod icon or main cast/hook control when art fails
 - Hardened the main fish HUD against asset-level failures instead of assuming the rod/button PNGs always load.
 - Root cause:

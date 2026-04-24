@@ -628,11 +628,7 @@ export function useWalletAuth() {
 
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
-      if (
-        lastSavedGameProgressDigestRef.current === targetDigest
-        && !saveInFlightRef.current
-        && !queuedSaveRef.current
-      ) {
+      if (lastSavedGameProgressDigestRef.current === targetDigest) {
         return true;
       }
 
