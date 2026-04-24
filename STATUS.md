@@ -1,5 +1,15 @@
 # STATUS
 
+## Fishing HUD no longer loses the starter rod icon or main cast/hook control when art fails
+- Hardened the main fish HUD against asset-level failures instead of assuming the rod/button PNGs always load.
+- Root cause:
+  - the rod preview badge and cast/hook control depended directly on image assets with no UI fallback
+  - if a rod or button image failed to load or came from a stale cache path, the player could see a broken `Starter` badge and an apparently missing main action button
+- Updated behavior:
+  - the rod badge now retries a safe fallback rod image and finally falls back to a text badge instead of a broken image box
+  - the main cast/hook control now has a built-in styled button fallback, so `Cast line` / `Hook fish` remains visible even if the button art fails
+  - the control stack is also nudged higher above the bottom HUD to reduce the chance of it slipping off-screen on mobile
+
 ## Saving a verified wallet name no longer throws a scary grill leaderboard error after success
 - The wallet name save itself is now treated as the primary action, and the grill leaderboard rename is treated as a background sync instead of a second user-facing failure point.
 - Root cause:

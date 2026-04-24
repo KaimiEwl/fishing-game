@@ -1,6 +1,8 @@
+import { useEffect, useMemo, useState } from 'react';
 import { Worm } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
+import { publicAsset } from '@/lib/assets';
 import { NFT_ROD_DATA } from '@/types/game';
 
 interface RodPreviewBadgeProps {
@@ -15,6 +17,24 @@ const RodPreviewBadge = ({ rodLevel, ownedRodLevel, nftRods, totalBait = 0 }: Ro
   const rod = ROD_DISPLAY_INFO[displayRodLevel] || ROD_DISPLAY_INFO[0];
   const hasNft = nftRods.includes(displayRodLevel);
   const nftData = NFT_ROD_DATA.find((entry) => entry.rodLevel === displayRodLevel) ?? null;
+  const rodImageFallback = useMemo(() => {
+    const fallbackImages = [
+      publicAsset('assets/rod_starter_icon_v2.png'),
+      publicAsset('assets/rod_green_icon_v2.png'),
+      publicAsset('assets/rod_blue_icon_v2.png'),
+      publicAsset('assets/rod_purple_icon_v2.png'),
+      publicAsset('assets/rod_gold_icon_v2.png'),
+    ];
+
+    return fallbackImages[displayRodLevel] ?? publicAsset('assets/rod_basic.png');
+  }, [displayRodLevel]);
+  const [rodImageSrc, setRodImageSrc] = useState(rod.image);
+  const [rodImageFailed, setRodImageFailed] = useState(false);
+
+  useEffect(() => {
+    setRodImageSrc(rod.image);
+    setRodImageFailed(false);
+  }, [rod.image]);
 
   return (
     <div className="absolute bottom-1 right-[calc(100%+0.55rem)] flex flex-col items-center gap-1 sm:bottom-1.5">
@@ -27,11 +47,25 @@ const RodPreviewBadge = ({ rodLevel, ownedRodLevel, nftRods, totalBait = 0 }: Ro
               }`}
             >
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(34,211,238,0.18),transparent_60%),linear-gradient(180deg,rgba(15,23,42,0.15),rgba(15,23,42,0.35))]" />
-              <img
-                src={rod.image}
-                alt={rod.name}
-                className={`absolute inset-0 h-full w-full ${rod.previewFit === 'contain' ? 'object-contain p-1.5' : 'object-cover'} ${rod.previewScale}`}
-              />
+              {!rodImageFailed ? (
+                <img
+                  src={rodImageSrc}
+                  alt={rod.name}
+                  className={`absolute inset-0 h-full w-full ${rod.previewFit === 'contain' ? 'object-contain p-1.5' : 'object-cover'} ${rod.previewScale}`}
+                  onError={() => {
+                    if (rodImageSrc !== rodImageFallback) {
+                      setRodImageSrc(rodImageFallback);
+                      return;
+                    }
+
+                    setRodImageFailed(true);
+                  }}
+                />
+              ) : (
+                <div className="absolute inset-[10%] flex items-center justify-center rounded-lg border border-cyan-300/25 bg-black/45 px-1 text-center text-[10px] font-black uppercase leading-tight text-cyan-50 sm:text-[11px]">
+                  {rod.name}
+                </div>
+              )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
               {rod.bonus > 0 && (
                 <span className="relative z-10 mb-1 rounded-md bg-black/55 px-1 py-[2px] text-[9px] font-bold leading-none text-cyan-50 sm:text-[10px]">
