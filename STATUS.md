@@ -8,11 +8,13 @@
   - the UI could treat the rename as unsaved even when the intent was correct
 - Verified name saves now use a dedicated server-confirmed `save-player-progress` rename path:
   - the rename no longer depends on the generic autosave queue to be considered successful
+  - queued player autosaves are patched to keep the new nickname instead of reviving the old one after the rename
   - the returned wallet player row is applied as a server-authoritative snapshot
   - the client only accepts the rename after the server response itself confirms the saved nickname
 - Resulting behavior:
   - `Settings`, `Wallet`, and the blocking `Choose your name` dialog all rely on the same hardened save path
   - wallet-bound names no longer depend on the general autosave queue to stick
+  - the rename UI no longer flips optimistically into a fake-saved gray state before the verified wallet response arrives
   - refreshes should keep the saved verified nickname instead of reopening the name prompt for the same wallet
 
 ## Manat Shop cube rolls and MON rods now use premium pricing, stronger buffs, and separate shop art

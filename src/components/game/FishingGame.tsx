@@ -1241,9 +1241,8 @@ const FishingGame: React.FC = () => {
       nickname: normalizedName,
     };
 
-    setNickname(normalizedName);
-
     if (!isVerified || !address) {
+      setNickname(normalizedName);
       setPlayerNameDialogOpen(false);
       return;
     }

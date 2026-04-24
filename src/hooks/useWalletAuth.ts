@@ -489,11 +489,26 @@ export function useWalletAuth() {
     }>('verify-wallet', { body: payload })
   ), []);
 
-  const waitForWalletSaveQueueToDrain = useCallback(async (timeoutMs = 8000) => {
+  const syncQueuedNickname = useCallback((nickname: string) => {
+    const normalizedNickname = nickname.trim();
+    const queuedBundle = queuedSaveRef.current;
+
+    if (!queuedBundle?.player) return;
+
+    queuedSaveRef.current = {
+      ...queuedBundle,
+      player: {
+        ...queuedBundle.player,
+        nickname: normalizedNickname,
+      },
+    };
+  }, []);
+
+  const waitForActiveWalletSaveToFinish = useCallback(async (timeoutMs = 8000) => {
     const deadline = Date.now() + timeoutMs;
 
     while (Date.now() < deadline) {
-      if (!saveInFlightRef.current && !queuedSaveRef.current) {
+      if (!saveInFlightRef.current) {
         return true;
       }
 
@@ -502,7 +517,7 @@ export function useWalletAuth() {
       });
     }
 
-    return !saveInFlightRef.current && !queuedSaveRef.current;
+    return !saveInFlightRef.current;
   }, []);
 
   const persistWalletState = useCallback(async (bundle: WalletSaveBundle) => {
@@ -635,8 +650,10 @@ export function useWalletAuth() {
       return null;
     }
 
-    const queueDrained = await waitForWalletSaveQueueToDrain(timeoutMs);
-    if (!queueDrained) {
+    syncQueuedNickname(normalizedNickname);
+
+    const activeSaveFinished = await waitForActiveWalletSaveToFinish(timeoutMs);
+    if (!activeSaveFinished) {
       return null;
     }
 
@@ -673,6 +690,7 @@ export function useWalletAuth() {
       return null;
     } finally {
       saveInFlightRef.current = false;
+      syncQueuedNickname(normalizedNickname);
 
       const queuedBundle = queuedSaveRef.current;
       if (queuedBundle) {
@@ -685,7 +703,7 @@ export function useWalletAuth() {
         }
       }
     }
-  }, [address, applyVerifiedPlayerPayload, isConnected, isVerified, persistWalletState, waitForWalletSaveQueueToDrain]);
+  }, [address, applyVerifiedPlayerPayload, isConnected, isVerified, persistWalletState, syncQueuedNickname, waitForActiveWalletSaveToFinish]);
 
   useEffect(() => {
     if (!REFERRAL_BAIT_ENABLED) return;
