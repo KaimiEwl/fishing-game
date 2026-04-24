@@ -989,6 +989,19 @@ const upsertGrillLeaderboard = async (
   return data;
 };
 
+const runNonCriticalPlayerActionStep = async <T>(
+  label: string,
+  action: () => Promise<T>,
+  fallback: T,
+) => {
+  try {
+    return await action();
+  } catch (error) {
+    console.error(`[player-actions] non-critical step failed: ${label}`, error);
+    return fallback;
+  }
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -1962,27 +1975,35 @@ serve(async (req) => {
           game_progress: nextWeeklyProgress,
         });
 
-        const leaderboardEntry = await upsertGrillLeaderboard(
-          supabase,
-          walletAddress,
-          player.nickname ?? "Hook & Loot player",
-          nextWeeklyProgress.grillScore,
-          1,
+        const leaderboardEntry = await runNonCriticalPlayerActionStep(
+          "cook_recipe.leaderboard",
+          () => upsertGrillLeaderboard(
+            supabase,
+            walletAddress,
+            player.nickname ?? "Hook & Loot player",
+            nextWeeklyProgress.grillScore,
+            1,
+          ),
+          null as Awaited<ReturnType<typeof upsertGrillLeaderboard>> | null,
         );
 
-        await insertPlayerAuditLog(supabase, {
-          walletAddress,
-          eventType: "grill_recipe_cooked",
-          eventSource: "server",
-          beforeState,
-          afterState: sanitizeAuditSnapshot(updatedPlayer),
-          metadata: {
-            recipeId: recipe.id,
-            recipeScore: recipe.score,
-            ingredients: recipe.ingredients,
-            leaderboardScore: leaderboardEntry.score,
-          },
-        });
+        await runNonCriticalPlayerActionStep(
+          "cook_recipe.audit",
+          () => insertPlayerAuditLog(supabase, {
+            walletAddress,
+            eventType: "grill_recipe_cooked",
+            eventSource: "server",
+            beforeState,
+            afterState: sanitizeAuditSnapshot(updatedPlayer),
+            metadata: {
+              recipeId: recipe.id,
+              recipeScore: recipe.score,
+              ingredients: recipe.ingredients,
+              leaderboardScore: leaderboardEntry?.score ?? nextWeeklyProgress.grillScore,
+            },
+          }),
+          undefined,
+        );
 
         return jsonResponse({
           player: updatedPlayer,
@@ -2016,17 +2037,21 @@ serve(async (req) => {
           game_progress: nextProgress,
         });
 
-        await insertPlayerAuditLog(supabase, {
-          walletAddress,
-          eventType: "cooked_dish_sold",
-          eventSource: "server",
-          beforeState,
-          afterState: sanitizeAuditSnapshot(updatedPlayer),
-          metadata: {
-            recipeId: recipe.id,
-            coinReward: recipe.score,
-          },
-        });
+        await runNonCriticalPlayerActionStep(
+          "sell_cooked_dish.audit",
+          () => insertPlayerAuditLog(supabase, {
+            walletAddress,
+            eventType: "cooked_dish_sold",
+            eventSource: "server",
+            beforeState,
+            afterState: sanitizeAuditSnapshot(updatedPlayer),
+            metadata: {
+              recipeId: recipe.id,
+              coinReward: recipe.score,
+            },
+          }),
+          undefined,
+        );
 
         return jsonResponse({ player: updatedPlayer });
       }

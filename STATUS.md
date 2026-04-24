@@ -1,5 +1,15 @@
 # STATUS
 
+## Verified grill cooking no longer fails the whole request after fish were already consumed
+- Hardened the wallet-backed `cook_recipe` flow against non-critical post-cook failures.
+- The dangerous sequence had been:
+  - fish inventory updated successfully
+  - cooked dish created successfully
+  - then a later leaderboard or audit-log step could still throw
+  - the player saw a failed cook even though the wallet inventory had already changed
+- `cook_recipe` now treats leaderboard sync and audit logging as best-effort follow-up steps instead of hard blockers for the dish itself.
+- `sell_cooked_dish` audit logging was hardened the same way so the sell path does not risk the same partial-success behavior.
+
 ## Settings and wallet name saves now use the same verified wallet-sync path, and the hook button sits higher above the bottom HUD
 - Fixed a split name-save flow where `Settings` and the wallet popup were still using the local-only `setNickname` path instead of the verified wallet-bound save handler.
 - All player-name entry points now go through the same async wallet sync confirmation:
