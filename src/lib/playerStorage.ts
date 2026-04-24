@@ -152,6 +152,54 @@ const toTimeValue = (value: string | Date) => {
   return Number.isFinite(timestamp) ? timestamp : 0;
 };
 
+const mergeDailyFreeBaitState = (
+  serverPlayer: PlayerState,
+  localPlayer: PlayerState,
+) => {
+  const serverResetIso = toUtcDayResetIso(serverPlayer.dailyFreeBaitResetAt);
+  const localResetIso = toUtcDayResetIso(localPlayer.dailyFreeBaitResetAt);
+
+  if (serverResetIso && localResetIso) {
+    if (serverResetIso === localResetIso) {
+      return {
+        dailyFreeBait: Math.min(serverPlayer.dailyFreeBait, localPlayer.dailyFreeBait),
+        dailyFreeBaitResetAt: serverResetIso,
+      };
+    }
+
+    if (serverResetIso > localResetIso) {
+      return {
+        dailyFreeBait: serverPlayer.dailyFreeBait,
+        dailyFreeBaitResetAt: serverResetIso,
+      };
+    }
+
+    return {
+      dailyFreeBait: localPlayer.dailyFreeBait,
+      dailyFreeBaitResetAt: localResetIso,
+    };
+  }
+
+  if (serverResetIso) {
+    return {
+      dailyFreeBait: serverPlayer.dailyFreeBait,
+      dailyFreeBaitResetAt: serverResetIso,
+    };
+  }
+
+  if (localResetIso) {
+    return {
+      dailyFreeBait: localPlayer.dailyFreeBait,
+      dailyFreeBaitResetAt: localResetIso,
+    };
+  }
+
+  return {
+    dailyFreeBait: Math.min(serverPlayer.dailyFreeBait, localPlayer.dailyFreeBait),
+    dailyFreeBaitResetAt: null,
+  };
+};
+
 export const mergeSyncedPlayerState = (
   serverPlayer: PlayerState,
   localPlayer: PlayerState,
@@ -162,6 +210,7 @@ export const mergeSyncedPlayerState = (
     normalizedServerPlayer.bonusBaitGrantedTotal,
     normalizedLocalPlayer.bonusBaitGrantedTotal,
   );
+  const mergedDailyFreeBait = mergeDailyFreeBaitState(normalizedServerPlayer, normalizedLocalPlayer);
   const serverNonBonusBait = Math.max(0, normalizedServerPlayer.bait - normalizedServerPlayer.bonusBaitGrantedTotal);
   const localNonBonusBait = Math.max(0, normalizedLocalPlayer.bait - normalizedLocalPlayer.bonusBaitGrantedTotal);
 
@@ -205,8 +254,8 @@ export const mergeSyncedPlayerState = (
     ...normalizedServerPlayer,
     coins: Math.max(normalizedServerPlayer.coins, normalizedLocalPlayer.coins),
     bait: Math.max(serverNonBonusBait, localNonBonusBait) + mergedBonusBaitGrantedTotal,
-    dailyFreeBait: Math.max(normalizedServerPlayer.dailyFreeBait, normalizedLocalPlayer.dailyFreeBait),
-    dailyFreeBaitResetAt: normalizedServerPlayer.dailyFreeBaitResetAt ?? normalizedLocalPlayer.dailyFreeBaitResetAt,
+    dailyFreeBait: mergedDailyFreeBait.dailyFreeBait,
+    dailyFreeBaitResetAt: mergedDailyFreeBait.dailyFreeBaitResetAt,
     bonusBaitGrantedTotal: mergedBonusBaitGrantedTotal,
     level: Math.max(normalizedServerPlayer.level, normalizedLocalPlayer.level),
     xp: Math.max(normalizedServerPlayer.xp, normalizedLocalPlayer.xp),
@@ -239,9 +288,9 @@ export const mergeSyncedPlayerState = (
     dailyBonusClaimed: normalizedLocalPlayer.dailyBonusClaimed,
     loginStreak: Math.max(normalizedServerPlayer.loginStreak, normalizedLocalPlayer.loginStreak),
     nftRods: Array.from(new Set([...normalizedServerPlayer.nftRods, ...normalizedLocalPlayer.nftRods])).sort((a, b) => a - b),
-    // Wallet-bound identity should come from the server once it exists.
-    // Before the wallet row has a nickname, preserve the local first-run name seed.
-    nickname: normalizedServerPlayer.nickname ?? normalizedLocalPlayer.nickname,
+    // Once progress is wallet-bound, the authoritative nickname must come from the wallet row.
+    // Do not silently mask a missing wallet nickname with stale local browser state.
+    nickname: normalizedServerPlayer.nickname ?? null,
     avatarUrl: normalizedServerPlayer.avatarUrl,
     collectionBook: mergeCollectionBooks(normalizedServerPlayer.collectionBook, normalizedLocalPlayer.collectionBook),
     rodMastery: mergeRodMastery(normalizedServerPlayer.rodMastery, normalizedLocalPlayer.rodMastery),

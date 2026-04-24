@@ -39,20 +39,20 @@ const DAY_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const todayKey = () => {
   const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
+  const y = now.getUTCFullYear();
+  const m = String(now.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(now.getUTCDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 };
 
 const currentWeekKey = () => {
   const now = new Date();
-  const mondayBasedDay = (now.getDay() + 6) % 7;
-  now.setHours(0, 0, 0, 0);
-  now.setDate(now.getDate() - mondayBasedDay);
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
+  const mondayBasedDay = (now.getUTCDay() + 6) % 7;
+  now.setUTCHours(0, 0, 0, 0);
+  now.setUTCDate(now.getUTCDate() - mondayBasedDay);
+  const y = now.getUTCFullYear();
+  const m = String(now.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(now.getUTCDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 };
 
@@ -68,6 +68,7 @@ const normalizeIsoValue = (value: unknown) => {
 
 const createFishingNetState = (): FishingNetSnapshot => ({
   owned: false,
+  dailyFishCount: 0,
   purchasedAt: null,
   readyDate: null,
   lastCollectedDate: null,
@@ -105,6 +106,7 @@ const sanitizeFishingNet = (value: unknown): FishingNetSnapshot => {
 
   return {
     owned,
+    dailyFishCount: Math.max(1, Math.floor(Number(source.dailyFishCount ?? FISHING_NET_DAILY_FISH_COUNT))),
     purchasedAt: normalizeIsoValue(source.purchasedAt),
     readyDate: normalizeDayValue(source.readyDate),
     lastCollectedDate: normalizeDayValue(source.lastCollectedDate),
@@ -125,10 +127,11 @@ const chooseFishForNet = () => {
   return FISH_DATA[0];
 };
 
-const rollFishingNetCatch = (): FishingNetCatchEntry[] => {
+const rollFishingNetCatch = (dailyFishCount: number): FishingNetCatchEntry[] => {
   const fishCounts = new Map<string, number>();
+  const rolls = Math.max(1, Math.floor(dailyFishCount));
 
-  for (let index = 0; index < FISHING_NET_DAILY_FISH_COUNT; index += 1) {
+  for (let index = 0; index < rolls; index += 1) {
     const fish = chooseFishForNet();
     fishCounts.set(fish.id, (fishCounts.get(fish.id) ?? 0) + 1);
   }
@@ -160,7 +163,7 @@ const ensureFishingNetReady = (state: GameProgressState): GameProgressState => {
       ...fishingNet,
       readyDate: state.date,
       lastNotificationDate: null,
-      pendingCatch: rollFishingNetCatch(),
+      pendingCatch: rollFishingNetCatch(fishingNet.dailyFishCount || FISHING_NET_DAILY_FISH_COUNT),
     },
   };
 };
@@ -185,6 +188,7 @@ const mergeFishingNet = (
 
   return {
     owned: sanitizedCurrent.owned || sanitizedNext.owned,
+    dailyFishCount: Math.max(sanitizedCurrent.dailyFishCount, sanitizedNext.dailyFishCount),
     purchasedAt: [sanitizedCurrent.purchasedAt, sanitizedNext.purchasedAt]
       .filter((value): value is string => Boolean(value))
       .sort()
@@ -367,6 +371,126 @@ const applyWeeklyCubeUnlockProgress = (
       },
     },
     lastWeeklyCubeUnlockDate: prev.date,
+  };
+};
+
+const buildTaskClaimTransition = (
+  prev: GameProgressState,
+  id: TaskId,
+  weeklyMissionsEnabled: boolean,
+) => {
+  const task = getTaskDefinition(id);
+  if (!task) {
+    return {
+      claimed: false,
+      nextState: prev,
+      cubeUnlockProgressed: false,
+      reward: null as RewardPayload | null,
+    };
+  }
+
+  const current = id in prev.tasks
+    ? prev.tasks[id as DailyTaskId]
+    : prev.specialTasks[id as SpecialTaskId];
+
+  if (!current || current.claimed || current.progress < task.target) {
+    return {
+      claimed: false,
+      nextState: prev,
+      cubeUnlockProgressed: false,
+      reward: null as RewardPayload | null,
+    };
+  }
+
+  if (id in prev.tasks) {
+    const tasks = {
+      ...prev.tasks,
+      [id]: {
+        ...prev.tasks[id as DailyTaskId],
+        claimed: true,
+      },
+    };
+    const rewardState = applyDailyRollReward(prev, tasks);
+    const weeklyCubeState = applyWeeklyCubeUnlockProgress(prev, rewardState.unlockedToday, weeklyMissionsEnabled);
+
+    return {
+      claimed: true,
+      nextState: {
+        ...prev,
+        tasks,
+        dailyWheelRolls: rewardState.dailyWheelRolls,
+        dailyRollRewardGranted: rewardState.dailyRollRewardGranted,
+        weeklyMissions: weeklyCubeState.weeklyMissions,
+        lastWeeklyCubeUnlockDate: weeklyCubeState.lastWeeklyCubeUnlockDate,
+      },
+      cubeUnlockProgressed: rewardState.unlockedToday && weeklyCubeState.lastWeeklyCubeUnlockDate === prev.date,
+      reward: {
+        coins: task.rewardCoins,
+        bait: task.rewardBait,
+      },
+    };
+  }
+
+  return {
+    claimed: true,
+    nextState: {
+      ...prev,
+      specialTasks: {
+        ...prev.specialTasks,
+        [id]: {
+          ...prev.specialTasks[id as SpecialTaskId],
+          claimed: true,
+        },
+      },
+    },
+    cubeUnlockProgressed: false,
+    reward: {
+      coins: task.rewardCoins,
+      bait: task.rewardBait,
+    },
+  };
+};
+
+const buildWeeklyMissionClaimTransition = (
+  prev: GameProgressState,
+  id: WeeklyMissionId,
+) => {
+  const mission = getWeeklyMissionDefinition(id);
+  if (!mission) {
+    return {
+      claimed: false,
+      nextState: prev,
+      reward: null as WeeklyRewardPayload | null,
+    };
+  }
+
+  const current = prev.weeklyMissions?.[id];
+  if (!current || current.claimed || current.progress < mission.target) {
+    return {
+      claimed: false,
+      nextState: prev,
+      reward: null as WeeklyRewardPayload | null,
+    };
+  }
+
+  return {
+    claimed: true,
+    nextState: {
+      ...prev,
+      dailyWheelRolls: prev.dailyWheelRolls + (mission.rewardCubeCharge ?? 0),
+      weeklyMissions: {
+        ...(prev.weeklyMissions ?? createWeeklyMissions()),
+        [id]: {
+          ...current,
+          claimed: true,
+        },
+      },
+    },
+    reward: {
+      coins: mission.rewardCoins,
+      bait: mission.rewardBait,
+      cubeCharge: mission.rewardCubeCharge,
+    },
   };
 };
 
@@ -733,12 +857,13 @@ export function useGameProgress(options?: UseGameProgressOptions) {
     });
   }, []);
 
-  const purchaseFishingNet = useCallback(() => {
+  const purchaseFishingNet = useCallback((dailyFishCount: number) => {
     let purchased = false;
+    const targetDailyFishCount = Math.max(1, Math.floor(dailyFishCount));
 
     setState((prev) => {
       const currentNet = sanitizeFishingNet(prev.fishingNet);
-      if (currentNet.owned) {
+      if (currentNet.owned && currentNet.dailyFishCount >= targetDailyFishCount) {
         return prev;
       }
 
@@ -748,7 +873,8 @@ export function useGameProgress(options?: UseGameProgressOptions) {
         fishingNet: {
           ...currentNet,
           owned: true,
-          purchasedAt: new Date().toISOString(),
+          dailyFishCount: targetDailyFishCount,
+          purchasedAt: currentNet.purchasedAt ?? new Date().toISOString(),
           lastNotificationDate: null,
         },
       });
@@ -887,103 +1013,29 @@ export function useGameProgress(options?: UseGameProgressOptions) {
   const fishingNetPendingCount = getFishingNetCatchCount(fishingNet);
 
   const claimTask = useCallback((id: TaskId, onReward: (reward: RewardPayload) => void) => {
-    const task = getTaskDefinition(id);
-    if (!task) return false;
-    let rewardGranted = false;
-    let cubeUnlockProgressed = false;
+    const transition = buildTaskClaimTransition(state, id, weeklyMissionsEnabled);
+    if (!transition.claimed || !transition.reward) return false;
 
-    setState((prev) => {
-      const current = id in prev.tasks
-        ? prev.tasks[id as DailyTaskId]
-        : prev.specialTasks[id as SpecialTaskId];
+    setState(transition.nextState);
 
-      if (!current || current.claimed || current.progress < task.target) {
-        return prev;
-      }
+    onReward(transition.reward);
 
-      rewardGranted = true;
-
-      if (id in prev.tasks) {
-        const tasks = {
-          ...prev.tasks,
-          [id]: {
-            ...prev.tasks[id as DailyTaskId],
-            claimed: true,
-          },
-        };
-        const rewardState = applyDailyRollReward(prev, tasks);
-        const weeklyCubeState = applyWeeklyCubeUnlockProgress(prev, rewardState.unlockedToday, weeklyMissionsEnabled);
-        cubeUnlockProgressed = rewardState.unlockedToday && weeklyCubeState.lastWeeklyCubeUnlockDate === prev.date;
-
-        return {
-          ...prev,
-          tasks,
-          dailyWheelRolls: rewardState.dailyWheelRolls,
-          dailyRollRewardGranted: rewardState.dailyRollRewardGranted,
-          weeklyMissions: weeklyCubeState.weeklyMissions,
-          lastWeeklyCubeUnlockDate: weeklyCubeState.lastWeeklyCubeUnlockDate,
-        };
-      }
-
-      return {
-        ...prev,
-        specialTasks: {
-          ...prev.specialTasks,
-          [id]: {
-            ...prev.specialTasks[id as SpecialTaskId],
-            claimed: true,
-          },
-        },
-      };
-    });
-
-    if (!rewardGranted) return false;
-
-    onReward({
-      coins: task.rewardCoins,
-      bait: task.rewardBait,
-    });
-
-    if (cubeUnlockProgressed) {
+    if (transition.cubeUnlockProgressed) {
       pushEconomyTelemetryEvent('cube_daily_unlock_progressed', {
         date: todayKey(),
       });
     }
     return true;
-  }, [weeklyMissionsEnabled]);
+  }, [state, weeklyMissionsEnabled]);
 
   const claimWeeklyMission = useCallback((id: WeeklyMissionId, onReward: (reward: WeeklyRewardPayload) => void) => {
+    const transition = buildWeeklyMissionClaimTransition(state, id);
     const mission = getWeeklyMissionDefinition(id);
-    if (!mission) return false;
-    let rewardGranted = false;
+    if (!transition.claimed || !transition.reward || !mission) return false;
 
-    setState((prev) => {
-      const current = prev.weeklyMissions?.[id];
-      if (!current || current.claimed || current.progress < mission.target) {
-        return prev;
-      }
+    setState(transition.nextState);
 
-      rewardGranted = true;
-      return {
-        ...prev,
-        dailyWheelRolls: prev.dailyWheelRolls + (mission.rewardCubeCharge ?? 0),
-        weeklyMissions: {
-          ...(prev.weeklyMissions ?? createWeeklyMissions()),
-          [id]: {
-            ...current,
-            claimed: true,
-          },
-        },
-      };
-    });
-
-    if (!rewardGranted) return false;
-
-    onReward({
-      coins: mission.rewardCoins,
-      bait: mission.rewardBait,
-      cubeCharge: mission.rewardCubeCharge,
-    });
+    onReward(transition.reward);
     pushEconomyTelemetryEvent('weekly_mission_claimed', {
       missionId: id,
       rewardCoins: mission.rewardCoins ?? 0,
@@ -991,7 +1043,7 @@ export function useGameProgress(options?: UseGameProgressOptions) {
       rewardCubeCharge: mission.rewardCubeCharge ?? 0,
     });
     return true;
-  }, []);
+  }, [state]);
 
   const spinWheel = useCallback((onReward: (prize: WheelPrize) => void, selectedPrize?: WheelPrize) => {
     let awardedPrize: WheelPrize | null = null;
@@ -1032,6 +1084,7 @@ export function useGameProgress(options?: UseGameProgressOptions) {
   }, []);
 
   return {
+    snapshot: state,
     dailyTasks,
     specialTasks,
     weeklyMissions,

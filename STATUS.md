@@ -1,5 +1,166 @@
 # STATUS
 
+## Verified daily task claims now use the same UTC day boundary as the server
+- Fixed a day-boundary mismatch behind verified daily tasks like `Catch 1 rare fish`.
+- The client-side quest board was tracking daily task progress using the browser's local calendar day, while the verified server claim path normalized daily progress against the server day.
+- That mismatch could produce the exact bad state seen in production:
+  - the card showed `1/1 Ready`
+  - `Claim reward` stayed enabled
+  - `claim_task_reward` still rejected the task as not ready on the server
+- Daily and weekly progress keys are now aligned to UTC across:
+  - frontend `useGameProgress`
+  - shared server `gameProgress` helpers
+  - `save-player-progress`
+  - `player-actions` daily claim normalization
+- Resulting behavior:
+  - the quest board and verified claim endpoint now evaluate the same day window
+  - rare-fish daily claims should no longer drift into a fake-ready state because of local-vs-server date differences
+
+## Daily and weekly task claims now resolve from a deterministic progress snapshot
+- Fixed a claim-flow bug in the local `useGameProgress` reward engine where daily and weekly quest claims were reporting success through mutable flags set from inside `setState`.
+- That pattern could leave the UI in a bad in-between state for ready tasks like `Catch 1 rare fish`:
+  - the card looked claimable
+  - the click path depended on a side effect from React's update queue
+  - the reward action could bail out even though the quest was already complete
+- Task and weekly-mission claims now compute their full transition from the current progress snapshot first, then apply the new snapshot and rewards from that deterministic result.
+- Resulting behavior:
+  - a completed local task should claim immediately instead of depending on React update timing
+  - the same deterministic path now also covers local weekly mission claims
+
+## Hook button now stays visible while the bite meter floats above it
+- Fixed a fish-screen layout regression where the `Hook fish` control could slip below the visible bottom edge on some screens once the bite meter appeared.
+- The root cause was the control stack itself:
+  - bite meter and main cast/hook button were sharing the same vertical flow
+  - when the meter appeared, it pushed the button down instead of hovering above it
+- The bite meter now renders as a floating overlay above the primary control, so the hook button keeps the same bottom anchor in both idle and biting states.
+- Added a visible button label on top of the cast/hook art as a second safety layer, so the action stays readable even if the image art is hard to parse at a glance.
+
+## Premium expedition casts now have a real perfect-timing window
+- Premium fishing already supported `miss / good / perfect` on the backend, but the client reel action was still effectively binary:
+  - timeout => `miss`
+  - any manual tap => `good`
+- The premium bite meter now exposes a visible sweet spot on the reaction bar, so players can actually aim for a stronger cast quality instead of guessing.
+- Manual premium reel timing now resolves as:
+  - `perfect` when the remaining bite bar lands inside the marked center window
+  - `good` for any other in-time manual tap
+  - `miss` on timeout as before
+- This change does not alter the normal fishing reel path and does not require a backend schema change; it only makes the already-supported premium reaction quality reachable from the UI.
+
+## Verified task claims now flush quest progress before server reward claim
+- Fixed a wallet-backed quest regression where the `Tasks` screen could show a daily or weekly quest as ready, but the server still rejected the claim because the latest `game_progress` snapshot had not finished saving yet.
+- The root cause was different from inventory-backed actions:
+  - fish / coins / dishes save through the player snapshot
+  - quest progress saves through the separate `game_progress` channel
+  - verified claim actions were calling `claim_task_reward` immediately without waiting for that `game_progress` save queue to settle
+- Verified daily-task and weekly-mission claims now explicitly flush the latest quest-progress snapshot before calling the server reward action.
+- Resulting behavior:
+  - if a quest card says `Ready`, claim now waits for the wallet sync instead of racing it
+  - the server should no longer bounce valid claims with `Task is not ready to claim` just because the local task update was still in flight
+
+## Verified bait/cook sync no longer resurrects free bait or races grill saves
+- Fixed a verified-player sync regression where the client merge layer could revive the current-day free bait bucket back toward `30` after wallet refresh/save because it was merging `dailyFreeBait` by maximum instead of by remaining same-day amount.
+- Daily free bait now merges by reset day and same-day minimum, so spending casts no longer gets undone by a later wallet snapshot on that same UTC day.
+- Fixed a second verified grill issue in the wallet save queue:
+  - `sync before cook` used to call `saveProgress(player)` and treat a queued save as already finished
+  - that meant `cook_recipe` could run against an older server inventory row while the real catch save was still in flight
+  - the result was intermittent grill failure even though the local recipe card looked ready
+- Grill cook now waits for the exact player digest to finish saving before the server cook request is sent.
+- After successful verified `cook/sell dish` responses, the player snapshot is now applied in a server-authoritative mode so consumed fish / cooked dishes do not immediately pop back from the previous local state.
+
+## Grill score now has an explicit info explainer for future token-share context
+- Added a small `i` info button next to grill score UI so players do not have to guess what the points are meant to represent later.
+- The explainer now states the intended direction in a non-promissory way:
+  - if the game token launches later
+  - any grill-based allocation would be proportional to score share
+  - `your grill score / total grill score`
+  - more score means a larger share for that account in that model
+- The copy also explicitly says this is informational only and not a promise of token launch, allocation, or payout.
+
+## Manat Shop tab clarified and fishing nets expanded into 3 MON tiers
+- The shop already had a third MON purchase tab in code, but it did not stand out enough and the old single-net presentation still looked like the earlier one-off experiment.
+- The premium tab is now framed more aggressively and player-facing copy reads `Manat Shop`, so the `Bait / Rods / Manat Shop` split is much easier to notice.
+- Fishing nets are now a proper tiered MON product line instead of one fixed utility:
+  - `Scout Net` = `10 fish/day` for `3 MON`
+  - `Harbor Net` = `25 fish/day` for `30 MON`
+  - `Fleet Net` = `50 fish/day` for `60 MON`
+- Net ownership now stores the active daily fish capacity in progress state and wallet-save merges, so upgrades do not collapse back to the old `10 fish` default after sync.
+- Existing legacy nets still load safely and default to the old `10 fish/day` tier if they were purchased before this change.
+
+## Social task placeholder noise removed from the Quest Board
+- The `Social` tab is still intentionally preview-only, but the game was still auto-refreshing social-task status from the backend whenever a verified player opened `Tasks`.
+- That background request could surface a confusing technical toast about temporary social-task availability even though the UI itself was not offering a live social-quest flow yet.
+- The preview tab now stays fully local for normal navigation:
+  - opening `Tasks` no longer triggers the background social-task refresh call
+  - social cards now read as `Preview` instead of a broken half-live action
+  - the button copy now clearly says preview-only instead of implying the player can already open/complete a live social task
+
+## Monad net icon updated and verified grill cook now syncs inventory before server cook
+- The Monad Shop net card now uses the new downloaded net art instead of the temporary SVG glyph, so the fishing net reads as its own premium utility item in the shop.
+- Fixed the confusing grill failure path for verified wallet players:
+  - the client was showing local fish counts immediately after catches
+  - but `cook_recipe` is server-authoritative and could still read an older saved inventory row
+  - now the client flushes the latest player inventory to the wallet save first, waits for that synced snapshot, and only then sends the cook action
+- Fixed a second grill-related debugging issue at the same time: `usePlayerActions` no longer swallows the real server error payload behind the generic fallback toast, so if the backend rejects a future cook/sell action the player now sees the actual server reason.
+- Removed the extra client-side duplicate grill progress bump after verified server cook/sell responses, so grill score and weekly sell/cook mission state no longer risk drifting upward twice on the client.
+
+## Wallet-linked players now must save a name after verification
+- The game no longer forces a player-name prompt on first entry before any wallet is connected. That old flow created cross-device confusion because the name could exist only in one browser before a wallet was ever bound.
+- The mandatory name checkpoint now happens at the wallet-bound moment instead:
+  - wallet connected + verified
+  - wallet profile still has no saved nickname
+  - the blocking `Choose your name` dialog opens and must be completed
+- Wallet restore is now stricter about identity:
+  - once a verified wallet snapshot is loaded, the nickname is taken only from the wallet row
+  - an old local browser nickname no longer hides a missing wallet nickname
+- Resulting behavior:
+  - first visit without wallet: no forced name prompt
+  - same wallet on another device with an existing saved nickname: no extra prompt
+  - same wallet on another device with no saved nickname yet: prompt appears again until that wallet-bound name is saved
+
+## Daily wallet toasts shortened and Shop reworked into Bait / Rods / Monad Shop
+- The wallet daily MON check-in flow no longer stacks multiple unrelated top toasts as long-lived separate popups:
+  - the `transaction sent -> verifying -> updated` path now reuses one toast id and replaces the message in place
+  - the active daily wallet check-in toasts now auto-close on a tighter `~5.6s` timing instead of lingering as a longer stack
+- `Shop` was reorganized into three tabs:
+  - `Bait`
+  - `Rods`
+  - `Monad Shop`
+- `Auto Fishing Net` was removed from the coin bait tab and moved into `Monad Shop`.
+- The old fish placeholder icon for the net was replaced with a dedicated net glyph, so the utility now reads as a separate net item instead of another fish card.
+- `Monad Shop` now groups the wallet-purchase layer in one place:
+  - `Auto Fishing Net` one-time MON purchase at `0.2 MON`
+  - cube roll MON packs:
+    - `1 roll = 0.04 MON`
+    - `3 rolls = 0.1 MON`
+    - `5 rolls = 0.16 MON`
+  - direct MON rod unlocks still exist there as the instant-unlock layer
+  - the stronger bonus MON rods now surface inline there as NFT rod cards with the existing rarity / XP / sell-price bonuses
+- The old quick gold purchase path was kept, but it now lives under `Monad Shop` as the fallback `Gold packs` action instead of sitting in the bait tab.
+- `Wheel` roll buying was aligned to the same cheaper base MON price and now also uses the shorter replace-in-place toast flow.
+
+## Menu smoke harness added for desktop/mobile screen checks
+- Added a repo-local QA harness for repeatable menu regression sweeps without bringing in a new test framework:
+  - `public/qa-runner.html` drives the live app in-browser and records per-screen status
+  - `scripts/qa/run-menu-smoke.mjs` runs a desktop + mobile smoke pass through the current key menus/dialogs using system Chrome headless
+- The current smoke output is saved under `tmp/menu-smoke/`:
+  - `report.json` for structured results
+  - `screenshots/` for per-screen captures
+  - `findings.md` for the short human review summary
+- Current automated pass opens all targeted menu states successfully in the local headless sweep:
+  - fish
+  - tasks
+  - shop
+  - grill
+  - cube
+  - board
+  - map
+  - info
+  - wallet
+  - settings
+  - inventory
+  - boost
+- Manual screenshot review from the same run also flagged one follow-up item to confirm later: some mobile overlay captures (`Settings`, `Wallet`, `Inventory`, `Boost`, `Fish info`) appear shifted right in the headless environment, but this still needs confirmation in a real browser before treating it as an app bug.
+
 ## Passive fishing net added as a daily shop utility
 - Added a new permanent `Auto Fishing Net` utility item to `Shop -> Bait`.
 - It is a one-time coin purchase priced at `6000 coins`, chosen to land around a `~14 day` payback at the current average fish-table value while still feeling attractive as a passive convenience purchase.

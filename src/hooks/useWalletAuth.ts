@@ -342,6 +342,8 @@ interface WalletSaveBundle {
   gameProgress?: GameProgressSnapshot;
 }
 
+type PlayerSnapshotMergeMode = 'optimistic' | 'server';
+
 const mergeSaveBundle = (
   current: WalletSaveBundle | null,
   next: WalletSaveBundle,
@@ -361,6 +363,7 @@ export function useWalletAuth() {
   const [walletSessionResolving, setWalletSessionResolving] = useState(false);
   const [verificationError, setVerificationError] = useState<string | null>(null);
   const [savedPlayer, setSavedPlayer] = useState<PlayerState | null>(null);
+  const [savedPlayerSyncMode, setSavedPlayerSyncMode] = useState<PlayerSnapshotMergeMode>('optimistic');
   const [savedGameProgress, setSavedGameProgress] = useState<GameProgressSnapshot | null>(null);
   const [referralSummary, setReferralSummary] = useState<ReferralSummary | null>(null);
   const sessionTokenRef = useRef<string | null>(null);
@@ -399,7 +402,10 @@ export function useWalletAuth() {
     });
   }, [address]);
 
-  const syncLocalPlayerFromServer = useCallback((playerRecord: PlayerRecord) => {
+  const syncLocalPlayerFromServer = useCallback((
+    playerRecord: PlayerRecord,
+    mergeMode: PlayerSnapshotMergeMode = 'optimistic',
+  ) => {
     const mappedPlayer = normalizeLegacyStartingBait(normalizePlayerDailyFreeBait(
       mapPlayerRecord(playerRecord),
       BAIT_BUCKETS_V2_ENABLED,
@@ -413,9 +419,11 @@ export function useWalletAuth() {
         )
       : null;
 
-    const mergedPlayer = normalizedLocalPlayer
-      ? mergeSyncedPlayerState(mappedPlayer, normalizedLocalPlayer)
-      : mappedPlayer;
+    const mergedPlayer = mergeMode === 'server'
+      ? mappedPlayer
+      : normalizedLocalPlayer
+        ? mergeSyncedPlayerState(mappedPlayer, normalizedLocalPlayer)
+        : mappedPlayer;
 
     const nextStoredPlayer = applyServerBonusBaitSync(
       mergedPlayer,
@@ -443,8 +451,10 @@ export function useWalletAuth() {
   const applyVerifiedPlayerPayload = useCallback((
     playerRecord: PlayerRecord,
     latestReferralReward?: ReferralRewardNotification | null,
+    options?: { mergeMode?: PlayerSnapshotMergeMode },
   ) => {
-    const nextStoredPlayer = syncLocalPlayerFromServer(playerRecord);
+    const mergeMode = options?.mergeMode ?? 'optimistic';
+    const nextStoredPlayer = syncLocalPlayerFromServer(playerRecord, mergeMode);
     const nextSavedGameProgress = playerRecord.game_progress && typeof playerRecord.game_progress === 'object'
       ? playerRecord.game_progress as GameProgressSnapshot
       : null;
@@ -453,6 +463,7 @@ export function useWalletAuth() {
     lastSavedGameProgressDigestRef.current = nextSavedGameProgress
       ? getGameProgressDigest(nextSavedGameProgress)
       : null;
+    setSavedPlayerSyncMode(mergeMode);
     setSavedPlayer(nextStoredPlayer);
     setSavedGameProgress(nextSavedGameProgress);
     syncReferralSummary(playerRecord);
@@ -551,6 +562,52 @@ export function useWalletAuth() {
   const saveGameProgress = useCallback((gameProgress: GameProgressSnapshot) => (
     persistWalletState({ gameProgress })
   ), [persistWalletState]);
+
+  const flushPlayerSave = useCallback(async (player: PlayerState, timeoutMs = 8000) => {
+    const targetDigest = getPlayerProgressDigest(player);
+    const saveQueued = await persistWalletState({ player });
+    if (!saveQueued) return false;
+
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (
+        lastSavedPlayerDigestRef.current === targetDigest
+        && !saveInFlightRef.current
+        && !queuedSaveRef.current
+      ) {
+        return true;
+      }
+
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, 120);
+      });
+    }
+
+    return lastSavedPlayerDigestRef.current === targetDigest;
+  }, [persistWalletState]);
+
+  const flushGameProgressSave = useCallback(async (gameProgress: GameProgressSnapshot, timeoutMs = 8000) => {
+    const targetDigest = getGameProgressDigest(gameProgress);
+    const saveQueued = await persistWalletState({ gameProgress });
+    if (!saveQueued) return false;
+
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (
+        lastSavedGameProgressDigestRef.current === targetDigest
+        && !saveInFlightRef.current
+        && !queuedSaveRef.current
+      ) {
+        return true;
+      }
+
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, 120);
+      });
+    }
+
+    return lastSavedGameProgressDigestRef.current === targetDigest;
+  }, [persistWalletState]);
 
   useEffect(() => {
     if (!REFERRAL_BAIT_ENABLED) return;
@@ -752,6 +809,7 @@ export function useWalletAuth() {
     if (!isConnected) {
       setIsVerified(false);
       setSavedPlayer(null);
+      setSavedPlayerSyncMode('optimistic');
       setSavedGameProgress(null);
       setReferralSummary(null);
       setWalletSessionResolving(false);
@@ -776,13 +834,19 @@ export function useWalletAuth() {
     isVerified,
     isVerifying,
     savedPlayer,
+    savedPlayerSyncMode,
     savedGameProgress,
     walletSessionResolving,
     verificationError,
     referralSummary,
     saveProgress,
+    flushPlayerSave,
+    flushGameProgressSave,
     saveGameProgress,
-    syncServerPlayerRecord: (playerRecord: PlayerRecord) => applyVerifiedPlayerPayload(playerRecord),
+    syncServerPlayerRecord: (
+      playerRecord: PlayerRecord,
+      options?: { mergeMode?: PlayerSnapshotMergeMode },
+    ) => applyVerifiedPlayerPayload(playerRecord, null, options),
     retryVerifyWallet: () => {
       autoVerifyAttemptedForAddressRef.current = null;
       return verifyWallet(true);

@@ -56,7 +56,7 @@ const PlayerNameDialog: React.FC<PlayerNameDialogProps> = ({
           <DialogDescription className="text-sm font-medium text-cyan-50/75">
             {walletLinked
               ? 'This name will be locked to your wallet and synced with your progress.'
-              : 'Set your player name once. When you later link a wallet, this name will stay attached to that wallet progress.'}
+              : 'Link and verify your wallet first. After that, a player name becomes required for this account.'}
           </DialogDescription>
         </DialogHeader>
 

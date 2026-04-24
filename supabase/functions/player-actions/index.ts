@@ -364,18 +364,14 @@ const consumeCookedDish = (
 };
 
 const getTodayKey = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return getUtcDayKey();
 };
 
 const getTodayRange = () => {
   const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const end = new Date(start);
-  end.setDate(end.getDate() + 1);
+  end.setUTCDate(end.getUTCDate() + 1);
   return {
     startIso: start.toISOString(),
     endIso: end.toISOString(),

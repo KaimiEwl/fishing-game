@@ -3,6 +3,7 @@ import { ChefHat, Lock, Trophy, Wallet } from 'lucide-react';
 import GameScreenShell from './GameScreenShell';
 import { publicAsset } from '@/lib/assets';
 import type { GrillLeaderboardEntry } from '@/types/game';
+import GrillScoreInfoButton from './GrillScoreInfoButton';
 
 interface LeaderboardScreenProps {
   coins: number;
@@ -61,7 +62,10 @@ const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
                 <Trophy className="h-6 w-6" />
               </div>
               <h2 className="mt-4 text-4xl font-black text-yellow-100">{grillScore.toLocaleString()}</h2>
-              <p className="mt-1 text-sm font-medium text-cyan-50/75">your grill score</p>
+              <div className="mt-1 inline-flex items-center gap-2">
+                <p className="text-sm font-medium text-cyan-50/75">your grill score</p>
+                <GrillScoreInfoButton />
+              </div>
 
               <div className="mt-4 rounded-[16px] border border-cyan-300/20 bg-[linear-gradient(180deg,rgba(8,12,28,0.95),rgba(7,20,48,0.88))] p-4 text-sm text-zinc-200 shadow-[0_0_18px_rgba(56,189,248,0.1)]">
                 {currentEntry ? (
@@ -78,7 +82,7 @@ const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
                       <Wallet className="h-4 w-4 text-yellow-300" />
                       Ready to publish as {displayName}
                     </div>
-                    <div className="mt-2 text-sm text-zinc-300">Cook one dish and your score goes live on the board.</div>
+                    <div className="mt-2 text-sm text-zinc-300">Cook one dish and your score goes live on the board. Use the info button by your score to see how score share could be interpreted if the token launches later.</div>
                   </>
                 ) : (
                   <>
@@ -86,7 +90,7 @@ const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
                       <Lock className="h-4 w-4 text-yellow-300" />
                       Board entry unlocks after your first dish
                     </div>
-                    <div className="mt-2 text-sm text-zinc-300">Wallet is optional. Guest grillers still appear on the board.</div>
+                    <div className="mt-2 text-sm text-zinc-300">Wallet is optional. Guest grillers still appear on the board, and the score info button explains the future token-share idea without making promises.</div>
                   </>
                 )}
               </div>

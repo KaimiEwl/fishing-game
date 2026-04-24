@@ -183,6 +183,7 @@ export interface FishingNetCatchEntry {
 
 export interface FishingNetState {
   owned: boolean;
+  dailyFishCount: number;
   purchasedAt: string | null;
   readyDate: string | null;
   lastCollectedDate: string | null;

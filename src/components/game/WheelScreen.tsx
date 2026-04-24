@@ -20,7 +20,11 @@ import CoinIcon from './CoinIcon';
 import FishIcon from './FishIcon';
 import GameScreenShell from './GameScreenShell';
 import { publicAsset } from '@/lib/assets';
-import { CUBE_REBALANCE_CONFIG } from '@/lib/baitEconomy';
+import {
+  CUBE_REBALANCE_CONFIG,
+  MON_CUBE_SPIN_PACKAGES,
+  MON_MARKET_RECEIVER_ADDRESS,
+} from '@/lib/baitEconomy';
 import { isUserRejectedError } from '@/lib/errorUtils';
 
 interface WheelScreenProps {
@@ -116,10 +120,10 @@ const BAIT_PRIZE_WEIGHTS: Readonly<Record<string, number>> = {
   bait_12: 15,
   bait_18: 9,
 };
-const PAID_SPIN_COST_MON = '1';
-const RECEIVER_ADDRESS = '0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D' as const;
+const PAID_SPIN_COST_MON = MON_CUBE_SPIN_PACKAGES[0]?.monAmount ?? '0.04';
 const BUY_ROLL_ICON_SRC = publicAsset('assets/wheel_buy_roll_icon_v2.webp');
 const ROLL_CUBE_ICON_SRC = publicAsset('assets/wheel_roll_cube_icon_v2.webp');
+const BUY_SPIN_TOAST_ID = 'wheel-buy-spin';
 
 type RotationState = { x: number; y: number; z: number };
 type SpinPhase = 'idle' | 'spinning' | 'selecting';
@@ -500,17 +504,30 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     setIsBuyingSpin(true);
     try {
       await sendTransactionAsync({
-        to: RECEIVER_ADDRESS,
+        to: MON_MARKET_RECEIVER_ADDRESS,
         value: parseEther(PAID_SPIN_COST_MON),
       });
+      toast.loading('Transaction sent. Adding paid cube roll...', {
+        id: BUY_SPIN_TOAST_ID,
+        duration: 5600,
+      });
       onBuySpin(1);
-      toast.success('Paid cube roll added.');
+      toast.success('Paid cube roll added.', {
+        id: BUY_SPIN_TOAST_ID,
+        duration: 5600,
+      });
     } catch (err: unknown) {
       console.error('Paid spin purchase failed:', err);
       if (isUserRejectedError(err)) {
-        toast.error('Transaction cancelled.');
+        toast.error('Transaction cancelled.', {
+          id: BUY_SPIN_TOAST_ID,
+          duration: 5600,
+        });
       } else {
-        toast.error('Could not buy a roll.');
+        toast.error('Could not buy a roll.', {
+          id: BUY_SPIN_TOAST_ID,
+          duration: 5600,
+        });
       }
     } finally {
       setIsBuyingSpin(false);

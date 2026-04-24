@@ -20,7 +20,6 @@ import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   FISHING_NET_DAILY_FISH_COUNT,
-  FISHING_NET_PRICE_COINS,
   getEconomyFeatureAvailability,
   getVisibleBaitTotal,
   PREMIUM_SESSION_COST_MON,
@@ -123,6 +122,30 @@ const createDefaultSocialTasks = (): SocialTaskProgress[] => (
   }))
 );
 
+const PREMIUM_PERFECT_SWEET_SPOT_START = 42;
+const PREMIUM_PERFECT_SWEET_SPOT_END = 58;
+
+const getPremiumReactionQuality = (
+  biteTimeLeft: number,
+  biteTimeTotal: number,
+): ReactionQuality => {
+  if (biteTimeTotal <= 0) return 'good';
+
+  const progress = Math.max(0, Math.min(100, (biteTimeLeft / biteTimeTotal) * 100));
+  return progress >= PREMIUM_PERFECT_SWEET_SPOT_START && progress <= PREMIUM_PERFECT_SWEET_SPOT_END
+    ? 'perfect'
+    : 'good';
+};
+
+const hasRequiredFishForRecipe = (
+  inventory: { fishId: string; quantity: number }[],
+  recipe: GrillRecipe,
+) => (
+  Object.entries(recipe.ingredients).every(([fishId, amount]) => (
+    (inventory.find((item) => item.fishId === fishId)?.quantity ?? 0) >= amount
+  ))
+);
+
 const FishingGame: React.FC = () => {
   const {
     isConnected,
@@ -130,11 +153,14 @@ const FishingGame: React.FC = () => {
     isVerifying,
     verificationError,
     savedPlayer,
+    savedPlayerSyncMode,
     savedGameProgress,
     walletSessionResolving,
     address,
     referralSummary,
     saveProgress,
+    flushPlayerSave,
+    flushGameProgressSave,
     saveGameProgress,
     syncServerPlayerRecord,
     retryVerifyWallet,
@@ -175,7 +201,6 @@ const FishingGame: React.FC = () => {
     cookRecipe: requestCookRecipe,
     sellCookedDish: requestSellCookedDish,
     updateGrillLeaderboard,
-    listSocialTasks,
     submitSocialTaskVerification,
     claimSocialTaskReward,
   } = usePlayerActions(address, isConnected && isVerified);
@@ -209,8 +234,11 @@ const FishingGame: React.FC = () => {
       metadata: event.metadata,
     });
   }, [address, isVerified]);
-  const applyServerPlayerSnapshot = useCallback((playerRecord: Parameters<typeof syncServerPlayerRecord>[0]) => {
-    syncServerPlayerRecord(playerRecord);
+  const applyServerPlayerSnapshot = useCallback((
+    playerRecord: Parameters<typeof syncServerPlayerRecord>[0],
+    options?: Parameters<typeof syncServerPlayerRecord>[1],
+  ) => {
+    syncServerPlayerRecord(playerRecord, options);
   }, [syncServerPlayerRecord]);
   const refreshPremiumSession = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     if (!economyFeatures.premiumSessions || !isVerified) {
@@ -256,7 +284,6 @@ const FishingGame: React.FC = () => {
     sellCookedDish,
     buyBait,
     buyRod,
-    buyFishingNet,
     unlockRodWithMon,
     equipRod,
     addCoins,
@@ -269,6 +296,7 @@ const FishingGame: React.FC = () => {
     setAvatarUrl,
   } = useGameState({
     savedPlayer: isVerified ? savedPlayer : undefined,
+    savedPlayerSyncMode: isVerified ? savedPlayerSyncMode : undefined,
     onSave: isVerified ? saveProgress : undefined,
     onFishCaught: gameProgress.recordFishCatch,
     onAuditEvent: logAuditEvent,
@@ -283,6 +311,7 @@ const FishingGame: React.FC = () => {
   const prevGameState = useRef(gameState);
   const prevLevel = useRef(player.level);
   const prevLeaderboardPlayerId = useRef(leaderboardPlayerId);
+  const savedPlayerSnapshotRef = useRef(savedPlayer);
   const currentLeaderboardEntry = useMemo(() => (
     leaderboardEntries.find((entry) => entry.id === leaderboardPlayerId)
   ), [leaderboardEntries, leaderboardPlayerId]);
@@ -296,6 +325,7 @@ const FishingGame: React.FC = () => {
   const totalBait = useMemo(() => getVisibleBaitTotal(player), [player]);
   const fishingNet = gameProgress.fishingNet;
   const fishingNetPendingCount = gameProgress.fishingNetPendingCount;
+  const fishingNetDailyCount = Math.max(fishingNet.dailyFishCount || 0, FISHING_NET_DAILY_FISH_COUNT);
   const pendingTaskCount = useMemo(() => (
     [
       ...gameProgress.dailyTasks,
@@ -312,25 +342,9 @@ const FishingGame: React.FC = () => {
   ), [player.inventory]);
 
   const refreshSocialTasks = useCallback(async () => {
-    if (!isVerified) {
-      setSocialTasks(createDefaultSocialTasks());
-      setSocialTasksLoading(false);
-      return;
-    }
-
-    setSocialTasksLoading(true);
-    try {
-      const nextTasks = await listSocialTasks();
-      setSocialTasks(nextTasks);
-    } catch (error) {
-      showBackgroundActionError(
-        'social-tasks-refresh',
-        error instanceof Error ? error.message : 'Could not refresh social task status.',
-      );
-    } finally {
-      setSocialTasksLoading(false);
-    }
-  }, [isVerified, listSocialTasks, showBackgroundActionError]);
+    setSocialTasks(createDefaultSocialTasks());
+    setSocialTasksLoading(false);
+  }, []);
 
   const refreshWalletCheckInSummary = useCallback(async () => {
     if (!isVerified) {
@@ -543,6 +557,10 @@ const FishingGame: React.FC = () => {
   }, [gameState, lastResult, sounds]);
 
   useEffect(() => {
+    savedPlayerSnapshotRef.current = savedPlayer;
+  }, [savedPlayer]);
+
+  useEffect(() => {
     if (player.level > prevLevel.current) {
       sounds.playLevelUpSound();
     }
@@ -556,20 +574,25 @@ const FishingGame: React.FC = () => {
       ? ` Page complete: ${albumRewardInfo.pageCompletedIds.length}.`
       : '';
 
-    toast.success(`Album updated: ${albumRewardInfo.fishName}`, {
-      description: `First catch bonus +${albumRewardInfo.bonusCoins} coins. Species discovered: ${albumRewardInfo.totalSpeciesCaught}.${completedPagesNote}`,
+    toast.success(`Achievements updated: ${albumRewardInfo.fishName}`, {
+      description: `First catch bonus +${albumRewardInfo.bonusCoins} coins. Achievements discovered: ${albumRewardInfo.totalSpeciesCaught}.${completedPagesNote}`,
       duration: 3200,
     });
     dismissAlbumReward();
   }, [albumRewardInfo, dismissAlbumReward]);
 
   useEffect(() => {
-    if (!assetsReady) return;
-    if (walletSessionResolving || isVerifying) return;
-    if (leaderboardNameOpen) return;
+    const shouldRequireWalletName = (
+      assetsReady
+      && !walletSessionResolving
+      && !isVerifying
+      && !leaderboardNameOpen
+      && isVerified
+      && !player.nickname?.trim()
+    );
 
-    setPlayerNameDialogOpen(!player.nickname?.trim());
-  }, [assetsReady, isVerifying, leaderboardNameOpen, player.nickname, walletSessionResolving]);
+    setPlayerNameDialogOpen(shouldRequireWalletName);
+  }, [assetsReady, isVerified, isVerifying, leaderboardNameOpen, player.nickname, walletSessionResolving]);
 
   useEffect(() => {
     if (
@@ -608,7 +631,6 @@ const FishingGame: React.FC = () => {
 
   useEffect(() => {
     if (activeTab === 'tasks' && isVerified) {
-      void refreshSocialTasks();
       void refreshWalletCheckInSummary();
     }
   }, [activeTab, isVerified, refreshSocialTasks, refreshWalletCheckInSummary]);
@@ -637,7 +659,7 @@ const FishingGame: React.FC = () => {
 
     gameProgress.markFishingNetNotified();
     sounds.playSuccessSound();
-    toast.success(`Your fishing net is full. ${FISHING_NET_DAILY_FISH_COUNT} fish are waiting in the shop.`);
+    toast.success(`Your fishing net is full. ${fishingNetPendingCount} fish are waiting in the shop.`);
   }, [
     fishingNet,
     fishingNetPendingCount,
@@ -652,21 +674,6 @@ const FishingGame: React.FC = () => {
     sounds.playBuySound();
   };
 
-  const handleBuyFishingNet = (cost: number) => {
-    if (player.coins < cost || fishingNet.owned) return;
-
-    const purchased = buyFishingNet(cost);
-    if (!purchased) return;
-
-    if (!gameProgress.purchaseFishingNet()) {
-      return;
-    }
-
-    gameProgress.recordCoinsSpent(cost);
-    sounds.playBuySound();
-    toast.success('Auto Fishing Net deployed. It will keep filling with fish for you.');
-  };
-
   const handleBuyRod = (level: number, cost: number) => {
     const purchased = buyRod(level, cost);
     if (!purchased) return;
@@ -674,11 +681,28 @@ const FishingGame: React.FC = () => {
     sounds.playBuySound();
   };
 
+  const handleBuyFishingNetWithMon = useCallback((dailyFishCount: number, _monAmount: string) => {
+    if (fishingNet.owned && fishingNet.dailyFishCount >= dailyFishCount) return false;
+
+    const purchased = gameProgress.purchaseFishingNet(dailyFishCount);
+    if (!purchased) return false;
+
+    sounds.playBuySound();
+    return true;
+  }, [fishingNet.dailyFishCount, fishingNet.owned, gameProgress, sounds]);
+
   const handleUnlockRodWithMon = (level: number, monAmount: string) => {
     const unlocked = unlockRodWithMon(level, monAmount);
     if (!unlocked) return;
     sounds.playBuySound();
   };
+
+  const handleBuyCubeRollsWithMon = useCallback((amount: number, _monAmount: string) => {
+    if (amount <= 0) return false;
+    gameProgress.addPaidWheelRolls(amount);
+    sounds.playBuySound();
+    return true;
+  }, [gameProgress, sounds]);
 
   const handleSellFish = (fishId: string) => {
     const sellPrice = sellFish(fishId);
@@ -706,15 +730,14 @@ const FishingGame: React.FC = () => {
       .join(', ');
 
     sounds.playSuccessSound();
-    toast.success(summary ? `Net collected: ${summary}.` : `Net collected: ${FISHING_NET_DAILY_FISH_COUNT} fish added.`);
+    toast.success(summary ? `Net collected: ${summary}.` : `Net collected: ${fishingNetDailyCount} fish added.`);
   };
 
   const handleSellCookedDish = async (recipeId: string) => {
     if (isVerified) {
       try {
         const result = await requestSellCookedDish(recipeId);
-        applyServerPlayerSnapshot(result.player);
-        gameProgress.recordDishSold();
+        applyServerPlayerSnapshot(result.player, { mergeMode: 'server' });
         sounds.playSellSound();
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Could not sell dish.');
@@ -727,6 +750,11 @@ const FishingGame: React.FC = () => {
     gameProgress.recordDishSold();
     sounds.playSellSound();
   };
+
+  const syncVerifiedTaskProgressForClaim = useCallback(async () => {
+    if (!isVerified) return true;
+    return flushGameProgressSave(gameProgress.snapshot);
+  }, [flushGameProgressSave, gameProgress.snapshot, isVerified]);
 
   const handleClaimTask = async (taskId: TaskId) => {
     const task = DAILY_TASKS.find((item) => item.id === taskId) ?? SPECIAL_TASKS.find((item) => item.id === taskId);
@@ -749,6 +777,11 @@ const FishingGame: React.FC = () => {
 
     if (isVerified) {
       try {
+        const syncedProgressReady = await syncVerifiedTaskProgressForClaim();
+        if (!syncedProgressReady) {
+          throw new Error('Could not sync your latest task progress yet. Try again in a second.');
+        }
+
         const result = await claimTaskReward(taskId);
         applyServerPlayerSnapshot(result.player);
         sounds.playBuySound();
@@ -787,6 +820,11 @@ const FishingGame: React.FC = () => {
   const handleClaimWeeklyMission = useCallback(async (missionId: WeeklyMissionId) => {
     if (isVerified) {
       try {
+        const syncedProgressReady = await syncVerifiedTaskProgressForClaim();
+        if (!syncedProgressReady) {
+          throw new Error('Could not sync your latest task progress yet. Try again in a second.');
+        }
+
         const result = await claimTaskReward(missionId);
         applyServerPlayerSnapshot(result.player);
         sounds.playBuySound();
@@ -817,7 +855,7 @@ const FishingGame: React.FC = () => {
     if (missionId !== 'cube_3_days') {
       toast.success('Weekly mission claimed.');
     }
-  }, [addBait, addCoins, applyServerPlayerSnapshot, claimTaskReward, economyFeatures.weeklyMissions, gameProgress, isVerified, sounds]);
+  }, [addBait, addCoins, applyServerPlayerSnapshot, claimTaskReward, economyFeatures.weeklyMissions, gameProgress, isVerified, sounds, syncVerifiedTaskProgressForClaim]);
 
   const handleRequestCubeRoll = async () => {
     if (!isVerified) return null;
@@ -902,12 +940,37 @@ const FishingGame: React.FC = () => {
     return prize;
   };
 
+  const syncVerifiedInventoryForRecipe = useCallback(async (recipe: GrillRecipe) => {
+    if (!isVerified) return true;
+    if (!hasRequiredFishForRecipe(player.inventory, recipe)) return false;
+
+    const flushed = await flushPlayerSave(player);
+    if (!flushed) return false;
+
+    const deadline = Date.now() + 2000;
+    while (Date.now() < deadline) {
+      const syncedPlayer = savedPlayerSnapshotRef.current;
+      if (syncedPlayer && hasRequiredFishForRecipe(syncedPlayer.inventory, recipe)) {
+        return true;
+      }
+
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, 120);
+      });
+    }
+
+    return false;
+  }, [flushPlayerSave, isVerified, player]);
   const handleCookRecipe = async (recipe: GrillRecipe) => {
     if (isVerified) {
       try {
+        const syncedInventoryReady = await syncVerifiedInventoryForRecipe(recipe);
+        if (!syncedInventoryReady) {
+          throw new Error('Could not sync the latest fish to your wallet profile. Try again in a second.');
+        }
+
         const result = await requestCookRecipe(recipe.id);
-        applyServerPlayerSnapshot(result.player);
-        gameProgress.recordGrillDish(recipe.score);
+        applyServerPlayerSnapshot(result.player, { mergeMode: 'server' });
         if (result.leaderboard_entry) {
           syncServerLeaderboardEntry(result.leaderboard_entry);
         }
@@ -1056,6 +1119,7 @@ const FishingGame: React.FC = () => {
 
   const isFishingScreen = activeTab === 'fish';
   const activePremiumSession = premiumSession?.status === 'active' ? premiumSession : null;
+  const premiumCastActive = Boolean(activePremiumSession && isVerified);
 
   const handleStartPremiumSession = useCallback(async (txHash: string) => {
     setPremiumSessionLoading(true);
@@ -1120,12 +1184,12 @@ const FishingGame: React.FC = () => {
 
   const handleReelAction = useCallback(() => {
     if (activePremiumSession && isVerified) {
-      void handlePremiumCastResolution('good');
+      void handlePremiumCastResolution(getPremiumReactionQuality(biteTimeLeft, biteTimeTotal));
       return;
     }
 
     void reelIn();
-  }, [activePremiumSession, handlePremiumCastResolution, isVerified, reelIn]);
+  }, [activePremiumSession, biteTimeLeft, biteTimeTotal, handlePremiumCastResolution, isVerified, reelIn]);
 
   return (
     <main className="fixed inset-0 flex flex-col bg-[#05060b]">
@@ -1182,10 +1246,11 @@ const FishingGame: React.FC = () => {
                   fishingNet={fishingNet}
                   nftRods={player.nftRods}
                   onBuyBait={handleBuyBait}
-                  onBuyFishingNet={handleBuyFishingNet}
+                  onBuyFishingNetWithMon={handleBuyFishingNetWithMon}
                   onClaimFishingNet={handleClaimFishingNet}
                   onBuyRod={handleBuyRod}
                   onBuyRodWithMon={handleUnlockRodWithMon}
+                  onBuyCubeRollsWithMon={handleBuyCubeRollsWithMon}
                   onCoinsAdded={addCoins}
                   onNftMinted={mintNftRod}
                 />
@@ -1319,7 +1384,8 @@ const FishingGame: React.FC = () => {
             <GameControls
               gameState={gameState}
               lastResult={lastResult}
-              hasBait={Boolean(activePremiumSession) || totalBait > 0}
+              hasBait={totalBait > 0}
+              premiumCastActive={premiumCastActive}
               totalBait={totalBait}
               onCast={handleCastAction}
               onReelIn={handleReelAction}
@@ -1328,6 +1394,8 @@ const FishingGame: React.FC = () => {
               nftRods={player.nftRods}
               biteTimeLeft={biteTimeLeft}
               biteTimeTotal={biteTimeTotal}
+              premiumSweetSpotStart={PREMIUM_PERFECT_SWEET_SPOT_START}
+              premiumSweetSpotEnd={PREMIUM_PERFECT_SWEET_SPOT_END}
               missXpReward={missXpReward}
               isMobile={isMobile}
             />

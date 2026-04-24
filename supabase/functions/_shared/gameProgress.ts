@@ -60,6 +60,7 @@ export interface FishingNetCatchSnapshot {
 
 export interface FishingNetSnapshot {
   owned: boolean;
+  dailyFishCount: number;
   purchasedAt: string | null;
   readyDate: string | null;
   lastCollectedDate: string | null;
@@ -98,20 +99,20 @@ const clampInt = (value: unknown, fallback: number, min = 0, max = Number.MAX_SA
 
 const todayKey = () => {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
+  const year = now.getUTCFullYear();
+  const month = String(now.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(now.getUTCDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
 
 const weekKey = () => {
   const now = new Date();
-  const mondayBasedDay = (now.getDay() + 6) % 7;
-  now.setHours(0, 0, 0, 0);
-  now.setDate(now.getDate() - mondayBasedDay);
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
+  const mondayBasedDay = (now.getUTCDay() + 6) % 7;
+  now.setUTCHours(0, 0, 0, 0);
+  now.setUTCDate(now.getUTCDate() - mondayBasedDay);
+  const year = now.getUTCFullYear();
+  const month = String(now.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(now.getUTCDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
 
@@ -189,6 +190,7 @@ const sanitizeDayOrNull = (value: unknown) => (
 
 const createFishingNet = (): FishingNetSnapshot => ({
   owned: false,
+  dailyFishCount: 0,
   purchasedAt: null,
   readyDate: null,
   lastCollectedDate: null,
@@ -222,6 +224,7 @@ const sanitizeFishingNet = (value: unknown): FishingNetSnapshot => {
 
   return {
     owned,
+    dailyFishCount: Math.max(1, clampInt(source.dailyFishCount, 10, 1, 999)),
     purchasedAt: sanitizeIsoOrNull(source.purchasedAt),
     readyDate: sanitizeDayOrNull(source.readyDate),
     lastCollectedDate: sanitizeDayOrNull(source.lastCollectedDate),

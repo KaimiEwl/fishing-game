@@ -6,6 +6,7 @@ import GameScreenShell from './GameScreenShell';
 import FishIcon from './FishIcon';
 import { publicAsset } from '@/lib/assets';
 import QuestBoard, { QuestBoardCard } from './QuestBoard';
+import GrillScoreInfoButton from './GrillScoreInfoButton';
 
 interface GrillScreenProps {
   inventory: CaughtFish[];
@@ -101,7 +102,7 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ inventory, onCook, onCookStar
   return (
     <GameScreenShell
       title="Grill"
-      subtitle="Cook fish into dishes. Score goes to the leaderboard, dishes are saved in Inventory -> Dishes, and you can sell them there for gold."
+      subtitle="Cook fish into grill stuff. Score goes to the leaderboard, and everything is saved in Inventory -> Grill Stuff for later selling."
       backgroundImage={isMobileLayout ? publicAsset('assets/grill_board_mobile_reference.webp') : publicAsset('assets/grill_board_reference.webp')}
       backgroundFit="cover"
       overlayClassName="bg-[linear-gradient(180deg,rgba(8,6,3,0.14)_0%,rgba(10,8,5,0.18)_48%,rgba(6,5,3,0.24)_100%)]"
@@ -147,7 +148,7 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ inventory, onCook, onCookStar
                     Grill score added
                   </p>
                   <p className="mt-3 text-sm font-semibold text-white/75">
-                    Dish saved to Inventory {'->'} Dishes. Sell it there later for gold.
+                    Saved to Inventory {'->'} Grill Stuff. Sell it there later for gold.
                   </p>
                 </>
               )}
@@ -176,6 +177,7 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ inventory, onCook, onCookStar
                       <div className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-[#8f6a38]/70 bg-[rgba(16,11,8,0.84)] px-2 py-1 text-sm font-black text-[#f3c777]">
                         <Trophy className="h-4 w-4" />
                         {recipe.score}
+                        <GrillScoreInfoButton side="bottom" className="ml-1 h-4.5 w-4.5 text-[10px]" />
                       </div>
                     </div>
 

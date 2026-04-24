@@ -55,6 +55,47 @@ export const BAIT_PACKAGES = [
 export const FISHING_NET_PRICE_COINS = 6000;
 export const FISHING_NET_DAILY_FISH_COUNT = 10;
 export const FISHING_NET_PAYBACK_DAYS_ESTIMATE = 14;
+export const MON_MARKET_RECEIVER_ADDRESS = '0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D' as const;
+export const MON_FISHING_NET_PACKAGES = [
+  {
+    fishCount: 10,
+    monAmount: '3',
+    label: 'Scout Net',
+    positioning: 'Starter passive net for a light daily catch drip.',
+  },
+  {
+    fishCount: 25,
+    monAmount: '30',
+    label: 'Harbor Net',
+    positioning: 'Mid-tier upgrade for players who want a real passive stack each day.',
+  },
+  {
+    fishCount: 50,
+    monAmount: '60',
+    label: 'Fleet Net',
+    positioning: 'Heavy passive collector tuned for large daily inventory pulls.',
+  },
+] as const;
+export const MON_CUBE_SPIN_PACKAGES = [
+  {
+    rolls: 1,
+    monAmount: '0.04',
+    label: '1 cube roll',
+    positioning: 'Small impulse buy for one extra shot at the prize cube.',
+  },
+  {
+    rolls: 3,
+    monAmount: '0.1',
+    label: '3 cube rolls',
+    positioning: 'Best starter pack when you want a short session boost.',
+  },
+  {
+    rolls: 5,
+    monAmount: '0.16',
+    label: '5 cube rolls',
+    positioning: 'Bulk pack for streak chasers at a better per-roll rate.',
+  },
+] as const;
 
 export const MON_ROD_PURCHASES = [
   {

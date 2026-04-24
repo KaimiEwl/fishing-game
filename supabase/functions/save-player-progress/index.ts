@@ -100,6 +100,7 @@ interface FishingNetCatchPayload {
 
 interface FishingNetPayload {
   owned: boolean;
+  dailyFishCount: number;
   purchasedAt: string | null;
   readyDate: string | null;
   lastCollectedDate: string | null;
@@ -171,12 +172,12 @@ const getUtcResetIso = (date = new Date()) => (
 
 const getWeekKey = (date = new Date()) => {
   const current = new Date(date);
-  const mondayBasedDay = (current.getDay() + 6) % 7;
-  current.setHours(0, 0, 0, 0);
-  current.setDate(current.getDate() - mondayBasedDay);
-  const y = current.getFullYear();
-  const m = String(current.getMonth() + 1).padStart(2, '0');
-  const d = String(current.getDate()).padStart(2, '0');
+  const mondayBasedDay = (current.getUTCDay() + 6) % 7;
+  current.setUTCHours(0, 0, 0, 0);
+  current.setUTCDate(current.getUTCDate() - mondayBasedDay);
+  const y = current.getUTCFullYear();
+  const m = String(current.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(current.getUTCDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 };
 
@@ -299,6 +300,7 @@ const sanitizeDayOrNull = (value: unknown) => (
 
 const createFishingNet = (): FishingNetPayload => ({
   owned: false,
+  dailyFishCount: 0,
   purchasedAt: null,
   readyDate: null,
   lastCollectedDate: null,
@@ -333,6 +335,7 @@ const sanitizeFishingNet = (value: unknown): FishingNetPayload => {
 
   return {
     owned,
+    dailyFishCount: Math.max(1, clampInt(source.dailyFishCount, 10, 1, 999)),
     purchasedAt: sanitizeIsoOrNull(source.purchasedAt),
     readyDate: sanitizeDayOrNull(source.readyDate),
     lastCollectedDate: sanitizeDayOrNull(source.lastCollectedDate),
@@ -365,6 +368,7 @@ const mergeFishingNet = (
 
   return {
     owned: sanitizedCurrent.owned || sanitizedNext.owned,
+    dailyFishCount: Math.max(sanitizedCurrent.dailyFishCount, sanitizedNext.dailyFishCount),
     purchasedAt: [sanitizedCurrent.purchasedAt, sanitizedNext.purchasedAt]
       .filter((value): value is string => Boolean(value))
       .sort()

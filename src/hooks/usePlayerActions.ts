@@ -116,17 +116,16 @@ export function usePlayerActions(walletAddress: string | undefined, enabled: boo
       const fallbackMessage = PLAYER_ACTION_FALLBACK_ERRORS[action] ?? 'This action is temporarily unavailable. Please try again later.';
       const contextualError = error as { context?: { clone?: () => Response } };
       if (contextualError.context?.clone) {
+        let responsePayload: { error?: string } | null = null;
         try {
-          const responsePayload = await contextualError.context.clone().json() as { error?: string };
-          if (typeof responsePayload.error === 'string' && responsePayload.error.trim()) {
-            const serverMessage = responsePayload.error.trim();
-            if (serverMessage === 'Unknown action') {
-              throw new Error(fallbackMessage);
-            }
-            throw new Error(serverMessage);
-          }
+          responsePayload = await contextualError.context.clone().json() as { error?: string };
         } catch {
-          // Fall back to original error.
+          responsePayload = null;
+        }
+
+        if (typeof responsePayload?.error === 'string' && responsePayload.error.trim()) {
+          const serverMessage = responsePayload.error.trim();
+          throw new Error(serverMessage === 'Unknown action' ? fallbackMessage : serverMessage);
         }
       }
 

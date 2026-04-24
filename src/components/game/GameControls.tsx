@@ -15,6 +15,7 @@ interface GameControlsProps {
   gameState: GameState;
   lastResult: GameResult | null;
   hasBait: boolean;
+  premiumCastActive?: boolean;
   totalBait?: number;
   onCast: () => void;
   onReelIn?: () => void;
@@ -23,6 +24,8 @@ interface GameControlsProps {
   nftRods?: number[];
   biteTimeLeft?: number;
   biteTimeTotal?: number;
+  premiumSweetSpotStart?: number;
+  premiumSweetSpotEnd?: number;
   missXpReward?: number;
   isMobile?: boolean;
 }
@@ -31,6 +34,7 @@ const GameControls: React.FC<GameControlsProps> = ({
   gameState,
   lastResult,
   hasBait,
+  premiumCastActive = false,
   totalBait = 0,
   onCast,
   onReelIn,
@@ -39,14 +43,23 @@ const GameControls: React.FC<GameControlsProps> = ({
   nftRods = [],
   biteTimeLeft = 0,
   biteTimeTotal = 1,
+  premiumSweetSpotStart = 42,
+  premiumSweetSpotEnd = 58,
   missXpReward = 5,
   isMobile = false,
 }) => {
   const biteProgress = biteTimeTotal > 0 ? (biteTimeLeft / biteTimeTotal) * 100 : 0;
   const showPrimaryControl = gameState === 'idle' || gameState === 'biting';
   const primaryAction = gameState === 'biting' ? onReelIn : onCast;
-  const primaryDisabled = gameState === 'idle' ? !hasBait : false;
-  const primaryLabel = gameState === 'biting' ? 'Hook fish' : hasBait ? 'Cast line' : 'No bait';
+  const primaryCanCast = premiumCastActive || hasBait;
+  const primaryDisabled = gameState === 'idle' ? !primaryCanCast : false;
+  const primaryLabel = gameState === 'biting'
+    ? 'Hook fish'
+    : premiumCastActive
+      ? 'Premium cast'
+      : hasBait
+        ? 'Cast line'
+        : 'No bait';
   const primaryButtonImage = gameState === 'biting' ? CAST_BUTTON_GREEN : CAST_BUTTON_BLUE;
 
   return (
@@ -95,20 +108,27 @@ const GameControls: React.FC<GameControlsProps> = ({
         </div>
       )}
 
-      <div
-        className="fixed left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-3"
-        style={{
-          bottom: isMobile
-            ? 'calc(var(--bottom-nav-clearance,0px) + 0.75rem)'
-            : 'calc(var(--bottom-nav-clearance,0px) + 5.1rem)',
-        }}
-      >
-        {gameState === 'biting' && (
-          <BiteMeter progress={biteProgress} />
-        )}
-
-        {showPrimaryControl && (
+      {showPrimaryControl && (
+        <div
+          className="fixed left-1/2 z-20 -translate-x-1/2"
+          style={{
+            bottom: isMobile
+              ? 'calc(var(--bottom-nav-clearance,0px) + 0.75rem)'
+              : 'calc(var(--bottom-nav-clearance,0px) + 5.1rem)',
+          }}
+        >
           <div className="relative flex w-[11.75rem] justify-center sm:w-[13.5rem]">
+            {gameState === 'biting' && (
+              <div className="pointer-events-none absolute bottom-[calc(100%+0.7rem)] left-1/2 z-[2] -translate-x-1/2">
+                <BiteMeter
+                  progress={biteProgress}
+                  showSweetSpot={premiumCastActive}
+                  sweetSpotStart={premiumSweetSpotStart}
+                  sweetSpotEnd={premiumSweetSpotEnd}
+                />
+              </div>
+            )}
+
             <RodPreviewBadge
               rodLevel={rodLevel}
               ownedRodLevel={ownedRodLevel}
@@ -130,12 +150,18 @@ const GameControls: React.FC<GameControlsProps> = ({
                   className={`block h-auto w-full select-none transition-all duration-200 ${primaryDisabled ? 'grayscale-[0.9] brightness-[0.72] opacity-90' : gameState === 'biting' ? 'drop-shadow-[0_10px_22px_rgba(163,230,53,0.22)]' : 'drop-shadow-[0_10px_22px_rgba(34,211,238,0.24)]'}`}
                   draggable={false}
                 />
+                <span
+                  className={`pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center text-[0.82rem] font-black uppercase tracking-[0.12em] sm:text-[0.94rem] ${primaryDisabled ? 'text-zinc-300/82' : gameState === 'biting' ? 'text-[#f4ffe1]' : 'text-[#eef8ff]'}`}
+                  style={{ textShadow: '0 2px 10px rgba(0,0,0,0.65)' }}
+                >
+                  {primaryLabel}
+                </span>
               </span>
               <span className="sr-only">{primaryLabel}</span>
             </Button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </>
   );
 };

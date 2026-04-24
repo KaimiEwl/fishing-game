@@ -83,6 +83,7 @@ const resolveInitialPlayer = (savedPlayer?: PlayerState | null) => {
 
 interface UseGameStateOptions {
   savedPlayer?: PlayerState | null;
+  savedPlayerSyncMode?: 'optimistic' | 'server';
   onSave?: (player: PlayerState) => void;
   onFishCaught?: (fish: Fish) => void;
   onAuditEvent?: (event: PlayerAuditEventPayload) => void;
@@ -100,6 +101,7 @@ interface AlbumRewardInfo {
 
 export function useGameState(options?: UseGameStateOptions) {
   const savedPlayer = options?.savedPlayer;
+  const savedPlayerSyncMode = options?.savedPlayerSyncMode ?? 'optimistic';
   const onSave = options?.onSave;
   const onFishCaught = options?.onFishCaught;
   const onAuditEvent = options?.onAuditEvent;
@@ -140,6 +142,11 @@ export function useGameState(options?: UseGameStateOptions) {
   useEffect(() => {
     if (savedPlayer) {
       const normalizedSavedPlayer = normalizePlayerDailyFreeBait(savedPlayer, BAIT_BUCKETS_V2_ENABLED, DAILY_FREE_BAIT);
+      if (savedPlayerSyncMode === 'server') {
+        setPlayer(normalizedSavedPlayer);
+        return;
+      }
+
       setPlayer((prev) => mergePlayerState(
         normalizedSavedPlayer,
         applyServerBonusBaitSync(
@@ -148,7 +155,7 @@ export function useGameState(options?: UseGameStateOptions) {
         ),
       ));
     }
-  }, [savedPlayer]);
+  }, [savedPlayer, savedPlayerSyncMode]);
 
   const syncDailyFreeBait = useCallback(() => {
     if (!BAIT_BUCKETS_V2_ENABLED) return;

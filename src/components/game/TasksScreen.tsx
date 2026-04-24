@@ -56,6 +56,7 @@ interface TasksScreenProps {
 }
 
 type QuestTab = 'daily' | 'blockchain' | 'weekly' | 'social';
+const WALLET_CHECK_IN_TOAST_ID = 'wallet-check-in-flow';
 
 const TasksScreen: React.FC<TasksScreenProps> = ({
   walletAddress,
@@ -67,7 +68,6 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   walletCheckInLoading = false,
   dailyTaskClaimsMet,
   availableWheelRolls,
-  socialTasksLoading = false,
   isWalletVerified,
   referralSummary,
   onClaimTask,
@@ -180,14 +180,26 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
         value: parseEther(walletCheckInAmountMon),
       });
 
-      toast.info('Wallet check-in transaction sent. Verifying...');
+      toast.loading('Wallet check-in transaction sent. Verifying...', {
+        id: WALLET_CHECK_IN_TOAST_ID,
+        duration: 5600,
+      });
       await onWalletCheckIn(txHash);
-      toast.success('Daily wallet streak updated.');
+      toast.success('Daily wallet streak updated.', {
+        id: WALLET_CHECK_IN_TOAST_ID,
+        duration: 5600,
+      });
     } catch (error) {
       if (isUserRejectedError(error)) {
-        toast.error('Transaction cancelled');
+        toast.error('Transaction cancelled', {
+          id: WALLET_CHECK_IN_TOAST_ID,
+          duration: 5600,
+        });
       } else {
-        toast.error(`Wallet check-in failed: ${getErrorMessage(error)}`);
+        toast.error(`Wallet check-in failed: ${getErrorMessage(error)}`, {
+          id: WALLET_CHECK_IN_TOAST_ID,
+          duration: 5600,
+        });
       }
     } finally {
       setWalletCheckInSubmitting(false);
@@ -471,22 +483,22 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                 <Icon className="h-5 w-5" />
               </div>
               <span className="rounded-full border border-[#9a7a33] bg-[rgba(92,70,21,0.42)] px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-[#f3d47e]">
-                Coming soon
+                Preview
               </span>
             </div>
             <h2 className="mt-3 pr-2 text-[0.96rem] font-black uppercase tracking-[0.04em] text-[#f3c777] drop-shadow-[0_1px_0_rgba(0,0,0,0.6)] sm:mt-4 sm:text-[1.2rem]">
               {task.title}
             </h2>
             <p className="mt-1.5 text-[0.8rem] leading-5 text-[#f8e8bf]/88 sm:mt-2 sm:text-[0.97rem] sm:leading-6">
-              This social action is planned but not live yet. Tap to see upcoming tasks only.
+              Social quests are still in preview. Rewards and verification will unlock in a later update.
             </p>
               <div className="mt-auto pt-4">
                 <Button
                   type="button"
-                  onClick={() => toast.info(`${task.title} coming soon`)}
+                  onClick={() => toast.info('Social quests are still in preview.')}
                   className="h-11 w-full rounded-[1rem] border border-[#7f5227] bg-[linear-gradient(180deg,#8c531f_0%,#6e4117_42%,#4f2f14_100%)] text-[0.86rem] font-black uppercase tracking-[0.04em] text-[#f8db9a] shadow-[inset_0_1px_0_rgba(255,220,160,0.22),0_10px_16px_rgba(0,0,0,0.28)] transition-all duration-200 hover:brightness-110 sm:h-[3.25rem] sm:rounded-[1.2rem] sm:text-[1.02rem]"
                 >
-                  Explore task
+                  Preview only
                 </Button>
               </div>
             </div>
@@ -579,7 +591,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
               eyebrow="Community loop"
               description={
                 isWalletVerified
-                  ? (socialTasksLoading ? 'Preparing future social tasks...' : 'Social quests are not live yet. These cards preview the upcoming community actions.')
+                  ? 'Social quests are still in preview. These cards only show the upcoming community task lineup.'
                   : 'Connect your wallet first. Social quests and future verified rewards only work on wallet-linked accounts.'
               }
             />,

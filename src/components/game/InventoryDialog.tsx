@@ -1,12 +1,13 @@
 import React from 'react';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { BookOpen, ChefHat, Backpack, CheckCircle2, Lock, ShipWheel } from 'lucide-react';
+import { BookOpen, ChefHat, Backpack, CheckCircle2, Lock, ShipWheel, X } from 'lucide-react';
 import { ALBUM_FIRST_CATCH_BONUSES } from '@/lib/baitEconomy';
 import { COLLECTION_BOOK_PAGES, ensureCollectionBook } from '@/lib/collectionBook';
 import { CaughtFish, FISH_DATA, GRILL_RECIPES, type CollectionBookState, type CookedDishStack } from '@/types/game';
@@ -101,12 +102,21 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({
         </DialogHeader>
 
         <div className="relative z-10 flex h-full min-h-0 flex-col px-[7.5%] pb-[8.8%] pt-[18.5%] sm:px-[17.2%] sm:pb-[9.4%] sm:pt-[18.8%]">
+        <DialogClose asChild>
+          <button
+            type="button"
+            aria-label="Close inventory"
+            className="absolute right-[2.5%] top-[7%] inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#b9884c]/80 bg-[rgba(24,14,8,0.88)] text-[#f6ddb0] shadow-[0_10px_22px_rgba(0,0,0,0.4)] transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-[#e7c17a]/80 focus:ring-offset-0 sm:right-[10.6%] sm:top-[7.3%] sm:h-11 sm:w-11"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </DialogClose>
         <Tabs defaultValue="fish" className="flex h-full min-h-0 w-full flex-col">
           <TabsList className={`grid h-auto w-full ${tabsColumnClass} gap-1 rounded-[1.1rem] border border-[#8f6a38]/70 bg-[rgba(16,11,8,0.86)] p-1 shadow-[0_18px_40px_rgba(0,0,0,0.35)] backdrop-blur-md sm:gap-1.5 sm:rounded-[1.35rem] sm:p-1.5`}>
             <TabsTrigger value="fish" className="h-9 gap-1 rounded-[0.8rem] px-1.5 text-[0.62rem] font-black uppercase tracking-[0.02em] text-[#ead4aa] data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab] sm:h-10 sm:rounded-[0.95rem] sm:px-2 sm:text-[0.78rem]"><FishIcon fishId="carp" size="badge" /> Fish ({totalFish})</TabsTrigger>
-            <TabsTrigger value="dishes" className="h-9 gap-1 rounded-[0.8rem] px-1.5 text-[0.62rem] font-black uppercase tracking-[0.02em] text-[#ead4aa] data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab] sm:h-10 sm:rounded-[0.95rem] sm:px-2 sm:text-[0.78rem]"><ChefHat className="h-4 w-4" /> Dishes ({totalDishes})</TabsTrigger>
+            <TabsTrigger value="dishes" className="h-9 gap-1 rounded-[0.8rem] px-1.5 text-[0.62rem] font-black uppercase tracking-[0.02em] text-[#ead4aa] data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab] sm:h-10 sm:rounded-[0.95rem] sm:px-2 sm:text-[0.78rem]"><ChefHat className="h-4 w-4" /> Grill Stuff ({totalDishes})</TabsTrigger>
             {showCollectionTab && (
-              <TabsTrigger value="album" className="h-9 gap-1 rounded-[0.8rem] px-1.5 text-[0.62rem] font-black uppercase tracking-[0.02em] text-[#ead4aa] data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab] sm:h-10 sm:rounded-[0.95rem] sm:px-2 sm:text-[0.78rem]"><BookOpen className="h-4 w-4" /> Album</TabsTrigger>
+              <TabsTrigger value="album" className="h-9 gap-1 rounded-[0.8rem] px-1.5 text-[0.62rem] font-black uppercase tracking-[0.02em] text-[#ead4aa] data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab] sm:h-10 sm:rounded-[0.95rem] sm:px-2 sm:text-[0.78rem]"><BookOpen className="h-4 w-4" /> Achievements</TabsTrigger>
             )}
             <TabsTrigger value="rods" className="h-9 gap-1 rounded-[0.8rem] px-1.5 text-[0.62rem] font-black uppercase tracking-[0.02em] text-[#ead4aa] data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab] sm:h-10 sm:rounded-[0.95rem] sm:px-2 sm:text-[0.78rem]"><ShipWheel className="h-4 w-4" /> Rods ({ownedRods.length})</TabsTrigger>
           </TabsList>
@@ -145,9 +155,9 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({
                   <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-amber-300/20 bg-amber-300/10">
                     <ChefHat className="h-8 w-8 text-amber-100" />
                   </div>
-                  <p className="text-zinc-400">No cooked dishes yet</p>
+                  <p className="text-zinc-400">No grill stuff yet</p>
                   <p className="mt-1 text-sm text-zinc-500">
-                    Grill recipes create dishes you can keep and sell later.
+                    Your cooked grill stuff will show up here for selling later.
                   </p>
                 </div>
               ) : (
@@ -171,13 +181,13 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({
                 <div className="space-y-3 pr-2">
                   <div className="grid gap-2 sm:grid-cols-2">
                     <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-3">
-                      <p className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-200/80">Species caught</p>
+                      <p className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-200/80">Achievements found</p>
                       <p className="mt-1 text-2xl font-black text-white">
                         {normalizedCollectionBook.totalSpeciesCaught} / {FISH_DATA.length}
                       </p>
                     </div>
                     <div className="rounded-xl border border-cyan-300/20 bg-cyan-300/10 p-3">
-                      <p className="text-[11px] font-black uppercase tracking-[0.16em] text-cyan-200/80">Pages completed</p>
+                      <p className="text-[11px] font-black uppercase tracking-[0.16em] text-cyan-200/80">Achievement pages</p>
                       <p className="mt-1 text-2xl font-black text-white">
                         {completedPages} / {COLLECTION_BOOK_PAGES.length}
                       </p>
