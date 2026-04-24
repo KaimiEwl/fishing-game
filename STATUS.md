@@ -9,6 +9,7 @@
   - verified wallet snapshot is loaded and still has no nickname => prompt once
 - Saving the wallet-bound name now also waits for the explicit wallet-profile flush path before the flow is considered done, so the dialog no longer reopens in the middle of that save cycle.
 - Hardened the wallet-name save path against broken blank values in `players.nickname`, so an empty server value no longer blocks the first real wallet name from being persisted.
+- Added a wallet-address-scoped local fallback cache for the saved name on the current device, so the same verified wallet no longer gets the name prompt again on refresh or tab changes while the authoritative wallet snapshot catches up.
 
 ## Non-fishing tabs now have a recovery path instead of falling into a blank black screen
 - Fixed a screen-switch failure mode where moving from `Fish` into a lazy-loaded screen like `Shop` or `Tasks` could leave the game looking like a dead black screen.
