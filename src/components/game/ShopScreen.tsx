@@ -234,7 +234,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
         </TabsTrigger>
         <TabsTrigger value="monad" className="h-9 gap-1 rounded-[0.8rem] border border-[#a67935]/80 bg-[rgba(74,45,18,0.32)] px-1.5 text-[0.58rem] font-black uppercase tracking-[0.02em] text-[#f3d47e] shadow-[inset_0_0_0_1px_rgba(255,215,140,0.08)] data-[state=active]:border data-[state=active]:border-[#f3c777] data-[state=active]:bg-[rgba(66,40,16,0.95)] data-[state=active]:text-[#fff0c5] sm:h-10 sm:rounded-[0.95rem] sm:px-2 sm:text-[0.82rem] sm:tracking-[0.05em]">
           <Sparkles className="h-4 w-4" />
-          Manat Shop
+          Monad Shop
         </TabsTrigger>
       </TabsList>
     </div>
@@ -243,7 +243,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
   return (
     <GameScreenShell
       title="Shop"
-      subtitle="Coins stay in Bait and Rods. All MON items now live in Manat Shop."
+      subtitle="Coins stay in Bait and Rods. All MON items now live in Monad Shop."
       backgroundImage={isMobileLayout ? publicAsset('assets/shop_board_mobile_reference.webp') : publicAsset('assets/shop_board_reference.webp')}
       backgroundFit="cover"
       overlayClassName="bg-[linear-gradient(180deg,rgba(8,6,3,0.10)_0%,rgba(10,8,5,0.12)_48%,rgba(6,5,3,0.18)_100%)]"
@@ -274,8 +274,8 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                 )}
               />
               <QuestBoardPlaque
-                eyebrow="Manat items moved"
-                description="Auto Fishing Net tiers, MON cube rolls, instant unlock rods, and NFT bonus rods now sit in Manat Shop."
+                eyebrow="Monad items moved"
+                description="Auto Fishing Net tiers, MON cube rolls, instant unlock rods, and NFT bonus rods now sit in Monad Shop."
               />
               <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
                 {BAIT_PACKAGES.map((pkg) => {
@@ -318,8 +318,8 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                 )}
               />
               <QuestBoardPlaque
-                eyebrow="Manat gear"
-                description="Coin rods stay here. The premium MON utility and the stronger bonus NFT rods moved into Manat Shop."
+                eyebrow="Monad gear"
+                description="Coin rods stay here. The premium MON utility and the stronger bonus NFT rods moved into Monad Shop."
               />
               <div className="grid gap-2.5 sm:gap-3 lg:grid-cols-2">
                 {ROD_UPGRADES.map((rod) => {
@@ -383,7 +383,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
               ) : (
                 <QuestBoardPlaque
                   eyebrow="Connect wallet"
-                  description="Manat Shop is wallet-only. Connect from the HUD wallet button, then come back here for MON purchases."
+                  description="Monad Shop is wallet-only. Connect from the HUD wallet button, then come back here for MON purchases."
                 />
               )}
 
@@ -396,7 +396,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                       </div>
                       <div className="mt-1 text-lg font-black text-[#f8e8bf] sm:text-xl">Auto Fishing Net</div>
                       <p className="mt-1 text-sm leading-5 text-[#f8e8bf]/78">
-                        Pick a Manat net tier. Bigger nets refill with more random fish every 24 hours and keep the passive loop out of the bait tab.
+                        Pick a Monad net tier. Bigger nets refill with more random fish every 24 hours and keep the passive loop out of the bait tab.
                       </p>
                     </div>
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#6f4928] bg-[rgba(15,10,7,0.72)] shadow-inner">
