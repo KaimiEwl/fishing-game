@@ -1,5 +1,19 @@
 # STATUS
 
+## Bare-domain edge proxy fallback no longer breaks verified wallet name saves
+- Fixed a production-only edge-call trap behind repeated `Could not save wallet name right now` errors.
+- Root cause:
+  - the app was allowing same-origin edge proxy calls on both `www.hookloot.xyz` and bare `hookloot.xyz`
+  - the bare domain proxy path redirects edge POST requests to `www`
+  - after that redirect, the authorization header can be dropped before the request reaches Supabase Functions
+  - wallet-name saves then fail before `save-player-name` even runs
+- Client edge invocation is now hardened in two ways:
+  - same-origin proxy is used only on `www.hookloot.xyz`
+  - if the proxy still answers with `UNAUTHORIZED_NO_AUTH_HEADER`, the client automatically retries the function against the direct Supabase Functions URL
+- Resulting behavior:
+  - verified name saves no longer depend on the fragile bare-domain redirect path
+  - wallet verification and other edge-backed actions also get the same fallback protection
+
 ## Verified wallet refresh now always returns the full player row, including nickname
 - Fixed the name-loss regression that could still happen after `Ctrl+F5`, wallet-session restore, or background verified-session refresh.
 - The underlying bug was on the server refresh path:

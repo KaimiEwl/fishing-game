@@ -4,7 +4,7 @@ import type { Database } from './types';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'placeholder-key';
-const SAME_ORIGIN_EDGE_PROXY_HOSTS = new Set(['hookloot.xyz', 'www.hookloot.xyz']);
+const SAME_ORIGIN_EDGE_PROXY_HOSTS = new Set(['www.hookloot.xyz']);
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
@@ -39,6 +39,29 @@ export interface EdgeFunctionHttpError extends Error {
   responseBody: string;
   responseData: unknown;
 }
+
+const isMissingAuthHeaderProxyError = (error: unknown) => {
+  if (!error || typeof error !== 'object') return false;
+
+  const edgeError = error as Partial<EdgeFunctionHttpError>;
+  if (edgeError.status !== 401) return false;
+
+  const payload = edgeError.responseData;
+  if (payload && typeof payload === 'object') {
+    const code = typeof (payload as { code?: unknown }).code === 'string'
+      ? (payload as { code: string }).code
+      : '';
+    const message = typeof (payload as { message?: unknown }).message === 'string'
+      ? (payload as { message: string }).message
+      : '';
+
+    if (code === 'UNAUTHORIZED_NO_AUTH_HEADER') return true;
+    if (message.toLowerCase().includes('missing authorization header')) return true;
+  }
+
+  return typeof edgeError.responseBody === 'string'
+    && edgeError.responseBody.toLowerCase().includes('missing authorization header');
+};
 
 const buildInvokeBody = (body: unknown): BodyInit | undefined => {
   if (body == null) return undefined;
@@ -144,6 +167,10 @@ export const invokeEdgeFunctionHttp = async <T>(
     const data = await invokeEdgeFunctionHttp(functionName, options);
     return { data, error: null };
   } catch (error) {
+    if (isMissingAuthHeaderProxyError(error)) {
+      return originalInvoke(functionName, options as Parameters<typeof originalInvoke>[1]);
+    }
+
     return {
       data: null,
       error: error instanceof Error
