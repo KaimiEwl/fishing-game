@@ -246,7 +246,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
         <QuestBoard
           layout={isMobileLayout ? 'mobile' : 'desktop'}
           header={boardHeader}
-          headerPlacement="fixed"
+          headerPlacement="inline"
           viewportInsets={boardViewportInsets}
         >
           <TabsContent value="bait" className="mt-0">
