@@ -68,7 +68,6 @@ const GameControls: React.FC<GameControlsProps> = ({
         : null
     : null;
   const primaryButtonImage = gameState === 'biting' ? CAST_BUTTON_GREEN : CAST_BUTTON_BLUE;
-  const showHookOverlay = gameState === 'biting';
   const [primaryButtonArtFailed, setPrimaryButtonArtFailed] = useState(false);
 
   useEffect(() => {
@@ -164,14 +163,16 @@ const GameControls: React.FC<GameControlsProps> = ({
               className="relative z-[1] h-auto border-0 bg-transparent p-0 shadow-none transition-transform duration-200 hover:scale-[1.04] hover:bg-transparent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-100 disabled:hover:scale-100"
             >
               <span className="relative block w-[11.75rem] sm:w-[13.5rem]">
-                <span
-                  aria-hidden="true"
-                  className={`absolute inset-[10%] rounded-[999px] border transition-all duration-200 ${
-                    gameState === 'biting'
-                      ? 'border-lime-300/60 bg-[linear-gradient(180deg,rgba(101,163,13,0.98),rgba(39,90,14,0.98))] shadow-[0_14px_32px_rgba(101,163,13,0.28)]'
-                      : 'border-cyan-200/45 bg-[linear-gradient(180deg,rgba(56,189,248,0.95),rgba(11,70,138,0.98))] shadow-[0_14px_32px_rgba(34,211,238,0.24)]'
-                  } ${primaryDisabled ? 'brightness-[0.72] saturate-[0.7] opacity-80' : ''}`}
-                />
+                {primaryButtonArtFailed && (
+                  <span
+                    aria-hidden="true"
+                    className={`absolute inset-[10%] rounded-[999px] border transition-all duration-200 ${
+                      gameState === 'biting'
+                        ? 'border-lime-300/60 bg-[linear-gradient(180deg,rgba(101,163,13,0.98),rgba(39,90,14,0.98))] shadow-[0_14px_32px_rgba(101,163,13,0.28)]'
+                        : 'border-cyan-200/45 bg-[linear-gradient(180deg,rgba(56,189,248,0.95),rgba(11,70,138,0.98))] shadow-[0_14px_32px_rgba(34,211,238,0.24)]'
+                    } ${primaryDisabled ? 'brightness-[0.72] saturate-[0.7] opacity-80' : ''}`}
+                  />
+                )}
                 {!primaryButtonArtFailed && (
                   <img
                     src={primaryButtonImage}
@@ -182,7 +183,7 @@ const GameControls: React.FC<GameControlsProps> = ({
                     onError={() => setPrimaryButtonArtFailed(true)}
                   />
                 )}
-                {(showHookOverlay || primaryButtonArtFailed) && (
+                {primaryButtonArtFailed && (
                   <span className="pointer-events-none absolute inset-0 flex items-center justify-center px-4 text-center text-[0.9rem] font-black uppercase tracking-[0.14em] text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.7)] sm:text-[1rem]">
                     {primaryLabel}
                   </span>

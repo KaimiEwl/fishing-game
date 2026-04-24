@@ -1,5 +1,14 @@
 # STATUS
 
+## Fish action button no longer stacks fallback layers on top of the real cast/hook art
+- Cleaned up the desktop/mobile fishing CTA after the previous hardening pass added too many visible fallback layers.
+- Root cause:
+  - the styled fallback pill was still rendering under the real button art even when the PNG loaded correctly
+  - the biting state also forced an extra `Hook fish` text overlay on top of the green art, creating duplicate text and a fake second surface
+- Updated behavior:
+  - the glow/fallback pill now appears only when the button image itself actually fails to load
+  - the inline `Hook fish` label now appears only in true fallback mode instead of sitting on top of the normal button art
+
 ## Wallet daily check-in is locked to one claim per day again
 - Disabled the old repeat-test mode that still let the blockchain daily check-in act like a reusable bait faucet.
 - Fixed three layers of the same bug:
