@@ -60,6 +60,13 @@ const GameControls: React.FC<GameControlsProps> = ({
       : hasBait
         ? 'Cast line'
         : 'No bait';
+  const primaryStatusBadge = gameState === 'idle'
+    ? premiumCastActive
+      ? 'Premium cast'
+      : !hasBait
+        ? 'No bait'
+        : null
+    : null;
   const primaryButtonImage = gameState === 'biting' ? CAST_BUTTON_GREEN : CAST_BUTTON_BLUE;
 
   return (
@@ -113,8 +120,8 @@ const GameControls: React.FC<GameControlsProps> = ({
           className="fixed left-1/2 z-20 -translate-x-1/2"
           style={{
             bottom: isMobile
-              ? 'calc(var(--bottom-nav-clearance,0px) + 0.75rem)'
-              : 'calc(var(--bottom-nav-clearance,0px) + 5.1rem)',
+              ? 'calc(var(--bottom-nav-clearance,0px) + 1.3rem)'
+              : 'calc(var(--bottom-nav-clearance,0px) + 5.75rem)',
           }}
         >
           <div className="relative flex w-[11.75rem] justify-center sm:w-[13.5rem]">
@@ -126,6 +133,14 @@ const GameControls: React.FC<GameControlsProps> = ({
                   sweetSpotStart={premiumSweetSpotStart}
                   sweetSpotEnd={premiumSweetSpotEnd}
                 />
+              </div>
+            )}
+
+            {primaryStatusBadge && (
+              <div className="pointer-events-none absolute bottom-[calc(100%+0.5rem)] left-1/2 z-[2] -translate-x-1/2">
+                <div className="rounded-full border border-cyan-200/25 bg-black/76 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-100 shadow-[0_10px_24px_rgba(0,0,0,0.35)] backdrop-blur-md sm:text-[11px]">
+                  {primaryStatusBadge}
+                </div>
               </div>
             )}
 
@@ -150,12 +165,6 @@ const GameControls: React.FC<GameControlsProps> = ({
                   className={`block h-auto w-full select-none transition-all duration-200 ${primaryDisabled ? 'grayscale-[0.9] brightness-[0.72] opacity-90' : gameState === 'biting' ? 'drop-shadow-[0_10px_22px_rgba(163,230,53,0.22)]' : 'drop-shadow-[0_10px_22px_rgba(34,211,238,0.24)]'}`}
                   draggable={false}
                 />
-                <span
-                  className={`pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center text-[0.82rem] font-black uppercase tracking-[0.12em] sm:text-[0.94rem] ${primaryDisabled ? 'text-zinc-300/82' : gameState === 'biting' ? 'text-[#f4ffe1]' : 'text-[#eef8ff]'}`}
-                  style={{ textShadow: '0 2px 10px rgba(0,0,0,0.65)' }}
-                >
-                  {primaryLabel}
-                </span>
               </span>
               <span className="sr-only">{primaryLabel}</span>
             </Button>
