@@ -221,6 +221,8 @@ const getPremiumReactionQuality = (
     : 'good';
 };
 
+const normalizeWalletNickname = (value: string | null | undefined) => value?.trim() ?? '';
+
 const hasRequiredFishForRecipe = (
   inventory: { fishId: string; quantity: number }[],
   recipe: GrillRecipe,
@@ -668,7 +670,7 @@ const FishingGame: React.FC = () => {
   }, [albumRewardInfo, dismissAlbumReward]);
 
   useEffect(() => {
-    const walletNickname = savedPlayer?.nickname?.trim() ?? '';
+    const walletNickname = normalizeWalletNickname(savedPlayer?.nickname);
     const shouldRequireWalletName = (
       assetsReady
       && savedPlayer !== null
@@ -1210,9 +1212,25 @@ const FishingGame: React.FC = () => {
 
       setPlayerNameSyncPending(true);
       const persisted = await flushPlayerSave(nextPlayerSnapshot);
+      let walletNicknameSynced = false;
+
+      if (persisted) {
+        const deadline = Date.now() + 2500;
+        while (Date.now() < deadline) {
+          if (normalizeWalletNickname(savedPlayerSnapshotRef.current?.nickname) === name) {
+            walletNicknameSynced = true;
+            break;
+          }
+
+          await new Promise<void>((resolve) => {
+            window.setTimeout(resolve, 120);
+          });
+        }
+      }
+
       setPlayerNameSyncPending(false);
 
-      if (!persisted) {
+      if (!persisted || !walletNicknameSynced) {
         toast.error('Could not save your wallet-bound name yet. Please try again.');
         setPlayerNameDialogOpen(true);
       }

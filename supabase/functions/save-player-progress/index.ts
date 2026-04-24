@@ -847,6 +847,11 @@ serve(async (req) => {
       );
     }
 
+    const persistedNickname = normalizeNullableText(currentPlayerRow.nickname, 20);
+    const requestedNickname = normalizeNullableText(clientPayload.nickname, 20);
+    const persistedAvatarUrl = normalizeNullableText(currentPlayerRow.avatar_url, 2048);
+    const requestedAvatarUrl = normalizeNullableText(clientPayload.avatar_url, 2048);
+
     const updatePayload = {
       coins: isStaleBase
         ? Math.max(currentPlayerRow.coins, requestedCoins)
@@ -884,10 +889,10 @@ serve(async (req) => {
       nft_rods: isStaleBase
         ? Array.from(new Set([...sanitizeNftRods(currentPlayerRow.nft_rods), ...sanitizedNftRods])).sort((a, b) => a - b)
         : sanitizedNftRods,
-      nickname: currentPlayerRow.nickname ?? normalizeNullableText(clientPayload.nickname, 20),
+      nickname: persistedNickname ?? requestedNickname,
       avatar_url: isStaleBase
-        ? (currentPlayerRow.avatar_url ?? normalizeNullableText(clientPayload.avatar_url, 2048))
-        : normalizeNullableText(clientPayload.avatar_url, 2048),
+        ? (persistedAvatarUrl ?? requestedAvatarUrl)
+        : requestedAvatarUrl,
       game_progress: game_progress == null && !hasCollectionBookPayload && !hasRodMasteryPayload
         ? currentPlayerRow.game_progress
         : isStaleBase
