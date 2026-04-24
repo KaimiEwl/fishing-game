@@ -1,5 +1,17 @@
 # STATUS
 
+## Verified wallet refresh now always returns the full player row, including nickname
+- Fixed the name-loss regression that could still happen after `Ctrl+F5`, wallet-session restore, or background verified-session refresh.
+- The underlying bug was on the server refresh path:
+  - the client now correctly treats `savedPlayer.nickname` as the only source of truth
+  - but `verify-wallet` was not guaranteeing a fresh full `players` row on every verified refresh cycle
+  - that meant a later session refresh could overwrite the client with a player payload that effectively came back without the wallet nickname
+- `verify-wallet` now fetches the processed wallet player from `players` after login/session side effects and returns that full row back to the client, including `nickname` and the rest of the wallet-bound state.
+- Resulting behavior:
+  - saving a verified wallet name should survive `Ctrl+F5`
+  - `Settings` should keep showing the same wallet-bound name after refresh
+  - the blocking `Choose your name` prompt should not reopen for the same wallet once that nickname is actually persisted
+
 ## Verified wallets now have exactly one required name-entry flow
 - Removed the extra wallet/settings rename entry points so the game no longer offers multiple competing ways to set the player name.
 - The only remaining name-entry UI for a verified wallet is the blocking `Choose your name` dialog that appears after wallet verification when that wallet still has no saved nickname.

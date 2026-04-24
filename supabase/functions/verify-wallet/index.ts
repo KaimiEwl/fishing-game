@@ -32,6 +32,7 @@ const BAIT_BUCKETS_V2_ENABLED = readFlag(Deno.env.get('BAIT_BUCKETS_V2_ENABLED')
 const WALLET_BAIT_BONUS_ENABLED = readFlag(Deno.env.get('WALLET_BAIT_BONUS_ENABLED'), true);
 const REFERRAL_BAIT_ENABLED = readFlag(Deno.env.get('REFERRAL_BAIT_ENABLED'), true);
 const PLAYER_AUDIT_LOGS_ENABLED = readFlag(Deno.env.get('PLAYER_AUDIT_LOGS_ENABLED'), true);
+const FULL_PLAYER_SELECT = 'wallet_address, coins, bait, daily_free_bait, daily_free_bait_reset_at, bonus_bait_granted_total, level, xp, xp_to_next, rod_level, equipped_rod, inventory, cooked_dishes, game_progress, total_catches, login_streak, nft_rods, nickname, avatar_url, wallet_bait_bonus_claimed, referrer_wallet_address, rewarded_referral_count, referral_reward_granted, updated_at';
 
 const normalizeWalletAddress = (value: string | null | undefined) => {
   const trimmed = value?.trim();
@@ -44,10 +45,19 @@ interface PlayerLoginState {
   coins: number;
   bait: number;
   daily_free_bait: number;
+  daily_free_bait_reset_at?: string | null;
+  bonus_bait_granted_total?: number;
+  level?: number;
+  xp_to_next?: number;
+  inventory?: unknown[];
   cooked_dishes: unknown[];
   game_progress?: Record<string, unknown> | null;
   xp: number;
   total_catches: number;
+  login_streak?: number;
+  nft_rods?: unknown;
+  nickname?: string | null;
+  avatar_url?: string | null;
   rod_level: number;
   equipped_rod: number;
   wallet_bait_bonus_claimed: boolean;
@@ -69,10 +79,19 @@ const buildNewPlayerBaseline = (walletAddress: string): PlayerLoginState => ({
   coins: 100,
   bait: 0,
   daily_free_bait: DAILY_FREE_BAIT,
+  daily_free_bait_reset_at: null,
+  bonus_bait_granted_total: 0,
+  level: 1,
+  xp_to_next: 100,
+  inventory: [],
   cooked_dishes: [],
   game_progress: {},
   xp: 0,
   total_catches: 0,
+  login_streak: 1,
+  nft_rods: [],
+  nickname: null,
+  avatar_url: null,
   rod_level: 0,
   equipped_rod: 0,
   wallet_bait_bonus_claimed: false,
@@ -127,7 +146,7 @@ serve(async (req) => {
     const fetchPlayerLoginState = async (walletAddress: string) => {
       const { data, error } = await supabase
         .from('players')
-        .select('wallet_address, coins, bait, daily_free_bait, cooked_dishes, game_progress, xp, total_catches, rod_level, equipped_rod, wallet_bait_bonus_claimed, referrer_wallet_address, rewarded_referral_count, referral_reward_granted, updated_at')
+        .select(FULL_PLAYER_SELECT)
         .eq('wallet_address', walletAddress)
         .maybeSingle();
 
@@ -232,6 +251,17 @@ serve(async (req) => {
 
       if (error) throw error;
       return data;
+    };
+
+    const fetchProcessedPlayer = async (walletAddress: string) => {
+      const { data, error } = await supabase
+        .from('players')
+        .select(FULL_PLAYER_SELECT)
+        .eq('wallet_address', walletAddress)
+        .single();
+
+      if (error) throw error;
+      return data as PlayerLoginState;
     };
 
     const logWalletSideEffects = async ({
@@ -340,7 +370,8 @@ serve(async (req) => {
       }
 
       const beforePlayer = await fetchPlayerLoginState(normalizedAddress);
-      const player = await loadProcessedPlayer();
+      await loadProcessedPlayer();
+      const player = await fetchProcessedPlayer(normalizedAddress);
 
       if (!player) {
         return new Response(
@@ -407,7 +438,8 @@ serve(async (req) => {
       ? await fetchPlayerLoginState(normalizedReferrer)
       : null;
 
-    const newPlayer = await loadProcessedPlayer(normalizedReferrer);
+    await loadProcessedPlayer(normalizedReferrer);
+    const newPlayer = await fetchProcessedPlayer(normalizedAddress);
     if (!newPlayer) {
       return new Response(
         JSON.stringify({ error: 'Player not found' }),
