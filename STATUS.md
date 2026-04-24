@@ -1,5 +1,14 @@
 # STATUS
 
+## Verified grill now renders from the wallet snapshot instead of stale local fish stacks
+- Fixed another wallet-backed grill drift where the board could still show recipe ingredient counts from a stale optimistic local player layer even after the server had already consumed fish for a cooked dish.
+- The grill viewport and grill badge now read from the verified wallet snapshot when available, so recipe availability tracks what is actually saved for that wallet instead of whichever local inventory copy happened to be larger.
+- Hardened `save-player-progress` client handling as well: when a wallet save response comes back and there is no newer queued player snapshot waiting behind it, the returned player row is now applied as a server-authoritative snapshot instead of being re-merged with local state again.
+- Resulting behavior:
+  - after cooking on a verified wallet, the grill board should stop pretending the old fish are still there
+  - follow-up recipe availability should reflect the wallet/base snapshot much more closely
+  - normal rapid local progress still keeps optimistic behavior only when a newer queued player save actually exists
+
 ## Wallet name prompt now waits for the verified wallet snapshot and does not reopen during name sync
 - Fixed a wallet-name dialog regression where the game could still ask for a name on app entry even after that verified wallet had already saved one before.
 - The root problem was that the prompt gate was looking at the live local `player.nickname` layer instead of the resolved wallet snapshot, while the wallet-bound name save path could still be in flight.

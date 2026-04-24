@@ -437,6 +437,9 @@ const FishingGame: React.FC = () => {
     return Math.floor(5 * (1 + nftBonus / 100));
   }, [player.equippedRod, player.nftRods]);
   const totalBait = useMemo(() => getVisibleBaitTotal(player), [player]);
+  const grillInventory = useMemo(() => (
+    isVerified ? (savedPlayer?.inventory ?? player.inventory) : player.inventory
+  ), [isVerified, player.inventory, savedPlayer]);
   const fishingNet = gameProgress.fishingNet;
   const fishingNetPendingCount = gameProgress.fishingNetPendingCount;
   const fishingNetDailyCount = Math.max(fishingNet.dailyFishCount || 0, FISHING_NET_DAILY_FISH_COUNT);
@@ -450,10 +453,10 @@ const FishingGame: React.FC = () => {
   const availableGrillCount = useMemo(() => (
     GRILL_RECIPES.filter((recipe) => (
       Object.entries(recipe.ingredients).every(([fishId, amount]) => (
-        (player.inventory.find((item) => item.fishId === fishId)?.quantity ?? 0) >= amount
+        (grillInventory.find((item) => item.fishId === fishId)?.quantity ?? 0) >= amount
       ))
     )).length
-  ), [player.inventory]);
+  ), [grillInventory]);
 
   const refreshSocialTasks = useCallback(async () => {
     setSocialTasks(createDefaultSocialTasks());
@@ -1510,7 +1513,7 @@ const FishingGame: React.FC = () => {
                   />
                 ) : activeTab === 'grill' ? (
                     <GrillScreen
-                      inventory={player.inventory}
+                      inventory={grillInventory}
                       onCook={handleCookRecipe}
                       onCookStartSound={sounds.playGrillCookSound}
                     />

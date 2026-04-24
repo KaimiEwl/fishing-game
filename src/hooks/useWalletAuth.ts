@@ -523,7 +523,11 @@ export function useWalletAuth() {
       if (error) throw error;
 
       if (data?.player) {
-        applyVerifiedPlayerPayload(data.player as PlayerRecord);
+        applyVerifiedPlayerPayload(
+          data.player as PlayerRecord,
+          null,
+          { mergeMode: queuedSaveRef.current?.player ? 'optimistic' : 'server' },
+        );
       } else {
         if (shouldSavePlayer && nextPlayerDigest) {
           lastSavedPlayerDigestRef.current = nextPlayerDigest;
