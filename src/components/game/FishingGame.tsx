@@ -271,9 +271,10 @@ const FishingGame: React.FC = () => {
   const [pendingLeaderboardScore, setPendingLeaderboardScore] = useState(0);
   const [pendingLeaderboardDishes, setPendingLeaderboardDishes] = useState(0);
   const economyFeatures = useMemo(() => getEconomyFeatureAvailability(address), [address]);
+  const verifiedWalletNameReady = !isVerified || Boolean(normalizeWalletNickname(savedPlayer?.nickname));
   const gameProgress = useGameProgress({
     savedProgress: isVerified ? savedGameProgress : undefined,
-    onSave: isVerified ? saveGameProgress : undefined,
+    onSave: isVerified && verifiedWalletNameReady ? saveGameProgress : undefined,
     weeklyMissionsEnabled: economyFeatures.weeklyMissions,
     cubeRebalanceEnabled: economyFeatures.cubeRebalance,
   });
@@ -385,7 +386,7 @@ const FishingGame: React.FC = () => {
   } = useGameState({
     savedPlayer: isVerified ? savedPlayer : undefined,
     savedPlayerSyncMode: isVerified ? savedPlayerSyncMode : undefined,
-    onSave: isVerified ? saveProgress : undefined,
+    onSave: isVerified && verifiedWalletNameReady ? saveProgress : undefined,
     onFishCaught: gameProgress.recordFishCatch,
     onAuditEvent: logAuditEvent,
     collectionBookEnabled: economyFeatures.collectionBook,
