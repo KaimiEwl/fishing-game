@@ -411,6 +411,20 @@ const FishingGame: React.FC = () => {
 
     return Math.floor(5 * (1 + nftBonus / 100));
   }, [player.equippedRod, player.nftRods]);
+  const verifiedWalletNickname = useMemo(() => (
+    isVerified ? normalizeWalletNickname(savedPlayer?.nickname) : ''
+  ), [isVerified, savedPlayer?.nickname]);
+  const displayPlayer = useMemo(() => {
+    if (!isVerified || !savedPlayer) {
+      return player;
+    }
+
+    return {
+      ...player,
+      nickname: verifiedWalletNickname || null,
+      avatarUrl: savedPlayer.avatarUrl ?? player.avatarUrl,
+    };
+  }, [isVerified, player, savedPlayer, verifiedWalletNickname]);
   const totalBait = useMemo(() => getVisibleBaitTotal(player), [player]);
   const grillInventory = useMemo(() => (
     isVerified ? (savedPlayer?.inventory ?? player.inventory) : player.inventory
@@ -609,7 +623,7 @@ const FishingGame: React.FC = () => {
           entries,
           fromId: previousId,
           toId: nextId,
-          fallbackName: player.nickname || 'Guest griller',
+          fallbackName: displayPlayer.nickname || 'Guest griller',
           walletAddress: address,
         });
         const mergedEntry = nextEntries.find((entry) => entry.id === nextId);
@@ -625,7 +639,7 @@ const FishingGame: React.FC = () => {
 
     prevLeaderboardPlayerId.current = nextId;
     setLeaderboardPlayerId(nextId);
-  }, [address, player.nickname]);
+  }, [address, displayPlayer.nickname]);
 
   useEffect(() => {
     const prev = prevGameState.current;
@@ -712,7 +726,7 @@ const FishingGame: React.FC = () => {
       return;
     }
 
-    const canonicalName = sanitizeLeaderboardName(player.nickname ?? '');
+    const canonicalName = sanitizeLeaderboardName(displayPlayer.nickname ?? '');
     if (!canonicalName) return;
 
     const effectiveScore = Math.max(currentLeaderboardEntry?.score ?? 0, gameProgress.grillScore);
@@ -757,7 +771,7 @@ const FishingGame: React.FC = () => {
     gameProgress.grillScore,
     isVerified,
     leaderboardPlayerId,
-    player.nickname,
+    displayPlayer.nickname,
     showBackgroundActionError,
     syncServerLeaderboardEntry,
     updateGrillLeaderboard,
@@ -1170,7 +1184,7 @@ const FishingGame: React.FC = () => {
   const handleSaveLeaderboardName = (name: string) => {
     const score = Math.max(pendingLeaderboardScore, gameProgress.grillScore);
     const resolvedName = isVerified
-      ? (sanitizeLeaderboardName(player.nickname ?? '') || name)
+      ? (sanitizeLeaderboardName(displayPlayer.nickname ?? '') || name)
       : name;
     if (isVerified) {
       void updateGrillLeaderboard(resolvedName, score, pendingLeaderboardDishes)
@@ -1496,7 +1510,7 @@ const FishingGame: React.FC = () => {
                     currentPlayerId={leaderboardPlayerId}
                     isConnected={isConnected}
                     walletAddress={address}
-                    nickname={player.nickname}
+                    nickname={displayPlayer.nickname}
                   />
                 )}
               </Suspense>
@@ -1571,7 +1585,7 @@ const FishingGame: React.FC = () => {
 
           {isFishingScreen && (
             <PlayerPanel
-              player={player}
+              player={displayPlayer}
               isConnected={isConnected}
               isVerified={isVerified}
               isVerifying={isVerifying}
@@ -1640,7 +1654,7 @@ const FishingGame: React.FC = () => {
             open={leaderboardNameOpen}
             defaultName={hasCustomLeaderboardName(currentLeaderboardEntry?.name)
               ? currentLeaderboardEntry?.name
-              : player.nickname}
+              : displayPlayer.nickname}
             score={Math.max(pendingLeaderboardScore, gameProgress.grillScore)}
             onSave={handleSaveLeaderboardName}
           />

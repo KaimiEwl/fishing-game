@@ -9,6 +9,7 @@
 - `verify-wallet` now fetches the processed wallet player from `players` after login/session side effects and returns that full row back to the client, including `nickname` and the rest of the wallet-bound state.
 - Resulting behavior:
   - saving a verified wallet name should survive `Ctrl+F5`
+  - `Wallet`, `Settings`, and other verified-name UI now prefer the wallet snapshot name for display instead of a potentially stale local nickname layer
   - `Settings` should keep showing the same wallet-bound name after refresh
   - the blocking `Choose your name` prompt should not reopen for the same wallet once that nickname is actually persisted
 
