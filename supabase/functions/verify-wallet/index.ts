@@ -1,18 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { hashMessage, recoverAddress } from "npm:viem@2.21.0";
+import { getCorsHeaders } from "../_shared/cors.ts";
 import { createSessionToken, verifySessionToken } from "../_shared/session.ts";
 import {
   insertPlayerAuditLog,
   sanitizeAuditSnapshot,
 } from "../_shared/playerAudit.ts";
 import { enforceRateLimit } from "../_shared/rateLimit.ts";
-
-const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || '*';
-const corsHeaders = {
-  'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-};
 
 const DAILY_FREE_BAIT = 30;
 const WALLET_BAIT_BONUS = 0;
@@ -101,6 +96,8 @@ const buildNewPlayerBaseline = (walletAddress: string): PlayerLoginState => ({
 });
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }

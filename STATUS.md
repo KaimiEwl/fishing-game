@@ -1,5 +1,28 @@
 # STATUS
 
+## Edge Functions now allow both live Hook & Loot domains instead of only the old GitHub Pages origin
+- Found the missing server-side half of the wallet-name save failure on production:
+  - direct Supabase Function responses were still sending `Access-Control-Allow-Origin: https://kaimiewl.github.io`
+  - that means browser calls from `https://hookloot.xyz` and `https://www.hookloot.xyz` could still fail even when the function logic itself was correct
+- Added a shared Edge Function CORS helper and updated the main live gameplay endpoints to reflect allowed live origins:
+  - `hookloot.xyz`
+  - `www.hookloot.xyz`
+  - existing local dev origins
+  - legacy GitHub Pages origin
+- Hardened endpoints:
+  - `verify-wallet`
+  - `save-player-name`
+  - `save-player-progress`
+  - `player-actions`
+  - `player-messages`
+  - `player-mon`
+  - `verify-purchase`
+  - `mint-nft-rod`
+  - `log-player-event`
+- Resulting behavior:
+  - wallet verification and wallet-name save no longer rely on a stale GitHub Pages CORS config
+  - bare-domain `hookloot.xyz` and `www.hookloot.xyz` are both valid browser origins for the updated functions
+
 ## Bare-domain edge proxy fallback no longer breaks verified wallet name saves
 - Fixed a production-only edge-call trap behind repeated `Could not save wallet name right now` errors.
 - Root cause:
