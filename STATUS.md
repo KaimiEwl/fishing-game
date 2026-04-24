@@ -1,5 +1,14 @@
 # STATUS
 
+## Manat Shop cube rolls and MON rods now use premium pricing, stronger buffs, and separate shop art
+- Raised Manat cube-roll pricing from cheap impulse amounts to `1 / 3 / 5 MON` for the `1 / 3 / 5` roll packs.
+- Raised MON rod-unlock pricing to `3 / 5 / 10 / 25 MON` so those shortcut purchases are no longer near-free compared with their impact.
+- Reworked the bonus MON rod lineup to feel distinct from the coin rods:
+  - separate rod art in the shop instead of reusing the exact same base-rod icons
+  - stronger rarity / XP / sell-price buffs
+  - premium prices scaled up to `1 / 3 / 5 / 10 / 25 MON`
+- Synced the rod tooltip badge with the same upgraded MON rod stats so the HUD no longer shows stale pre-buff numbers.
+
 ## Verified grill cooking no longer fails the whole request after fish were already consumed
 - Hardened the wallet-backed `cook_recipe` flow against non-critical post-cook failures.
 - The dangerous sequence had been:

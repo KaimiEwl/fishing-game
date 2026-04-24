@@ -1,6 +1,7 @@
 import { Worm } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
+import { NFT_ROD_DATA } from '@/types/game';
 
 interface RodPreviewBadgeProps {
   rodLevel: number;
@@ -9,19 +10,11 @@ interface RodPreviewBadgeProps {
   totalBait?: number;
 }
 
-const NFT_BONUSES = [
-  { rarityBonus: 3, xpBonus: 10, sellBonus: 0 },
-  { rarityBonus: 5, xpBonus: 15, sellBonus: 10 },
-  { rarityBonus: 7, xpBonus: 20, sellBonus: 15 },
-  { rarityBonus: 10, xpBonus: 25, sellBonus: 20 },
-  { rarityBonus: 15, xpBonus: 30, sellBonus: 25 },
-] as const;
-
 const RodPreviewBadge = ({ rodLevel, ownedRodLevel, nftRods, totalBait = 0 }: RodPreviewBadgeProps) => {
   const displayRodLevel = Math.max(rodLevel, ownedRodLevel);
   const rod = ROD_DISPLAY_INFO[displayRodLevel] || ROD_DISPLAY_INFO[0];
   const hasNft = nftRods.includes(displayRodLevel);
-  const nftData = NFT_BONUSES[displayRodLevel];
+  const nftData = NFT_ROD_DATA.find((entry) => entry.rodLevel === displayRodLevel) ?? null;
 
   return (
     <div className="absolute bottom-1 right-[calc(100%+0.55rem)] flex flex-col items-center gap-1 sm:bottom-1.5">
@@ -65,10 +58,10 @@ const RodPreviewBadge = ({ rodLevel, ownedRodLevel, nftRods, totalBait = 0 }: Ro
               )}
               {hasNft && nftData && (
                 <div className="mt-1 border-t border-cyan-300/15 pt-1 text-xs text-cyan-100">
-                  <p className="font-bold">NFT bonuses:</p>
-                  <p>+{nftData.rarityBonus}% chance</p>
+                  <p className="font-bold">MON rod bonuses:</p>
+                  <p>+{nftData.rarityBonus}% rare+ chance</p>
                   <p>+{nftData.xpBonus}% XP</p>
-                  {nftData.sellBonus > 0 && <p>+{nftData.sellBonus}% price</p>}
+                  {nftData.sellBonus > 0 && <p>+{nftData.sellBonus}% fish price</p>}
                 </div>
               )}
             </div>

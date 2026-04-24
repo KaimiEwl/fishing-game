@@ -52,6 +52,15 @@ const ROD_UPGRADES = [
 const FISHING_NET_SHOP_ICON_SRC = publicAsset('assets/fishing_net_shop_icon.png');
 const SHOP_TOAST_DURATION_MS = 5600;
 const SHOP_BUTTON_CLASS_NAME = 'min-h-11 rounded-[1rem] border border-[#7f5227] bg-[linear-gradient(180deg,#8c531f_0%,#6e4117_42%,#4f2f14_100%)] text-[#f8db9a] hover:brightness-110 disabled:border-[#3a2817] disabled:bg-[linear-gradient(180deg,#2f241c_0%,#231b15_100%)] disabled:text-[#8c7b63]';
+const MONAD_ROD_ART_VERSION = 'monad-rods-20260424a';
+const versionedMonadRodArt = (file: string) => `${publicAsset(`assets/${file}`)}?v=${MONAD_ROD_ART_VERSION}`;
+const MONAD_ROD_IMAGES = {
+  0: versionedMonadRodArt('rod_basic.png'),
+  1: versionedMonadRodArt('rod_bamboo.png'),
+  2: versionedMonadRodArt('rod_carbon.png'),
+  3: versionedMonadRodArt('rod_pro.png'),
+  4: versionedMonadRodArt('rod_legendary.png'),
+} as const;
 
 const ShopScreen: React.FC<ShopScreenProps> = ({
   coins,
@@ -527,7 +536,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
 
               <QuestBoardPlaque
                 eyebrow="Cube rolls"
-                description="Buy extra cube rolls straight from the shop instead of bouncing into the cube screen first."
+                description="Buy extra cube rolls straight from the shop instead of bouncing into the cube screen first. These are now premium-priced top-ups, not cheap spam rolls."
               />
               <div className="grid gap-2.5 sm:gap-3 lg:grid-cols-3">
                 {MON_CUBE_SPIN_PACKAGES.map((pkg) => {
@@ -564,24 +573,25 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
               </div>
 
               <QuestBoardPlaque
-                eyebrow="Instant unlock rods"
-                description="These MON unlocks skip coin grind and immediately move your active rod up. NFT bonus rods are listed just below."
+                eyebrow="Premium rod unlocks"
+                description="These MON unlocks are now priced as real shortcuts into higher rod tiers. The heavier stat-buff MON rods are listed just below."
               />
               <div className="grid gap-2.5 sm:gap-3 lg:grid-cols-2">
                 {MON_ROD_PURCHASES.map((rodOffer) => {
                   const purchaseKey = `mon-rod-${rodOffer.level}`;
                   const rod = ROD_UPGRADES.find((entry) => entry.level === rodOffer.level);
                   const isOwned = rodLevel >= rodOffer.level;
+                  const monadRodImage = MONAD_ROD_IMAGES[rodOffer.level as keyof typeof MONAD_ROD_IMAGES] ?? rod?.image;
 
                   return (
                     <QuestBoardCard key={rodOffer.level}>
                       <div className="flex h-full flex-col gap-3 sm:flex-row sm:items-center">
                         <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#6f4928] bg-[rgba(15,10,7,0.72)] shadow-inner">
-                          <img src={rod?.image} alt={rod?.name ?? `Rod ${rodOffer.level}`} className="h-14 w-14 object-contain" />
+                          <img src={monadRodImage} alt={rodOffer.label} className="h-14 w-14 object-contain" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="font-black text-[#f8e8bf]">{rod?.name ?? `Rod ${rodOffer.level}`}</div>
-                          <div className="text-xs font-medium text-[#f8e8bf]/72">+{rod?.bonus ?? 0}% base rare chance</div>
+                          <div className="font-black text-[#f8e8bf]">{rodOffer.label}</div>
+                          <div className="text-xs font-medium text-[#f8e8bf]/72">Unlocks the {rod?.name ?? `Rod ${rodOffer.level}`} tier instantly</div>
                           <div className="mt-1 text-xs text-[#f8e8bf]/72">{rodOffer.positioning}</div>
                         </div>
                         {isOwned ? (
@@ -596,8 +606,8 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                             onClick={() => void runMonadPurchase({
                               purchaseKey,
                               monAmount: rodOffer.monAmount,
-                              pendingMessage: `Transaction sent. Unlocking ${rod?.name ?? 'rod'}...`,
-                              successMessage: `${rod?.name ?? 'Rod'} unlocked.`,
+                              pendingMessage: `Transaction sent. Unlocking ${rodOffer.label}...`,
+                              successMessage: `${rodOffer.label} unlocked.`,
                               verifyBody: { rod_purchase_level: rodOffer.level },
                               applyLocalUnlock: () => {
                                 onBuyRodWithMon(rodOffer.level, rodOffer.monAmount);
@@ -617,15 +627,15 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
               </div>
 
               <QuestBoardPlaque
-                eyebrow="Bonus NFT rods"
-                description="These are the stronger MON rods with real extra bonuses: more rare fish chance, more XP, and better sell prices."
+                eyebrow="Bonus MON rods"
+                description="These are the serious MON rods: separate shop art, much stronger rare+, XP, and sell-price buffs, and premium pricing to match."
               />
               <div className="grid gap-2.5 sm:gap-3 lg:grid-cols-2">
                 {NFT_ROD_DATA.map((nft) => {
                   const purchaseKey = `nft-rod-${nft.rodLevel}`;
                   const hasBaseRod = rodLevel >= nft.rodLevel;
                   const isOwned = nftRods.includes(nft.rodLevel);
-                  const rodImage = ROD_DISPLAY_INFO[nft.rodLevel].image;
+                  const rodImage = MONAD_ROD_IMAGES[nft.rodLevel as keyof typeof MONAD_ROD_IMAGES] ?? ROD_DISPLAY_INFO[nft.rodLevel].image;
 
                   return (
                     <QuestBoardCard key={nft.rodLevel}>
@@ -637,7 +647,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                           <div className="min-w-0 flex-1">
                             <div className="font-black text-[#f8e8bf]">{nft.name}</div>
                             <div className="mt-1 space-y-1 text-xs text-[#f8e8bf]/78">
-                              <div>+{nft.rarityBonus}% rare fish chance</div>
+                              <div>+{nft.rarityBonus}% rare+ fish chance</div>
                               <div>+{nft.xpBonus}% XP</div>
                               {nft.sellBonus > 0 ? <div>+{nft.sellBonus}% fish sell price</div> : null}
                             </div>
@@ -647,7 +657,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                           {isOwned
                             ? 'Already minted on this wallet.'
                             : hasBaseRod
-                              ? 'Base rod owned. This mint adds the stronger MON bonuses on top.'
+                              ? 'Base rod owned. This mint upgrades it into the heavier MON bonus version.'
                               : `Buy the ${nft.rodLevel === 0 ? 'Starter' : ROD_UPGRADES[nft.rodLevel - 1]?.name} first, then mint its NFT bonus version here.`}
                         </div>
                         {isOwned ? (

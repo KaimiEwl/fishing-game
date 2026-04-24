@@ -542,9 +542,9 @@ export interface NftRod {
 }
 
 export const NFT_ROD_DATA: NftRod[] = [
-  { rodLevel: 0, name: 'Starter NFT', rarityBonus: 3, xpBonus: 10, sellBonus: 0, mintCost: '0.05' },
-  { rodLevel: 1, name: 'Bamboo NFT', rarityBonus: 5, xpBonus: 15, sellBonus: 10, mintCost: '0.1' },
-  { rodLevel: 2, name: 'Carbon NFT', rarityBonus: 7, xpBonus: 20, sellBonus: 15, mintCost: '0.2' },
-  { rodLevel: 3, name: 'Pro NFT', rarityBonus: 10, xpBonus: 25, sellBonus: 20, mintCost: '0.5' },
-  { rodLevel: 4, name: 'Legendary NFT', rarityBonus: 15, xpBonus: 30, sellBonus: 25, mintCost: '1.0' },
+  { rodLevel: 0, name: 'Driftline MON Rod', rarityBonus: 6, xpBonus: 15, sellBonus: 5, mintCost: '1' },
+  { rodLevel: 1, name: 'Tidebloom MON Rod', rarityBonus: 12, xpBonus: 30, sellBonus: 15, mintCost: '3' },
+  { rodLevel: 2, name: 'Deepcurrent MON Rod', rarityBonus: 18, xpBonus: 45, sellBonus: 25, mintCost: '5' },
+  { rodLevel: 3, name: 'Stormforge MON Rod', rarityBonus: 24, xpBonus: 60, sellBonus: 35, mintCost: '10' },
+  { rodLevel: 4, name: 'Leviathan Crown MON Rod', rarityBonus: 32, xpBonus: 80, sellBonus: 50, mintCost: '25' },
 ];

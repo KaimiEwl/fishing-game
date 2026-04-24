@@ -79,48 +79,48 @@ export const MON_FISHING_NET_PACKAGES = [
 export const MON_CUBE_SPIN_PACKAGES = [
   {
     rolls: 1,
-    monAmount: '0.04',
+    monAmount: '1',
     label: '1 cube roll',
-    positioning: 'Small impulse buy for one extra shot at the prize cube.',
+    positioning: 'Single premium roll when you only want one extra shot.',
   },
   {
     rolls: 3,
-    monAmount: '0.1',
+    monAmount: '3',
     label: '3 cube rolls',
-    positioning: 'Best starter pack when you want a short session boost.',
+    positioning: 'Short premium bundle for a focused cube session.',
   },
   {
     rolls: 5,
-    monAmount: '0.16',
+    monAmount: '5',
     label: '5 cube rolls',
-    positioning: 'Bulk pack for streak chasers at a better per-roll rate.',
+    positioning: 'Heavy top-up when you want a bigger cube push right now.',
   },
 ] as const;
 
 export const MON_ROD_PURCHASES = [
   {
     level: 1,
-    monAmount: '0.05',
-    label: 'Bamboo instant unlock',
-    positioning: 'About 1-2 days of rod grind skipped.',
+    monAmount: '3',
+    label: 'Bamboo MON unlock',
+    positioning: 'Premium shortcut into the first rod tier without the coin grind.',
   },
   {
     level: 2,
-    monAmount: '0.15',
-    label: 'Carbon instant unlock',
-    positioning: 'About a week of rod grind skipped.',
+    monAmount: '5',
+    label: 'Carbon MON unlock',
+    positioning: 'Mid-tier shortcut when you want the blue rod immediately.',
   },
   {
     level: 3,
-    monAmount: '0.4',
-    label: 'Pro instant unlock',
-    positioning: 'About a month of rod grind skipped.',
+    monAmount: '10',
+    label: 'Pro MON unlock',
+    positioning: 'Late mid-game shortcut straight into the purple rod tier.',
   },
   {
     level: 4,
-    monAmount: '0.9',
-    label: 'Legendary instant unlock',
-    positioning: 'Late-game shortcut without replacing NFT value.',
+    monAmount: '25',
+    label: 'Legendary MON unlock',
+    positioning: 'Endgame shortcut into the gold rod while bonus MON rods stay separate.',
   },
 ] as const;
 
