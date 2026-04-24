@@ -122,9 +122,11 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({
 
         <SettingsDialog
           isConnected={isConnected}
+          isVerified={isVerified}
           nickname={player.nickname || ''}
           walletAddress={walletAddress}
           avatarUrl={player.avatarUrl}
+          onSaveNickname={isConnected && isVerified ? onSetNickname : undefined}
           onAvatarUploaded={onAvatarUploaded}
           showAdminPanelEntry={isAdmin === true}
           adminPendingWithdrawCount={pendingWithdrawCount}

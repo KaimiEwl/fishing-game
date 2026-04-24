@@ -1,5 +1,14 @@
 # STATUS
 
+## Settings wallet-name saves now overwrite the old nickname instead of reviving it from the server
+- Fixed the wallet-name persistence bug behind renamed players in Settings.
+- The server-side save path had still been preferring the old persisted `players.nickname` over a newly requested wallet name, so a rename could appear to save on the client and then snap back after refresh.
+- The save rule is now the intended one:
+  - non-empty new wallet nickname wins
+  - blank nickname does not erase the stored one
+  - unchanged nickname remains untouched
+- Added an explicit verified-wallet name editor in `Settings`, so the rename flow now goes through the same wallet-bound save path instead of depending on the one-time setup dialog.
+
 ## Verified grill now renders from the wallet snapshot instead of stale local fish stacks
 - Fixed another wallet-backed grill drift where the board could still show recipe ingredient counts from a stale optimistic local player layer even after the server had already consumed fish for a cooked dish.
 - The grill viewport and grill badge now read from the verified wallet snapshot when available, so recipe availability tracks what is actually saved for that wallet instead of whichever local inventory copy happened to be larger.

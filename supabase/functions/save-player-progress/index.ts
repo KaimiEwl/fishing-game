@@ -889,7 +889,7 @@ serve(async (req) => {
       nft_rods: isStaleBase
         ? Array.from(new Set([...sanitizeNftRods(currentPlayerRow.nft_rods), ...sanitizedNftRods])).sort((a, b) => a - b)
         : sanitizedNftRods,
-      nickname: persistedNickname ?? requestedNickname,
+      nickname: requestedNickname ?? persistedNickname,
       avatar_url: isStaleBase
         ? (persistedAvatarUrl ?? requestedAvatarUrl)
         : requestedAvatarUrl,
