@@ -1,12 +1,21 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAccount, useSignMessage, useDisconnect } from 'wagmi';
 import { invokeEdgeFunctionHttp, supabase } from '@/integrations/supabase/client';
-import { type GameProgressSnapshot, type PlayerState, XP_PER_LEVEL } from '@/types/game';
+import {
+  DAILY_TASKS,
+  FISH_DATA,
+  SPECIAL_TASKS,
+  type GameProgressSnapshot,
+  type PlayerState,
+  XP_PER_LEVEL,
+} from '@/types/game';
+import { COLLECTION_BOOK_PAGES } from '@/lib/collectionBook';
 import {
   BAIT_BUCKETS_V2_ENABLED,
   DAILY_FREE_BAIT,
   MAX_REWARDED_REFERRALS_PER_INVITER,
   REFERRAL_BAIT_ENABLED,
+  WEEKLY_MISSION_CONFIG,
 } from '@/lib/baitEconomy';
 import {
   applyServerBonusBaitSync,
@@ -334,8 +343,271 @@ function getPlayerProgressDigest(player: PlayerState) {
   return JSON.stringify(serializePlayerProgress(player));
 }
 
+const DAY_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const COLLECTION_FISH_IDS = FISH_DATA.map((fish) => fish.id);
+const COLLECTION_PAGE_IDS = COLLECTION_BOOK_PAGES.map((page) => page.id);
+
+const clampProgressInt = (value: unknown, fallback: number, min = 0, max = Number.MAX_SAFE_INTEGER) => {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(max, Math.floor(parsed)));
+};
+
+const normalizeIsoOrNull = (value: unknown) => {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+};
+
+const normalizeDayOrNull = (value: unknown) => (
+  typeof value === 'string' && DAY_KEY_PATTERN.test(value) ? value : null
+);
+
+const getCurrentWeekKey = () => {
+  const now = new Date();
+  const mondayBasedDay = (now.getUTCDay() + 6) % 7;
+  now.setUTCHours(0, 0, 0, 0);
+  now.setUTCDate(now.getUTCDate() - mondayBasedDay);
+  const y = now.getUTCFullYear();
+  const m = String(now.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(now.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+const getTodayKey = () => {
+  const now = new Date();
+  const y = now.getUTCFullYear();
+  const m = String(now.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(now.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+const normalizeTaskStateEntry = (value: unknown) => {
+  const state = value && typeof value === 'object'
+    ? value as { progress?: unknown; claimed?: unknown }
+    : {};
+
+  return {
+    progress: clampProgressInt(state.progress, 0, 0, 1_000_000),
+    claimed: Boolean(state.claimed),
+  };
+};
+
+const applyDailyCheckInReadyState = <T extends Record<string, { progress: number; claimed: boolean }>>(tasks: T): T => {
+  if (!('check_in' in tasks)) return tasks;
+
+  const current = tasks.check_in;
+  if (current.claimed || current.progress >= 1) return tasks;
+
+  return {
+    ...tasks,
+    check_in: {
+      ...current,
+      progress: 1,
+    },
+  };
+};
+
+const createEmptyFishingNet = () => ({
+  owned: false,
+  dailyFishCount: 0,
+  purchasedAt: null,
+  readyDate: null,
+  lastCollectedDate: null,
+  lastNotificationDate: null,
+  pendingCatch: [] as Array<{ fishId: string; quantity: number }>,
+});
+
+const normalizeFishingNetCatch = (value: unknown) => {
+  if (!Array.isArray(value)) return [] as Array<{ fishId: string; quantity: number }>;
+
+  const quantities = new Map<string, number>();
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue;
+    const fishIdValue = (item as Record<string, unknown>).fishId;
+    const fishId = typeof fishIdValue === 'string'
+      ? fishIdValue.trim()
+      : '';
+    const quantity = clampProgressInt((item as Record<string, unknown>).quantity, 0, 0, 99_999);
+    if (!fishId || quantity <= 0) continue;
+    quantities.set(fishId, (quantities.get(fishId) ?? 0) + quantity);
+  }
+
+  return Array.from(quantities.entries())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([fishId, quantity]) => ({ fishId, quantity }));
+};
+
+const normalizeFishingNet = (value: unknown) => {
+  if (!value || typeof value !== 'object') return createEmptyFishingNet();
+
+  const source = value as Record<string, unknown>;
+  const owned = Boolean(source.owned);
+  if (!owned) return createEmptyFishingNet();
+
+  return {
+    owned,
+    dailyFishCount: Math.max(1, clampProgressInt(source.dailyFishCount, 10, 1, 999)),
+    purchasedAt: normalizeIsoOrNull(source.purchasedAt),
+    readyDate: normalizeDayOrNull(source.readyDate),
+    lastCollectedDate: normalizeDayOrNull(source.lastCollectedDate),
+    lastNotificationDate: normalizeDayOrNull(source.lastNotificationDate),
+    pendingCatch: normalizeFishingNetCatch(source.pendingCatch),
+  };
+};
+
+const normalizeWheelPrize = (value: unknown) => {
+  if (!value || typeof value !== 'object') return null;
+
+  const prize = value as Record<string, unknown>;
+  const type = prize.type === 'fish'
+    ? 'fish'
+    : prize.type === 'coins'
+      ? 'coins'
+      : prize.type === 'mon'
+        ? 'mon'
+        : prize.type === 'bait'
+          ? 'bait'
+          : null;
+  const id = typeof prize.id === 'string' ? prize.id.trim() : '';
+  const label = typeof prize.label === 'string' ? prize.label.trim() : '';
+  if (!type || !id || !label) return null;
+
+  return {
+    id,
+    label,
+    type,
+    coins: type === 'coins' ? clampProgressInt(prize.coins, 0, 0, 1_000_000_000) : undefined,
+    fishId: type === 'fish' && typeof prize.fishId === 'string' ? prize.fishId.trim() : undefined,
+    quantity: prize.quantity == null ? undefined : clampProgressInt(prize.quantity, 1, 1, 99_999),
+    mon: type === 'mon' ? Number(prize.mon ?? 0) : undefined,
+    bait: type === 'bait' ? clampProgressInt(prize.bait, 0, 0, 99_999) : undefined,
+    secret: Boolean(prize.secret),
+  };
+};
+
+const normalizeCollectionBook = (value: unknown) => {
+  if (!value || typeof value !== 'object') return null;
+
+  const source = value as Record<string, unknown>;
+  const speciesSource = source.species && typeof source.species === 'object'
+    ? source.species as Record<string, unknown>
+    : {};
+  const species = Object.fromEntries(COLLECTION_FISH_IDS.map((fishId) => {
+    const current = speciesSource[fishId] && typeof speciesSource[fishId] === 'object'
+      ? speciesSource[fishId] as Record<string, unknown>
+      : {};
+    return [fishId, {
+      fishId,
+      discovered: Boolean(current.discovered),
+      catches: clampProgressInt(current.catches, 0, 0, 1_000_000),
+      firstCaughtAt: normalizeIsoOrNull(current.firstCaughtAt),
+      lastCaughtAt: normalizeIsoOrNull(current.lastCaughtAt),
+      firstCatchBonusClaimed: Boolean(current.firstCatchBonusClaimed),
+    }];
+  }));
+
+  const pageSource = Array.isArray(source.pages) ? source.pages : [];
+  const pages = COLLECTION_PAGE_IDS.map((pageId) => {
+    const current = pageSource.find(
+      (item) => item && typeof item === 'object' && (item as Record<string, unknown>).pageId === pageId,
+    );
+    return {
+      pageId,
+      completed: Boolean(current && (current as Record<string, unknown>).completed),
+      claimed: Boolean(current && (current as Record<string, unknown>).claimed),
+    };
+  });
+
+  return {
+    species,
+    pages,
+    totalSpeciesCaught: Object.values(species).filter((entry) => entry.discovered).length,
+    totalFirstCatchBonusesClaimed: Object.values(species).filter((entry) => entry.firstCatchBonusClaimed).length,
+  };
+};
+
+const normalizeRodMastery = (value: unknown) => {
+  if (!value || typeof value !== 'object') return null;
+
+  const source = value as Record<string, unknown>;
+  const tracksSource = source.tracks && typeof source.tracks === 'object'
+    ? source.tracks as Record<string, unknown>
+    : {};
+  const tracks = Object.fromEntries(
+    Object.entries(tracksSource)
+      .filter(([trackKey]) => Boolean(trackKey.trim()))
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([trackKey, rawTrack]) => {
+        const current = rawTrack && typeof rawTrack === 'object'
+          ? rawTrack as Record<string, unknown>
+          : {};
+        return [trackKey, {
+          rodLevel: clampProgressInt(current.rodLevel, 0, 0, 99),
+          masteryLevel: clampProgressInt(current.masteryLevel, 0, 0, 999),
+          masteryPoints: clampProgressInt(current.masteryPoints, 0, 0, 1_000_000),
+          lastUpdatedAt: normalizeIsoOrNull(current.lastUpdatedAt),
+        }];
+      }),
+  );
+
+  return {
+    totalMasteryPoints: Math.max(
+      clampProgressInt(source.totalMasteryPoints, 0, 0, 1_000_000),
+      Object.values(tracks).reduce((sum, track) => sum + track.masteryPoints, 0),
+    ),
+    tracks,
+  };
+};
+
+function serializeGameProgress(progress: GameProgressSnapshot) {
+  const currentWeekKey = getCurrentWeekKey();
+  const parsedWeekKey = typeof progress.weekKey === 'string' && DAY_KEY_PATTERN.test(progress.weekKey)
+    ? progress.weekKey
+    : currentWeekKey;
+
+  return {
+    date: typeof progress.date === 'string' && DAY_KEY_PATTERN.test(progress.date)
+      ? progress.date
+      : getTodayKey(),
+    weekKey: parsedWeekKey,
+    tasks: applyDailyCheckInReadyState(Object.fromEntries(
+      DAILY_TASKS.map((task) => [task.id, normalizeTaskStateEntry(progress.tasks?.[task.id])]),
+    )),
+    specialTasks: Object.fromEntries(
+      SPECIAL_TASKS.map((task) => [task.id, normalizeTaskStateEntry(progress.specialTasks?.[task.id])]),
+    ),
+    weeklyMissions: parsedWeekKey === currentWeekKey
+      ? Object.fromEntries(
+          WEEKLY_MISSION_CONFIG.map((mission) => [
+            mission.id,
+            normalizeTaskStateEntry(progress.weeklyMissions?.[mission.id]),
+          ]),
+        )
+      : Object.fromEntries(
+          WEEKLY_MISSION_CONFIG.map((mission) => [
+            mission.id,
+            normalizeTaskStateEntry(undefined),
+          ]),
+        ),
+    lastWeeklyCubeUnlockDate: parsedWeekKey === currentWeekKey
+      ? normalizeDayOrNull(progress.lastWeeklyCubeUnlockDate)
+      : null,
+    collectionBook: normalizeCollectionBook(progress.collectionBook),
+    rodMastery: normalizeRodMastery(progress.rodMastery),
+    fishingNet: normalizeFishingNet(progress.fishingNet),
+    wheelSpun: Boolean(progress.wheelSpun),
+    wheelPrize: normalizeWheelPrize(progress.wheelPrize),
+    dailyWheelRolls: clampProgressInt(progress.dailyWheelRolls, 0, 0, 99_999),
+    dailyRollRewardGranted: Boolean(progress.dailyRollRewardGranted),
+    paidWheelRolls: clampProgressInt(progress.paidWheelRolls, 0, 0, 99_999),
+    grillScore: clampProgressInt(progress.grillScore, 0, 0, 1_000_000_000),
+    dishesToday: clampProgressInt(progress.dishesToday, 0, 0, 1_000_000),
+  };
+}
+
 function getGameProgressDigest(progress: GameProgressSnapshot) {
-  return JSON.stringify(progress);
+  return JSON.stringify(serializeGameProgress(progress));
 }
 
 interface WalletSaveBundle {
@@ -552,13 +824,16 @@ export function useWalletAuth() {
 
     saveInFlightRef.current = true;
     try {
+      const serializedGameProgress = shouldSaveGameProgress && bundle.gameProgress
+        ? serializeGameProgress(bundle.gameProgress)
+        : undefined;
       const { data, error } = await supabase.functions.invoke('save-player-progress', {
         body: {
           wallet_address: address,
           session_token: sessionTokenRef.current,
           base_updated_at: serverUpdatedAtRef.current,
           player_data: shouldSavePlayer && bundle.player ? serializePlayerProgress(bundle.player) : undefined,
-          game_progress: shouldSaveGameProgress ? bundle.gameProgress : undefined,
+          game_progress: serializedGameProgress,
         },
       });
 

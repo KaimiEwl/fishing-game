@@ -1,5 +1,17 @@
 # STATUS
 
+## Verified task claims no longer false-fail because client `game_progress` sync was comparing a looser local shape against the persisted server shape
+- Fixed the wallet-task regression where `Claim reward` could hang on `Claiming...`, then show `Could not sync your latest task progress yet`, even though the save path itself had already been hardened.
+- Root cause:
+  - `flushGameProgressSave(...)` waits until the just-saved `game_progress` digest matches the server-confirmed digest
+  - the client digest was only partially normalized and the actual `save-player-progress` request still sent the raw local snapshot
+  - local snapshots can carry extra client-only fields and looser nested objects, while the server persists a stricter sanitized shape for `weeklyMissions`, `collectionBook`, `rodMastery`, `fishingNet`, and `wheelPrize`
+  - that meant the save could succeed, but the client still treated it as unsynced and aborted the retry claim path
+- Updated behavior:
+  - `useWalletAuth` now canonicalizes `game_progress` to the persisted server-compatible shape before both digest comparison and `save-player-progress` submission
+  - the sync check now compares like-for-like data instead of a raw local snapshot against a sanitized wallet row
+  - verified task claims should stop failing with the false `latest task progress` sync error when the progress is already saveable
+
 ## First wallet link now immediately flushes merged guest task progress into the verified wallet
 - Fixed the verified-task regression where a player could finish tasks as a guest, connect a wallet, still see those tasks as `Ready`, and then hit `Could not sync your latest task progress yet` on claim.
 - Root cause:
