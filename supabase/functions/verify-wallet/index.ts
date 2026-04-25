@@ -13,6 +13,7 @@ const DAILY_FREE_BAIT = 30;
 const WALLET_BAIT_BONUS = 0;
 const REFERRAL_BAIT_BONUS = 10;
 const MAX_REWARDED_REFERRALS = 10;
+const DEFAULT_LEADERBOARD_NAME = 'Guest griller';
 
 const readFlag = (value: string | undefined, fallback: boolean) => {
   if (!value) return fallback;
@@ -33,6 +34,19 @@ const normalizeWalletAddress = (value: string | null | undefined) => {
   const trimmed = value?.trim();
   if (!trimmed) return null;
   return /^0x[a-fA-F0-9]{40}$/.test(trimmed) ? trimmed.toLowerCase() : null;
+};
+
+const normalizeNickname = (value: unknown) => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.slice(0, 20);
+};
+
+const normalizeLegacyLeaderboardName = (value: unknown) => {
+  const normalized = normalizeNickname(value);
+  if (!normalized || normalized === DEFAULT_LEADERBOARD_NAME) return null;
+  return normalized;
 };
 
 interface PlayerLoginState {
@@ -261,6 +275,33 @@ serve(async (req) => {
       return data as PlayerLoginState;
     };
 
+    const backfillLegacyWalletNickname = async (player: PlayerLoginState) => {
+      if (normalizeNickname(player.nickname)) return player;
+
+      const leaderboardId = `wallet:${player.wallet_address}`;
+      const { data: leaderboardRow, error: leaderboardError } = await supabase
+        .from('grill_leaderboard')
+        .select('name')
+        .eq('id', leaderboardId)
+        .maybeSingle();
+
+      if (leaderboardError) throw leaderboardError;
+
+      const legacyNickname = normalizeLegacyLeaderboardName(leaderboardRow?.name);
+      if (!legacyNickname) return player;
+
+      const { data: updatedPlayer, error: updateError } = await supabase
+        .from('players')
+        .update({ nickname: legacyNickname })
+        .eq('wallet_address', player.wallet_address)
+        .select(FULL_PLAYER_SELECT)
+        .single();
+
+      if (updateError) throw updateError;
+
+      return updatedPlayer as PlayerLoginState;
+    };
+
     const logWalletSideEffects = async ({
       beforePlayer,
       afterPlayer,
@@ -368,7 +409,7 @@ serve(async (req) => {
 
       const beforePlayer = await fetchPlayerLoginState(normalizedAddress);
       await loadProcessedPlayer();
-      const player = await fetchProcessedPlayer(normalizedAddress);
+      const player = await backfillLegacyWalletNickname(await fetchProcessedPlayer(normalizedAddress));
 
       if (!player) {
         return new Response(
@@ -436,7 +477,7 @@ serve(async (req) => {
       : null;
 
     await loadProcessedPlayer(normalizedReferrer);
-    const newPlayer = await fetchProcessedPlayer(normalizedAddress);
+    const newPlayer = await backfillLegacyWalletNickname(await fetchProcessedPlayer(normalizedAddress));
     if (!newPlayer) {
       return new Response(
         JSON.stringify({ error: 'Player not found' }),

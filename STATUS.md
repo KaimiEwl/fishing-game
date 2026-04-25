@@ -1,5 +1,16 @@
 # STATUS
 
+## Legacy verified wallets with an existing name no longer get forced through the one-time name prompt again
+- Fixed the migration gap for the small set of older wallet accounts that already had a custom identity but no `players.nickname`.
+- Root cause:
+  - the mandatory `Choose your name` dialog is intentionally gated only by `savedPlayer.nickname`
+  - some older verified wallets still had a custom `grill_leaderboard` name while their `players.nickname` field stayed empty
+  - `verify-wallet` returned that empty wallet row as-is, so the client treated them like brand-new nameless wallets and reopened the required prompt
+- Updated behavior:
+  - `verify-wallet` now backfills `players.nickname` from an existing custom `grill_leaderboard` wallet row before returning the verified player snapshot
+  - older named wallet accounts stop seeing the forced prompt again
+  - truly new verified wallets with no saved wallet-bound name still get the one-time required prompt after wallet verification
+
 ## Fish action button no longer stacks fallback layers on top of the real cast/hook art
 - Cleaned up the desktop/mobile fishing CTA after the previous hardening pass added too many visible fallback layers.
 - Root cause:
