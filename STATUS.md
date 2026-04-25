@@ -1,5 +1,15 @@
 # STATUS
 
+## Verified daily task claims were failing because `player-actions` responses were built from an out-of-scope helper
+- Fixed the server-side regression where a newly connected wallet could see `Daily check-in` as ready but every verified task/action request returned a generic `Could not claim this task right now`.
+- Root cause:
+  - `supabase/functions/player-actions/index.ts` defined `jsonResponse(...)` and `badRequest(...)` at module scope
+  - those helpers referenced `jsonHeaders`, but `jsonHeaders` only exists inside `serve(...)`
+  - any path that tried to return through those helpers crashed with a `ReferenceError`, which the edge gateway surfaced as a plain `500 Internal Server Error`
+- Updated behavior:
+  - `jsonResponse` and `badRequest` now live inside the request handler, so they close over the real per-request headers
+  - verified `Daily check-in` and other `player-actions` routes can return normal JSON responses again instead of crashing at the response layer
+
 ## Grill leaderboard no longer opens a second name prompt after cooking
 - Removed the separate `Enter leaderboard name` flow so the game now has only one name-entry system: the required wallet-bound `Choose your name` dialog after wallet verification.
 - Root cause:

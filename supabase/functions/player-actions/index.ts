@@ -178,11 +178,6 @@ interface PremiumCastAuditRow extends PremiumCastRowLike {
 
 const FULL_PLAYER_SELECT = "id, wallet_address, coins, bait, daily_free_bait, daily_free_bait_reset_at, bonus_bait_granted_total, level, xp, xp_to_next, rod_level, equipped_rod, inventory, cooked_dishes, game_progress, total_catches, login_streak, nft_rods, nickname, avatar_url, referrer_wallet_address, rewarded_referral_count, updated_at";
 
-const jsonResponse = (payload: unknown, status = 200) =>
-  new Response(JSON.stringify(payload), { status, headers: jsonHeaders });
-
-const badRequest = (message: string) => jsonResponse({ error: message }, 400);
-
 const normalizeText = (value: unknown) => typeof value === "string" ? value.trim() : "";
 
 const normalizeNullableText = (value: unknown, maxLength: number) => {
@@ -998,6 +993,9 @@ const runNonCriticalPlayerActionStep = async <T>(
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
+  const jsonResponse = (payload: unknown, status = 200) =>
+    new Response(JSON.stringify(payload), { status, headers: jsonHeaders });
+  const badRequest = (message: string) => jsonResponse({ error: message }, 400);
 
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
