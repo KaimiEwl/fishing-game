@@ -1,5 +1,16 @@
 # STATUS
 
+## Task claims now show an active pending state and retry once after verified progress sync
+- Fixed the case where `Claim reward` on the `Tasks` screen could feel dead or fail on the first verified attempt with no visible feedback.
+- Root cause:
+  - verified task claims always tried to flush wallet progress first, which could make the button feel unresponsive while save state settled
+  - normal daily/special claims had no explicit success toast or `Claiming...` state, so even successful clicks could look like nothing happened
+- Updated behavior:
+  - daily, blockchain, and weekly task buttons now show `Claiming...` while a claim is in flight
+  - verified task claims now try the server claim first and only force a progress sync/retry when the server says the task is not ready yet
+  - successful daily/special claims now show a success toast
+  - the tasks badge now counts only actually claimable rewards instead of every unclaimed task
+
 ## Fish action button now renders above the bottom nav instead of sharing its stack level
 - Fixed the desktop case where `Cast line` returned after a cast cycle but only a clipped top slice remained visible.
 - Root cause:

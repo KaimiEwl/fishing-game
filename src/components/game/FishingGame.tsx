@@ -267,6 +267,8 @@ const FishingGame: React.FC = () => {
   const [leaderboardNameOpen, setLeaderboardNameOpen] = useState(false);
   const [playerNameDialogOpen, setPlayerNameDialogOpen] = useState(false);
   const [playerNameSyncPending, setPlayerNameSyncPending] = useState(false);
+  const [claimingTaskId, setClaimingTaskId] = useState<TaskId | null>(null);
+  const [claimingWeeklyMissionId, setClaimingWeeklyMissionId] = useState<WeeklyMissionId | null>(null);
   const [pendingLeaderboardScore, setPendingLeaderboardScore] = useState(0);
   const [pendingLeaderboardDishes, setPendingLeaderboardDishes] = useState(0);
   const economyFeatures = useMemo(() => getEconomyFeatureAvailability(address), [address]);
@@ -437,8 +439,9 @@ const FishingGame: React.FC = () => {
       ...gameProgress.dailyTasks,
       ...gameProgress.specialTasks,
       ...(economyFeatures.weeklyMissions ? gameProgress.weeklyMissions : []),
-    ].filter((task) => !task.claimed).length
-  ), [economyFeatures.weeklyMissions, gameProgress.dailyTasks, gameProgress.specialTasks, gameProgress.weeklyMissions]);
+    ].filter((task) => !task.claimed && task.progress >= task.target).length
+    + socialTasks.filter((task) => task.canClaim).length
+  ), [economyFeatures.weeklyMissions, gameProgress.dailyTasks, gameProgress.specialTasks, gameProgress.weeklyMissions, socialTasks]);
   const availableGrillCount = useMemo(() => (
     GRILL_RECIPES.filter((recipe) => (
       Object.entries(recipe.ingredients).every(([fishId, amount]) => (
@@ -945,7 +948,32 @@ const FishingGame: React.FC = () => {
     return flushGameProgressSave(gameProgress.snapshot);
   }, [flushGameProgressSave, gameProgress.snapshot, isVerified]);
 
+  const claimVerifiedTaskRewardWithRetry = useCallback(async (taskId: TaskId | WeeklyMissionId) => {
+    try {
+      return await claimTaskReward(taskId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message.toLowerCase() : '';
+      const shouldRetryAfterSync = (
+        message.includes('task is not ready to claim')
+        || message.includes('weekly mission is not ready to claim')
+        || message.includes('could not sync your latest task progress yet')
+      );
+
+      if (!shouldRetryAfterSync) {
+        throw error;
+      }
+
+      const syncedProgressReady = await syncVerifiedTaskProgressForClaim();
+      if (!syncedProgressReady) {
+        throw new Error('Could not sync your latest task progress yet. Try again in a second.');
+      }
+
+      return claimTaskReward(taskId);
+    }
+  }, [claimTaskReward, syncVerifiedTaskProgressForClaim]);
+
   const handleClaimTask = async (taskId: TaskId) => {
+    if (claimingTaskId === taskId) return;
     const task = DAILY_TASKS.find((item) => item.id === taskId) ?? SPECIAL_TASKS.find((item) => item.id === taskId);
 
     if (taskId === 'wallet_check_in' && walletCheckInSummary?.source === 'local') {
@@ -964,18 +992,17 @@ const FishingGame: React.FC = () => {
       return;
     }
 
+    setClaimingTaskId(taskId);
     if (isVerified) {
       try {
-        const syncedProgressReady = await syncVerifiedTaskProgressForClaim();
-        if (!syncedProgressReady) {
-          throw new Error('Could not sync your latest task progress yet. Try again in a second.');
-        }
-
-        const result = await claimTaskReward(taskId);
-        applyServerPlayerSnapshot(result.player);
+        const result = await claimVerifiedTaskRewardWithRetry(taskId);
+        applyServerPlayerSnapshot(result.player, { mergeMode: 'server' });
         sounds.playBuySound();
+        toast.success('Task reward claimed.');
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Could not claim task reward.');
+      } finally {
+        setClaimingTaskId((current) => (current === taskId ? null : current));
       }
       return;
     }
@@ -1003,25 +1030,29 @@ const FishingGame: React.FC = () => {
         });
       }
       sounds.playBuySound();
+      toast.success('Task reward claimed.');
+    } else {
+      toast.error('Could not claim task reward.');
     }
+    setClaimingTaskId((current) => (current === taskId ? null : current));
   };
 
   const handleClaimWeeklyMission = useCallback(async (missionId: WeeklyMissionId) => {
+    if (claimingWeeklyMissionId === missionId) return;
+    setClaimingWeeklyMissionId(missionId);
+
     if (isVerified) {
       try {
-        const syncedProgressReady = await syncVerifiedTaskProgressForClaim();
-        if (!syncedProgressReady) {
-          throw new Error('Could not sync your latest task progress yet. Try again in a second.');
-        }
-
-        const result = await claimTaskReward(missionId);
-        applyServerPlayerSnapshot(result.player);
+        const result = await claimVerifiedTaskRewardWithRetry(missionId);
+        applyServerPlayerSnapshot(result.player, { mergeMode: 'server' });
         sounds.playBuySound();
         if (missionId !== 'cube_3_days') {
           toast.success('Weekly mission claimed.');
         }
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Could not claim weekly mission reward.');
+      } finally {
+        setClaimingWeeklyMissionId((current) => (current === missionId ? null : current));
       }
       return;
     }
@@ -1044,7 +1075,8 @@ const FishingGame: React.FC = () => {
     if (missionId !== 'cube_3_days') {
       toast.success('Weekly mission claimed.');
     }
-  }, [addBait, addCoins, applyServerPlayerSnapshot, claimTaskReward, economyFeatures.weeklyMissions, gameProgress, isVerified, sounds, syncVerifiedTaskProgressForClaim]);
+    setClaimingWeeklyMissionId((current) => (current === missionId ? null : current));
+  }, [addBait, addCoins, applyServerPlayerSnapshot, claimVerifiedTaskRewardWithRetry, claimingWeeklyMissionId, economyFeatures.weeklyMissions, gameProgress, isVerified, sounds]);
 
   const handleRequestCubeRoll = async () => {
     if (!isVerified) return null;
@@ -1455,6 +1487,8 @@ const FishingGame: React.FC = () => {
                     referralSummary={referralSummary}
                     onClaimTask={handleClaimTask}
                     onClaimWeeklyMission={handleClaimWeeklyMission}
+                    claimingTaskId={claimingTaskId}
+                    claimingWeeklyMissionId={claimingWeeklyMissionId}
                     onWalletCheckIn={handleWalletCheckIn}
                     onSubmitSocialTask={handleSubmitSocialTask}
                     onClaimSocialTask={handleClaimSocialTask}

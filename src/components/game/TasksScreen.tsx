@@ -46,6 +46,8 @@ interface TasksScreenProps {
   referralSummary?: ReferralSummary | null;
   onClaimTask: (id: TaskId) => void;
   onClaimWeeklyMission: (id: WeeklyMissionId) => void;
+  claimingTaskId?: TaskId | null;
+  claimingWeeklyMissionId?: WeeklyMissionId | null;
   onWalletCheckIn: (txHash: string) => Promise<void>;
   onSubmitSocialTask: (id: SocialTaskId, proofUrl?: string) => void;
   onClaimSocialTask: (id: SocialTaskId) => void;
@@ -71,6 +73,8 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   referralSummary,
   onClaimTask,
   onClaimWeeklyMission,
+  claimingTaskId = null,
+  claimingWeeklyMissionId = null,
   onWalletCheckIn,
   onOpenWheel,
   weeklyMissionsEnabled = false,
@@ -258,6 +262,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
     tasks: Array<DailyTaskProgress | SpecialTaskProgress | WeeklyMissionProgress>,
     onClaim: (id: TaskId | WeeklyMissionId) => void,
     footer: React.ReactNode,
+    claimingId?: TaskId | WeeklyMissionId | null,
   ) => (
     <QuestBoard
       layout={boardLayout}
@@ -273,6 +278,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
         const progress = Math.min(100, (task.progress / task.target) * 100);
         const statusLabel = getQuestStatusLabel(task);
         const cubeChargeReward = 'rewardCubeCharge' in task ? (task.rewardCubeCharge ?? 0) : 0;
+        const isClaiming = claimingId === task.id;
         const isWalletCheckInTask = task.id === 'wallet_check_in';
         const isInviteFriendTask = task.id === 'invite_friend';
         const hasConnectedWallet = Boolean(walletAddress);
@@ -435,14 +441,21 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
               <div className="mt-auto pt-4">
                 <Button
                   type="button"
-                  disabled={!complete || task.claimed}
-                  onClick={() => onClaim(task.id)}
+                  disabled={!complete || task.claimed || isClaiming}
+                  onClick={() => {
+                    void onClaim(task.id);
+                  }}
                   className="h-11 w-full rounded-[1rem] border border-[#7f5227] bg-[linear-gradient(180deg,#8c531f_0%,#6e4117_42%,#4f2f14_100%)] text-[0.86rem] font-black uppercase tracking-[0.04em] text-[#f8db9a] shadow-[inset_0_1px_0_rgba(255,220,160,0.22),0_10px_16px_rgba(0,0,0,0.28)] transition-all duration-200 hover:brightness-110 disabled:border-[#3a2817] disabled:bg-[linear-gradient(180deg,#2f241c_0%,#231b15_100%)] disabled:text-[#8c7b63] disabled:shadow-none sm:h-[3.25rem] sm:rounded-[1.2rem] sm:text-[1.02rem]"
                 >
                   {task.claimed ? (
                     <>
                       <Check className="mr-2 h-4 w-4" />
                       Claimed
+                    </>
+                  ) : isClaiming ? (
+                    <>
+                      <Clock3 className="mr-2 h-4 w-4" />
+                      Claiming...
                     </>
                   ) : (
                     <>
@@ -555,6 +568,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                 </Button>
               }
             />,
+            claimingTaskId,
           )}
         </TabsContent>
         <TabsContent value="blockchain" className="mt-0 min-h-0 flex-1 overflow-hidden">
@@ -569,6 +583,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                   : 'Connect and verify your wallet to unlock blockchain quests and referral rewards.'
               }
             />,
+            claimingTaskId,
           )}
         </TabsContent>
         {weeklyMissionsEnabled && (
@@ -580,6 +595,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                 eyebrow="Long ladder"
                 description="Weekly quests track bigger goals and can award bonus cube charges."
               />,
+              claimingWeeklyMissionId,
             )}
           </TabsContent>
         )}
