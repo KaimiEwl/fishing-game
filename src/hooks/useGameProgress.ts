@@ -254,6 +254,7 @@ const createInitialState = (): GameProgressState => ({
 
 interface UseGameProgressOptions {
   savedProgress?: GameProgressState | null;
+  savedProgressMode?: 'merge' | 'replace';
   onSave?: (progress: GameProgressState) => void;
   weeklyMissionsEnabled?: boolean;
   cubeRebalanceEnabled?: boolean;
@@ -682,6 +683,7 @@ export const pickWheelPrize = (cubeRebalanceEnabled = CUBE_REBALANCE_ENABLED) =>
 
 export function useGameProgress(options?: UseGameProgressOptions) {
   const savedProgress = options?.savedProgress;
+  const savedProgressMode = options?.savedProgressMode ?? 'merge';
   const onSave = options?.onSave;
   const weeklyMissionsEnabled = options?.weeklyMissionsEnabled ?? WEEKLY_MISSIONS_ENABLED;
   const cubeRebalanceEnabled = options?.cubeRebalanceEnabled ?? CUBE_REBALANCE_ENABLED;
@@ -699,12 +701,14 @@ export function useGameProgress(options?: UseGameProgressOptions) {
 
   useEffect(() => {
     if (savedProgress) {
-      setState((prev) => mergeState(
-        normalizeState(savedProgress),
-        normalizeState(prev),
+      const normalizedSavedProgress = normalizeState(savedProgress);
+      setState((prev) => (
+        savedProgressMode === 'replace'
+          ? normalizedSavedProgress
+          : mergeState(normalizedSavedProgress, normalizeState(prev))
       ));
     }
-  }, [savedProgress]);
+  }, [savedProgress, savedProgressMode]);
 
   useEffect(() => {
     syncDailyState();

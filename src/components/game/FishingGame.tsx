@@ -273,6 +273,7 @@ const FishingGame: React.FC = () => {
   const verifiedWalletNameReady = !isVerified || Boolean(normalizeWalletNickname(savedPlayer?.nickname));
   const gameProgress = useGameProgress({
     savedProgress: isVerified ? savedGameProgress : undefined,
+    savedProgressMode: isVerified && savedPlayerSyncMode !== 'link' ? 'replace' : 'merge',
     onSave: isVerified && verifiedWalletNameReady ? saveGameProgress : undefined,
     weeklyMissionsEnabled: economyFeatures.weeklyMissions,
     cubeRebalanceEnabled: economyFeatures.cubeRebalance,

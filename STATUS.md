@@ -1,5 +1,18 @@
 # STATUS
 
+## Verified game-progress snapshots now replace stale local state after wallet link instead of merging forever by `Math.max`
+- Fixed the wallet-state regression where a verified player could still see `Ready` tasks, stale cube-roll counters, or other outdated progress from the browser even after the server already had a different authoritative snapshot.
+- Root cause:
+  - `useGameProgress` always merged incoming `savedProgress` with the existing local browser state
+  - that merge intentionally used `Math.max` / logical `OR` for many fields so guest progress would survive the first wallet link
+  - after the link step, that same merge rule became harmful: old browser task progress and old cube-roll counts could keep winning over the real wallet snapshot
+  - this made verified UI show false `Ready` tasks and stale `dailyWheelRolls` even when the server state had already moved on
+- Updated behavior:
+  - `useGameProgress` now supports `savedProgressMode`
+  - `FishingGame` uses `merge` only during the first `link` transition
+  - once the player is already verified, incoming server `savedProgress` replaces the old local game-progress snapshot instead of being merged forever
+  - this keeps the current guest->wallet preservation behavior but stops stale local browser progress from overriding real wallet state after verification
+
 ## Verified task claims now send the relevant task progress inside `claim_task_reward` itself instead of depending on a separate save race
 - Fixed the remaining wallet-task regression where a task such as `rare_1` or `catch_10` could stay visibly `Ready`, the client could still attempt a sync, and the UI could still end on `Could not sync your latest task progress yet`.
 - Root cause:
