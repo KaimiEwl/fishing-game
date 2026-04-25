@@ -1743,19 +1743,23 @@ serve(async (req) => {
             bonus_bait_granted_total: player.bonus_bait_granted_total + (task.rewardBait ?? 0),
           });
 
-          await insertPlayerAuditLog(supabase, {
-            walletAddress,
-            eventType: "daily_task_claimed",
-            eventSource: "server",
-            beforeState,
-            afterState: sanitizeAuditSnapshot(updatedPlayer),
-            metadata: {
-              taskId,
-              rewardCoins: task.rewardCoins ?? 0,
-              rewardBait: task.rewardBait ?? 0,
-              grantedDailyRolls: shouldGrantRolls ? DAILY_CUBE_ROLL_REWARD : 0,
-            },
-          });
+          await runNonCriticalPlayerActionStep(
+            "claim_task_reward.daily.audit",
+            () => insertPlayerAuditLog(supabase, {
+              walletAddress,
+              eventType: "daily_task_claimed",
+              eventSource: "server",
+              beforeState,
+              afterState: sanitizeAuditSnapshot(updatedPlayer),
+              metadata: {
+                taskId,
+                rewardCoins: task.rewardCoins ?? 0,
+                rewardBait: task.rewardBait ?? 0,
+                grantedDailyRolls: shouldGrantRolls ? DAILY_CUBE_ROLL_REWARD : 0,
+              },
+            }),
+            undefined,
+          );
 
           return jsonResponse({ player: updatedPlayer });
         }
@@ -1785,19 +1789,23 @@ serve(async (req) => {
             bonus_bait_granted_total: player.bonus_bait_granted_total + (task.rewardBait ?? 0),
           });
 
-          await insertPlayerAuditLog(supabase, {
-            walletAddress,
-            eventType: "weekly_mission_claimed",
-            eventSource: "server",
-            beforeState,
-            afterState: sanitizeAuditSnapshot(updatedPlayer),
-            metadata: {
-              taskId,
-              rewardCoins: task.rewardCoins ?? 0,
-              rewardBait: task.rewardBait ?? 0,
-              rewardCubeCharge: task.rewardCubeCharge ?? 0,
-            },
-          });
+          await runNonCriticalPlayerActionStep(
+            "claim_task_reward.weekly.audit",
+            () => insertPlayerAuditLog(supabase, {
+              walletAddress,
+              eventType: "weekly_mission_claimed",
+              eventSource: "server",
+              beforeState,
+              afterState: sanitizeAuditSnapshot(updatedPlayer),
+              metadata: {
+                taskId,
+                rewardCoins: task.rewardCoins ?? 0,
+                rewardBait: task.rewardBait ?? 0,
+                rewardCubeCharge: task.rewardCubeCharge ?? 0,
+              },
+            }),
+            undefined,
+          );
 
           return jsonResponse({ player: updatedPlayer });
         }
@@ -1840,18 +1848,22 @@ serve(async (req) => {
           bonus_bait_granted_total: player.bonus_bait_granted_total + (task.rewardBait ?? 0),
         });
 
-        await insertPlayerAuditLog(supabase, {
-          walletAddress,
-          eventType: "special_task_claimed",
-          eventSource: "server",
-          beforeState,
-          afterState: sanitizeAuditSnapshot(updatedPlayer),
-          metadata: {
-            taskId,
-            rewardCoins: task.rewardCoins ?? 0,
-            rewardBait: task.rewardBait ?? 0,
-          },
-        });
+        await runNonCriticalPlayerActionStep(
+          "claim_task_reward.special.audit",
+          () => insertPlayerAuditLog(supabase, {
+            walletAddress,
+            eventType: "special_task_claimed",
+            eventSource: "server",
+            beforeState,
+            afterState: sanitizeAuditSnapshot(updatedPlayer),
+            metadata: {
+              taskId,
+              rewardCoins: task.rewardCoins ?? 0,
+              rewardBait: task.rewardBait ?? 0,
+            },
+          }),
+          undefined,
+        );
 
         return jsonResponse({ player: updatedPlayer });
       }

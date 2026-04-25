@@ -1,5 +1,14 @@
 # STATUS
 
+## Task claims no longer fail just because the post-claim audit insert fails
+- Fixed the deeper server-side case where a task reward could already be granted in `players`, but the request still returned as failed to the client.
+- Root cause:
+  - daily, weekly, and special task claims updated the player first and then treated `insertPlayerAuditLog(...)` as a critical step
+  - if that audit insert failed, the function returned an error even though the reward and claimed state had already been written
+- Updated behavior:
+  - task claim audit writes now run as non-critical best-effort steps, like the hardened `Grill` flow
+  - verified task claims can complete successfully even if the trailing audit insert fails
+
 ## Task claims now show an active pending state and retry once after verified progress sync
 - Fixed the case where `Claim reward` on the `Tasks` screen could feel dead or fail on the first verified attempt with no visible feedback.
 - Root cause:
