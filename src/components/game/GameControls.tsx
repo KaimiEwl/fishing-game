@@ -8,8 +8,16 @@ import GameStateNotice from '@/components/GameStateNotice';
 import BiteMeter from '@/components/BiteMeter';
 import RodPreviewBadge from '@/components/RodPreviewBadge';
 
-const CAST_BUTTON_BLUE = publicAsset('assets/cast_button_blue.png');
-const CAST_BUTTON_GREEN = publicAsset('assets/cast_button_green.png');
+const BUTTON_ART_VERSION = 'fish-hud-20260425a';
+const versionedButtonAsset = (file: string) => `${publicAsset(`assets/${file}`)}?v=${BUTTON_ART_VERSION}`;
+const CAST_BUTTON_BLUE_SOURCES = [
+  versionedButtonAsset('cast_button_blue.webp'),
+  versionedButtonAsset('cast_button_blue.png'),
+] as const;
+const CAST_BUTTON_GREEN_SOURCES = [
+  versionedButtonAsset('cast_button_green.webp'),
+  versionedButtonAsset('cast_button_green.png'),
+] as const;
 
 interface GameControlsProps {
   gameState: GameState;
@@ -67,45 +75,56 @@ const GameControls: React.FC<GameControlsProps> = ({
         ? 'No bait'
         : null
     : null;
-  const primaryButtonImage = gameState === 'biting' ? CAST_BUTTON_GREEN : CAST_BUTTON_BLUE;
-  const [failedButtonImages, setFailedButtonImages] = useState<Record<string, boolean>>({});
+  const primaryButtonVariant = gameState === 'biting' ? 'biting' : 'idle';
+  const primaryButtonSources = primaryButtonVariant === 'biting'
+    ? CAST_BUTTON_GREEN_SOURCES
+    : CAST_BUTTON_BLUE_SOURCES;
+  const [buttonSourceIndexes, setButtonSourceIndexes] = useState<Record<string, number>>({});
   const buttonRetryTimersRef = useRef<Record<string, number>>({});
   const buttonRetryCountsRef = useRef<Record<string, number>>({});
-  const primaryButtonArtFailed = Boolean(failedButtonImages[primaryButtonImage]);
+  const primaryButtonSourceIndex = buttonSourceIndexes[primaryButtonVariant] ?? 0;
+  const primaryButtonImage = primaryButtonSources[Math.min(primaryButtonSourceIndex, primaryButtonSources.length - 1)];
 
-  const clearButtonRetryTimer = useCallback((src: string) => {
-    if (typeof window === 'undefined' || !buttonRetryTimersRef.current[src]) return;
-    window.clearTimeout(buttonRetryTimersRef.current[src]);
-    delete buttonRetryTimersRef.current[src];
+  const clearButtonRetryTimer = useCallback((variant: string) => {
+    if (typeof window === 'undefined' || !buttonRetryTimersRef.current[variant]) return;
+    window.clearTimeout(buttonRetryTimersRef.current[variant]);
+    delete buttonRetryTimersRef.current[variant];
   }, []);
 
-  const resetButtonImageFailure = useCallback((src: string) => {
-    clearButtonRetryTimer(src);
-    buttonRetryCountsRef.current[src] = 0;
-    setFailedButtonImages((current) => {
-      if (!current[src]) return current;
+  const preloadButtonImages = useCallback((sources: readonly string[]) => {
+    if (typeof window === 'undefined') return;
 
-      const next = { ...current };
-      delete next[src];
-      return next;
+    sources.forEach((src) => {
+      const image = new Image();
+      image.decoding = 'async';
+      image.src = src;
+    });
+  }, []);
+
+  const resetButtonImageFailure = useCallback((variant: string) => {
+    clearButtonRetryTimer(variant);
+    buttonRetryCountsRef.current[variant] = 0;
+    setButtonSourceIndexes((current) => {
+      if ((current[variant] ?? 0) === 0) return current;
+      return {
+        ...current,
+        [variant]: 0,
+      };
     });
   }, [clearButtonRetryTimer]);
 
-  const scheduleButtonImageRetry = useCallback((src: string) => {
-    if (typeof window === 'undefined' || buttonRetryTimersRef.current[src] || (buttonRetryCountsRef.current[src] ?? 0) >= 3) {
+  const scheduleButtonImageRetry = useCallback((variant: string) => {
+    if (typeof window === 'undefined' || buttonRetryTimersRef.current[variant] || (buttonRetryCountsRef.current[variant] ?? 0) >= 3) {
       return;
     }
 
-    buttonRetryCountsRef.current[src] = (buttonRetryCountsRef.current[src] ?? 0) + 1;
-    buttonRetryTimersRef.current[src] = window.setTimeout(() => {
-      delete buttonRetryTimersRef.current[src];
-      setFailedButtonImages((current) => {
-        if (!current[src]) return current;
-
-        const next = { ...current };
-        delete next[src];
-        return next;
-      });
+    buttonRetryCountsRef.current[variant] = (buttonRetryCountsRef.current[variant] ?? 0) + 1;
+    buttonRetryTimersRef.current[variant] = window.setTimeout(() => {
+      delete buttonRetryTimersRef.current[variant];
+      setButtonSourceIndexes((current) => ({
+        ...current,
+        [variant]: 0,
+      }));
     }, 1400);
   }, []);
 
@@ -119,11 +138,16 @@ const GameControls: React.FC<GameControlsProps> = ({
   }, []);
 
   useEffect(() => {
-    if (!primaryButtonArtFailed || typeof window === 'undefined') return;
+    preloadButtonImages(CAST_BUTTON_BLUE_SOURCES);
+    preloadButtonImages(CAST_BUTTON_GREEN_SOURCES);
+  }, [preloadButtonImages]);
+
+  useEffect(() => {
+    if (primaryButtonSourceIndex === 0 || typeof window === 'undefined') return;
 
     const retryIfVisible = () => {
       if (document.visibilityState === 'hidden') return;
-      resetButtonImageFailure(primaryButtonImage);
+      resetButtonImageFailure(primaryButtonVariant);
     };
 
     window.addEventListener('focus', retryIfVisible);
@@ -133,7 +157,7 @@ const GameControls: React.FC<GameControlsProps> = ({
       window.removeEventListener('focus', retryIfVisible);
       document.removeEventListener('visibilitychange', retryIfVisible);
     };
-  }, [primaryButtonArtFailed, primaryButtonImage, resetButtonImageFailure]);
+  }, [primaryButtonSourceIndex, primaryButtonVariant, resetButtonImageFailure]);
 
   return (
     <>
@@ -224,44 +248,31 @@ const GameControls: React.FC<GameControlsProps> = ({
               className="relative z-[1] h-auto border-0 bg-transparent p-0 shadow-none transition-transform duration-200 hover:scale-[1.04] hover:bg-transparent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-100 disabled:hover:scale-100"
             >
               <span className="relative block aspect-[27/8] w-[11.75rem] sm:w-[13.5rem]">
-                {primaryButtonArtFailed && (
-                  <span
-                    aria-hidden="true"
-                    className={`absolute inset-[10%] rounded-[999px] border transition-all duration-200 ${
-                      gameState === 'biting'
-                        ? 'border-lime-300/60 bg-[linear-gradient(180deg,rgba(101,163,13,0.98),rgba(39,90,14,0.98))] shadow-[0_14px_32px_rgba(101,163,13,0.28)]'
-                        : 'border-cyan-200/45 bg-[linear-gradient(180deg,rgba(56,189,248,0.95),rgba(11,70,138,0.98))] shadow-[0_14px_32px_rgba(34,211,238,0.24)]'
-                    } ${primaryDisabled ? 'brightness-[0.72] saturate-[0.7] opacity-80' : ''}`}
-                  />
-                )}
-                {!primaryButtonArtFailed && (
-                  <img
-                    key={primaryButtonImage}
-                    src={primaryButtonImage}
-                    alt=""
-                    aria-hidden="true"
-                    className={`relative block h-auto w-full select-none transition-all duration-200 ${primaryDisabled ? 'grayscale-[0.9] brightness-[0.72] opacity-90' : gameState === 'biting' ? 'drop-shadow-[0_10px_22px_rgba(163,230,53,0.22)]' : 'drop-shadow-[0_10px_22px_rgba(34,211,238,0.24)]'}`}
-                    draggable={false}
-                    onLoad={() => {
-                      resetButtonImageFailure(primaryButtonImage);
-                    }}
-                    onError={() => {
-                      setFailedButtonImages((current) => {
-                        if (current[primaryButtonImage]) return current;
-                        return {
-                          ...current,
-                          [primaryButtonImage]: true,
-                        };
-                      });
-                      scheduleButtonImageRetry(primaryButtonImage);
-                    }}
-                  />
-                )}
-                {primaryButtonArtFailed && (
-                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center px-4 text-center text-[0.9rem] font-black uppercase tracking-[0.14em] text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.7)] sm:text-[1rem]">
-                    {primaryLabel}
-                  </span>
-                )}
+                <img
+                  key={`${primaryButtonVariant}:${primaryButtonImage}`}
+                  src={primaryButtonImage}
+                  alt=""
+                  aria-hidden="true"
+                  loading="eager"
+                  fetchPriority="high"
+                  className={`relative block h-auto w-full select-none transition-all duration-200 ${primaryDisabled ? 'grayscale-[0.9] brightness-[0.72] opacity-90' : gameState === 'biting' ? 'drop-shadow-[0_10px_22px_rgba(163,230,53,0.22)]' : 'drop-shadow-[0_10px_22px_rgba(34,211,238,0.24)]'}`}
+                  draggable={false}
+                  onLoad={() => {
+                    resetButtonImageFailure(primaryButtonVariant);
+                  }}
+                  onError={() => {
+                    const nextSourceIndex = primaryButtonSourceIndex + 1;
+                    if (nextSourceIndex < primaryButtonSources.length) {
+                      setButtonSourceIndexes((current) => ({
+                        ...current,
+                        [primaryButtonVariant]: nextSourceIndex,
+                      }));
+                      return;
+                    }
+
+                    scheduleButtonImageRetry(primaryButtonVariant);
+                  }}
+                />
               </span>
               <span className="sr-only">{primaryLabel}</span>
             </Button>

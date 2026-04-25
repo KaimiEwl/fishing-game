@@ -1,5 +1,16 @@
 # STATUS
 
+## Fish HUD no longer swaps to text placeholders when cast or rod art loads slowly
+- Fixed the fish-screen regression where the rod badge could degrade to a `STARTER` text box and the main cast / hook control could fall back to a plain text pill instead of the intended button art.
+- Root cause:
+  - `GameControls` and `RodPreviewBadge` were both explicitly switching to visible text-based fallback UIs on image `onError`
+  - the active HUD images were still using relatively heavier PNGs, so any transient load/decode failure or timing hiccup pushed the UI into the placeholder path
+  - the visible placeholder then made the issue look like a broken layout even though the real asset URLs themselves were valid
+- Updated behavior:
+  - the fish HUD now prefers optimized WebP art for the cast button, hook button, and rod previews, with PNG kept only as the hidden backup source
+  - both components eagerly preload their primary and backup art and retry the real image chain instead of rendering a user-facing text placeholder
+  - the visible `STARTER` / plain `CAST LINE` fallback panels were removed from the rod badge and fish action button flow
+
 ## Verified task claims no longer false-fail because client `game_progress` sync was comparing a looser local shape against the persisted server shape
 - Fixed the wallet-task regression where `Claim reward` could hang on `Claiming...`, then show `Could not sync your latest task progress yet`, even though the save path itself had already been hardened.
 - Root cause:

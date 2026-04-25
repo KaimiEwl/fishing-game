@@ -17,10 +17,11 @@ const RodPreviewBadge = ({ rodLevel, ownedRodLevel, nftRods, totalBait = 0 }: Ro
   const hasNft = nftRods.includes(displayRodLevel);
   const nftData = NFT_ROD_DATA.find((entry) => entry.rodLevel === displayRodLevel) ?? null;
   const rodImageFallback = getRodPreviewFallback(displayRodLevel);
-  const [rodImageSrc, setRodImageSrc] = useState(rod.image);
-  const [rodImageFailed, setRodImageFailed] = useState(false);
+  const rodImageSources = [rod.image, rodImageFallback];
+  const [rodImageSourceIndex, setRodImageSourceIndex] = useState(0);
   const rodRetryTimerRef = useRef<number | null>(null);
   const rodRetryCountRef = useRef(0);
+  const rodImageSrc = rodImageSources[Math.min(rodImageSourceIndex, rodImageSources.length - 1)];
 
   const clearRodRetryTimer = useCallback(() => {
     if (typeof window === 'undefined' || rodRetryTimerRef.current === null) return;
@@ -28,11 +29,20 @@ const RodPreviewBadge = ({ rodLevel, ownedRodLevel, nftRods, totalBait = 0 }: Ro
     rodRetryTimerRef.current = null;
   }, []);
 
+  const preloadRodPreviewImages = useCallback(() => {
+    if (typeof window === 'undefined') return;
+
+    rodImageSources.forEach((src) => {
+      const image = new Image();
+      image.decoding = 'async';
+      image.src = src;
+    });
+  }, [rodImageSources]);
+
   const resetRodPreviewImage = useCallback(() => {
     clearRodRetryTimer();
-    setRodImageSrc(rod.image);
-    setRodImageFailed(false);
-  }, [clearRodRetryTimer, rod.image]);
+    setRodImageSourceIndex(0);
+  }, [clearRodRetryTimer]);
 
   const scheduleRodPreviewRetry = useCallback(() => {
     if (typeof window === 'undefined' || rodRetryTimerRef.current !== null || rodRetryCountRef.current >= 3) {
@@ -42,22 +52,22 @@ const RodPreviewBadge = ({ rodLevel, ownedRodLevel, nftRods, totalBait = 0 }: Ro
     rodRetryCountRef.current += 1;
     rodRetryTimerRef.current = window.setTimeout(() => {
       rodRetryTimerRef.current = null;
-      setRodImageFailed(false);
-      setRodImageSrc(rod.image);
+      setRodImageSourceIndex(0);
     }, 1600);
-  }, [rod.image]);
+  }, []);
 
   useEffect(() => {
     rodRetryCountRef.current = 0;
     resetRodPreviewImage();
-  }, [resetRodPreviewImage, rod.image]);
+    preloadRodPreviewImages();
+  }, [preloadRodPreviewImages, resetRodPreviewImage, rod.image]);
 
   useEffect(() => () => {
     clearRodRetryTimer();
   }, [clearRodRetryTimer]);
 
   useEffect(() => {
-    if (!rodImageFailed || typeof window === 'undefined') return;
+    if (rodImageSourceIndex === 0 || typeof window === 'undefined') return;
 
     const retryIfVisible = () => {
       if (document.visibilityState === 'hidden') return;
@@ -71,7 +81,7 @@ const RodPreviewBadge = ({ rodLevel, ownedRodLevel, nftRods, totalBait = 0 }: Ro
       window.removeEventListener('focus', retryIfVisible);
       document.removeEventListener('visibilitychange', retryIfVisible);
     };
-  }, [resetRodPreviewImage, rodImageFailed]);
+  }, [resetRodPreviewImage, rodImageSourceIndex]);
 
   return (
     <div className="absolute bottom-1 right-[calc(100%+0.55rem)] flex flex-col items-center gap-1 sm:bottom-1.5">
@@ -84,33 +94,25 @@ const RodPreviewBadge = ({ rodLevel, ownedRodLevel, nftRods, totalBait = 0 }: Ro
               }`}
             >
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(34,211,238,0.18),transparent_60%),linear-gradient(180deg,rgba(15,23,42,0.15),rgba(15,23,42,0.35))]" />
-              {!rodImageFailed ? (
-                <img
-                  src={rodImageSrc}
-                  alt={rod.name}
-                  className={`absolute inset-0 h-full w-full ${rod.previewFit === 'contain' ? 'object-contain p-1.5' : 'object-cover'} ${rod.previewScale}`}
-                  onLoad={() => {
-                    clearRodRetryTimer();
-                    rodRetryCountRef.current = 0;
-                    if (rodImageFailed) {
-                      setRodImageFailed(false);
-                    }
-                  }}
-                  onError={() => {
-                    if (rodImageSrc !== rodImageFallback) {
-                      setRodImageSrc(rodImageFallback);
-                      return;
-                    }
+              <img
+                src={rodImageSrc}
+                alt={rod.name}
+                loading="eager"
+                fetchPriority="high"
+                className={`absolute inset-0 h-full w-full ${rod.previewFit === 'contain' ? 'object-contain p-1.5' : 'object-cover'} ${rod.previewScale}`}
+                onLoad={() => {
+                  clearRodRetryTimer();
+                  rodRetryCountRef.current = 0;
+                }}
+                onError={() => {
+                  if (rodImageSourceIndex < rodImageSources.length - 1) {
+                    setRodImageSourceIndex((current) => current + 1);
+                    return;
+                  }
 
-                    setRodImageFailed(true);
-                    scheduleRodPreviewRetry();
-                  }}
-                />
-              ) : (
-                <div className="absolute inset-[10%] flex items-center justify-center rounded-lg border border-cyan-300/25 bg-black/45 px-1 text-center text-[10px] font-black uppercase leading-tight text-cyan-50 sm:text-[11px]">
-                  {rod.name}
-                </div>
-              )}
+                  scheduleRodPreviewRetry();
+                }}
+              />
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
               {rod.bonus > 0 && (
                 <span className="relative z-10 mb-1 rounded-md bg-black/55 px-1 py-[2px] text-[9px] font-bold leading-none text-cyan-50 sm:text-[10px]">
