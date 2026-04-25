@@ -1,5 +1,16 @@
 # STATUS
 
+## Verified task claims now retry against the server itself after saving progress, instead of false-failing on local wallet snapshot polling
+- Fixed the case where a task such as `catch_10` could stay visually `Ready`, the button could switch to `Claiming...`, and the client still ended on `Could not sync your latest task progress yet` even though the live backend path `save-player-progress -> claim_task_reward` already worked.
+- Root cause:
+  - the previous retry path in `FishingGame` still depended on `savedGameProgressRef`, which is only a client-side mirror of the wallet row
+  - that mirror could lag behind the actual server write and stay on the older task snapshot long enough for the client to abort the retry
+  - the live API smoke confirmed the backend itself was already capable of saving `catch_10 = 10` and immediately granting the reward after that save
+- Updated behavior:
+  - verified task retry now queues `saveGameProgress(...)`, waits briefly for the save request to leave the client, and then retries `claim_task_reward` directly against the server
+  - the retry loop now treats the server claim response as the source of truth instead of polling the local `savedGameProgress` mirror
+  - this removes the false-negative sync gate that was blocking ready tasks from being claimed
+
 ## Verified task claims no longer wait for a full `game_progress` digest match before retrying the specific reward claim
 - Fixed the wallet-task regression where a task could visibly stay `Ready`, the button could enter `Claiming...`, and the UI still ended up on `Could not sync your latest task progress yet` because some unrelated progress field in the wallet row was different.
 - Root cause:

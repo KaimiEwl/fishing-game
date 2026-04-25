@@ -66,7 +66,6 @@ import {
   SOCIAL_TASKS,
   SPECIAL_TASKS,
   type GameTab,
-  type GameProgressSnapshot,
   type GrillLeaderboardEntry,
   type GrillRecipe,
   type PremiumSessionState,
@@ -126,33 +125,6 @@ const RECOVERABLE_TAB_SCREEN_ERROR_PATTERNS = [
 const isRecoverableTabScreenError = (error: unknown) => {
   const message = error instanceof Error ? error.message : String(error ?? '');
   return RECOVERABLE_TAB_SCREEN_ERROR_PATTERNS.some((pattern) => message.includes(pattern));
-};
-
-const isTaskProgressReadyForServerClaim = (
-  progress: GameProgressSnapshot | null | undefined,
-  taskId: TaskId | WeeklyMissionId,
-) => {
-  if (!progress) return false;
-
-  const dailyTask = DAILY_TASKS.find((task) => task.id === taskId);
-  if (dailyTask) {
-    const current = progress.tasks[dailyTask.id];
-    return Boolean(current && current.progress >= dailyTask.target);
-  }
-
-  const specialTask = SPECIAL_TASKS.find((task) => task.id === taskId);
-  if (specialTask) {
-    const current = progress.specialTasks[specialTask.id];
-    return Boolean(current && current.progress >= specialTask.target);
-  }
-
-  const weeklyMission = WEEKLY_MISSION_CONFIG.find((mission) => mission.id === taskId);
-  if (weeklyMission) {
-    const current = progress.weeklyMissions?.[weeklyMission.id];
-    return Boolean(current && current.progress >= weeklyMission.target);
-  }
-
-  return false;
 };
 
 interface TabScreenErrorBoundaryProps {
@@ -279,7 +251,6 @@ const FishingGame: React.FC = () => {
     syncServerPlayerRecord,
     retryVerifyWallet,
   } = useWalletAuth();
-  const savedGameProgressRef = useRef<GameProgressSnapshot | null>(savedGameProgress ?? null);
   const {
     messages: inboxMessages,
     unreadCount: unreadMessageCount,
@@ -305,9 +276,6 @@ const FishingGame: React.FC = () => {
     weeklyMissionsEnabled: economyFeatures.weeklyMissions,
     cubeRebalanceEnabled: economyFeatures.cubeRebalance,
   });
-  useEffect(() => {
-    savedGameProgressRef.current = savedGameProgress ?? null;
-  }, [savedGameProgress]);
   const {
     rollCube,
     applyCubeReward,
@@ -1007,27 +975,17 @@ const FishingGame: React.FC = () => {
     sounds.playSellSound();
   };
 
-  const syncVerifiedTaskProgressForClaim = useCallback(async (taskId: TaskId | WeeklyMissionId) => {
+  const syncVerifiedTaskProgressForClaim = useCallback(async () => {
     if (!isVerified) return true;
-    if (isTaskProgressReadyForServerClaim(savedGameProgressRef.current, taskId)) {
-      return true;
-    }
 
     const saveQueued = await saveGameProgress(gameProgress.snapshot);
     if (!saveQueued) return false;
 
-    const deadline = Date.now() + 8000;
-    while (Date.now() < deadline) {
-      if (isTaskProgressReadyForServerClaim(savedGameProgressRef.current, taskId)) {
-        return true;
-      }
+    await new Promise<void>((resolve) => {
+      window.setTimeout(resolve, 180);
+    });
 
-      await new Promise<void>((resolve) => {
-        window.setTimeout(resolve, 120);
-      });
-    }
-
-    return isTaskProgressReadyForServerClaim(savedGameProgressRef.current, taskId);
+    return true;
   }, [gameProgress.snapshot, isVerified, saveGameProgress]);
 
   const claimVerifiedTaskRewardWithRetry = useCallback(async (taskId: TaskId | WeeklyMissionId) => {
@@ -1045,12 +1003,34 @@ const FishingGame: React.FC = () => {
         throw error;
       }
 
-      const syncedProgressReady = await syncVerifiedTaskProgressForClaim(taskId);
+      const syncedProgressReady = await syncVerifiedTaskProgressForClaim();
       if (!syncedProgressReady) {
         throw new Error('Could not sync your latest task progress yet. Try again in a second.');
       }
 
-      return claimTaskReward(taskId);
+      const deadline = Date.now() + 8000;
+      while (Date.now() < deadline) {
+        try {
+          return await claimTaskReward(taskId);
+        } catch (retryError) {
+          const retryMessage = retryError instanceof Error ? retryError.message.toLowerCase() : '';
+          const stillWaitingForServerProgress = (
+            retryMessage.includes('task is not ready to claim')
+            || retryMessage.includes('weekly mission is not ready to claim')
+            || retryMessage.includes('could not sync your latest task progress yet')
+          );
+
+          if (!stillWaitingForServerProgress) {
+            throw retryError;
+          }
+
+          await new Promise<void>((resolve) => {
+            window.setTimeout(resolve, 250);
+          });
+        }
+      }
+
+      throw new Error('Could not sync your latest task progress yet. Try again in a second.');
     }
   }, [claimTaskReward, syncVerifiedTaskProgressForClaim]);
 
