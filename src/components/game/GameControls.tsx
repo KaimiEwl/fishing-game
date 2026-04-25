@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { GameResult, GameState } from '@/types/game';
 import { Button } from '@/components/ui/button';
 import FishDisplay from './FishDisplay';
@@ -69,7 +69,71 @@ const GameControls: React.FC<GameControlsProps> = ({
     : null;
   const primaryButtonImage = gameState === 'biting' ? CAST_BUTTON_GREEN : CAST_BUTTON_BLUE;
   const [failedButtonImages, setFailedButtonImages] = useState<Record<string, boolean>>({});
+  const buttonRetryTimersRef = useRef<Record<string, number>>({});
+  const buttonRetryCountsRef = useRef<Record<string, number>>({});
   const primaryButtonArtFailed = Boolean(failedButtonImages[primaryButtonImage]);
+
+  const clearButtonRetryTimer = useCallback((src: string) => {
+    if (typeof window === 'undefined' || !buttonRetryTimersRef.current[src]) return;
+    window.clearTimeout(buttonRetryTimersRef.current[src]);
+    delete buttonRetryTimersRef.current[src];
+  }, []);
+
+  const resetButtonImageFailure = useCallback((src: string) => {
+    clearButtonRetryTimer(src);
+    buttonRetryCountsRef.current[src] = 0;
+    setFailedButtonImages((current) => {
+      if (!current[src]) return current;
+
+      const next = { ...current };
+      delete next[src];
+      return next;
+    });
+  }, [clearButtonRetryTimer]);
+
+  const scheduleButtonImageRetry = useCallback((src: string) => {
+    if (typeof window === 'undefined' || buttonRetryTimersRef.current[src] || (buttonRetryCountsRef.current[src] ?? 0) >= 3) {
+      return;
+    }
+
+    buttonRetryCountsRef.current[src] = (buttonRetryCountsRef.current[src] ?? 0) + 1;
+    buttonRetryTimersRef.current[src] = window.setTimeout(() => {
+      delete buttonRetryTimersRef.current[src];
+      setFailedButtonImages((current) => {
+        if (!current[src]) return current;
+
+        const next = { ...current };
+        delete next[src];
+        return next;
+      });
+    }, 1400);
+  }, []);
+
+  useEffect(() => () => {
+    if (typeof window === 'undefined') return;
+
+    Object.values(buttonRetryTimersRef.current).forEach((timerId) => {
+      window.clearTimeout(timerId);
+    });
+    buttonRetryTimersRef.current = {};
+  }, []);
+
+  useEffect(() => {
+    if (!primaryButtonArtFailed || typeof window === 'undefined') return;
+
+    const retryIfVisible = () => {
+      if (document.visibilityState === 'hidden') return;
+      resetButtonImageFailure(primaryButtonImage);
+    };
+
+    window.addEventListener('focus', retryIfVisible);
+    document.addEventListener('visibilitychange', retryIfVisible);
+
+    return () => {
+      window.removeEventListener('focus', retryIfVisible);
+      document.removeEventListener('visibilitychange', retryIfVisible);
+    };
+  }, [primaryButtonArtFailed, primaryButtonImage, resetButtonImageFailure]);
 
   return (
     <>
@@ -178,6 +242,9 @@ const GameControls: React.FC<GameControlsProps> = ({
                     aria-hidden="true"
                     className={`relative block h-auto w-full select-none transition-all duration-200 ${primaryDisabled ? 'grayscale-[0.9] brightness-[0.72] opacity-90' : gameState === 'biting' ? 'drop-shadow-[0_10px_22px_rgba(163,230,53,0.22)]' : 'drop-shadow-[0_10px_22px_rgba(34,211,238,0.24)]'}`}
                     draggable={false}
+                    onLoad={() => {
+                      resetButtonImageFailure(primaryButtonImage);
+                    }}
                     onError={() => {
                       setFailedButtonImages((current) => {
                         if (current[primaryButtonImage]) return current;
@@ -186,6 +253,7 @@ const GameControls: React.FC<GameControlsProps> = ({
                           [primaryButtonImage]: true,
                         };
                       });
+                      scheduleButtonImageRetry(primaryButtonImage);
                     }}
                   />
                 )}

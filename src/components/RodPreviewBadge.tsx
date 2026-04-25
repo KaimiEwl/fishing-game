@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Worm } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
-import { publicAsset } from '@/lib/assets';
+import { getRodPreviewFallback, ROD_DISPLAY_INFO } from '@/lib/rodAssets';
 import { NFT_ROD_DATA } from '@/types/game';
 
 interface RodPreviewBadgeProps {
@@ -17,24 +16,62 @@ const RodPreviewBadge = ({ rodLevel, ownedRodLevel, nftRods, totalBait = 0 }: Ro
   const rod = ROD_DISPLAY_INFO[displayRodLevel] || ROD_DISPLAY_INFO[0];
   const hasNft = nftRods.includes(displayRodLevel);
   const nftData = NFT_ROD_DATA.find((entry) => entry.rodLevel === displayRodLevel) ?? null;
-  const rodImageFallback = useMemo(() => {
-    const fallbackImages = [
-      publicAsset('assets/rod_starter_icon_v2.png'),
-      publicAsset('assets/rod_green_icon_v2.png'),
-      publicAsset('assets/rod_blue_icon_v2.png'),
-      publicAsset('assets/rod_purple_icon_v2.png'),
-      publicAsset('assets/rod_gold_icon_v2.png'),
-    ];
-
-    return fallbackImages[displayRodLevel] ?? publicAsset('assets/rod_basic.png');
-  }, [displayRodLevel]);
+  const rodImageFallback = getRodPreviewFallback(displayRodLevel);
   const [rodImageSrc, setRodImageSrc] = useState(rod.image);
   const [rodImageFailed, setRodImageFailed] = useState(false);
+  const rodRetryTimerRef = useRef<number | null>(null);
+  const rodRetryCountRef = useRef(0);
 
-  useEffect(() => {
+  const clearRodRetryTimer = useCallback(() => {
+    if (typeof window === 'undefined' || rodRetryTimerRef.current === null) return;
+    window.clearTimeout(rodRetryTimerRef.current);
+    rodRetryTimerRef.current = null;
+  }, []);
+
+  const resetRodPreviewImage = useCallback(() => {
+    clearRodRetryTimer();
     setRodImageSrc(rod.image);
     setRodImageFailed(false);
+  }, [clearRodRetryTimer, rod.image]);
+
+  const scheduleRodPreviewRetry = useCallback(() => {
+    if (typeof window === 'undefined' || rodRetryTimerRef.current !== null || rodRetryCountRef.current >= 3) {
+      return;
+    }
+
+    rodRetryCountRef.current += 1;
+    rodRetryTimerRef.current = window.setTimeout(() => {
+      rodRetryTimerRef.current = null;
+      setRodImageFailed(false);
+      setRodImageSrc(rod.image);
+    }, 1600);
   }, [rod.image]);
+
+  useEffect(() => {
+    rodRetryCountRef.current = 0;
+    resetRodPreviewImage();
+  }, [resetRodPreviewImage, rod.image]);
+
+  useEffect(() => () => {
+    clearRodRetryTimer();
+  }, [clearRodRetryTimer]);
+
+  useEffect(() => {
+    if (!rodImageFailed || typeof window === 'undefined') return;
+
+    const retryIfVisible = () => {
+      if (document.visibilityState === 'hidden') return;
+      resetRodPreviewImage();
+    };
+
+    window.addEventListener('focus', retryIfVisible);
+    document.addEventListener('visibilitychange', retryIfVisible);
+
+    return () => {
+      window.removeEventListener('focus', retryIfVisible);
+      document.removeEventListener('visibilitychange', retryIfVisible);
+    };
+  }, [resetRodPreviewImage, rodImageFailed]);
 
   return (
     <div className="absolute bottom-1 right-[calc(100%+0.55rem)] flex flex-col items-center gap-1 sm:bottom-1.5">
@@ -52,6 +89,13 @@ const RodPreviewBadge = ({ rodLevel, ownedRodLevel, nftRods, totalBait = 0 }: Ro
                   src={rodImageSrc}
                   alt={rod.name}
                   className={`absolute inset-0 h-full w-full ${rod.previewFit === 'contain' ? 'object-contain p-1.5' : 'object-cover'} ${rod.previewScale}`}
+                  onLoad={() => {
+                    clearRodRetryTimer();
+                    rodRetryCountRef.current = 0;
+                    if (rodImageFailed) {
+                      setRodImageFailed(false);
+                    }
+                  }}
                   onError={() => {
                     if (rodImageSrc !== rodImageFallback) {
                       setRodImageSrc(rodImageFallback);
@@ -59,6 +103,7 @@ const RodPreviewBadge = ({ rodLevel, ownedRodLevel, nftRods, totalBait = 0 }: Ro
                     }
 
                     setRodImageFailed(true);
+                    scheduleRodPreviewRetry();
                   }}
                 />
               ) : (

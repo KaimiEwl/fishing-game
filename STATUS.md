@@ -1,5 +1,15 @@
 # STATUS
 
+## Fishing HUD art now retries instead of getting stuck on broken rod/button placeholders after one image error
+- Fixed the recurring fish-screen regression where the `Starter` preview could fall back to plain text and the cast/hook control could stay on a broken placeholder after a transient image load failure.
+- Root cause:
+  - the starter rod preview was not included in the warm HUD preload list
+  - both `RodPreviewBadge` and `GameControls` latched their `onError` fallback states after a single image failure and mostly stayed there for the rest of the session
+- Updated behavior:
+  - all rod preview images, including `Starter`, are now part of the warm preload set
+  - rod preview art and cast/hook button art now auto-retry after a short delay instead of staying permanently broken after one failed load
+  - focus / tab return also triggers a fresh retry for those HUD images so transient asset failures can recover without a full reload
+
 ## Task claims no longer fail just because the post-claim audit insert fails
 - Fixed the deeper server-side case where a task reward could already be granted in `players`, but the request still returned as failed to the client.
 - Root cause:
