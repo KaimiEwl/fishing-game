@@ -1,5 +1,15 @@
 # STATUS
 
+## Verified task claims no longer wait for a full `game_progress` digest match before retrying the specific reward claim
+- Fixed the wallet-task regression where a task could visibly stay `Ready`, the button could enter `Claiming...`, and the UI still ended up on `Could not sync your latest task progress yet` because some unrelated progress field in the wallet row was different.
+- Root cause:
+  - the retry path in `FishingGame` reused `flushGameProgressSave(...)`, which waits for the whole saved `game_progress` snapshot to match exactly
+  - that is stricter than the actual requirement for reward claim, because the server can legitimately keep unrelated progress fields ahead of the local task snapshot
+  - as a result, the specific task could already be ready server-side, but the client still aborted the retry because the full progress digest never became byte-for-byte identical
+- Updated behavior:
+  - verified task claim retry now waits only for the specific daily / special / weekly task to become ready in the saved wallet progress
+  - the retry path still queues a `saveGameProgress(...)`, but it no longer blocks on unrelated `game_progress` drift before retrying `claim_task_reward`
+
 ## Fish HUD no longer swaps to text placeholders when cast or rod art loads slowly
 - Fixed the fish-screen regression where the rod badge could degrade to a `STARTER` text box and the main cast / hook control could fall back to a plain text pill instead of the intended button art.
 - Root cause:
