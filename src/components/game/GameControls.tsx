@@ -223,7 +223,7 @@ const GameControls: React.FC<GameControlsProps> = ({
               aria-label={primaryLabel}
               className="relative z-[1] h-auto border-0 bg-transparent p-0 shadow-none transition-transform duration-200 hover:scale-[1.04] hover:bg-transparent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-100 disabled:hover:scale-100"
             >
-              <span className="relative block w-[11.75rem] sm:w-[13.5rem]">
+              <span className="relative block aspect-[27/8] w-[11.75rem] sm:w-[13.5rem]">
                 {primaryButtonArtFailed && (
                   <span
                     aria-hidden="true"

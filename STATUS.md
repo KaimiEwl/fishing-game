@@ -1,5 +1,16 @@
 # STATUS
 
+## Fish action button fallback no longer collapses to zero height when the button art fails
+- Fixed the desktop fish-screen bug where a player could cast, see `Fish on the line`, and then get only clipped `Hook fish` text with no usable button surface.
+- Root cause:
+  - the cast / hook control uses a PNG button plus a fallback state inside `GameControls`
+  - when the button image failed to load, the inner wrapper had no intrinsic height of its own
+  - that let the fallback button collapse vertically, so only the absolutely positioned label remained visible while the real click surface effectively disappeared
+- Updated behavior:
+  - the fish action control now keeps a fixed aspect ratio even when the art image fails
+  - `Cast line` and `Hook fish` fallbacks stay as real visible buttons instead of collapsing to near-zero height
+  - the broken-art path was rechecked in-browser by forcing image load errors for both the idle and biting button states
+
 ## First-time wallet linking now preserves guest fish and flushes it into the wallet before verified grill actions
 - Fixed the guest -> wallet transition where a player could catch fish and even have enough ingredients for several grill dishes, then lose that effective inventory right after connecting a wallet.
 - Root cause:
