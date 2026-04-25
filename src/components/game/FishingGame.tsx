@@ -300,6 +300,7 @@ const FishingGame: React.FC = () => {
   const premiumBiteTimeoutHandlerRef = useRef<(() => void) | null>(null);
   const premiumCastResolveInFlightRef = useRef(false);
   const backgroundErrorToastRef = useRef<Record<string, number>>({});
+  const linkedGameProgressFlushedForWalletRef = useRef<string | null>(null);
   const showBackgroundActionError = useCallback((key: string, message: string) => {
     const now = Date.now();
     const lastShownAt = backgroundErrorToastRef.current[key] ?? 0;
@@ -480,6 +481,26 @@ const FishingGame: React.FC = () => {
       setWalletCheckInLoading(false);
     }
   }, [address, getWalletCheckInSummary, isVerified]);
+
+  useEffect(() => {
+    const verifiedAddress = address?.toLowerCase() ?? null;
+
+    if (!isVerified || !verifiedAddress) {
+      linkedGameProgressFlushedForWalletRef.current = null;
+      return;
+    }
+
+    if (savedPlayerSyncMode !== 'link') return;
+    if (linkedGameProgressFlushedForWalletRef.current === verifiedAddress) return;
+
+    linkedGameProgressFlushedForWalletRef.current = verifiedAddress;
+    void flushGameProgressSave(gameProgress.snapshot, 15000).then((synced) => {
+      if (synced) return;
+
+      console.error('Initial linked wallet game progress sync did not complete in time.');
+      linkedGameProgressFlushedForWalletRef.current = null;
+    });
+  }, [address, flushGameProgressSave, gameProgress.snapshot, isVerified, savedPlayerSyncMode]);
 
   const saveCurrentLeaderboardEntry = useCallback((name: string, score: number, dishesDelta = 0) => {
     setLeaderboardEntries((entries) => {

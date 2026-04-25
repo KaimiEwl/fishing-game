@@ -1,5 +1,15 @@
 # STATUS
 
+## First wallet link now immediately flushes merged guest task progress into the verified wallet
+- Fixed the verified-task regression where a player could finish tasks as a guest, connect a wallet, still see those tasks as `Ready`, and then hit `Could not sync your latest task progress yet` on claim.
+- Root cause:
+  - the earlier guest -> wallet fix immediately flushed merged fish inventory into the wallet row
+  - but the merged guest `game_progress` snapshot was still only local at first, so server-side `claim_task_reward` could legitimately say the task was not ready yet
+  - the client retry path then depended on an on-demand sync instead of the progress already being attached to the wallet during first link
+- Updated behavior:
+  - the first verified wallet render in `link` mode now immediately flushes the merged local `game_progress` snapshot into `save-player-progress`
+  - guest task progress, grill score, and other progress-state should now follow the player into the verified wallet instead of waiting for a later incidental save
+
 ## Fish action button fallback no longer collapses to zero height when the button art fails
 - Fixed the desktop fish-screen bug where a player could cast, see `Fish on the line`, and then get only clipped `Hook fish` text with no usable button surface.
 - Root cause:
