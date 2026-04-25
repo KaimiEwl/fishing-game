@@ -1,5 +1,16 @@
 # STATUS
 
+## First-time wallet linking now preserves guest fish and flushes it into the wallet before verified grill actions
+- Fixed the guest -> wallet transition where a player could catch fish and even have enough ingredients for several grill dishes, then lose that effective inventory right after connecting a wallet.
+- Root cause:
+  - earlier verified-wallet hardening intentionally made `inventory` and `cookedDishes` server-authoritative
+  - that solved stale-wallet grill mismatches, but it also meant the first verified snapshot dropped guest fish before the wallet row had ever saved it
+  - verified grill then checked the wallet row, saw no fish yet, and failed with `Not enough fish to cook this dish`
+- Updated behavior:
+  - the first successful wallet verification now uses a one-time `link` merge mode that preserves guest fish and cooked dishes locally
+  - that merged player snapshot is immediately flushed into `save-player-progress` after verification instead of waiting for later incidental saves
+  - verified grill now also forces a player save flush before `cook_recipe`, so a player who connects a wallet and cooks right away does not race against an unsaved inventory snapshot
+
 ## Verified daily task claims were failing because `player-actions` responses were built from an out-of-scope helper
 - Fixed the server-side regression where a newly connected wallet could see `Daily check-in` as ready but every verified task/action request returned a generic `Could not claim this task right now`.
 - Root cause:

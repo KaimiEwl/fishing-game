@@ -146,6 +146,35 @@ const mergeStacksByMax = <T extends { quantity: number }>(
   return Array.from(merged.values()).filter((item) => item.quantity > 0);
 };
 
+const mergeStacksBySum = <T extends { quantity: number }>(
+  currentStacks: T[],
+  nextStacks: T[],
+  getKey: (item: T) => string,
+  mergeDates: (currentItem: T, nextItem: T, quantity: number) => T,
+) => {
+  const merged = new Map<string, T>();
+
+  for (const item of currentStacks) {
+    merged.set(getKey(item), item);
+  }
+
+  for (const item of nextStacks) {
+    const key = getKey(item);
+    const existing = merged.get(key);
+    if (!existing) {
+      merged.set(key, item);
+      continue;
+    }
+
+    merged.set(
+      key,
+      mergeDates(existing, item, Math.max(0, existing.quantity) + Math.max(0, item.quantity)),
+    );
+  }
+
+  return Array.from(merged.values()).filter((item) => item.quantity > 0);
+};
+
 const toTimeValue = (value: string | Date) => {
   const parsed = value instanceof Date ? value : new Date(value);
   const timestamp = parsed.getTime();
@@ -276,6 +305,43 @@ export const mergeSyncedPlayerState = (
     avatarUrl: normalizedServerPlayer.avatarUrl,
     collectionBook: mergeCollectionBooks(normalizedServerPlayer.collectionBook, normalizedLocalPlayer.collectionBook),
     rodMastery: mergeRodMastery(normalizedServerPlayer.rodMastery, normalizedLocalPlayer.rodMastery),
+  };
+};
+
+export const mergeLinkedGuestPlayerState = (
+  serverPlayer: PlayerState,
+  localPlayer: PlayerState,
+): PlayerState => {
+  const mergedPlayer = mergeSyncedPlayerState(serverPlayer, localPlayer);
+
+  return {
+    ...mergedPlayer,
+    // A first wallet link should preserve guest fish and cooked dishes instead
+    // of dropping them before they are flushed into the wallet row.
+    inventory: mergeStacksBySum(
+      serverPlayer.inventory,
+      localPlayer.inventory,
+      (item) => item.fishId,
+      (currentItem, nextItem, quantity) => ({
+        ...currentItem,
+        quantity,
+        caughtAt: toTimeValue(currentItem.caughtAt) >= toTimeValue(nextItem.caughtAt)
+          ? currentItem.caughtAt
+          : nextItem.caughtAt,
+      }),
+    ),
+    cookedDishes: mergeStacksBySum(
+      serverPlayer.cookedDishes,
+      localPlayer.cookedDishes,
+      (item) => item.recipeId,
+      (currentItem, nextItem, quantity) => ({
+        ...currentItem,
+        quantity,
+        createdAt: toTimeValue(currentItem.createdAt) >= toTimeValue(nextItem.createdAt)
+          ? currentItem.createdAt
+          : nextItem.createdAt,
+      }),
+    ),
   };
 };
 

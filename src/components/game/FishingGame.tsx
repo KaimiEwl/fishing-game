@@ -1175,8 +1175,11 @@ const FishingGame: React.FC = () => {
     if (!isVerified) return true;
     const syncedPlayer = savedPlayerSnapshotRef.current;
     if (!syncedPlayer) return false;
-    return hasRequiredFishForRecipe(syncedPlayer.inventory, recipe);
-  }, [isVerified]);
+    const flushed = await flushPlayerSave(syncedPlayer);
+    if (!flushed) return false;
+    const latestSyncedPlayer = savedPlayerSnapshotRef.current ?? syncedPlayer;
+    return hasRequiredFishForRecipe(latestSyncedPlayer.inventory, recipe);
+  }, [flushPlayerSave, isVerified]);
   const handleCookRecipe = async (recipe: GrillRecipe) => {
     if (isVerified) {
       try {

@@ -83,7 +83,7 @@ const resolveInitialPlayer = (savedPlayer?: PlayerState | null) => {
 
 interface UseGameStateOptions {
   savedPlayer?: PlayerState | null;
-  savedPlayerSyncMode?: 'optimistic' | 'server';
+  savedPlayerSyncMode?: 'optimistic' | 'server' | 'link';
   onSave?: (player: PlayerState) => void;
   onFishCaught?: (fish: Fish) => void;
   onAuditEvent?: (event: PlayerAuditEventPayload) => void;
