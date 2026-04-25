@@ -386,6 +386,60 @@ const normalizeGameProgressForToday = (value: unknown) => {
   };
 };
 
+const mergeClaimTaskProgress = (
+  currentProgress: ReturnType<typeof normalizeGameProgressForToday>,
+  incomingValue: unknown,
+) => {
+  if (!incomingValue || typeof incomingValue !== "object") {
+    return currentProgress;
+  }
+
+  const incomingProgress = normalizeGameProgressForToday(incomingValue);
+
+  return {
+    ...currentProgress,
+    tasks: Object.fromEntries(DAILY_TASKS.map((task) => [
+      task.id,
+      {
+        progress: Math.max(
+          currentProgress.tasks[task.id as DailyTaskId]?.progress ?? 0,
+          incomingProgress.tasks[task.id as DailyTaskId]?.progress ?? 0,
+        ),
+        claimed: Boolean(
+          currentProgress.tasks[task.id as DailyTaskId]?.claimed
+          || incomingProgress.tasks[task.id as DailyTaskId]?.claimed,
+        ),
+      },
+    ])),
+    specialTasks: Object.fromEntries(SPECIAL_TASKS.map((task) => [
+      task.id,
+      {
+        progress: Math.max(
+          currentProgress.specialTasks[task.id as SpecialTaskId]?.progress ?? 0,
+          incomingProgress.specialTasks[task.id as SpecialTaskId]?.progress ?? 0,
+        ),
+        claimed: Boolean(
+          currentProgress.specialTasks[task.id as SpecialTaskId]?.claimed
+          || incomingProgress.specialTasks[task.id as SpecialTaskId]?.claimed,
+        ),
+      },
+    ])),
+    weeklyMissions: Object.fromEntries(WEEKLY_MISSIONS.map((mission) => [
+      mission.id,
+      {
+        progress: Math.max(
+          currentProgress.weeklyMissions[mission.id as WeeklyMissionId]?.progress ?? 0,
+          incomingProgress.weeklyMissions[mission.id as WeeklyMissionId]?.progress ?? 0,
+        ),
+        claimed: Boolean(
+          currentProgress.weeklyMissions[mission.id as WeeklyMissionId]?.claimed
+          || incomingProgress.weeklyMissions[mission.id as WeeklyMissionId]?.claimed,
+        ),
+      },
+    ])),
+  };
+};
+
 const fetchTodayReferralAttachCount = async (
   supabase: ReturnType<typeof createClient>,
   referrerWalletAddress: string,
@@ -1706,7 +1760,10 @@ serve(async (req) => {
         }
 
         const player = await loadPlayer(supabase, walletAddress);
-        const progress = normalizeGameProgressForToday(player.game_progress);
+        const progress = mergeClaimTaskProgress(
+          normalizeGameProgressForToday(player.game_progress),
+          body.task_progress_sync,
+        );
         const beforeState = await fetchPlayerAuditSnapshot(supabase, walletAddress);
 
         if (isDailyTask) {

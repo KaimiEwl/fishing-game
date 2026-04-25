@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { getStoredWalletSession } from '@/lib/walletSession';
 import type { Tables } from '@/integrations/supabase/types';
 import {
+  type GameProgressSnapshot,
   type PremiumCastResult,
   type PremiumSessionState,
   type ReactionQuality,
@@ -153,9 +154,13 @@ export function usePlayerActions(walletAddress: string | undefined, enabled: boo
     })
   ), [callPlayerActions]);
 
-  const claimTaskReward = useCallback(async (taskId: TaskId | WeeklyMissionId) => (
+  const claimTaskReward = useCallback(async (
+    taskId: TaskId | WeeklyMissionId,
+    taskProgressSync?: GameProgressSnapshot,
+  ) => (
     callPlayerActions<{ player: Tables<'players'> }>('claim_task_reward', {
       task_id: taskId,
+      task_progress_sync: taskProgressSync,
     })
   ), [callPlayerActions]);
 

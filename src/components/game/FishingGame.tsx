@@ -65,6 +65,7 @@ import {
   NFT_ROD_DATA,
   SOCIAL_TASKS,
   SPECIAL_TASKS,
+  type GameProgressSnapshot,
   type GameTab,
   type GrillLeaderboardEntry,
   type GrillRecipe,
@@ -975,22 +976,65 @@ const FishingGame: React.FC = () => {
     sounds.playSellSound();
   };
 
-  const syncVerifiedTaskProgressForClaim = useCallback(async () => {
+  const buildClaimSyncProgressSnapshot = useCallback((taskId: TaskId | WeeklyMissionId): GameProgressSnapshot => {
+    const localSnapshot = gameProgress.snapshot;
+    const serverSnapshot = savedGameProgress ?? localSnapshot;
+    const isDailyTask = DAILY_TASKS.some((task) => task.id === taskId);
+    const isSpecialTask = SPECIAL_TASKS.some((task) => task.id === taskId);
+    const isWeeklyMission = WEEKLY_MISSION_CONFIG.some((mission) => mission.id === taskId);
+
+    const nextTasks = isDailyTask
+      ? {
+          ...serverSnapshot.tasks,
+          [taskId]: localSnapshot.tasks[taskId as TaskId & keyof typeof localSnapshot.tasks],
+        }
+      : serverSnapshot.tasks;
+
+    const nextSpecialTasks = isSpecialTask
+      ? {
+          ...serverSnapshot.specialTasks,
+          [taskId]: localSnapshot.specialTasks[taskId as TaskId & keyof typeof localSnapshot.specialTasks],
+        }
+      : serverSnapshot.specialTasks;
+
+    const weeklyMissionBase = serverSnapshot.weeklyMissions ?? localSnapshot.weeklyMissions;
+    const nextWeeklyMissions = Object.fromEntries(
+      WEEKLY_MISSION_CONFIG.map((mission) => {
+        const missionId = mission.id as WeeklyMissionId;
+        const missionState = isWeeklyMission && missionId === taskId
+          ? localSnapshot.weeklyMissions?.[missionId]
+            ?? weeklyMissionBase?.[missionId]
+            ?? { progress: 0, claimed: false }
+          : weeklyMissionBase?.[missionId]
+            ?? { progress: 0, claimed: false };
+
+        return [missionId, missionState];
+      }),
+    ) as NonNullable<GameProgressSnapshot['weeklyMissions']>;
+
+    return {
+      ...serverSnapshot,
+      date: localSnapshot.date,
+      weekKey: localSnapshot.weekKey ?? serverSnapshot.weekKey,
+      lastWeeklyCubeUnlockDate: localSnapshot.lastWeeklyCubeUnlockDate ?? serverSnapshot.lastWeeklyCubeUnlockDate,
+      tasks: nextTasks,
+      specialTasks: nextSpecialTasks,
+      weeklyMissions: nextWeeklyMissions,
+    };
+  }, [gameProgress.snapshot, savedGameProgress]);
+
+  const syncVerifiedTaskProgressForClaim = useCallback(async (taskId: TaskId | WeeklyMissionId) => {
     if (!isVerified) return true;
 
-    const saveQueued = await saveGameProgress(gameProgress.snapshot);
-    if (!saveQueued) return false;
-
-    await new Promise<void>((resolve) => {
-      window.setTimeout(resolve, 180);
-    });
-
-    return true;
-  }, [gameProgress.snapshot, isVerified, saveGameProgress]);
+    const claimSyncSnapshot = buildClaimSyncProgressSnapshot(taskId);
+    return saveGameProgress(claimSyncSnapshot);
+  }, [buildClaimSyncProgressSnapshot, isVerified, saveGameProgress]);
 
   const claimVerifiedTaskRewardWithRetry = useCallback(async (taskId: TaskId | WeeklyMissionId) => {
+    const claimSyncSnapshot = buildClaimSyncProgressSnapshot(taskId);
+
     try {
-      return await claimTaskReward(taskId);
+      return await claimTaskReward(taskId, claimSyncSnapshot);
     } catch (error) {
       const message = error instanceof Error ? error.message.toLowerCase() : '';
       const shouldRetryAfterSync = (
@@ -1003,15 +1047,12 @@ const FishingGame: React.FC = () => {
         throw error;
       }
 
-      const syncedProgressReady = await syncVerifiedTaskProgressForClaim();
-      if (!syncedProgressReady) {
-        throw new Error('Could not sync your latest task progress yet. Try again in a second.');
-      }
+      const syncQueued = await syncVerifiedTaskProgressForClaim(taskId);
 
       const deadline = Date.now() + 8000;
       while (Date.now() < deadline) {
         try {
-          return await claimTaskReward(taskId);
+          return await claimTaskReward(taskId, claimSyncSnapshot);
         } catch (retryError) {
           const retryMessage = retryError instanceof Error ? retryError.message.toLowerCase() : '';
           const stillWaitingForServerProgress = (
@@ -1024,6 +1065,10 @@ const FishingGame: React.FC = () => {
             throw retryError;
           }
 
+          if (!syncQueued) {
+            void syncVerifiedTaskProgressForClaim(taskId);
+          }
+
           await new Promise<void>((resolve) => {
             window.setTimeout(resolve, 250);
           });
@@ -1032,7 +1077,7 @@ const FishingGame: React.FC = () => {
 
       throw new Error('Could not sync your latest task progress yet. Try again in a second.');
     }
-  }, [claimTaskReward, syncVerifiedTaskProgressForClaim]);
+  }, [buildClaimSyncProgressSnapshot, claimTaskReward, syncVerifiedTaskProgressForClaim]);
 
   const handleClaimTask = async (taskId: TaskId) => {
     if (claimingTaskId === taskId) return;

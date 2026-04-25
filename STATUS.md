@@ -1,5 +1,16 @@
 # STATUS
 
+## Verified task claims now send the relevant task progress inside `claim_task_reward` itself instead of depending on a separate save race
+- Fixed the remaining wallet-task regression where a task such as `rare_1` or `catch_10` could stay visibly `Ready`, the client could still attempt a sync, and the UI could still end on `Could not sync your latest task progress yet`.
+- Root cause:
+  - the previous fixes still depended on two separate requests lining up in time: first `save-player-progress`, then `player-actions claim_task_reward`
+  - if the dedicated save request lagged, got queued behind other wallet saves, or simply had not been reflected in the wallet row yet, the follow-up claim still saw stale server progress and returned `Task is not ready to claim`
+  - the UI then surfaced the generic sync toast even though the actual missing piece was just that the ready task progress had not reached the claim request in time
+- Updated behavior:
+  - verified task claims now send the relevant task-progress snapshot together with `claim_task_reward`
+  - `player-actions` merges only the task-related maps (`tasks`, `specialTasks`, `weeklyMissions`) from that snapshot before checking readiness, instead of waiting for a separate full progress save to land first
+  - the claim path still queues the background wallet save, but the reward itself no longer depends on winning a race against that separate sync request
+
 ## Verified task claims now retry against the server itself after saving progress, instead of false-failing on local wallet snapshot polling
 - Fixed the case where a task such as `catch_10` could stay visually `Ready`, the button could switch to `Claiming...`, and the client still ended on `Could not sync your latest task progress yet` even though the live backend path `save-player-progress -> claim_task_reward` already worked.
 - Root cause:
