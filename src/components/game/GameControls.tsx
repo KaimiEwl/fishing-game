@@ -119,7 +119,7 @@ const GameControls: React.FC<GameControlsProps> = ({
 
       {showPrimaryControl && (
         <div
-          className="fixed left-1/2 z-30 -translate-x-1/2"
+          className="fixed left-1/2 z-40 -translate-x-1/2"
           style={{
             bottom: isMobile
               ? 'calc(var(--bottom-nav-clearance,0px) + 3.15rem)'

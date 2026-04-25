@@ -18,6 +18,14 @@
   - blue and green button assets now track failure independently
   - switching back from `Hook fish` to `Cast line` no longer revives the fallback UI unless that specific image actually failed
 
+## Fish action button now sits above the bottom nav instead of sharing its layer
+- Fixed the follow-up case where only the top of `Cast line` stayed visible after a few fishing cycles.
+- Root cause:
+  - `GameControls` and `BottomNav` were both rendered at `z-30`
+  - the bottom nav is mounted later in the tree, so it could cover most of the fish action button and leave only the top slice visible
+- Updated behavior:
+  - the cast/hook button stack now renders above the bottom nav layer, so the full button remains visible and clickable after cast/result cycles
+
 ## Wallet daily check-in is locked to one claim per day again
 - Disabled the old repeat-test mode that still let the blockchain daily check-in act like a reusable bait faucet.
 - Fixed three layers of the same bug:
