@@ -1,5 +1,14 @@
 # STATUS
 
+## Fish action button now renders above the bottom nav instead of sharing its stack level
+- Fixed the desktop case where `Cast line` returned after a cast cycle but only a clipped top slice remained visible.
+- Root cause:
+  - `GameControls` and `BottomNav` were still sharing adjacent overlay space after the previous button hardening passes
+  - on desktop the restored cast button could sit low enough to get visually cut by the nav strip, even when the button state itself had correctly returned to idle
+- Updated behavior:
+  - the fish action button stack now renders on a higher layer than the bottom nav
+  - the desktop control also sits slightly higher above the nav strip so the full button surface returns after cast/result cycles
+
 ## Legacy verified wallets with an existing name no longer get forced through the one-time name prompt again
 - Fixed the migration gap for the small set of older wallet accounts that already had a custom identity but no `players.nickname`.
 - Root cause:
