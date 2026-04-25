@@ -1,5 +1,17 @@
 # STATUS
 
+## Grill leaderboard no longer opens a second name prompt after cooking
+- Removed the separate `Enter leaderboard name` flow so the game now has only one name-entry system: the required wallet-bound `Choose your name` dialog after wallet verification.
+- Root cause:
+  - grill score publishing still had its own `LeaderboardNameDialog` and pending-score state
+  - after the first dish, guest and wallet flows could still branch into that second prompt instead of reusing the already saved player name
+  - this created another save path, another modal blocker, and another source of name drift
+- Updated behavior:
+  - grill leaderboard entries now publish automatically with the existing player identity instead of opening a second naming modal
+  - verified players use the saved wallet nickname
+  - local guests fall back to their current local nickname or `Guest griller`
+  - leaderboard screen copy no longer tells players to enter a second grill-specific name
+
 ## Fishing HUD art now retries instead of getting stuck on broken rod/button placeholders after one image error
 - Fixed the recurring fish-screen regression where the `Starter` preview could fall back to plain text and the cast/hook control could stay on a broken placeholder after a transient image load failure.
 - Root cause:

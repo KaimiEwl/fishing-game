@@ -6,7 +6,6 @@ import GameControls from './GameControls';
 import InventoryDialog from './InventoryDialog';
 import BoostDialog from './BoostDialog';
 import BottomNav from './BottomNav';
-import LeaderboardNameDialog from './LeaderboardNameDialog';
 import PlayerNameDialog from './PlayerNameDialog';
 import LevelUpCelebration from './LevelUpCelebration';
 import GameLoadingScreen from './GameLoadingScreen';
@@ -264,13 +263,10 @@ const FishingGame: React.FC = () => {
   const [mainSceneAssets, setMainSceneAssets] = useState<MainSceneAssets | null>(null);
   const [leaderboardEntries, setLeaderboardEntries] = useState<GrillLeaderboardEntry[]>(() => loadLeaderboardEntries());
   const [leaderboardPlayerId, setLeaderboardPlayerId] = useState(() => getLeaderboardPlayerId(address));
-  const [leaderboardNameOpen, setLeaderboardNameOpen] = useState(false);
   const [playerNameDialogOpen, setPlayerNameDialogOpen] = useState(false);
   const [playerNameSyncPending, setPlayerNameSyncPending] = useState(false);
   const [claimingTaskId, setClaimingTaskId] = useState<TaskId | null>(null);
   const [claimingWeeklyMissionId, setClaimingWeeklyMissionId] = useState<WeeklyMissionId | null>(null);
-  const [pendingLeaderboardScore, setPendingLeaderboardScore] = useState(0);
-  const [pendingLeaderboardDishes, setPendingLeaderboardDishes] = useState(0);
   const economyFeatures = useMemo(() => getEconomyFeatureAvailability(address), [address]);
   const verifiedWalletNameReady = !isVerified || Boolean(normalizeWalletNickname(savedPlayer?.nickname));
   const gameProgress = useGameProgress({
@@ -449,6 +445,17 @@ const FishingGame: React.FC = () => {
       ))
     )).length
   ), [grillInventory]);
+  const resolveLeaderboardName = useCallback(() => {
+    const walletName = sanitizeLeaderboardName(verifiedWalletNickname);
+    const currentEntryName = sanitizeLeaderboardName(currentLeaderboardEntry?.name ?? '');
+    const playerName = sanitizeLeaderboardName(displayPlayer.nickname ?? '');
+
+    if (isVerified) {
+      return walletName || currentEntryName || playerName || 'Guest griller';
+    }
+
+    return currentEntryName || playerName || 'Guest griller';
+  }, [currentLeaderboardEntry?.name, displayPlayer.nickname, isVerified, verifiedWalletNickname]);
 
   const refreshSocialTasks = useCallback(async () => {
     setSocialTasks(createDefaultSocialTasks());
@@ -697,30 +704,33 @@ const FishingGame: React.FC = () => {
       && savedPlayer !== null
       && !walletSessionResolving
       && !isVerifying
-      && !leaderboardNameOpen
       && isVerified
       && !walletNickname
     );
 
     setPlayerNameDialogOpen(shouldRequireWalletName);
-  }, [assetsReady, isVerified, isVerifying, leaderboardNameOpen, savedPlayer, walletSessionResolving]);
+  }, [assetsReady, isVerified, isVerifying, savedPlayer, walletSessionResolving]);
 
   useEffect(() => {
-    if (isVerified) {
-      setLeaderboardNameOpen(false);
+    if (isVerified || gameProgress.grillScore <= 0) return;
+
+    const resolvedName = resolveLeaderboardName();
+    const currentName = sanitizeLeaderboardName(currentLeaderboardEntry?.name ?? '');
+    const currentScore = currentLeaderboardEntry?.score ?? 0;
+
+    if (currentName === resolvedName && currentScore >= gameProgress.grillScore) {
       return;
     }
 
-    if (
-      gameProgress.grillScore > 0
-      && !hasCustomLeaderboardName(currentLeaderboardEntry?.name)
-      && !leaderboardNameOpen
-    ) {
-      setPendingLeaderboardScore(gameProgress.grillScore);
-      setPendingLeaderboardDishes(0);
-      setLeaderboardNameOpen(true);
-    }
-  }, [currentLeaderboardEntry?.name, gameProgress.grillScore, isVerified, leaderboardNameOpen]);
+    saveCurrentLeaderboardEntry(resolvedName, gameProgress.grillScore, 0);
+  }, [
+    currentLeaderboardEntry?.name,
+    currentLeaderboardEntry?.score,
+    gameProgress.grillScore,
+    isVerified,
+    resolveLeaderboardName,
+    saveCurrentLeaderboardEntry,
+  ]);
 
   useEffect(() => {
     if (!isVerified || !address) {
@@ -1191,6 +1201,7 @@ const FishingGame: React.FC = () => {
     const beforeState = toPlayerAuditSnapshot(player);
     if (!cookRecipe(recipe)) return false;
     const nextGrillScore = gameProgress.grillScore + recipe.score;
+    const leaderboardName = resolveLeaderboardName();
     gameProgress.recordGrillDish(recipe.score);
     if (address && isVerified) {
       void logPlayerAuditEvent({
@@ -1205,40 +1216,9 @@ const FishingGame: React.FC = () => {
         },
       });
     }
-    if (hasCustomLeaderboardName(currentLeaderboardEntry?.name)) {
-      saveCurrentLeaderboardEntry(currentLeaderboardEntry.name, nextGrillScore, 1);
-    } else {
-      setPendingLeaderboardScore(nextGrillScore);
-      setPendingLeaderboardDishes(1);
-      setLeaderboardNameOpen(true);
-    }
+    saveCurrentLeaderboardEntry(leaderboardName, nextGrillScore, 1);
     sounds.playSellSound();
     return true;
-  };
-
-  const handleSaveLeaderboardName = (name: string) => {
-    const score = Math.max(pendingLeaderboardScore, gameProgress.grillScore);
-    const resolvedName = isVerified
-      ? (sanitizeLeaderboardName(displayPlayer.nickname ?? '') || name)
-      : name;
-    if (isVerified) {
-      void updateGrillLeaderboard(resolvedName, score, pendingLeaderboardDishes)
-        .then((result) => {
-          syncServerLeaderboardEntry(result.leaderboard_entry);
-          setLeaderboardNameOpen(false);
-          setPendingLeaderboardDishes(0);
-          setPendingLeaderboardScore(0);
-        })
-        .catch((error) => {
-          toast.error(error instanceof Error ? error.message : 'Could not save leaderboard name.');
-        });
-      return;
-    }
-
-    saveCurrentLeaderboardEntry(resolvedName, score, pendingLeaderboardDishes);
-    setLeaderboardNameOpen(false);
-    setPendingLeaderboardDishes(0);
-    setPendingLeaderboardScore(0);
   };
 
   const handleSavePlayerName = useCallback(async (name: string) => {
@@ -1687,14 +1667,6 @@ const FishingGame: React.FC = () => {
             </div>
           )}
 
-          <LeaderboardNameDialog
-            open={leaderboardNameOpen}
-            defaultName={hasCustomLeaderboardName(currentLeaderboardEntry?.name)
-              ? currentLeaderboardEntry?.name
-              : displayPlayer.nickname}
-            score={Math.max(pendingLeaderboardScore, gameProgress.grillScore)}
-            onSave={handleSaveLeaderboardName}
-          />
           <PlayerNameDialog
             open={playerNameDialogOpen}
             walletLinked={isConnected && isVerified}

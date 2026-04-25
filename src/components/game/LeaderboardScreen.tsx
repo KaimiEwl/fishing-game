@@ -31,7 +31,7 @@ const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
   return (
     <GameScreenShell
       title="Leaderboard"
-      subtitle="Grill score board. Cook a dish, enter a name, and climb the shared table."
+      subtitle="Grill score board. Cook a dish and climb the shared table."
       coins={coins}
       backgroundImage={publicAsset('assets/bg_leaderboard.jpg')}
       contentScrollable
@@ -82,7 +82,7 @@ const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
                       <Wallet className="h-4 w-4 text-yellow-300" />
                       Ready to publish as {displayName}
                     </div>
-                    <div className="mt-2 text-sm text-zinc-300">Cook one dish and your score goes live on the board. Use the info button by your score to see how score share could be interpreted if the token launches later.</div>
+                    <div className="mt-2 text-sm text-zinc-300">Cook one dish and your score goes live on the board under your saved player name. Use the info button by your score to see how score share could be interpreted if the token launches later.</div>
                   </>
                 ) : (
                   <>
@@ -101,11 +101,11 @@ const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
                 <div className="flex min-h-[280px] flex-col items-center justify-center rounded-[16px] border border-cyan-300/18 bg-[linear-gradient(180deg,rgba(5,10,24,0.95),rgba(12,28,66,0.9))] p-6 text-center shadow-[0_0_24px_rgba(56,189,248,0.08)]">
                   <Trophy className="h-12 w-12 text-yellow-300" />
                   <h2 className="mt-4 text-2xl font-black text-yellow-100">No grillers yet</h2>
-                  <p className="mt-2 max-w-md text-sm text-zinc-300">
-                    Cook your first dish, save a name, and your score will appear here.
-                  </p>
-                </div>
-              ) : (
+                    <p className="mt-2 max-w-md text-sm text-zinc-300">
+                      Cook your first dish and your score will appear here.
+                    </p>
+                  </div>
+                ) : (
                 <div className="grid gap-3">
                   {entries.slice(0, 25).map((entry, index) => {
                     const isCurrent = entry.id === currentPlayerId;
