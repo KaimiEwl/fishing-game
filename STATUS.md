@@ -11,6 +11,7 @@
   - verified players use the saved wallet nickname
   - local guests fall back to their current local nickname or `Guest griller`
   - leaderboard screen copy no longer tells players to enter a second grill-specific name
+  - the unused `LeaderboardNameDialog` component was removed from source so the second grill-only name path cannot reappear through a stale import
 
 ## Fishing HUD art now retries instead of getting stuck on broken rod/button placeholders after one image error
 - Fixed the recurring fish-screen regression where the `Starter` preview could fall back to plain text and the cast/hook control could stay on a broken placeholder after a transient image load failure.
