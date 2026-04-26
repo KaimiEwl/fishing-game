@@ -1,5 +1,15 @@
 # STATUS
 
+## 2026-04-25 release handoff check is green locally
+- Prepared a concise customer/release handoff in `docs/release-handoff.md` with the target host, build/deploy commands, checks actually run, known warnings, and items intentionally not run.
+- Fixed the local release verification blocker where ESLint scanned ignored scratch files under `tmp/` and failed on an old reward-audit helper. `eslint.config.js` now ignores `tmp`, `dist-ssr`, and `node_modules` alongside `dist`, matching the repo's generated/local-output intent.
+- Verified release checks:
+  - `npm run verify` passes.
+  - `npm run verify:ci` passes and creates the GitHub Pages `dist/404.html` artifact.
+  - `npm run build` passes and leaves `dist/` in the root-base shape expected by the VPS host.
+  - local production preview smoke at `http://127.0.0.1:4173/` boots past the loading screen, renders the main fishing HUD, and reports no browser console errors.
+- Remaining non-blocking warnings are unchanged in character: existing React hook/Fast Refresh lint warnings, old `caniuse-lite` data, third-party Rollup pure-annotation notices, and large wallet/provider chunks.
+
 ## Verified game-progress snapshots now replace stale local state after wallet link instead of merging forever by `Math.max`
 - Fixed the wallet-state regression where a verified player could still see `Ready` tasks, stale cube-roll counters, or other outdated progress from the browser even after the server already had a different authoritative snapshot.
 - Root cause:
