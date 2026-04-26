@@ -274,7 +274,7 @@ const FishingGame: React.FC = () => {
   const gameProgress = useGameProgress({
     savedProgress: isVerified ? savedGameProgress : undefined,
     savedProgressMode: isVerified && savedPlayerSyncMode !== 'link' ? 'replace' : 'merge',
-    onSave: isVerified && verifiedWalletNameReady ? saveGameProgress : undefined,
+    onSave: isVerified ? saveGameProgress : undefined,
     weeklyMissionsEnabled: economyFeatures.weeklyMissions,
     cubeRebalanceEnabled: economyFeatures.cubeRebalance,
   });
@@ -387,7 +387,7 @@ const FishingGame: React.FC = () => {
   } = useGameState({
     savedPlayer: isVerified ? savedPlayer : undefined,
     savedPlayerSyncMode: isVerified ? savedPlayerSyncMode : undefined,
-    onSave: isVerified && verifiedWalletNameReady ? saveProgress : undefined,
+    onSave: isVerified ? saveProgress : undefined,
     onFishCaught: gameProgress.recordFishCatch,
     onAuditEvent: logAuditEvent,
     collectionBookEnabled: economyFeatures.collectionBook,

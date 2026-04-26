@@ -1,5 +1,17 @@
 # STATUS
 
+## 2026-04-26 wallet-link progress saves no longer wipe player inventory or block new catches
+- Fixed a wallet-link regression where a new verified wallet could lose guest level/inventory state and then appear to catch fish without those fish staying in the account inventory.
+- Root cause:
+  - `FishingGame` can save `game_progress` during the first wallet-link flow before a full `player_data` save is ready.
+  - `save-player-progress` accepted `game_progress` without `player_data`, but still built a full player update from an empty payload, which could write empty `inventory` / `cooked_dishes` back to the wallet row.
+  - the client then treated the returned row from that progress-only save as a full player snapshot, so a stale or empty server row could replace the linked local player state.
+  - verified autosave was also gated behind saved nickname, so catches made during the required name flow could fail to reach the wallet player row.
+- Updated behavior:
+  - backend game-progress-only saves now update only `game_progress` and leave player fields such as `inventory`, level, XP, bait, rods, and dishes untouched.
+  - the client no longer applies a progress-only save response as a full player replacement; it updates only the saved game-progress mirror.
+  - verified wallet autosave for both player and game progress now stays active before nickname is saved, so guest-to-wallet linking and immediate post-link catches can persist to the account.
+
 ## 2026-04-25 release handoff check is green locally
 - Prepared a concise customer/release handoff in `docs/release-handoff.md` with the target host, build/deploy commands, checks actually run, known warnings, and items intentionally not run.
 - Fixed the local release verification blocker where ESLint scanned ignored scratch files under `tmp/` and failed on an old reward-audit helper. `eslint.config.js` now ignores `tmp`, `dist-ssr`, and `node_modules` alongside `dist`, matching the repo's generated/local-output intent.

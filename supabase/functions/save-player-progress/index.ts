@@ -765,7 +765,11 @@ serve(async (req) => {
 
     const currentUtcResetIso = getUtcResetIso();
     const currentPlayerRow = currentPlayer as PlayerRow & { daily_free_bait_reset_at: string | null };
-    const clientPayload = (player_data ?? {}) as Partial<PlayerProgressPayload>;
+    const hasPlayerPayload = player_data != null
+      && typeof player_data === 'object'
+      && !Array.isArray(player_data)
+      && Object.keys(player_data as Record<string, unknown>).length > 0;
+    const clientPayload = hasPlayerPayload ? (player_data as Partial<PlayerProgressPayload>) : {};
     const clientBonusGrantedTotal = clampInt(
       clientPayload.bonus_bait_granted_total,
       currentPlayerRow.bonus_bait_granted_total,
@@ -841,6 +845,28 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Progress payload exceeded guarded sync limits. Refresh the wallet session and try again.' }),
         { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    if (!hasPlayerPayload) {
+      const gameProgressUpdate = game_progress == null
+        ? currentPlayerRow.game_progress
+        : isStaleBase
+          ? mergeGameProgress(currentGameProgress, enrichedNextGameProgress)
+          : enrichedNextGameProgress;
+
+      const { data: updatedPlayer, error: updateError } = await supabase
+        .from('players')
+        .update({ game_progress: gameProgressUpdate })
+        .eq('wallet_address', normalizedWalletAddress)
+        .select('wallet_address, coins, bait, daily_free_bait, daily_free_bait_reset_at, bonus_bait_granted_total, level, xp, xp_to_next, rod_level, equipped_rod, inventory, cooked_dishes, game_progress, total_catches, login_streak, nft_rods, nickname, avatar_url, referrer_wallet_address, rewarded_referral_count, updated_at')
+        .single();
+
+      if (updateError) throw updateError;
+
+      return new Response(
+        JSON.stringify({ player: updatedPlayer }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 

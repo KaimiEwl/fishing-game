@@ -840,11 +840,29 @@ export function useWalletAuth() {
       if (error) throw error;
 
       if (data?.player) {
-        applyVerifiedPlayerPayload(
-          data.player as PlayerRecord,
-          null,
-          { mergeMode: queuedSaveRef.current?.player ? 'optimistic' : 'server' },
-        );
+        const playerRecord = data.player as PlayerRecord;
+
+        if (shouldSavePlayer) {
+          applyVerifiedPlayerPayload(
+            playerRecord,
+            null,
+            { mergeMode: queuedSaveRef.current?.player ? 'optimistic' : 'server' },
+          );
+        } else {
+          serverUpdatedAtRef.current = playerRecord.updated_at ?? serverUpdatedAtRef.current;
+
+          const nextSavedGameProgress = playerRecord.game_progress && typeof playerRecord.game_progress === 'object'
+            ? playerRecord.game_progress as GameProgressSnapshot
+            : bundle.gameProgress ?? null;
+
+          if (nextSavedGameProgress) {
+            lastSavedGameProgressDigestRef.current = getGameProgressDigest(nextSavedGameProgress);
+            setSavedGameProgress(nextSavedGameProgress);
+          } else if (shouldSaveGameProgress && nextGameProgressDigest) {
+            lastSavedGameProgressDigestRef.current = nextGameProgressDigest;
+            setSavedGameProgress(bundle.gameProgress ?? null);
+          }
+        }
       } else {
         if (shouldSavePlayer && nextPlayerDigest) {
           lastSavedPlayerDigestRef.current = nextPlayerDigest;
