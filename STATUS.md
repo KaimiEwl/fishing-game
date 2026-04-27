@@ -1,5 +1,17 @@
 # STATUS
 
+## 2026-04-26 pending wallet saves now protect local inventory from stale server refreshes
+- Fixed a live wallet-sync regression found during production smoke testing: a caught fish could briefly appear, then disappear before the wallet save finished.
+- Root cause:
+  - background premium-session refreshes returned full player rows and applied them as player snapshots even though those rows could be older than the just-caught local fish.
+  - verified snapshot merging intentionally treats wallet inventory as server-owned, so a stale refresh row with empty inventory could wipe the in-memory catch while the newer player save was still queued.
+  - a pending player bundle in localStorage could also be accidentally cleared by a later progress-only save if that progress save completed first.
+- Updated behavior:
+  - pending wallet player saves are now tracked explicitly.
+  - while a player save is pending, incoming non-authoritative snapshots use a `pending-local` merge that keeps the larger local fish / cooked-dish quantities instead of dropping them to an older server value.
+  - pending localStorage bundles are folded into the next wallet save request, so progress-only saves cannot discard an unsaved player snapshot.
+  - passive premium-session refresh now updates only premium-session state and is gated to avoid repeated request storms on the fishing screen.
+
 ## 2026-04-26 wallet saves now mirror full player + progress snapshots when possible
 - Added a server-mirror hardening layer without moving the gameplay core server-side yet.
 - Updated behavior:

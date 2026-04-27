@@ -23,6 +23,7 @@ import { recordCollectionCatch } from '@/lib/collectionBook';
 import {
   applyServerBonusBaitSync,
   loadStoredPlayer,
+  mergePendingLocalPlayerState,
   mergeSyncedPlayerState,
   normalizePlayerDailyFreeBait,
   storePlayerLocally,
@@ -59,8 +60,17 @@ const MIN_CAST_INTERVAL = 4000; // minimum 4s between casts
 const BITE_WINDOW_MIN = 1500; // ms
 const BITE_WINDOW_MAX = 2500; // ms
 
-const mergePlayerState = (base: PlayerState, local: PlayerState): PlayerState =>
-  mergeSyncedPlayerState(base, local);
+type PlayerSnapshotMergeMode = 'optimistic' | 'server' | 'link' | 'pending-local';
+
+const mergePlayerState = (
+  base: PlayerState,
+  local: PlayerState,
+  mergeMode: PlayerSnapshotMergeMode = 'optimistic',
+): PlayerState => (
+  mergeMode === 'pending-local'
+    ? mergePendingLocalPlayerState(base, local)
+    : mergeSyncedPlayerState(base, local)
+);
 
 const resolveInitialPlayer = (savedPlayer?: PlayerState | null) => {
   const normalizedSavedPlayer = savedPlayer
@@ -83,7 +93,7 @@ const resolveInitialPlayer = (savedPlayer?: PlayerState | null) => {
 
 interface UseGameStateOptions {
   savedPlayer?: PlayerState | null;
-  savedPlayerSyncMode?: 'optimistic' | 'server' | 'link';
+  savedPlayerSyncMode?: PlayerSnapshotMergeMode;
   onSave?: (player: PlayerState) => void;
   onFishCaught?: (fish: Fish) => void;
   onAuditEvent?: (event: PlayerAuditEventPayload) => void;
@@ -153,6 +163,7 @@ export function useGameState(options?: UseGameStateOptions) {
           normalizePlayerDailyFreeBait(prev, BAIT_BUCKETS_V2_ENABLED, DAILY_FREE_BAIT),
           normalizedSavedPlayer.bonusBaitGrantedTotal,
         ),
+        savedPlayerSyncMode,
       ));
     }
   }, [savedPlayer, savedPlayerSyncMode]);

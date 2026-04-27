@@ -242,6 +242,7 @@ const FishingGame: React.FC = () => {
     savedPlayer,
     savedPlayerSyncMode,
     savedGameProgress,
+    hasPendingPlayerSave,
     walletSessionResolving,
     address,
     referralSummary,
@@ -317,6 +318,8 @@ const FishingGame: React.FC = () => {
   const [premiumSessionLoading, setPremiumSessionLoading] = useState(false);
   const premiumBiteTimeoutHandlerRef = useRef<(() => void) | null>(null);
   const premiumCastResolveInFlightRef = useRef(false);
+  const premiumSessionRefreshInFlightRef = useRef(false);
+  const premiumSessionRefreshKeyRef = useRef<string | null>(null);
   const backgroundErrorToastRef = useRef<Record<string, number>>({});
   const linkedGameProgressFlushedForWalletRef = useRef<string | null>(null);
   const showBackgroundActionError = useCallback((key: string, message: string) => {
@@ -351,11 +354,14 @@ const FishingGame: React.FC = () => {
       setPremiumSessionLoading(false);
       return;
     }
+    if (premiumSessionRefreshInFlightRef.current) {
+      return;
+    }
 
+    premiumSessionRefreshInFlightRef.current = true;
     setPremiumSessionLoading(true);
     try {
       const result = await getPremiumSessionState();
-      applyServerPlayerSnapshot(result.player);
       setPremiumSession(result.premiumSession);
     } catch (error) {
       if (!silent) {
@@ -367,9 +373,10 @@ const FishingGame: React.FC = () => {
         console.error('Premium session refresh failed:', error);
       }
     } finally {
+      premiumSessionRefreshInFlightRef.current = false;
       setPremiumSessionLoading(false);
     }
-  }, [applyServerPlayerSnapshot, economyFeatures.premiumSessions, getPremiumSessionState, isVerified, showBackgroundActionError]);
+  }, [economyFeatures.premiumSessions, getPremiumSessionState, isVerified, showBackgroundActionError]);
 
   const {
     player,
@@ -480,8 +487,10 @@ const FishingGame: React.FC = () => {
   }, [isVerified, player, savedPlayer, verifiedWalletNickname]);
   const totalBait = useMemo(() => getVisibleBaitTotal(player), [player]);
   const grillInventory = useMemo(() => (
-    isVerified ? (savedPlayer?.inventory ?? player.inventory) : player.inventory
-  ), [isVerified, player.inventory, savedPlayer]);
+    isVerified && !hasPendingPlayerSave
+      ? (savedPlayer?.inventory ?? player.inventory)
+      : player.inventory
+  ), [hasPendingPlayerSave, isVerified, player.inventory, savedPlayer]);
   const fishingNet = gameProgress.fishingNet;
   const fishingNetPendingCount = gameProgress.fishingNetPendingCount;
   const fishingNetDailyCount = Math.max(fishingNet.dailyFishCount || 0, FISHING_NET_DAILY_FISH_COUNT);
@@ -917,15 +926,20 @@ const FishingGame: React.FC = () => {
 
   useEffect(() => {
     if (activeTab === 'fish' && economyFeatures.premiumSessions && isVerified) {
-      void refreshPremiumSession({ silent: true });
+      const refreshKey = address?.toLowerCase() ?? 'verified';
+      if (premiumSessionRefreshKeyRef.current !== refreshKey) {
+        premiumSessionRefreshKeyRef.current = refreshKey;
+        void refreshPremiumSession({ silent: true });
+      }
       return;
     }
 
+    premiumSessionRefreshKeyRef.current = null;
     if (!economyFeatures.premiumSessions || !isVerified) {
       setPremiumSession(null);
       setPremiumSessionLoading(false);
     }
-  }, [activeTab, economyFeatures.premiumSessions, isVerified, refreshPremiumSession]);
+  }, [activeTab, address, economyFeatures.premiumSessions, isVerified, refreshPremiumSession]);
 
   useEffect(() => {
     if (

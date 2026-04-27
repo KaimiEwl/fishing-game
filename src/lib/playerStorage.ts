@@ -308,6 +308,39 @@ export const mergeSyncedPlayerState = (
   };
 };
 
+export const mergePendingLocalPlayerState = (
+  serverPlayer: PlayerState,
+  localPlayer: PlayerState,
+): PlayerState => {
+  const mergedPlayer = mergeSyncedPlayerState(serverPlayer, localPlayer);
+
+  return {
+    ...mergedPlayer,
+    inventory: mergeStacksByMax(
+      serverPlayer.inventory,
+      localPlayer.inventory,
+      (item) => item.fishId,
+      (currentItem, nextItem) => ({
+        ...currentItem,
+        caughtAt: toTimeValue(currentItem.caughtAt) >= toTimeValue(nextItem.caughtAt)
+          ? currentItem.caughtAt
+          : nextItem.caughtAt,
+      }),
+    ),
+    cookedDishes: mergeStacksByMax(
+      serverPlayer.cookedDishes,
+      localPlayer.cookedDishes,
+      (item) => item.recipeId,
+      (currentItem, nextItem) => ({
+        ...currentItem,
+        createdAt: toTimeValue(currentItem.createdAt) >= toTimeValue(nextItem.createdAt)
+          ? currentItem.createdAt
+          : nextItem.createdAt,
+      }),
+    ),
+  };
+};
+
 export const mergeLinkedGuestPlayerState = (
   serverPlayer: PlayerState,
   localPlayer: PlayerState,
