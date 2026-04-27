@@ -76,6 +76,7 @@ export interface ReferralSummary {
 
 const REFERRAL_STORAGE_KEY = 'hook_loot_pending_referrer_v1';
 const LAST_REFERRAL_REWARD_STORAGE_KEY = 'hook_loot_last_referral_reward_v1';
+const PENDING_WALLET_SAVE_STORAGE_KEY = 'hook_loot_pending_wallet_save_v1';
 const EDGE_FUNCTION_GENERIC_MESSAGES = [
   'Edge Function returned a non-2xx status code',
   'Failed to send a request to the Edge Function',
@@ -625,6 +626,59 @@ const mergeSaveBundle = (
   gameProgress: next.gameProgress ?? current?.gameProgress,
 });
 
+const buildPendingWalletSaveStorageKey = (walletAddress: string) => (
+  `${PENDING_WALLET_SAVE_STORAGE_KEY}:${walletAddress.toLowerCase()}`
+);
+
+const normalizeStoredPendingWalletSaveBundle = (value: unknown): WalletSaveBundle | null => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+
+  const source = value as {
+    player?: unknown;
+    gameProgress?: unknown;
+  };
+  const player = source.player && typeof source.player === 'object' && !Array.isArray(source.player)
+    ? source.player as PlayerState
+    : undefined;
+  const gameProgress = source.gameProgress && typeof source.gameProgress === 'object' && !Array.isArray(source.gameProgress)
+    ? source.gameProgress as GameProgressSnapshot
+    : undefined;
+
+  return player || gameProgress ? { player, gameProgress } : null;
+};
+
+const loadPendingWalletSaveBundle = (walletAddress: string): WalletSaveBundle | null => {
+  try {
+    const raw = localStorage.getItem(buildPendingWalletSaveStorageKey(walletAddress));
+    if (!raw) return null;
+    return normalizeStoredPendingWalletSaveBundle(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+};
+
+const storePendingWalletSaveBundle = (walletAddress: string, bundle: WalletSaveBundle) => {
+  try {
+    const nextBundle = mergeSaveBundle(loadPendingWalletSaveBundle(walletAddress), bundle);
+    if (!nextBundle.player && !nextBundle.gameProgress) return;
+
+    localStorage.setItem(
+      buildPendingWalletSaveStorageKey(walletAddress),
+      JSON.stringify(nextBundle),
+    );
+  } catch {
+    // Local pending sync is a resilience layer; network save still remains the source of truth.
+  }
+};
+
+const clearPendingWalletSaveBundle = (walletAddress: string) => {
+  try {
+    localStorage.removeItem(buildPendingWalletSaveStorageKey(walletAddress));
+  } catch {
+    // Ignore storage failures; the next successful save can still clear server-side drift.
+  }
+};
+
 export function useWalletAuth() {
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
@@ -646,6 +700,7 @@ export function useWalletAuth() {
   const pendingLinkedPlayerSaveRef = useRef<PlayerState | null>(null);
   const autoVerifyAttemptedForAddressRef = useRef<string | null>(null);
   const queuedSaveRef = useRef<WalletSaveBundle | null>(null);
+  const pendingWalletSaveRestoredForAddressRef = useRef<string | null>(null);
   const lastSavedPlayerDigestRef = useRef<string | null>(null);
   const lastSavedGameProgressDigestRef = useRef<string | null>(null);
   const serverUpdatedAtRef = useRef<string | null>(null);
@@ -817,16 +872,25 @@ export function useWalletAuth() {
       return true;
     }
 
+    const pendingBundle: WalletSaveBundle = {
+      player: shouldSavePlayer ? bundle.player : undefined,
+      gameProgress: shouldSaveGameProgress ? bundle.gameProgress : undefined,
+    };
+
     if (saveInFlightRef.current) {
-      queuedSaveRef.current = mergeSaveBundle(queuedSaveRef.current, bundle);
+      queuedSaveRef.current = mergeSaveBundle(queuedSaveRef.current, pendingBundle);
+      storePendingWalletSaveBundle(address, pendingBundle);
       return true;
     }
 
     saveInFlightRef.current = true;
+    let saveSucceeded = false;
     try {
       const serializedGameProgress = shouldSaveGameProgress && bundle.gameProgress
         ? serializeGameProgress(bundle.gameProgress)
         : undefined;
+      storePendingWalletSaveBundle(address, pendingBundle);
+
       const { data, error } = await supabase.functions.invoke('save-player-progress', {
         body: {
           wallet_address: address,
@@ -873,10 +937,12 @@ export function useWalletAuth() {
         }
       }
 
+      saveSucceeded = true;
       return true;
     } catch (error) {
       console.error('Wallet progress save failed:', error);
-      queuedSaveRef.current = mergeSaveBundle(queuedSaveRef.current, bundle);
+      queuedSaveRef.current = mergeSaveBundle(queuedSaveRef.current, pendingBundle);
+      storePendingWalletSaveBundle(address, pendingBundle);
       return false;
     } finally {
       saveInFlightRef.current = false;
@@ -884,18 +950,27 @@ export function useWalletAuth() {
       const queuedBundle = queuedSaveRef.current;
       if (queuedBundle) {
         queuedSaveRef.current = null;
+        storePendingWalletSaveBundle(address, queuedBundle);
         if (
           (queuedBundle.player && getPlayerProgressDigest(queuedBundle.player) !== lastSavedPlayerDigestRef.current)
           || (queuedBundle.gameProgress && getGameProgressDigest(queuedBundle.gameProgress) !== lastSavedGameProgressDigestRef.current)
         ) {
           void persistWalletState(queuedBundle);
+        } else if (saveSucceeded) {
+          clearPendingWalletSaveBundle(address);
         }
+      } else if (saveSucceeded) {
+        clearPendingWalletSaveBundle(address);
       }
     }
   }, [address, applyVerifiedPlayerPayload, isConnected, isVerified]);
 
   const saveProgress = useCallback((player: PlayerState) => (
     persistWalletState({ player })
+  ), [persistWalletState]);
+
+  const saveWalletSnapshot = useCallback((bundle: WalletSaveBundle) => (
+    persistWalletState(bundle)
   ), [persistWalletState]);
 
   useEffect(() => {
@@ -907,6 +982,26 @@ export function useWalletAuth() {
     pendingLinkedPlayerSaveRef.current = null;
     void persistWalletState({ player: linkedPlayer });
   }, [isVerified, persistWalletState]);
+
+  useEffect(() => {
+    if (!address || !isVerified) return;
+
+    const normalizedAddress = address.toLowerCase();
+    if (pendingWalletSaveRestoredForAddressRef.current === normalizedAddress) return;
+    pendingWalletSaveRestoredForAddressRef.current = normalizedAddress;
+
+    const pendingBundle = loadPendingWalletSaveBundle(address);
+    if (!pendingBundle) return;
+
+    queuedSaveRef.current = mergeSaveBundle(queuedSaveRef.current, pendingBundle);
+    if (!saveInFlightRef.current) {
+      const queuedBundle = queuedSaveRef.current;
+      queuedSaveRef.current = null;
+      if (queuedBundle) {
+        void persistWalletState(queuedBundle);
+      }
+    }
+  }, [address, isVerified, persistWalletState]);
 
   const saveGameProgress = useCallback((gameProgress: GameProgressSnapshot) => (
     persistWalletState({ gameProgress })
@@ -952,6 +1047,32 @@ export function useWalletAuth() {
     }
 
     return lastSavedGameProgressDigestRef.current === targetDigest;
+  }, [persistWalletState]);
+
+  const flushWalletSnapshot = useCallback(async (bundle: WalletSaveBundle, timeoutMs = 8000) => {
+    const targetPlayerDigest = bundle.player ? getPlayerProgressDigest(bundle.player) : null;
+    const targetGameProgressDigest = bundle.gameProgress ? getGameProgressDigest(bundle.gameProgress) : null;
+    const saveQueued = await persistWalletState(bundle);
+    if (!saveQueued) return false;
+
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const playerSynced = !targetPlayerDigest || lastSavedPlayerDigestRef.current === targetPlayerDigest;
+      const gameProgressSynced = !targetGameProgressDigest || lastSavedGameProgressDigestRef.current === targetGameProgressDigest;
+
+      if (playerSynced && gameProgressSynced && !saveInFlightRef.current && !queuedSaveRef.current) {
+        return true;
+      }
+
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, 120);
+      });
+    }
+
+    return (
+      (!targetPlayerDigest || lastSavedPlayerDigestRef.current === targetPlayerDigest)
+      && (!targetGameProgressDigest || lastSavedGameProgressDigestRef.current === targetGameProgressDigest)
+    );
   }, [persistWalletState]);
 
   const saveVerifiedNickname = useCallback(async (_player: PlayerState, nickname: string, timeoutMs = 10000) => {
@@ -1220,6 +1341,7 @@ export function useWalletAuth() {
       lastSavedPlayerDigestRef.current = null;
       lastSavedGameProgressDigestRef.current = null;
       queuedSaveRef.current = null;
+      pendingWalletSaveRestoredForAddressRef.current = null;
       pendingLinkedPlayerSaveRef.current = null;
       saveInFlightRef.current = false;
       restoredRef.current = false;
@@ -1243,8 +1365,10 @@ export function useWalletAuth() {
     verificationError,
     referralSummary,
     saveProgress,
+    saveWalletSnapshot,
     flushPlayerSave,
     flushGameProgressSave,
+    flushWalletSnapshot,
     saveGameProgress,
     saveVerifiedNickname,
     syncServerPlayerRecord: (

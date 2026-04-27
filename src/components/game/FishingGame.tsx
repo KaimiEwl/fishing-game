@@ -70,6 +70,7 @@ import {
   type GrillLeaderboardEntry,
   type GrillRecipe,
   type PremiumSessionState,
+  type PlayerState,
   type ReactionQuality,
   type SocialTaskId,
   type SocialTaskProgress,
@@ -244,10 +245,9 @@ const FishingGame: React.FC = () => {
     walletSessionResolving,
     address,
     referralSummary,
-    saveProgress,
+    saveWalletSnapshot,
     flushPlayerSave,
-    flushGameProgressSave,
-    saveGameProgress,
+    flushWalletSnapshot,
     saveVerifiedNickname,
     syncServerPlayerRecord,
     retryVerifyWallet,
@@ -270,11 +270,26 @@ const FishingGame: React.FC = () => {
   const [claimingTaskId, setClaimingTaskId] = useState<TaskId | null>(null);
   const [claimingWeeklyMissionId, setClaimingWeeklyMissionId] = useState<WeeklyMissionId | null>(null);
   const economyFeatures = useMemo(() => getEconomyFeatureAvailability(address), [address]);
-  const verifiedWalletNameReady = !isVerified || Boolean(normalizeWalletNickname(savedPlayer?.nickname));
+  const walletMirrorPlayerRef = useRef<PlayerState | null>(null);
+  const walletMirrorGameProgressRef = useRef<GameProgressSnapshot | null>(null);
+  const saveMirroredGameProgress = useCallback((nextGameProgress: GameProgressSnapshot) => {
+    walletMirrorGameProgressRef.current = nextGameProgress;
+    return saveWalletSnapshot({
+      player: walletMirrorPlayerRef.current ?? undefined,
+      gameProgress: nextGameProgress,
+    });
+  }, [saveWalletSnapshot]);
+  const saveMirroredPlayer = useCallback((nextPlayer: PlayerState) => {
+    walletMirrorPlayerRef.current = nextPlayer;
+    return saveWalletSnapshot({
+      player: nextPlayer,
+      gameProgress: walletMirrorGameProgressRef.current ?? undefined,
+    });
+  }, [saveWalletSnapshot]);
   const gameProgress = useGameProgress({
     savedProgress: isVerified ? savedGameProgress : undefined,
     savedProgressMode: isVerified && savedPlayerSyncMode !== 'link' ? 'replace' : 'merge',
-    onSave: isVerified ? saveGameProgress : undefined,
+    onSave: isVerified ? saveMirroredGameProgress : undefined,
     weeklyMissionsEnabled: economyFeatures.weeklyMissions,
     cubeRebalanceEnabled: economyFeatures.cubeRebalance,
   });
@@ -387,7 +402,7 @@ const FishingGame: React.FC = () => {
   } = useGameState({
     savedPlayer: isVerified ? savedPlayer : undefined,
     savedPlayerSyncMode: isVerified ? savedPlayerSyncMode : undefined,
-    onSave: isVerified ? saveProgress : undefined,
+    onSave: isVerified ? saveMirroredPlayer : undefined,
     onFishCaught: gameProgress.recordFishCatch,
     onAuditEvent: logAuditEvent,
     collectionBookEnabled: economyFeatures.collectionBook,
@@ -395,6 +410,42 @@ const FishingGame: React.FC = () => {
       premiumBiteTimeoutHandlerRef.current?.();
     },
   });
+
+  useEffect(() => {
+    walletMirrorPlayerRef.current = player;
+  }, [player]);
+
+  useEffect(() => {
+    walletMirrorGameProgressRef.current = gameProgress.snapshot;
+  }, [gameProgress.snapshot]);
+
+  useEffect(() => {
+    if (!isVerified) return;
+
+    const saveLatestWalletMirror = () => {
+      const latestPlayer = walletMirrorPlayerRef.current;
+      const latestGameProgress = walletMirrorGameProgressRef.current;
+      if (!latestPlayer && !latestGameProgress) return;
+
+      void saveWalletSnapshot({
+        player: latestPlayer ?? undefined,
+        gameProgress: latestGameProgress ?? undefined,
+      });
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        saveLatestWalletMirror();
+      }
+    };
+
+    window.addEventListener('pagehide', saveLatestWalletMirror);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('pagehide', saveLatestWalletMirror);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isVerified, saveWalletSnapshot]);
 
   const sounds = useSoundEffects();
   useBackgroundMusic();
@@ -497,13 +548,16 @@ const FishingGame: React.FC = () => {
     if (linkedGameProgressFlushedForWalletRef.current === verifiedAddress) return;
 
     linkedGameProgressFlushedForWalletRef.current = verifiedAddress;
-    void flushGameProgressSave(gameProgress.snapshot, 15000).then((synced) => {
+    void flushWalletSnapshot({
+      player,
+      gameProgress: gameProgress.snapshot,
+    }, 15000).then((synced) => {
       if (synced) return;
 
-      console.error('Initial linked wallet game progress sync did not complete in time.');
+      console.error('Initial linked wallet full progress sync did not complete in time.');
       linkedGameProgressFlushedForWalletRef.current = null;
     });
-  }, [address, flushGameProgressSave, gameProgress.snapshot, isVerified, savedPlayerSyncMode]);
+  }, [address, flushWalletSnapshot, gameProgress.snapshot, isVerified, player, savedPlayerSyncMode]);
 
   const saveCurrentLeaderboardEntry = useCallback((name: string, score: number, dishesDelta = 0) => {
     setLeaderboardEntries((entries) => {
@@ -1028,8 +1082,11 @@ const FishingGame: React.FC = () => {
     if (!isVerified) return true;
 
     const claimSyncSnapshot = buildClaimSyncProgressSnapshot(taskId);
-    return saveGameProgress(claimSyncSnapshot);
-  }, [buildClaimSyncProgressSnapshot, isVerified, saveGameProgress]);
+    return saveWalletSnapshot({
+      player,
+      gameProgress: claimSyncSnapshot,
+    });
+  }, [buildClaimSyncProgressSnapshot, isVerified, player, saveWalletSnapshot]);
 
   const claimVerifiedTaskRewardWithRetry = useCallback(async (taskId: TaskId | WeeklyMissionId) => {
     const claimSyncSnapshot = buildClaimSyncProgressSnapshot(taskId);

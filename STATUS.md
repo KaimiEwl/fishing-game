@@ -1,5 +1,15 @@
 # STATUS
 
+## 2026-04-26 wallet saves now mirror full player + progress snapshots when possible
+- Added a server-mirror hardening layer without moving the gameplay core server-side yet.
+- Updated behavior:
+  - verified autosaves now send a combined wallet snapshot when possible: current `player_data` plus current `game_progress`, instead of letting those two streams drift independently.
+  - first wallet-link sync now flushes both the merged guest player and game progress together.
+  - task-claim pre-sync now also includes the current player snapshot with the task progress snapshot.
+  - page hide / background transitions trigger a best-effort full wallet snapshot save so short sessions are less likely to rely only on debounce timers.
+  - failed or interrupted wallet saves keep the latest pending bundle in localStorage and retry it after the verified wallet session is restored.
+- This is still a synchronization hardening layer, not a full server-authoritative rewrite; anti-cheat and atomic server-side catch/economy logic remain a later architecture stage.
+
 ## 2026-04-26 wallet-link progress saves no longer wipe player inventory or block new catches
 - Fixed a wallet-link regression where a new verified wallet could lose guest level/inventory state and then appear to catch fish without those fish staying in the account inventory.
 - Root cause:
