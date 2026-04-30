@@ -4,7 +4,9 @@ import type { Database } from './types';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'placeholder-key';
-const SAME_ORIGIN_EDGE_PROXY_HOSTS = new Set(['www.hookloot.xyz']);
+const SAME_ORIGIN_EDGE_PROXY_HOSTS = new Set(['hookloot.xyz', 'www.hookloot.xyz']);
+const EDGE_CALL_TRACE_STORAGE_KEY = 'hookloot_edge_call_trace_v1';
+const EDGE_CALL_TRACE_LIMIT = 250;
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
@@ -31,6 +33,32 @@ interface EdgeInvokeOptions {
 
 interface EdgeFunctionErrorContext {
   clone: () => Response;
+}
+
+interface EdgeCallTrace {
+  id: string;
+  functionName: string;
+  action: string | null;
+  wallet: string | null;
+  method: string;
+  transport: 'same-origin' | 'direct-fetch' | 'supabase-js';
+  startedAt: number;
+}
+
+interface EdgeCallTraceEntry extends Omit<EdgeCallTrace, 'startedAt'> {
+  at: string;
+  durationMs: number;
+  ok: boolean;
+  status: number | null;
+  error: string | null;
+}
+
+declare global {
+  interface Window {
+    __hookLootEdgeCalls?: EdgeCallTraceEntry[];
+    __hookLootEdgeCallStats?: () => Record<string, number>;
+    __clearHookLootEdgeCalls?: () => void;
+  }
 }
 
 export interface EdgeFunctionHttpError extends Error {
@@ -61,6 +89,125 @@ const isMissingAuthHeaderProxyError = (error: unknown) => {
 
   return typeof edgeError.responseBody === 'string'
     && edgeError.responseBody.toLowerCase().includes('missing authorization header');
+};
+
+const getRecordValue = (value: unknown, key: string) => (
+  value && typeof value === 'object' && key in value
+    ? (value as Record<string, unknown>)[key]
+    : undefined
+);
+
+const getInvokeAction = (body: unknown) => {
+  const action = getRecordValue(body, 'action');
+  return typeof action === 'string' && action.trim() ? action.trim() : null;
+};
+
+const getInvokeWallet = (body: unknown) => {
+  const wallet = getRecordValue(body, 'wallet_address') ?? getRecordValue(body, 'walletAddress');
+  if (typeof wallet !== 'string') return null;
+
+  const normalized = wallet.trim();
+  if (!/^0x[a-fA-F0-9]{40}$/.test(normalized)) return null;
+  return `${normalized.slice(0, 6)}...${normalized.slice(-4)}`.toLowerCase();
+};
+
+const readStoredEdgeCalls = (): EdgeCallTraceEntry[] => {
+  if (typeof window === 'undefined') return [];
+
+  try {
+    const raw = window.localStorage.getItem(EDGE_CALL_TRACE_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed as EdgeCallTraceEntry[] : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeStoredEdgeCalls = (calls: EdgeCallTraceEntry[]) => {
+  if (typeof window === 'undefined') return;
+
+  try {
+    window.__hookLootEdgeCalls = calls;
+    window.localStorage.setItem(EDGE_CALL_TRACE_STORAGE_KEY, JSON.stringify(calls));
+  } catch {
+    window.__hookLootEdgeCalls = calls;
+  }
+};
+
+const ensureEdgeCallDebugHelpers = () => {
+  if (typeof window === 'undefined') return;
+
+  if (!window.__hookLootEdgeCalls) {
+    window.__hookLootEdgeCalls = readStoredEdgeCalls();
+  }
+
+  if (!window.__hookLootEdgeCallStats) {
+    window.__hookLootEdgeCallStats = () => {
+      const calls = window.__hookLootEdgeCalls ?? readStoredEdgeCalls();
+      return calls.reduce<Record<string, number>>((stats, call) => {
+        const key = call.action ? `${call.functionName}.${call.action}` : call.functionName;
+        stats[key] = (stats[key] ?? 0) + 1;
+        return stats;
+      }, {});
+    };
+  }
+
+  if (!window.__clearHookLootEdgeCalls) {
+    window.__clearHookLootEdgeCalls = () => {
+      writeStoredEdgeCalls([]);
+    };
+  }
+};
+
+const beginEdgeCallTrace = (
+  functionName: string,
+  options: EdgeInvokeOptions | undefined,
+  transport: EdgeCallTrace['transport'],
+): EdgeCallTrace => ({
+  id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+  functionName,
+  action: getInvokeAction(options?.body),
+  wallet: getInvokeWallet(options?.body),
+  method: options?.method ?? 'POST',
+  transport,
+  startedAt: Date.now(),
+});
+
+const finishEdgeCallTrace = (
+  trace: EdgeCallTrace,
+  {
+    ok,
+    status = null,
+    error = null,
+  }: {
+    ok: boolean;
+    status?: number | null;
+    error?: string | null;
+  },
+) => {
+  if (typeof window === 'undefined') return;
+
+  ensureEdgeCallDebugHelpers();
+
+  const entry: EdgeCallTraceEntry = {
+    id: trace.id,
+    functionName: trace.functionName,
+    action: trace.action,
+    wallet: trace.wallet,
+    method: trace.method,
+    transport: trace.transport,
+    at: new Date(trace.startedAt).toISOString(),
+    durationMs: Date.now() - trace.startedAt,
+    ok,
+    status,
+    error,
+  };
+  const calls = [...readStoredEdgeCalls(), entry].slice(-EDGE_CALL_TRACE_LIMIT);
+  writeStoredEdgeCalls(calls);
+
+  const label = ok ? 'edge-call' : 'edge-call-error';
+  console.info(`[${label}]`, entry);
 };
 
 const buildInvokeBody = (body: unknown): BodyInit | undefined => {
@@ -126,16 +273,37 @@ export const invokeEdgeFunctionHttp = async <T>(
   functionName: string,
   options?: EdgeInvokeOptions,
 ): Promise<T> => {
-  const response = await fetch(buildInvokeUrl(functionName), {
-    method: options?.method ?? 'POST',
-    headers: buildInvokeHeaders(options?.body, options?.headers),
-    body: buildInvokeBody(options?.body),
-  });
+  const trace = beginEdgeCallTrace(
+    functionName,
+    options,
+    shouldUseSameOriginEdgeProxy() ? 'same-origin' : 'direct-fetch',
+  );
+
+  let response: Response;
+  try {
+    response = await fetch(buildInvokeUrl(functionName), {
+      method: options?.method ?? 'POST',
+      headers: buildInvokeHeaders(options?.body, options?.headers),
+      body: buildInvokeBody(options?.body),
+    });
+  } catch (error) {
+    finishEdgeCallTrace(trace, {
+      ok: false,
+      error: error instanceof Error ? error.message : 'fetch failed',
+    });
+    throw error;
+  }
 
   const responseBody = response.status === 204 ? '' : await response.text();
   const responseData = parseResponsePayload(response, responseBody);
 
   if (!response.ok) {
+    finishEdgeCallTrace(trace, {
+      ok: false,
+      status: response.status,
+      error: 'non-2xx',
+    });
+
     const error = Object.assign(
       new Error('Edge Function returned a non-2xx status code'),
       {
@@ -149,6 +317,7 @@ export const invokeEdgeFunctionHttp = async <T>(
     throw error;
   }
 
+  finishEdgeCallTrace(trace, { ok: true, status: response.status });
   return responseData as T;
 };
 
@@ -160,7 +329,22 @@ export const invokeEdgeFunctionHttp = async <T>(
   method?: string;
 }) => {
   if (!shouldUseSameOriginEdgeProxy()) {
-    return originalInvoke(functionName, options as Parameters<typeof originalInvoke>[1]);
+    const trace = beginEdgeCallTrace(functionName, options, 'supabase-js');
+    try {
+      const result = await originalInvoke(functionName, options as Parameters<typeof originalInvoke>[1]);
+      finishEdgeCallTrace(trace, {
+        ok: !result.error,
+        status: null,
+        error: result.error instanceof Error ? result.error.message : null,
+      });
+      return result;
+    } catch (error) {
+      finishEdgeCallTrace(trace, {
+        ok: false,
+        error: error instanceof Error ? error.message : 'invoke failed',
+      });
+      throw error;
+    }
   }
 
   try {
@@ -168,7 +352,22 @@ export const invokeEdgeFunctionHttp = async <T>(
     return { data, error: null };
   } catch (error) {
     if (isMissingAuthHeaderProxyError(error)) {
-      return originalInvoke(functionName, options as Parameters<typeof originalInvoke>[1]);
+      const trace = beginEdgeCallTrace(functionName, options, 'supabase-js');
+      try {
+        const result = await originalInvoke(functionName, options as Parameters<typeof originalInvoke>[1]);
+        finishEdgeCallTrace(trace, {
+          ok: !result.error,
+          status: null,
+          error: result.error instanceof Error ? result.error.message : null,
+        });
+        return result;
+      } catch (fallbackError) {
+        finishEdgeCallTrace(trace, {
+          ok: false,
+          error: fallbackError instanceof Error ? fallbackError.message : 'invoke failed',
+        });
+        throw fallbackError;
+      }
     }
 
     return {

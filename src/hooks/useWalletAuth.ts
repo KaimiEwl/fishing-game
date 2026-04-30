@@ -34,6 +34,8 @@ import {
 } from '@/lib/walletSession';
 import { useToast } from '@/hooks/use-toast';
 
+const VERIFIED_SESSION_REFRESH_INTERVAL_MS = 300_000;
+
 export interface PlayerRecord {
   wallet_address: string;
   coins: number;
@@ -1346,7 +1348,7 @@ export function useWalletAuth() {
       if (document.visibilityState === 'visible') {
         void refreshVerifiedSession();
       }
-    }, 30000);
+    }, VERIFIED_SESSION_REFRESH_INTERVAL_MS);
 
     window.addEventListener('focus', handleWindowFocus);
     document.addEventListener('visibilitychange', handleVisibilityChange);

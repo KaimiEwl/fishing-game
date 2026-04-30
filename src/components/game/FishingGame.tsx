@@ -88,6 +88,7 @@ const GrillScreen = lazy(() => import('./GrillScreen'));
 const WheelScreen = lazy(() => import('./WheelScreen'));
 const LeaderboardScreen = lazy(() => import('./LeaderboardScreen'));
 const MapScreen = lazy(() => import('./MapScreen'));
+const PREMIUM_SESSION_STATUS_REFRESH_COOLDOWN_MS = 60_000;
 
 const setBootLoaderState = (progress: number, label?: string) => {
   const bootWindow = window as Window & {
@@ -320,6 +321,7 @@ const FishingGame: React.FC = () => {
   const premiumCastResolveInFlightRef = useRef(false);
   const premiumSessionRefreshInFlightRef = useRef(false);
   const premiumSessionRefreshKeyRef = useRef<string | null>(null);
+  const premiumSessionLastRefreshAtRef = useRef(0);
   const backgroundErrorToastRef = useRef<Record<string, number>>({});
   const linkedGameProgressFlushedForWalletRef = useRef<string | null>(null);
   const showBackgroundActionError = useCallback((key: string, message: string) => {
@@ -348,7 +350,13 @@ const FishingGame: React.FC = () => {
   ) => {
     syncServerPlayerRecord(playerRecord, options);
   }, [syncServerPlayerRecord]);
-  const refreshPremiumSession = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+  const refreshPremiumSession = useCallback(async ({
+    silent = false,
+    force = false,
+  }: {
+    silent?: boolean;
+    force?: boolean;
+  } = {}) => {
     if (!economyFeatures.premiumSessions || !isVerified) {
       setPremiumSession(null);
       setPremiumSessionLoading(false);
@@ -358,6 +366,12 @@ const FishingGame: React.FC = () => {
       return;
     }
 
+    const now = Date.now();
+    if (!force && now - premiumSessionLastRefreshAtRef.current < PREMIUM_SESSION_STATUS_REFRESH_COOLDOWN_MS) {
+      return;
+    }
+
+    premiumSessionLastRefreshAtRef.current = now;
     premiumSessionRefreshInFlightRef.current = true;
     setPremiumSessionLoading(true);
     try {
@@ -1557,7 +1571,7 @@ const FishingGame: React.FC = () => {
     } catch (error) {
       resetPremiumCastState();
       toast.error(error instanceof Error ? error.message : 'Could not resolve premium cast.');
-      void refreshPremiumSession({ silent: true });
+      void refreshPremiumSession({ silent: true, force: true });
     } finally {
       premiumCastResolveInFlightRef.current = false;
     }

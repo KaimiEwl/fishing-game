@@ -1148,6 +1148,7 @@ In progress.
 These should not be staged unless they become part of an intentional task.
 
 ## Recent UI follow-up
+- 2026-04-29: Supabase quota investigation found the Edge Function spike was concentrated in `player_actions.get_premium_session_state` (`3.85M+` recorded rate-limit hits). A defensive patch now routes both `hookloot.xyz` and `www.hookloot.xyz` function calls through the same-origin proxy, throttles premium-session status refreshes on the client, reduces the backend status-check allowance to `6/min`, slows non-critical wallet/inbox/MON/admin background refreshes, adds a browser-local Edge call trace buffer (`window.__hookLootEdgeCalls` / `window.__hookLootEdgeCallStats()`), and adds nginx method/rate limits for `/api/edge/` plus crawler disallows for edge/QA URLs.
 - cube actions now use English popup dialogs: unfinished daily rolls route to `Tasks`, and `Buy Roll` opens wallet connect when no wallet is attached
 - wallet connect from `Settings` now waits for the settings dialog to close before opening RainbowKit, which avoids the non-clickable mobile wallet menu overlay
 - guest fishing progress now persists locally as well: coins, bait, fish inventory, owned/equipped rods, NFT rods, level, XP, and catches survive reloads without a wallet

@@ -4,6 +4,8 @@ import { useToast } from '@/hooks/use-toast';
 import { getStoredWalletSession } from '@/lib/walletSession';
 import { MON_HOLD_DAYS, MIN_WITHDRAW_MON, normalizeMonAmount } from '@/lib/monRewards';
 
+const PLAYER_MON_REFRESH_INTERVAL_MS = 120_000;
+
 interface MonBalanceSummaryResponse {
   totalEarnedMon?: number;
   pendingHoldMon?: number;
@@ -181,7 +183,7 @@ export function usePlayerMon(walletAddress: string | undefined, enabled: boolean
       if (document.visibilityState === 'visible') {
         void refresh();
       }
-    }, 30000);
+    }, PLAYER_MON_REFRESH_INTERVAL_MS);
 
     window.addEventListener('focus', handleWindowFocus);
     document.addEventListener('visibilitychange', handleVisibilityChange);

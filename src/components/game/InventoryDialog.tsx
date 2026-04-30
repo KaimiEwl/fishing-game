@@ -58,7 +58,7 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({
   }));
   const completedPages = normalizedCollectionBook.pages.filter((page) => page.completed).length;
   const showCollectionTab = collectionBookEnabled;
-  const tabsColumnClass = showCollectionTab ? 'grid-cols-4' : 'grid-cols-3';
+  const tabsColumnClass = showCollectionTab ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3';
 
   const inventoryItems = inventory.map(item => {
     const fishData = FISH_DATA.find(f => f.id === item.fishId);
@@ -112,13 +112,13 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({
           </button>
         </DialogClose>
         <Tabs defaultValue="fish" className="flex h-full min-h-0 w-full flex-col">
-          <TabsList className={`grid h-auto w-full ${tabsColumnClass} gap-1 rounded-[1.1rem] border border-[#8f6a38]/70 bg-[rgba(16,11,8,0.86)] p-1 shadow-[0_18px_40px_rgba(0,0,0,0.35)] backdrop-blur-md sm:gap-1.5 sm:rounded-[1.35rem] sm:p-1.5`}>
-            <TabsTrigger value="fish" className="h-9 gap-1 rounded-[0.8rem] px-1.5 text-[0.62rem] font-black uppercase tracking-[0.02em] text-[#ead4aa] data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab] sm:h-10 sm:rounded-[0.95rem] sm:px-2 sm:text-[0.78rem]"><FishIcon fishId="carp" size="badge" /> Fish ({totalFish})</TabsTrigger>
-            <TabsTrigger value="dishes" className="h-9 gap-1 rounded-[0.8rem] px-1.5 text-[0.62rem] font-black uppercase tracking-[0.02em] text-[#ead4aa] data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab] sm:h-10 sm:rounded-[0.95rem] sm:px-2 sm:text-[0.78rem]"><ChefHat className="h-4 w-4" /> Grill Stuff ({totalDishes})</TabsTrigger>
+          <TabsList className={`!grid !h-auto w-full ${tabsColumnClass} gap-1 rounded-[1.1rem] border border-[#8f6a38]/70 bg-[rgba(16,11,8,0.86)] p-1 shadow-[0_18px_40px_rgba(0,0,0,0.35)] backdrop-blur-md sm:gap-1.5 sm:rounded-[1.35rem] sm:p-1.5`}>
+            <TabsTrigger value="fish" className="h-10 gap-1 rounded-[0.8rem] px-1.5 text-center text-[0.62rem] font-black uppercase leading-tight tracking-[0.02em] text-[#ead4aa] !whitespace-normal data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab] sm:h-10 sm:rounded-[0.95rem] sm:px-2 sm:text-[0.78rem]"><FishIcon fishId="carp" size="badge" /> Fish ({totalFish})</TabsTrigger>
+            <TabsTrigger value="dishes" className="h-10 gap-1 rounded-[0.8rem] px-1.5 text-center text-[0.62rem] font-black uppercase leading-tight tracking-[0.02em] text-[#ead4aa] !whitespace-normal data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab] sm:h-10 sm:rounded-[0.95rem] sm:px-2 sm:text-[0.78rem]"><ChefHat className="h-4 w-4" /> Grill Stuff ({totalDishes})</TabsTrigger>
             {showCollectionTab && (
-              <TabsTrigger value="album" className="h-9 gap-1 rounded-[0.8rem] px-1.5 text-[0.62rem] font-black uppercase tracking-[0.02em] text-[#ead4aa] data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab] sm:h-10 sm:rounded-[0.95rem] sm:px-2 sm:text-[0.78rem]"><BookOpen className="h-4 w-4" /> Achievements</TabsTrigger>
+              <TabsTrigger value="album" className="h-10 gap-1 rounded-[0.8rem] px-1.5 text-center text-[0.62rem] font-black uppercase leading-tight tracking-[0.02em] text-[#ead4aa] !whitespace-normal data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab] sm:h-10 sm:rounded-[0.95rem] sm:px-2 sm:text-[0.78rem]"><BookOpen className="h-4 w-4" /> Achievements</TabsTrigger>
             )}
-            <TabsTrigger value="rods" className="h-9 gap-1 rounded-[0.8rem] px-1.5 text-[0.62rem] font-black uppercase tracking-[0.02em] text-[#ead4aa] data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab] sm:h-10 sm:rounded-[0.95rem] sm:px-2 sm:text-[0.78rem]"><ShipWheel className="h-4 w-4" /> Rods ({ownedRods.length})</TabsTrigger>
+            <TabsTrigger value="rods" className="h-10 gap-1 rounded-[0.8rem] px-1.5 text-center text-[0.62rem] font-black uppercase leading-tight tracking-[0.02em] text-[#ead4aa] !whitespace-normal data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab] sm:h-10 sm:rounded-[0.95rem] sm:px-2 sm:text-[0.78rem]"><ShipWheel className="h-4 w-4" /> Rods ({ownedRods.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="fish" className="mt-3 min-h-0 min-w-0 flex-1 overflow-hidden">

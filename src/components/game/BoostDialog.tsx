@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -11,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { useSendTransaction } from 'wagmi';
 import { waitForTransactionReceipt } from '@wagmi/core';
 import { parseEther } from 'viem';
-import { Coins, Crown, Fish, Rocket, Sparkles, Zap } from 'lucide-react';
+import { Coins, Crown, Fish, Rocket, Sparkles, X, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { BOOST_ICON_SRC } from '@/lib/rodAssets';
 import { isUserRejectedError } from '@/lib/errorUtils';
@@ -161,6 +162,15 @@ const BoostDialog: React.FC<BoostDialogProps> = ({
         </DialogHeader>
 
         <div className="relative z-10 flex h-full min-h-0 flex-col px-[7.5%] pb-[8.8%] pt-[18.5%] sm:px-[20.4%] sm:pb-[16%] sm:pt-[19.4%]">
+        <DialogClose asChild>
+          <button
+            type="button"
+            aria-label="Close boost menu"
+            className="absolute right-[2.5%] top-[7%] z-50 inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#f0c179]/90 bg-[rgba(24,14,8,0.96)] text-[#fff0c7] shadow-[0_12px_26px_rgba(0,0,0,0.58)] transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-[#e7c17a]/80 focus:ring-offset-0 sm:right-[10.6%] sm:top-[7.3%]"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </DialogClose>
         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 [touch-action:pan-y]">
           <div className="grid gap-3">
           {canOfferPremiumSession && hasActivePremiumSession && (

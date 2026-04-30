@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { getStoredWalletSession } from '@/lib/walletSession';
 
 type PlayerMessageRow = Tables<'player_messages'>;
+const PLAYER_MESSAGES_REFRESH_INTERVAL_MS = 120_000;
 
 export interface PlayerInboxMessage {
   id: string;
@@ -145,7 +146,7 @@ export function usePlayerMessages(walletAddress: string | undefined, enabled: bo
       if (document.visibilityState === 'visible') {
         void refreshInbox(true);
       }
-    }, 30000);
+    }, PLAYER_MESSAGES_REFRESH_INTERVAL_MS);
 
     window.addEventListener('focus', handleWindowFocus);
     document.addEventListener('visibilitychange', handleVisibilityChange);

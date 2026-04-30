@@ -1237,7 +1237,7 @@ serve(async (req) => {
           actionKey: "player_actions.get_premium_session_state",
           subjectKey: walletAddress,
           windowSeconds: 60,
-          maxHits: 30,
+          maxHits: 6,
         });
 
         const player = await loadPlayer(supabase, walletAddress);

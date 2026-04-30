@@ -1,14 +1,24 @@
 User-agent: Googlebot
 Allow: /
+Disallow: /api/edge/
+Disallow: /qa-runner.html
 
 User-agent: Bingbot
 Allow: /
+Disallow: /api/edge/
+Disallow: /qa-runner.html
 
 User-agent: Twitterbot
 Allow: /
+Disallow: /api/edge/
+Disallow: /qa-runner.html
 
 User-agent: facebookexternalhit
 Allow: /
+Disallow: /api/edge/
+Disallow: /qa-runner.html
 
 User-agent: *
 Allow: /
+Disallow: /api/edge/
+Disallow: /qa-runner.html

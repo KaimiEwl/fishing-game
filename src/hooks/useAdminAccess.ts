@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { getStoredWalletSession } from '@/lib/walletSession';
 
+const ADMIN_ACCESS_REFRESH_INTERVAL_MS = 300_000;
+
 interface AdminWithdrawSummaryResponse {
   summary: {
     pending_count: number;
@@ -69,7 +71,7 @@ export function useAdminAccess(walletAddress: string | undefined, enabled: boole
       if (document.visibilityState === 'visible') {
         void checkAdminAccess();
       }
-    }, 30000);
+    }, ADMIN_ACCESS_REFRESH_INTERVAL_MS);
 
     window.addEventListener('focus', handleWindowFocus);
     document.addEventListener('visibilitychange', handleVisibilityChange);
