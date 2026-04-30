@@ -1228,3 +1228,4 @@ These should not be staged unless they become part of an intentional task.
 - Name save now uses a dedicated `save-player-name` Edge Function instead of the guarded full progress sync path. This avoids wallet-name saves being rejected by progress delta protections after hard refreshes or stale local gameplay snapshots.
 - The mandatory `Choose your name` dialog no longer auto-hides just because a wallet-name save is pending. It stays in one flow until the wallet row actually comes back with a saved nickname.
 - While a verified wallet still has no saved nickname, client autosaves for `player` and `game_progress` are now paused. This removes background `save-player-progress` races from the mandatory name-binding flow.
+- 2026-04-30: VPS deploy healthcheck now retries each public route briefly before rollback, avoiding a release revert from a transient nginx connection reset immediately after container recreate.
