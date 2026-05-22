@@ -1,5 +1,12 @@
 # STATUS
 
+## 2026-05-22 fishing cast resolve tokens are in place
+- Added a server-issued one-use resolve token to normal fishing casts. `start_fishing_cast` now returns `resolveToken`, the server stores only `resolve_token_hash`, and `resolve_fishing_cast` requires the matching token for new pending casts.
+- Kept compatibility for pre-deploy pending casts without a token hash, so a player already mid-cast during deploy should not be broken. All newly started casts are token-protected.
+- The frontend keeps the resolve token only in memory for the current cast and passes it back on reel/timeout. No UI changes are visible to the player.
+- Smoke now asserts that missing and invalid resolve tokens are rejected with `401`, duplicate resolve is rejected with `409`, and client-authored progress/economy attempts remain ignored.
+- Validation: local API schema migration added `player_fishing_casts.resolve_token_hash`; browser guest cast/hook check passed; `node --check ./server/index.mjs`, `node --check ./scripts/ops/smoke-api.mjs`, `npm run typecheck`, `npm run ops:smoke`, `npm run build`, and `npm run lint` passed. The first parallel lint run hit a transient Vite temp-file race; rerunning lint alone passed with the existing 11 warnings.
+
 ## 2026-05-22 interface-to-server authority check is green
 - Ran a browser flow from the game UI with a fresh guest session: `Cast line` produced `player-actions.start_fishing_cast`, `Hook fish` / timeout produced `player-actions.resolve_fishing_cast`, and reload restored the same guest profile from `/api/edge/guest-session`.
 - Verified the server database changed from UI actions, not local calculation: the tested guest row moved from fresh state to lower `daily_free_bait`, higher XP/level, fish inventory, collection book, and task/weekly progress stored in SQLite.

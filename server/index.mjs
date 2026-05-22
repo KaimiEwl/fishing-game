@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { createHmac, randomUUID } from 'node:crypto';
+import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -334,6 +334,14 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_player_fishing_casts_wallet_status
     ON player_fishing_casts(wallet_address, status, started_at DESC);
 `);
+
+function tableHasColumn(tableName, columnName) {
+  return db.prepare(`PRAGMA table_info(${tableName})`).all().some((column) => column.name === columnName);
+}
+
+if (!tableHasColumn('player_fishing_casts', 'resolve_token_hash')) {
+  db.exec('ALTER TABLE player_fishing_casts ADD COLUMN resolve_token_hash TEXT');
+}
 
 for (const wallet of ADMIN_WALLETS) {
   db.prepare('INSERT OR IGNORE INTO admin_roles (wallet_address, role, created_at) VALUES (?, ?, ?)').run(wallet, 'admin', nowIso());
@@ -1103,6 +1111,29 @@ function verifySessionToken(token, walletAddress, type = null) {
   return parsed.sub === walletAddress.toLowerCase() && (!type || parsed.typ === type);
 }
 
+function safeCompare(value, expected) {
+  const left = Buffer.from(String(value || ''));
+  const right = Buffer.from(String(expected || ''));
+  return left.length === right.length && timingSafeEqual(left, right);
+}
+
+function createCastResolveToken() {
+  return `${randomUUID()}.${randomUUID()}`;
+}
+
+function hashCastResolveToken(walletAddress, castId, token) {
+  const wallet = normalizePlayerIdentity(walletAddress) || '';
+  return createHmac('sha256', SESSION_SECRET)
+    .update(`${wallet}:${castId}:${String(token || '')}`)
+    .digest('base64url');
+}
+
+function verifyCastResolveToken(row, token) {
+  if (!row.resolve_token_hash) return true;
+  if (typeof token !== 'string' || !token.trim()) return false;
+  return safeCompare(hashCastResolveToken(row.wallet_address, row.id, token.trim()), row.resolve_token_hash);
+}
+
 function requireWalletSession(body) {
   const wallet = normalizePlayerIdentity(body.wallet_address || body.walletAddress);
   if (!wallet) throw httpError(400, 'Invalid player identity');
@@ -1699,6 +1730,8 @@ function startFishingCast(player) {
   }
 
   const id = randomUUID();
+  const resolveToken = createCastResolveToken();
+  const resolveTokenHash = hashCastResolveToken(player.wallet_address, id, resolveToken);
   const startedAt = nowIso();
   const waitMs = Math.floor(1000 + Math.random() * 2000);
   const biteWindowMs = Math.floor(BITE_WINDOW_MIN_MS + Math.random() * (BITE_WINDOW_MAX_MS - BITE_WINDOW_MIN_MS));
@@ -1706,9 +1739,9 @@ function startFishingCast(player) {
   const updated = updatePlayer(player.wallet_address, patch);
   db.prepare(`
     INSERT INTO player_fishing_casts
-      (id, player_id, wallet_address, status, consumed_bucket, fish_id, wait_ms, bite_window_ms, started_at)
-    VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?)
-  `).run(id, player.id, player.wallet_address, consumedBucket, fish?.id ?? null, waitMs, biteWindowMs, startedAt);
+      (id, player_id, wallet_address, status, consumed_bucket, fish_id, wait_ms, bite_window_ms, started_at, resolve_token_hash)
+    VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)
+  `).run(id, player.id, player.wallet_address, consumedBucket, fish?.id ?? null, waitMs, biteWindowMs, startedAt, resolveTokenHash);
   addAudit(player.wallet_address, 'cast_started', { consumedBucket, castId: id }, player, updated);
 
   return edgeResponse({
@@ -1719,6 +1752,7 @@ function startFishingCast(player) {
       biteWindowMs,
       startedAt,
       consumedBucket,
+      resolveToken,
     },
   });
 }
@@ -1831,6 +1865,14 @@ function resolveFishingCast(player, body) {
     if (!row) throw httpError(404, 'Fishing cast not found');
     if (row.status !== 'pending') {
       throw httpError(409, 'Fishing cast is already resolved');
+    }
+    const resolveToken = typeof body.resolve_token === 'string'
+      ? body.resolve_token
+      : typeof body.resolveToken === 'string'
+        ? body.resolveToken
+        : '';
+    if (!verifyCastResolveToken(row, resolveToken)) {
+      throw httpError(401, 'Invalid fishing cast token');
     }
 
     const resolution = String(body.resolution || 'reel');

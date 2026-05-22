@@ -98,6 +98,9 @@ async function main() {
     wallet_address: wallet,
     session_token: session,
   });
+  if (typeof startedCast.fishing_cast?.resolveToken !== 'string' || startedCast.fishing_cast.resolveToken.length < 40) {
+    throw new Error(`start_fishing_cast did not return a resolve token: ${JSON.stringify(startedCast.fishing_cast)}`);
+  }
 
   await new Promise((resolve) => {
     setTimeout(resolve, startedCast.fishing_cast.waitMs + 100);
@@ -109,6 +112,7 @@ async function main() {
     session_token: session,
     cast_id: startedCast.fishing_cast.id,
     resolution: 'reel',
+    resolve_token: startedCast.fishing_cast.resolveToken,
   });
 
   const guest = await post('/api/edge/guest-session', {});
@@ -123,6 +127,9 @@ async function main() {
     wallet_address: guestId,
     session_token: guestSession,
   });
+  if (typeof guestStartedCast.fishing_cast?.resolveToken !== 'string' || guestStartedCast.fishing_cast.resolveToken.length < 40) {
+    throw new Error(`guest start_fishing_cast did not return a resolve token: ${JSON.stringify(guestStartedCast.fishing_cast)}`);
+  }
 
   const guestRestoredAfterStart = await post('/api/edge/guest-session', {
     guest_id: guestId,
@@ -136,12 +143,29 @@ async function main() {
     setTimeout(resolve, guestStartedCast.fishing_cast.waitMs + 100);
   });
 
+  const missingResolveTokenFailure = await expectPostFailure('/api/edge/player-actions', {
+    action: 'resolve_fishing_cast',
+    wallet_address: guestId,
+    session_token: guestSession,
+    cast_id: guestStartedCast.fishing_cast.id,
+    resolution: 'reel',
+  }, [401], 'missing fishing cast resolve token');
+  const invalidResolveTokenFailure = await expectPostFailure('/api/edge/player-actions', {
+    action: 'resolve_fishing_cast',
+    wallet_address: guestId,
+    session_token: guestSession,
+    cast_id: guestStartedCast.fishing_cast.id,
+    resolution: 'reel',
+    resolve_token: 'not-the-issued-token',
+  }, [401], 'invalid fishing cast resolve token');
+
   const guestResolvedCast = await post('/api/edge/player-actions', {
     action: 'resolve_fishing_cast',
     wallet_address: guestId,
     session_token: guestSession,
     cast_id: guestStartedCast.fishing_cast.id,
     resolution: 'reel',
+    resolve_token: guestStartedCast.fishing_cast.resolveToken,
   });
 
   const guestRestoredAfterResolve = await post('/api/edge/guest-session', {
@@ -157,6 +181,7 @@ async function main() {
     session_token: guestSession,
     cast_id: guestStartedCast.fishing_cast.id,
     resolution: 'reel',
+    resolve_token: guestStartedCast.fishing_cast.resolveToken,
   }, [400, 409], 'duplicate fishing cast resolve');
 
   const authoritativeGuestPlayer = guestRestoredAfterResolve.player;
@@ -357,6 +382,8 @@ async function main() {
       linkedWalletBait: linkedWallet.player?.daily_free_bait,
       linkedWalletXp: linkedWallet.player?.xp,
       rotatedGuestId: guestAfterLink.guest_id,
+      missingResolveTokenRejected: missingResolveTokenFailure.status,
+      invalidResolveTokenRejected: invalidResolveTokenFailure.status,
       duplicateResolveRejected: duplicateResolveFailure.status,
       clientAuthoredProgressRejected: true,
     },

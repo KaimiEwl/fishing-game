@@ -110,7 +110,7 @@ interface UseGameStateOptions {
   onAuditEvent?: (event: PlayerAuditEventPayload) => void;
   onPremiumBiteTimeout?: () => void;
   onStartServerFishingCast?: () => Promise<ServerFishingCastStart>;
-  onResolveServerFishingCast?: (castId: string, resolution: 'reel' | 'timeout') => Promise<ServerFishingCastResolution>;
+  onResolveServerFishingCast?: (castId: string, resolution: 'reel' | 'timeout', resolveToken?: string) => Promise<ServerFishingCastResolution>;
   onServerFishingError?: (message: string) => void;
   collectionBookEnabled?: boolean;
 }
@@ -127,6 +127,7 @@ interface ServerFishingCastStart {
   castId: string;
   waitMs: number;
   biteWindowMs: number;
+  resolveToken?: string;
 }
 
 interface ServerFishingCastResolution {
@@ -164,7 +165,7 @@ export function useGameState(options?: UseGameStateOptions) {
   const initializedRef = useRef(false);
   const lastCastTimeRef = useRef<number>(0);
   const pendingFishRef = useRef<Fish | null>(null);
-  const pendingServerCastRef = useRef<{ castId: string } | null>(null);
+  const pendingServerCastRef = useRef<{ castId: string; resolveToken?: string } | null>(null);
   const biteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const biteCountdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const gameStateRef = useRef<GameState>('idle');
@@ -507,7 +508,7 @@ export function useGameState(options?: UseGameStateOptions) {
 
     if (serverCast && onResolveServerFishingCast) {
       try {
-        const result = await onResolveServerFishingCast(serverCast.castId, 'reel');
+        const result = await onResolveServerFishingCast(serverCast.castId, 'reel', serverCast.resolveToken);
         if (result.levelUpInfo) {
           setLevelUpInfo(result.levelUpInfo);
         }
@@ -616,7 +617,7 @@ export function useGameState(options?: UseGameStateOptions) {
     pendingFishRef.current = null;
     if (serverCast && onResolveServerFishingCast) {
       try {
-        const result = await onResolveServerFishingCast(serverCast.castId, 'timeout');
+        const result = await onResolveServerFishingCast(serverCast.castId, 'timeout', serverCast.resolveToken);
         if (result.levelUpInfo) {
           setLevelUpInfo(result.levelUpInfo);
         }
@@ -711,7 +712,7 @@ export function useGameState(options?: UseGameStateOptions) {
     if (useServerFishing && onStartServerFishingCast) {
       try {
         const serverCast = await onStartServerFishingCast();
-        pendingServerCastRef.current = { castId: serverCast.castId };
+        pendingServerCastRef.current = { castId: serverCast.castId, resolveToken: serverCast.resolveToken };
         waitTime = serverCast.waitMs;
         biteWindow = serverCast.biteWindowMs;
       } catch (error) {

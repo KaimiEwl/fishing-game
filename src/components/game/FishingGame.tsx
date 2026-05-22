@@ -424,10 +424,11 @@ const FishingGame: React.FC = () => {
       castId: result.fishingCast.id,
       waitMs: result.fishingCast.waitMs,
       biteWindowMs: result.fishingCast.biteWindowMs,
+      resolveToken: result.fishingCast.resolveToken,
     };
   }, [applyServerPlayerSnapshot, requestStartFishingCast]);
-  const handleResolveServerFishingCast = useCallback(async (castId: string, resolution: 'reel' | 'timeout') => {
-    const result = await requestResolveFishingCast(castId, resolution);
+  const handleResolveServerFishingCast = useCallback(async (castId: string, resolution: 'reel' | 'timeout', resolveToken?: string) => {
+    const result = await requestResolveFishingCast(castId, resolution, resolveToken);
     applyServerPlayerSnapshot(result.player, { mergeMode: 'server' });
 
     const fish = result.fishingResult.fishId

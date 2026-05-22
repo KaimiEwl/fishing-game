@@ -66,6 +66,7 @@ interface ServerFishingCast {
   biteWindowMs: number;
   startedAt: string;
   consumedBucket: 'daily_free_bait' | 'bait' | null;
+  resolveToken?: string;
 }
 
 interface ServerFishingResult {
@@ -225,13 +226,14 @@ export function usePlayerActions(walletAddress: string | undefined, enabled: boo
     };
   }, [callPlayerActions]);
 
-  const resolveFishingCast = useCallback(async (castId: string, resolution: 'reel' | 'timeout') => {
+  const resolveFishingCast = useCallback(async (castId: string, resolution: 'reel' | 'timeout', resolveToken?: string) => {
     const data = await callPlayerActions<{
       player: Tables<'players'>;
       fishing_result: ServerFishingResult;
     }>('resolve_fishing_cast', {
       cast_id: castId,
       resolution,
+      resolve_token: resolveToken,
     });
 
     return {
