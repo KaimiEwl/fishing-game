@@ -52,6 +52,110 @@ export interface AdminInventorySummaryEntry {
   quantity: number;
 }
 
+export interface AdminProgressStackEntry {
+  id: string;
+  quantity: number;
+  firstSeenAt: string | null;
+}
+
+export interface AdminProgressStackSummary {
+  totalStacks: number;
+  totalQuantity: number;
+  items: AdminProgressStackEntry[];
+}
+
+export interface AdminTaskProgressProfileEntry {
+  id: string;
+  progress: number;
+  target: number;
+  claimed: boolean;
+  ready: boolean;
+}
+
+export interface AdminTaskBucketProfile {
+  total: number;
+  ready: number;
+  claimed: number;
+  entries: AdminTaskProgressProfileEntry[];
+}
+
+export interface AdminPlayerProgressProfile {
+  version: number;
+  storage: {
+    primaryTable: string;
+    primaryColumns: string[];
+    sideTables: string[];
+  };
+  identity: {
+    playerId: string | null;
+    playerKey: string | null;
+    kind: 'guest' | 'wallet';
+    nickname: string | null;
+  };
+  economy: {
+    coins: number;
+    reserveBait: number;
+    dailyFreeBait: number;
+    totalBait: number;
+    dailyFreeBaitResetAt: string | null;
+    bonusBaitGrantedTotal: number;
+  };
+  progression: {
+    level: number;
+    xp: number;
+    xpToNext: number;
+    totalCatches: number;
+    loginStreak: number;
+  };
+  rods: {
+    maxRodLevel: number;
+    equippedRodLevel: number;
+    nftRods: number[];
+    rodMastery: Record<string, unknown>;
+  };
+  inventory: AdminProgressStackSummary;
+  cooking: AdminProgressStackSummary & {
+    grillScore: number;
+    dishesToday: number;
+  };
+  tasks: {
+    date: string | null;
+    weekKey: string | null;
+    daily: AdminTaskBucketProfile;
+    special: AdminTaskBucketProfile;
+    weekly: AdminTaskBucketProfile;
+  };
+  cube: {
+    dailyWheelRolls: number;
+    paidWheelRolls: number;
+    availableWheelRolls: number;
+    wheelSpun: boolean;
+    wheelPrize: unknown;
+    dailyRollRewardGranted: boolean;
+    lastWeeklyCubeUnlockDate: string | null;
+  };
+  collectionBook: {
+    totalSpeciesCaught: number;
+    totalFirstCatchBonusesClaimed: number;
+    completedPages: number;
+    claimedPages: number;
+    pages: Array<{ pageId: string; completed: boolean; claimed: boolean }>;
+  };
+  fishingNet: unknown;
+  premiumSession: unknown;
+  mon: Record<string, unknown> | null;
+  timestamps: {
+    createdAt: string | null;
+    updatedAt: string | null;
+    lastLogin: string | null;
+  };
+  raw: {
+    inventory: unknown;
+    cookedDishes: unknown;
+    gameProgress: unknown;
+  };
+}
+
 export interface AdminPlayerGrillSummary {
   score: number;
   dishes: number;
@@ -146,6 +250,7 @@ export interface AdminSocialTaskVerification {
 
 export interface AdminPlayerDetails {
   player: AdminPlayer;
+  progress_profile: AdminPlayerProgressProfile;
   grill_summary: AdminPlayerGrillSummary | null;
   inventory_summary: AdminInventorySummaryEntry[];
   referral_summary: AdminPlayerReferralSummary;
@@ -170,6 +275,7 @@ interface AdminStatsResponse {
 
 interface AdminPlayerDetailsResponse {
   player: AdminPlayer;
+  progress_profile: AdminPlayerProgressProfile;
   grill_summary: AdminPlayerGrillSummary | null;
   inventory_summary: AdminInventorySummaryEntry[];
   referral_summary: AdminPlayerReferralSummary;
@@ -434,6 +540,7 @@ export function useAdmin(walletAddress: string | undefined) {
     const data = await callAdmin<AdminPlayerDetailsResponse>('get_player_details', { player_id: playerId });
     return {
       player: data.player,
+      progress_profile: data.progress_profile,
       grill_summary: data.grill_summary,
       inventory_summary: data.inventory_summary,
       referral_summary: data.referral_summary,

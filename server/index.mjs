@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { hashMessage, recoverAddress } from 'viem';
+import { buildPlayerProgressProfile } from './player-progress-profile.mjs';
 
 const PORT = Number(process.env.HOOKLOOT_API_PORT || process.env.PORT || 8787);
 const DATA_DIR = process.env.HOOKLOOT_DATA_DIR || join(process.cwd(), 'server', '.data');
@@ -523,10 +524,115 @@ function updatePlayer(walletAddress, patch) {
   return getPlayerByWallet(walletAddress);
 }
 
-function patchPlayerById(playerId, patch) {
-  const player = getPlayerById(playerId);
-  if (!player) throw httpError(404, 'Player not found');
-  return updatePlayer(player.wallet_address, patch);
+function safeAdminInteger(value, fallback = 0, min = 0, max = 1_000_000_000) {
+  const next = Math.floor(Number(value));
+  if (!Number.isFinite(next)) return fallback;
+  return Math.min(max, Math.max(min, next));
+}
+
+function normalizeInventoryStack(value) {
+  const totals = new Map();
+  for (const item of Array.isArray(value) ? value : []) {
+    const fishId = typeof item?.fishId === 'string' && FISH_BY_ID.has(item.fishId) ? item.fishId : null;
+    const quantity = safeAdminInteger(item?.quantity, 0, 0, 999_999);
+    if (!fishId || quantity <= 0) continue;
+    const existing = totals.get(fishId) || { fishId, quantity: 0, caughtAt: typeof item?.caughtAt === 'string' ? item.caughtAt : nowIso() };
+    totals.set(fishId, { ...existing, quantity: existing.quantity + quantity });
+  }
+  return Array.from(totals.values());
+}
+
+function normalizeCookedDishStack(value) {
+  const totals = new Map();
+  for (const item of Array.isArray(value) ? value : []) {
+    const recipeId = typeof item?.recipeId === 'string' && GRILL_RECIPES[item.recipeId] ? item.recipeId : null;
+    const quantity = safeAdminInteger(item?.quantity, 0, 0, 999_999);
+    if (!recipeId || quantity <= 0) continue;
+    const existing = totals.get(recipeId) || { recipeId, quantity: 0, createdAt: typeof item?.createdAt === 'string' ? item.createdAt : nowIso() };
+    totals.set(recipeId, { ...existing, quantity: existing.quantity + quantity });
+  }
+  return Array.from(totals.values());
+}
+
+function normalizeNftRods(value) {
+  return Array.from(new Set((Array.isArray(value) ? value : [])
+    .map((rodLevel) => safeAdminInteger(rodLevel, 0, 0, 99))));
+}
+
+function sanitizeAdminPlayerPatch(rawPatch, currentPlayer) {
+  const patch = {};
+  const incoming = rawPatch && typeof rawPatch === 'object' ? rawPatch : {};
+  const integerFields = {
+    coins: [0, 1_000_000_000],
+    bait: [0, 1_000_000],
+    daily_free_bait: [0, 1_000_000],
+    bonus_bait_granted_total: [0, 1_000_000],
+    level: [1, 10_000],
+    xp: [0, 1_000_000_000],
+    xp_to_next: [1, 1_000_000_000],
+    rod_level: [0, 99],
+    equipped_rod: [0, 99],
+    total_catches: [0, 1_000_000_000],
+    login_streak: [0, 100_000],
+    rewarded_referral_count: [0, MAX_REWARDED_REFERRALS],
+  };
+
+  for (const [field, [min, max]] of Object.entries(integerFields)) {
+    if (Object.prototype.hasOwnProperty.call(incoming, field)) {
+      patch[field] = safeAdminInteger(incoming[field], currentPlayer?.[field] ?? min, min, max);
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(incoming, 'nickname')) {
+    const nickname = typeof incoming.nickname === 'string' ? incoming.nickname.trim().slice(0, 20) : '';
+    patch.nickname = nickname || null;
+  }
+  if (Object.prototype.hasOwnProperty.call(incoming, 'avatar_url')) {
+    const avatarUrl = typeof incoming.avatar_url === 'string' ? incoming.avatar_url.trim().slice(0, 500) : '';
+    patch.avatar_url = avatarUrl || null;
+  }
+  if (Object.prototype.hasOwnProperty.call(incoming, 'wallet_bait_bonus_claimed')) {
+    patch.wallet_bait_bonus_claimed = Boolean(incoming.wallet_bait_bonus_claimed);
+  }
+  if (Object.prototype.hasOwnProperty.call(incoming, 'referral_reward_granted')) {
+    patch.referral_reward_granted = Boolean(incoming.referral_reward_granted);
+  }
+  if (Object.prototype.hasOwnProperty.call(incoming, 'inventory')) {
+    patch.inventory = normalizeInventoryStack(incoming.inventory);
+  }
+  if (Object.prototype.hasOwnProperty.call(incoming, 'cooked_dishes')) {
+    patch.cooked_dishes = normalizeCookedDishStack(incoming.cooked_dishes);
+  }
+  if (Object.prototype.hasOwnProperty.call(incoming, 'nft_rods')) {
+    patch.nft_rods = normalizeNftRods(incoming.nft_rods);
+  }
+  if (Object.prototype.hasOwnProperty.call(incoming, 'game_progress')) {
+    patch.game_progress = ensureGameProgress(incoming.game_progress);
+  }
+
+  return patch;
+}
+
+function adminPatchPlayerById(playerId, rawPatch, adminWalletAddress) {
+  const before = getPlayerById(playerId);
+  if (!before) throw httpError(404, 'Player not found');
+  const patch = sanitizeAdminPlayerPatch(rawPatch, before);
+  const updated = updatePlayer(before.wallet_address, patch);
+  addAudit(before.wallet_address, 'admin_player_updated', {
+    updatedByWallet: adminWalletAddress,
+    fields: Object.keys(patch),
+  }, before, updated);
+  return updated;
+}
+
+function buildAdminPlayerProgressProfile(player) {
+  return buildPlayerProgressProfile(player, {
+    progress: ensureGameProgress(player.game_progress),
+    dailyTaskTargets: DAILY_TASK_TARGETS,
+    specialTaskTargets: SPECIAL_TASK_TARGETS,
+    weeklyMissionTargets: WEEKLY_MISSION_TARGETS,
+    monSummary: isGuestPlayer(player) ? null : monSummary(player),
+  });
 }
 
 function getGuestWalletLink(guestWalletAddress) {
@@ -2470,6 +2576,7 @@ function admin(body) {
     const grill = db.prepare('SELECT * FROM grill_leaderboard WHERE wallet_address = ?').get(player.wallet_address) || null;
     return edgeResponse({
       player,
+      progress_profile: buildAdminPlayerProgressProfile(player),
       grill_summary: grill ? { score: grill.score, dishes: grill.dishes, updated_at: grill.updated_at } : null,
       inventory_summary: Array.isArray(player.inventory) ? player.inventory.map((item) => ({ fish_id: item.fishId, quantity: item.quantity })) : [],
       referral_summary: {
@@ -2498,7 +2605,11 @@ function admin(body) {
   }
   if (action === 'update_player') {
     const patch = body.updates && typeof body.updates === 'object' ? body.updates : {};
-    return edgeResponse({ player: patchPlayerById(String(body.player_id || ''), patch) });
+    const updatedPlayer = adminPatchPlayerById(String(body.player_id || ''), patch, adminPlayer.wallet_address);
+    return edgeResponse({
+      player: updatedPlayer,
+      progress_profile: buildAdminPlayerProgressProfile(updatedPlayer),
+    });
   }
   if (action === 'delete_player') {
     const playerId = String(body.player_id || '');

@@ -46,6 +46,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import FishIcon from '@/components/game/FishIcon';
 import AdminEditField from '@/components/AdminEditField';
@@ -65,11 +66,34 @@ type EditablePlayerForm = Pick<
   'coins' | 'bait' | 'daily_free_bait' | 'level' | 'xp' | 'rod_level' | 'equipped_rod' | 'login_streak'
 > & {
   nickname: string;
+  inventoryJson: string;
+  cookedDishesJson: string;
+  gameProgressJson: string;
 };
 
 const formatWallet = (value: string) => `${value.slice(0, 6)}...${value.slice(-4)}`;
 
 const getDisplayCatchCount = (player: AdminPlayer) => player.display_total_catches ?? player.total_catches;
+
+const formatEditableJson = (value: unknown) => JSON.stringify(value ?? null, null, 2);
+
+const parseEditableJson = (label: string, value: string) => {
+  try {
+    return JSON.parse(value);
+  } catch {
+    throw new Error(`${label} must be valid JSON.`);
+  }
+};
+
+const hideBootLoader = () => {
+  const bootWindow = window as Window & {
+    __hideBootLoader?: () => void;
+    __setBootLoaderState?: (nextProgress: number, nextLabel?: string) => void;
+  };
+
+  bootWindow.__setBootLoaderState?.(1, 'Ready...');
+  bootWindow.__hideBootLoader?.();
+};
 
 export default function Admin() {
   const { address } = useAccount();
@@ -143,6 +167,7 @@ export default function Admin() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    hideBootLoader();
     void checkAdmin();
   }, [checkAdmin]);
 
@@ -331,6 +356,9 @@ export default function Admin() {
       equipped_rod: player.equipped_rod,
       login_streak: player.login_streak,
       nickname: player.nickname ?? '',
+      inventoryJson: formatEditableJson(player.inventory ?? []),
+      cookedDishesJson: formatEditableJson(player.cooked_dishes ?? []),
+      gameProgressJson: formatEditableJson(player.game_progress ?? {}),
     });
   };
 
@@ -349,6 +377,9 @@ export default function Admin() {
 
     setSaving(true);
     try {
+      const inventory = parseEditableJson('Inventory', editForm.inventoryJson);
+      const cookedDishes = parseEditableJson('Cooked dishes', editForm.cookedDishesJson);
+      const gameProgress = parseEditableJson('Game progress', editForm.gameProgressJson);
       const nextUpdates: Record<string, unknown> = {
         coins: editForm.coins,
         bait: editForm.bait,
@@ -359,6 +390,9 @@ export default function Admin() {
         equipped_rod: editForm.equipped_rod,
         login_streak: editForm.login_streak,
         xp_to_next: editForm.level * 100,
+        inventory,
+        cooked_dishes: cookedDishes,
+        game_progress: gameProgress,
       };
 
       if (Object.prototype.hasOwnProperty.call(editPlayer, 'nickname')) {
@@ -964,7 +998,7 @@ export default function Admin() {
         />
 
         <Dialog open={!!editPlayer} onOpenChange={resetEditState}>
-          <DialogContent>
+          <DialogContent className="max-w-3xl">
             <DialogHeader>
               <DialogTitle>Edit player</DialogTitle>
             </DialogHeader>
@@ -995,6 +1029,47 @@ export default function Admin() {
                   <AdminEditField label="Max rod" value={editForm.rod_level} onChange={(value) => setEditForm((current) => (current ? { ...current, rod_level: Number(value) } : current))} />
                   <AdminEditField label="Equipped rod" value={editForm.equipped_rod} onChange={(value) => setEditForm((current) => (current ? { ...current, equipped_rod: Number(value) } : current))} />
                   <AdminEditField label="Login streak" value={editForm.login_streak} onChange={(value) => setEditForm((current) => (current ? { ...current, login_streak: Number(value) } : current))} />
+                </div>
+                <div className="grid gap-3 lg:grid-cols-3">
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Inventory JSON</label>
+                    <Textarea
+                      value={editForm.inventoryJson}
+                      onChange={(event) =>
+                        setEditForm((current) =>
+                          current ? { ...current, inventoryJson: event.target.value } : current,
+                        )
+                      }
+                      className="min-h-40 font-mono text-xs"
+                      spellCheck={false}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Cooked dishes JSON</label>
+                    <Textarea
+                      value={editForm.cookedDishesJson}
+                      onChange={(event) =>
+                        setEditForm((current) =>
+                          current ? { ...current, cookedDishesJson: event.target.value } : current,
+                        )
+                      }
+                      className="min-h-40 font-mono text-xs"
+                      spellCheck={false}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Game progress JSON</label>
+                    <Textarea
+                      value={editForm.gameProgressJson}
+                      onChange={(event) =>
+                        setEditForm((current) =>
+                          current ? { ...current, gameProgressJson: event.target.value } : current,
+                        )
+                      }
+                      className="min-h-40 font-mono text-xs"
+                      spellCheck={false}
+                    />
+                  </div>
                 </div>
               </div>
             )}

@@ -1,5 +1,14 @@
 # STATUS
 
+## 2026-05-22 player progress standard is documented and exposed to admin
+- Added a canonical server-side `progress_profile` shape for admin/debug reads. It is generated in one place by `server/player-progress-profile.mjs` and groups the player state into identity, economy, progression, rods, inventory, cooking, tasks, cube, collection, fishing net, premium session, MON, timestamps, and raw storage.
+- Kept the live database schema stable: `players` remains the canonical progress store, while cast/cube/MON/premium/social/audit tables remain side tables for operations and history.
+- Updated `/api/edge/admin` player details to return `progress_profile`, so the admin panel has one standard view instead of manually piecing together random raw fields.
+- Admin player edits now go through server normalization/clamping for core numbers, inventory, cooked dishes, NFT rods, and `game_progress`, then write an `admin_player_updated` audit event with edited field names.
+- Added advanced JSON edit fields in the admin player editor for inventory, cooked dishes, and game progress. The server still normalizes those values before saving.
+- Admin now hides the global boot loader on route entry, so the player table and detail sheet can actually be clicked after a direct `/admin` load.
+- Documented the standard in `docs/player-progress-standard.md`: new features should write authoritative player state through server actions into `players`, using side tables only for operations/ledgers/history.
+
 ## 2026-05-22 fishing cast resolve tokens are in place
 - Added a server-issued one-use resolve token to normal fishing casts. `start_fishing_cast` now returns `resolveToken`, the server stores only `resolve_token_hash`, and `resolve_fishing_cast` requires the matching token for new pending casts.
 - Kept compatibility for pre-deploy pending casts without a token hash, so a player already mid-cast during deploy should not be broken. All newly started casts are token-protected.

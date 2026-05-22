@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, Coins, Fish, MessageSquare, UserRound, Worm } from 'lucide-react';
+import { AlertTriangle, Coins, Database, Fish, MessageSquare, ShieldCheck, UserRound, Worm } from 'lucide-react';
 import type {
   AdminPlayer,
   AdminPlayerActivityEntry,
@@ -42,6 +42,8 @@ const labelizeEvent = (eventType: string) =>
 
 const getFishName = (fishId: string) => FISH_DATA.find((fish) => fish.id === fishId)?.name ?? fishId;
 
+const formatProgressJson = (value: unknown) => JSON.stringify(value, null, 2);
+
 const AdminPlayerDetailSheet: React.FC<AdminPlayerDetailSheetProps> = ({
   open,
   onOpenChange,
@@ -52,6 +54,7 @@ const AdminPlayerDetailSheet: React.FC<AdminPlayerDetailSheetProps> = ({
   onGrantMon,
 }) => {
   const player = details?.player ?? null;
+  const progressProfile = details?.progress_profile ?? null;
   const totalBait = player ? player.bait + player.daily_free_bait : 0;
 
   return (
@@ -235,6 +238,85 @@ const AdminPlayerDetailSheet: React.FC<AdminPlayerDetailSheetProps> = ({
                       </CardContent>
                     </Card>
                   </div>
+
+                  {progressProfile && (
+                    <Card className="border-zinc-800 bg-zinc-950">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-base text-zinc-100">
+                          <Database className="h-4 w-4 text-cyan-100" />
+                          Player progress profile
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                          <div className="rounded-md border border-zinc-800 bg-black/50 p-3">
+                            <p className="text-xs uppercase tracking-[0.12em] text-zinc-500">Storage</p>
+                            <p className="mt-1 font-semibold text-zinc-100">{progressProfile.storage.primaryTable}</p>
+                            <p className="mt-1 text-xs text-zinc-400">{progressProfile.storage.sideTables.length} side tables</p>
+                          </div>
+                          <div className="rounded-md border border-zinc-800 bg-black/50 p-3">
+                            <p className="text-xs uppercase tracking-[0.12em] text-zinc-500">Identity</p>
+                            <p className="mt-1 font-semibold capitalize text-zinc-100">{progressProfile.identity.kind}</p>
+                            <p className="mt-1 truncate text-xs text-zinc-400">{progressProfile.identity.playerId}</p>
+                          </div>
+                          <div className="rounded-md border border-zinc-800 bg-black/50 p-3">
+                            <p className="text-xs uppercase tracking-[0.12em] text-zinc-500">Inventory</p>
+                            <p className="mt-1 font-semibold text-zinc-100">{progressProfile.inventory.totalQuantity} fish</p>
+                            <p className="mt-1 text-xs text-zinc-400">{progressProfile.cooking.totalQuantity} cooked dishes</p>
+                          </div>
+                          <div className="rounded-md border border-zinc-800 bg-black/50 p-3">
+                            <p className="text-xs uppercase tracking-[0.12em] text-zinc-500">Cube</p>
+                            <p className="mt-1 font-semibold text-zinc-100">{progressProfile.cube.availableWheelRolls} rolls</p>
+                            <p className="mt-1 text-xs text-zinc-400">
+                              {progressProfile.cube.dailyWheelRolls} daily / {progressProfile.cube.paidWheelRolls} paid
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-3 text-sm md:grid-cols-3">
+                          <div className="rounded-md border border-zinc-800 bg-black/50 p-3">
+                            <p className="flex items-center gap-2 font-semibold text-zinc-100">
+                              <ShieldCheck className="h-4 w-4 text-emerald-300" />
+                              Daily tasks
+                            </p>
+                            <p className="mt-2 text-zinc-300">
+                              Ready {progressProfile.tasks.daily.ready} / claimed {progressProfile.tasks.daily.claimed} / total {progressProfile.tasks.daily.total}
+                            </p>
+                          </div>
+                          <div className="rounded-md border border-zinc-800 bg-black/50 p-3">
+                            <p className="flex items-center gap-2 font-semibold text-zinc-100">
+                              <ShieldCheck className="h-4 w-4 text-cyan-100" />
+                              Weekly missions
+                            </p>
+                            <p className="mt-2 text-zinc-300">
+                              Ready {progressProfile.tasks.weekly.ready} / claimed {progressProfile.tasks.weekly.claimed} / total {progressProfile.tasks.weekly.total}
+                            </p>
+                          </div>
+                          <div className="rounded-md border border-zinc-800 bg-black/50 p-3">
+                            <p className="flex items-center gap-2 font-semibold text-zinc-100">
+                              <Fish className="h-4 w-4 text-blue-200" />
+                              Collection
+                            </p>
+                            <p className="mt-2 text-zinc-300">
+                              {progressProfile.collectionBook.totalSpeciesCaught} species / {progressProfile.collectionBook.completedPages} pages
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="rounded-md border border-zinc-800 bg-black/70 p-3">
+                          <div className="mb-2 flex items-center justify-between gap-3">
+                            <p className="text-sm font-semibold text-zinc-100">Canonical raw progress</p>
+                            <Badge variant="outline" className="border-zinc-700 text-zinc-300">
+                              v{progressProfile.version}
+                            </Badge>
+                          </div>
+                          <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded bg-zinc-950 p-3 text-xs text-zinc-300">
+                            {formatProgressJson(progressProfile.raw)}
+                          </pre>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
 
                   <Card className="border-zinc-800 bg-zinc-950">
                     <CardHeader>
