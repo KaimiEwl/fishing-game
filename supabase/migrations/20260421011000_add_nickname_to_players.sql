@@ -1,2 +1,0 @@
-ALTER TABLE public.players
-ADD COLUMN IF NOT EXISTS nickname TEXT DEFAULT NULL;

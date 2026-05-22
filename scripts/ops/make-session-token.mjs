@@ -16,7 +16,7 @@ const readArg = (name) => {
 };
 
 const walletAddress = (readArg('wallet') || process.env.WALLET_ADDRESS || '').trim().toLowerCase();
-const sessionSecret = (readArg('secret') || process.env.SESSION_TOKEN_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+const sessionSecret = (readArg('secret') || process.env.HOOKLOOT_SESSION_SECRET || process.env.SESSION_TOKEN_SECRET || '').trim();
 const expiresHours = Number(readArg('expires-hours') || process.env.SESSION_EXPIRES_HOURS || '720');
 
 if (!walletAddress) {
@@ -25,7 +25,7 @@ if (!walletAddress) {
 }
 
 if (!sessionSecret) {
-  console.error('Missing session secret. Use --secret or export SESSION_TOKEN_SECRET.');
+  console.error('Missing session secret. Use --secret or export HOOKLOOT_SESSION_SECRET.');
   process.exit(1);
 }
 

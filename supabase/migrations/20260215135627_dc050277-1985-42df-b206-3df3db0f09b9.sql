@@ -1,1 +1,0 @@
-ALTER TABLE public.players ADD COLUMN nft_rods jsonb NOT NULL DEFAULT '[]'::jsonb;

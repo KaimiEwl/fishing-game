@@ -10,7 +10,7 @@ import {
 import { BookOpen, ChefHat, Backpack, CheckCircle2, Lock, ShipWheel, X } from 'lucide-react';
 import { ALBUM_FIRST_CATCH_BONUSES } from '@/lib/baitEconomy';
 import { COLLECTION_BOOK_PAGES, ensureCollectionBook } from '@/lib/collectionBook';
-import { CaughtFish, FISH_DATA, GRILL_RECIPES, type CollectionBookState, type CookedDishStack } from '@/types/game';
+import { CaughtFish, FISH_DATA, GRILL_RECIPES, ROD_DATA, type CollectionBookState, type CookedDishStack } from '@/types/game';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import FishIcon from './FishIcon';
@@ -77,7 +77,8 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({
     return aIndex - bIndex;
   });
 
-  const ownedRods = Array.from({ length: rodLevel + 1 }, (_, i) => i);
+  const maxOwnedRodLevel = Math.min(Math.max(0, rodLevel), ROD_DATA.length - 1);
+  const ownedRods = Array.from({ length: maxOwnedRodLevel + 1 }, (_, i) => i);
 
   return (
     <Dialog>

@@ -1,4 +1,5 @@
 export type FishRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythical' | 'secret';
+export type RodRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
 export interface Fish {
   id: string;
@@ -9,6 +10,23 @@ export interface Fish {
   price: number;
   xp: number;
   description: string;
+}
+
+export interface RodDefinition {
+  id: string;
+  level: number;
+  name: string;
+  description: string;
+  rarity: RodRarity;
+  bonus: number;
+  bobber: string;
+  bobberColor: string;
+  coinCost?: number;
+  monUnlockCost?: string;
+  monadDropChance: number;
+  monadMinReward: number;
+  monadMaxReward: number;
+  cubeDropWeight: number;
 }
 
 export interface PlayerState {
@@ -51,6 +69,38 @@ export type GameState = 'idle' | 'casting' | 'waiting' | 'biting' | 'catching' |
 export interface GameResult {
   success: boolean;
   fish?: Fish;
+  monReward?: FishingMonadReward;
+  specialReward?: FishingSpecialReward;
+}
+
+export interface FishingMonadReward {
+  sourceRef: string;
+  amount: number;
+  rodId: string;
+  rodLevel: number;
+  rodName: string;
+  rarity: RodRarity;
+  dropChance: number;
+  minReward: number;
+  maxReward: number;
+  credited?: boolean;
+}
+
+export interface FishingSpecialReward {
+  sourceRef: string;
+  reason: 'leviathan_common_rod_bonus';
+  type: 'rod' | 'mon_compensation';
+  fishId: string;
+  fishName: string;
+  requiredRodId: string;
+  requiredRodLevel: number;
+  requiredRodName: string;
+  bonusRodId: string;
+  bonusRodLevel: number;
+  bonusRodName: string;
+  bonusRodRarity: RodRarity;
+  compensationMon?: number;
+  credited?: boolean;
 }
 
 export type GameTab = 'fish' | 'tasks' | 'shop' | 'grill' | 'wheel' | 'leaderboard' | 'map';
@@ -228,12 +278,17 @@ export interface RodMasteryState {
 export interface WheelPrize {
   id: string;
   label: string;
-  type: 'coins' | 'fish' | 'mon' | 'bait' | 'album' | 'premium_shard';
+  type: 'coins' | 'fish' | 'mon' | 'bait' | 'rod' | 'album' | 'premium_shard';
   coins?: number;
   fishId?: string;
   quantity?: number;
   mon?: number;
   bait?: number;
+  rodId?: string;
+  rodLevel?: number;
+  rarity?: RodRarity;
+  duplicateCompensationMonads?: number;
+  duplicateCompensationApplied?: boolean;
   albumPageId?: string;
   premiumShards?: number;
   secret?: boolean;
@@ -384,6 +439,118 @@ export const RARITY_NAMES: Record<FishRarity, string> = {
   secret: 'Secret'
 };
 
+export const ROD_DATA: readonly RodDefinition[] = [
+  {
+    id: 'common_rod',
+    level: 0,
+    name: 'Common Rod',
+    description: 'The default starter rod. Every player owns it for free from the first cast.',
+    rarity: 'common',
+    bonus: 0,
+    bobber: 'Standard tackle',
+    bobberColor: '#aaa',
+    monadDropChance: 0,
+    monadMinReward: 0,
+    monadMaxReward: 0,
+    cubeDropWeight: 0,
+  },
+  {
+    id: 'rare_rod',
+    level: 1,
+    name: 'Rare Rod',
+    description: 'A tuned Monad rod with a modest rare-catch boost and a small MON pull range.',
+    rarity: 'rare',
+    bonus: 8,
+    bobber: 'Blue bobber',
+    bobberColor: '#60a5fa',
+    monUnlockCost: '3',
+    monadDropChance: 4,
+    monadMinReward: 0.01,
+    monadMaxReward: 0.03,
+    cubeDropWeight: 82,
+  },
+  {
+    id: 'epic_rod',
+    level: 2,
+    name: 'Epic Rod',
+    description: 'A stronger Monad rod for deeper runs, with higher rare-catch pressure and MON upside.',
+    rarity: 'epic',
+    bonus: 16,
+    bobber: 'Purple bobber',
+    bobberColor: '#c084fc',
+    monUnlockCost: '10',
+    monadDropChance: 8,
+    monadMinReward: 0.02,
+    monadMaxReward: 0.07,
+    cubeDropWeight: 16,
+  },
+  {
+    id: 'legendary_rod',
+    level: 3,
+    name: 'Legendary Rod',
+    description: 'The top Monad shop rod, built for rare trophy hunts and the strongest MON pulls.',
+    rarity: 'legendary',
+    bonus: 28,
+    bobber: 'Golden glowing bobber',
+    bobberColor: '#ffcc00',
+    monUnlockCost: '25',
+    monadDropChance: 14,
+    monadMinReward: 0.04,
+    monadMaxReward: 0.12,
+    cubeDropWeight: 2,
+  },
+  {
+    id: 'legacy_gold_rod',
+    level: 4,
+    name: 'Legacy Gold Rod',
+    description: 'A legacy tier preserved for existing saves that already reached the old level 4 rod.',
+    rarity: 'legendary',
+    bonus: 25,
+    bobber: 'Golden glowing bobber',
+    bobberColor: '#ffcc00',
+    monadDropChance: 0,
+    monadMinReward: 0,
+    monadMaxReward: 0,
+    cubeDropWeight: 0,
+  },
+] as const;
+
+export const ROD_RARITY_COLORS: Record<RodRarity, string> = {
+  common: '#d4d4d8',
+  uncommon: '#4ade80',
+  rare: '#60a5fa',
+  epic: '#c084fc',
+  legendary: '#facc15',
+};
+
+export const ROD_RARITY_NAMES: Record<RodRarity, string> = {
+  common: 'Common',
+  uncommon: 'Uncommon',
+  rare: 'Rare',
+  epic: 'Epic',
+  legendary: 'Legendary',
+};
+
+export const ROD_CUBE_DROP_CONFIG = {
+  cubeRodDropEnabled: true,
+  tileCount: 1,
+  tileInjectionChance: 0.3,
+  minLevel: 1,
+  maxLevel: 3,
+  cubeRodRewards: [
+    { rodId: 'rare_rod', dropWeight: 82, duplicateCompensationMonads: 0.5 },
+    { rodId: 'epic_rod', dropWeight: 16, duplicateCompensationMonads: 2 },
+    { rodId: 'legendary_rod', dropWeight: 2, duplicateCompensationMonads: 5 },
+  ],
+} as const;
+
+export const LEVIATHAN_COMMON_ROD_BONUS_CONFIG = {
+  fishId: 'leviathan',
+  requiredRodId: 'common_rod',
+  bonusRodId: 'epic_rod',
+  duplicateCompensationMon: 2,
+} as const;
+
 export const DAILY_TASKS: DailyTask[] = [
   {
     id: 'check_in',
@@ -527,7 +694,7 @@ export const GRILL_RECIPES: GrillRecipe[] = [
   },
 ];
 
-export const ROD_BONUSES = [0, 5, 10, 15, 25]; // % bonus to rare fish chance per rod level
+export const ROD_BONUSES = ROD_DATA.map((rod) => rod.bonus); // % bonus to rare fish chance per rod level
 export const XP_PER_LEVEL = 100;
 export const CATCH_CHANCE = 60; // Base 60% chance to catch something
 export const BAIT_COST = 80; // Cost per 1 bait

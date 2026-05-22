@@ -19,8 +19,7 @@ import {
   setMusicMuted,
   setSoundMuted,
 } from '@/hooks/useSoundEffects';
-import { supabase } from '@/integrations/supabase/client';
-import type { TablesUpdate } from '@/integrations/supabase/types';
+import { uploadPlayerAvatar } from '@/lib/serverApi';
 
 interface SettingsDialogProps {
   isConnected: boolean;
@@ -94,29 +93,8 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
 
     setUploading(true);
     try {
-      const ext = file.name.split('.').pop();
-      const filePath = `${walletAddress.toLowerCase()}.${ext}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file, { upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      const { data: urlData } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-
-      const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
-
-      const avatarUpdate: TablesUpdate<'players'> = { avatar_url: publicUrl };
-
-      await supabase
-        .from('players')
-        .update(avatarUpdate)
-        .eq('wallet_address', walletAddress.toLowerCase());
-
-      onAvatarUploaded?.(publicUrl);
+      const { publicUrl } = await uploadPlayerAvatar({ walletAddress, file });
+      onAvatarUploaded?.(`${publicUrl}?t=${Date.now()}`);
     } catch (error) {
       console.error('Avatar upload failed:', error);
     } finally {

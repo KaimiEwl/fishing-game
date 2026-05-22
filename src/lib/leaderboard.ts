@@ -1,12 +1,12 @@
 import type { GrillLeaderboardEntry } from '@/types/game';
-import { supabase } from '@/integrations/supabase/client';
-import type { TablesInsert } from '@/integrations/supabase/types';
+import {
+  deleteServerLeaderboardEntry,
+  loadServerLeaderboardEntries,
+  saveServerLeaderboardEntry,
+} from '@/lib/serverApi';
 
 const LEADERBOARD_STORAGE_KEY = 'monadfish_grill_leaderboard_v1';
 const LOCAL_PLAYER_ID_KEY = 'monadfish_leaderboard_player_id_v1';
-const REMOTE_LEADERBOARD_TABLE = 'grill_leaderboard';
-const REMOTE_LEADERBOARD_BUCKET = 'avatars';
-const REMOTE_LEADERBOARD_PREFIX = 'leaderboards/grill';
 export const DEFAULT_LEADERBOARD_NAME = 'Guest griller';
 
 const createFallbackId = () => `guest:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 8)}`;
@@ -32,55 +32,6 @@ const normalizeEntry = (entry: Partial<GrillLeaderboardEntry> & {
   walletAddress: entry.walletAddress || entry.wallet_address || undefined,
   updatedAt: entry.updatedAt || entry.updated_at || new Date().toISOString(),
 });
-
-const getRemoteStoragePath = (id: string) => `${REMOTE_LEADERBOARD_PREFIX}/${encodeURIComponent(id)}.json`;
-
-const loadStorageLeaderboardEntries = async () => {
-  const { data: files, error: listError } = await supabase.storage
-    .from(REMOTE_LEADERBOARD_BUCKET)
-    .list(REMOTE_LEADERBOARD_PREFIX, {
-      limit: 100,
-      sortBy: { column: 'name', order: 'asc' },
-    });
-
-  if (listError) {
-    throw listError;
-  }
-
-  const downloaded = await Promise.all((files || [])
-    .filter((file) => file.name.endsWith('.json'))
-    .map(async (file) => {
-      const { data, error } = await supabase.storage
-        .from(REMOTE_LEADERBOARD_BUCKET)
-        .download(`${REMOTE_LEADERBOARD_PREFIX}/${file.name}`);
-
-      if (error || !data) return null;
-
-      try {
-        return normalizeEntry(JSON.parse(await data.text()) as GrillLeaderboardEntry);
-      } catch {
-        return null;
-      }
-    }));
-
-  return downloaded.filter((entry): entry is GrillLeaderboardEntry => Boolean(entry));
-};
-
-const saveStorageLeaderboardEntry = async (entry: GrillLeaderboardEntry) => {
-  const normalized = normalizeEntry(entry);
-  const payload = JSON.stringify(normalized);
-  const { error } = await supabase.storage
-    .from(REMOTE_LEADERBOARD_BUCKET)
-    .upload(getRemoteStoragePath(normalized.id), payload, {
-      upsert: true,
-      contentType: 'application/json',
-      cacheControl: '60',
-    });
-
-  if (error) {
-    throw error;
-  }
-};
 
 const sortEntries = (entries: GrillLeaderboardEntry[]) => (
   [...entries].sort((a, b) => {
@@ -282,97 +233,35 @@ const syncNamedLocalEntries = async (remoteEntries: GrillLeaderboardEntry[]) => 
 
 export const loadGlobalLeaderboardEntries = async () => {
   try {
-    const { data, error } = await supabase
-      .from(REMOTE_LEADERBOARD_TABLE)
-      .select('id, name, score, dishes, wallet_address, updated_at')
-      .order('score', { ascending: false })
-      .order('updated_at', { ascending: false })
-      .limit(100);
-
-    if (error) throw error;
-
-    let remoteEntries = ((data || []) as Array<Record<string, unknown>>).map((entry) => normalizeEntry(entry));
+    let remoteEntries = (await loadServerLeaderboardEntries()).map((entry) => normalizeEntry(entry));
 
     if (await syncNamedLocalEntries(remoteEntries)) {
-      const { data: syncedData, error: syncedError } = await supabase
-        .from(REMOTE_LEADERBOARD_TABLE)
-        .select('id, name, score, dishes, wallet_address, updated_at')
-        .order('score', { ascending: false })
-        .order('updated_at', { ascending: false })
-        .limit(100);
-
-      if (!syncedError) {
-        remoteEntries = ((syncedData || []) as Array<Record<string, unknown>>).map((entry) => normalizeEntry(entry));
-      }
+      remoteEntries = (await loadServerLeaderboardEntries()).map((entry) => normalizeEntry(entry));
     }
 
     const canonicalEntries = mergeLeaderboardSnapshots(remoteEntries);
     saveLeaderboardEntries(canonicalEntries);
     return canonicalEntries;
   } catch {
-    try {
-      let remoteEntries = await loadStorageLeaderboardEntries();
-
-      if (await syncNamedLocalEntries(remoteEntries)) {
-        remoteEntries = await loadStorageLeaderboardEntries();
-      }
-
-      const canonicalEntries = mergeLeaderboardSnapshots(remoteEntries);
-      saveLeaderboardEntries(canonicalEntries);
-      return canonicalEntries;
-    } catch {
-      return null;
-    }
+    return null;
   }
 };
 
 export const saveGlobalLeaderboardEntry = async (entry: GrillLeaderboardEntry) => {
   const normalized = normalizeEntry(entry);
-  const payload: TablesInsert<'grill_leaderboard'> = {
-    id: normalized.id,
-    name: normalized.name,
-    score: normalized.score,
-    dishes: normalized.dishes,
-    wallet_address: normalized.walletAddress ?? null,
-    updated_at: normalized.updatedAt,
-  };
-
   try {
-    const { error } = await supabase
-      .from(REMOTE_LEADERBOARD_TABLE)
-      .upsert(payload, { onConflict: 'id' });
-
-    if (error) throw error;
+    await saveServerLeaderboardEntry(normalized);
     return true;
   } catch {
-    try {
-      await saveStorageLeaderboardEntry(normalized);
-      return true;
-    } catch {
-      return false;
-    }
+    return false;
   }
 };
 
 export const deleteGlobalLeaderboardEntry = async (id: string) => {
-  const storagePath = getRemoteStoragePath(id);
-
   try {
-    const { error } = await supabase
-      .from(REMOTE_LEADERBOARD_TABLE)
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error;
+    await deleteServerLeaderboardEntry(id);
+    return true;
   } catch {
-    const { error } = await supabase.storage
-      .from(REMOTE_LEADERBOARD_BUCKET)
-      .remove([storagePath]);
-
-    if (error && !String(error.message || '').includes('not found')) {
-      return false;
-    }
+    return false;
   }
-
-  return true;
 };

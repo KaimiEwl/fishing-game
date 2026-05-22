@@ -5,7 +5,8 @@
 - Active app repo: `bright-greet-forge-main`
 - Runtime used in CI: Node `20` (`.github/workflows/deploy.yml`)
 - Package manager used in CI: `npm`
-- Auto deploy target: GitHub Pages on push to `main`
+- Production target: owned VPS stack under `deploy/vps/` with the Node API and SQLite data volume.
+- GitHub Pages workflow only builds a static artifact; the full game runtime expects same-origin `/api/*` from the owned server.
 
 ## Local install
 
@@ -17,13 +18,31 @@ npm ci
 
 Copy `.env.example` and provide:
 
-- `VITE_SUPABASE_PROJECT_ID`
-- `VITE_SUPABASE_PUBLISHABLE_KEY`
-- `VITE_SUPABASE_URL`
+- `HOOKLOOT_SESSION_SECRET` or `SESSION_TOKEN_SECRET`
+- `HOOKLOOT_RECEIVER_ADDRESS`
+- `HOOKLOOT_ADMIN_WALLETS`
 
 Optional:
 
 - `VITE_WALLETCONNECT_PROJECT_ID`
+- `VITE_API_PROXY_TARGET` for local Vite proxy override
+- `MONAD_RPC_URL`
+
+## Local app + API run
+
+Start the owned API:
+
+```sh
+npm run server
+```
+
+Start the Vite app in another terminal:
+
+```sh
+npm run dev
+```
+
+During local development, Vite proxies `/api/*` to `http://127.0.0.1:8787` unless `VITE_API_PROXY_TARGET` is set.
 
 ## Local release build for GitHub Pages
 
@@ -67,6 +86,7 @@ Notes:
 ## VPS deployment
 
 - New VPS deploy assets now live under `deploy/vps/`
+- The VPS compose stack runs both `hookloot-web` and `hookloot-api`.
 - Step-by-step guide:
   - `docs/vps-deploy.md`
 - Local helpers:
@@ -75,7 +95,7 @@ Notes:
 
 ## Customer handoff note
 
-For customer delivery, include the deployed GitHub Pages URL and the backup zip created before release work.
+For customer delivery, include the deployed `https://www.hookloot.xyz` URL and the backup zip created before release work.
 
 # Welcome to your Lovable project
 

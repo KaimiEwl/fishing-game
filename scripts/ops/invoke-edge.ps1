@@ -11,17 +11,12 @@ param(
   [Parameter(Mandatory = $true)]
   [string]$SessionToken,
 
-  [string]$BaseUrl = $env:VITE_SUPABASE_URL,
-  [string]$AnonKey = $env:VITE_SUPABASE_PUBLISHABLE_KEY,
+  [string]$BaseUrl = $(if ($env:HOOKLOOT_API_BASE_URL) { $env:HOOKLOOT_API_BASE_URL } else { "http://127.0.0.1:8787" }),
   [string]$BodyJson = "{}"
 )
 
 if ([string]::IsNullOrWhiteSpace($BaseUrl)) {
-  throw "Missing BaseUrl. Pass -BaseUrl or export VITE_SUPABASE_URL."
-}
-
-if ([string]::IsNullOrWhiteSpace($AnonKey)) {
-  throw "Missing AnonKey. Pass -AnonKey or export VITE_SUPABASE_PUBLISHABLE_KEY."
+  throw "Missing BaseUrl. Pass -BaseUrl or export HOOKLOOT_API_BASE_URL."
 }
 
 $extraBody = @{}
@@ -48,12 +43,7 @@ foreach ($key in $extraBody.Keys) {
   $payload[$key] = $extraBody[$key]
 }
 
-$headers = @{
-  apikey        = $AnonKey
-  Authorization = "Bearer $AnonKey"
-}
-
-$uri = "$BaseUrl/functions/v1/$FunctionName"
+$uri = "$($BaseUrl.TrimEnd('/'))/api/edge/$FunctionName"
 $jsonBody = $payload | ConvertTo-Json -Depth 20
 
-Invoke-RestMethod -Method Post -Uri $uri -Headers $headers -ContentType "application/json" -Body $jsonBody
+Invoke-RestMethod -Method Post -Uri $uri -ContentType "application/json" -Body $jsonBody

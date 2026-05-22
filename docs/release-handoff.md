@@ -6,7 +6,7 @@ Release check date: 2026-04-25 local workspace time.
 - Primary public host: `https://www.hookloot.xyz`
 - Production frontend build path for VPS: `npm run build`
 - GitHub Pages fallback/CI artifact path: `npm run build:pages`
-- Working Supabase project: `oyhyoqnhqifcwjyputif`
+- Runtime backend: owned Hook & Loot API on the VPS
 
 ## Verified Locally
 - `npm run verify` passed.
@@ -33,7 +33,7 @@ Release check date: 2026-04-25 local workspace time.
 ## Important Notes
 - `tmp/` is intentionally ignored by ESLint now, matching `.gitignore`, so old local audit scratch files cannot fail release checks.
 - Local Vite preview is not a reliable runtime smoke for the GitHub Pages base path `/fishing-game/`, because the local server does not mount `dist` under that prefix. The CI Pages artifact still builds successfully.
-- Live Supabase mutation smoke was not run in this pass because it requires an admin wallet/session token and can touch live data.
+- Owned API mutation smoke should be run with `npm run ops:smoke` against the target API before release.
 - No production push/deploy was performed in this pass.
 
 ## Release Commands

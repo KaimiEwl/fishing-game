@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAccount, useSignMessage, useDisconnect } from 'wagmi';
-import { invokeEdgeFunctionHttp, supabase } from '@/integrations/supabase/client';
+import { invokeEdgeFunctionHttp, invokeHooklootEdge } from '@/lib/serverApi';
 import {
   DAILY_TASKS,
   FISH_DATA,
@@ -82,6 +82,7 @@ const LAST_REFERRAL_REWARD_STORAGE_KEY = 'hook_loot_last_referral_reward_v1';
 const PENDING_WALLET_SAVE_STORAGE_KEY = 'hook_loot_pending_wallet_save_v1';
 const EDGE_FUNCTION_GENERIC_MESSAGES = [
   'Edge Function returned a non-2xx status code',
+  'Hook & Loot API returned a non-2xx status code',
   'Failed to send a request to the Edge Function',
 ];
 
@@ -213,7 +214,7 @@ function mapCookedDishes(value: unknown): PlayerState['cookedDishes'] {
   });
 }
 
-function mapPlayerRecord(p: PlayerRecord): PlayerState {
+export function mapPlayerRecord(p: PlayerRecord): PlayerState {
   const syncedProgress = p.game_progress && typeof p.game_progress === 'object'
     ? p.game_progress as GameProgressSnapshot
     : null;
@@ -472,6 +473,8 @@ const normalizeWheelPrize = (value: unknown) => {
         ? 'mon'
         : prize.type === 'bait'
           ? 'bait'
+          : prize.type === 'rod'
+            ? 'rod'
           : null;
   const id = typeof prize.id === 'string' ? prize.id.trim() : '';
   const label = typeof prize.label === 'string' ? prize.label.trim() : '';
@@ -486,6 +489,13 @@ const normalizeWheelPrize = (value: unknown) => {
     quantity: prize.quantity == null ? undefined : clampProgressInt(prize.quantity, 1, 1, 99_999),
     mon: type === 'mon' ? Number(prize.mon ?? 0) : undefined,
     bait: type === 'bait' ? clampProgressInt(prize.bait, 0, 0, 99_999) : undefined,
+    rodId: type === 'rod' && typeof prize.rodId === 'string' ? prize.rodId.trim() : undefined,
+    rodLevel: type === 'rod' ? clampProgressInt(prize.rodLevel, 0, 0, 99) : undefined,
+    rarity: type === 'rod' && typeof prize.rarity === 'string' ? prize.rarity.trim() : undefined,
+    duplicateCompensationMonads: type === 'rod' && Number.isFinite(Number(prize.duplicateCompensationMonads))
+      ? Math.max(0, Number(prize.duplicateCompensationMonads))
+      : undefined,
+    duplicateCompensationApplied: type === 'rod' ? Boolean(prize.duplicateCompensationApplied) : undefined,
     secret: Boolean(prize.secret),
   };
 };
@@ -938,7 +948,7 @@ export function useWalletAuth() {
       storePendingWalletSaveBundle(address, pendingBundle);
       refreshPendingPlayerSaveState(address);
 
-      const { data, error } = await supabase.functions.invoke('save-player-progress', {
+      const { data, error } = await invokeHooklootEdge('save-player-progress', {
         body: {
           wallet_address: address,
           session_token: sessionTokenRef.current,
@@ -1147,7 +1157,7 @@ export function useWalletAuth() {
 
     saveInFlightRef.current = true;
     try {
-      const { data, error } = await supabase.functions.invoke('save-player-name', {
+      const { data, error } = await invokeHooklootEdge('save-player-name', {
         body: {
           wallet_address: address,
           session_token: sessionTokenRef.current,

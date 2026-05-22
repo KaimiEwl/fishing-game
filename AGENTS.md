@@ -3,18 +3,20 @@
 Follow `../AGENTS.md` first. This file only adds subtree-specific rules for the active app repo.
 
 ## Purpose
-- `bright-greet-forge-main/` is the real working repo: Vite/React frontend, Supabase integrations, and GitHub Pages deploy.
+- `bright-greet-forge-main/` is the real working repo: Vite/React frontend, owned Node API, SQLite-backed game data, and VPS deploy assets.
 
 ## Local map
 - `src/components/game/`: fishing/gameplay screens and HUD.
 - `src/hooks/`: game state, wallet auth, sound, progress.
 - `src/lib/`: shared helpers, asset loaders, leaderboard, wagmi config.
-- `src/integrations/supabase/`: frontend Supabase client/types.
-- `supabase/functions/` and `supabase/migrations/`: backend-side logic and schema history.
+- `src/types/serverDatabase.ts`: frontend row-shape types for owned server payloads.
+- `server/`: owned Hook & Loot API and SQLite persistence.
+- `deploy/vps/`: VPS compose/nginx/deploy files for the web + API stack.
 
 ## Commands
 - Install: `npm ci`
 - Run: `npm run dev`
+- API: `npm run server`
 - Build: `npm run build`
 - Typecheck: `npm run typecheck`
 - Repo verify (required before merge/deploy): `npm run verify`
@@ -36,7 +38,7 @@ Follow `../AGENTS.md` first. This file only adds subtree-specific rules for the 
 - UI/gameplay changes: `npm run build` is still the cheapest first gate.
 - `npm run lint` is now part of `npm run verify` and currently passes with warnings only; do not treat those warnings as a blocker unless the task specifically targets them.
 - `npm run typecheck` is the required static contract gate for TS changes.
-- For Supabase/frontend contract changes, inspect both caller and backend files, then run `npm run build`.
+- For owned API/frontend contract changes, inspect both caller and `server/index.mjs`, then run `npm run typecheck` and `npm run build`.
 
 ## Done
 - Smallest viable diff is in place.

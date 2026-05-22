@@ -1,4 +1,4 @@
-import type { FishRarity, PlayerState, PremiumDropTierId } from '@/types/game';
+import { ROD_DATA, type FishRarity, type PlayerState, type PremiumDropTierId } from '@/types/game';
 
 const readFlag = (value: string | undefined, fallback: boolean) => {
   if (value == null || value.trim() === '') return fallback;
@@ -97,32 +97,22 @@ export const MON_CUBE_SPIN_PACKAGES = [
   },
 ] as const;
 
-export const MON_ROD_PURCHASES = [
-  {
-    level: 1,
-    monAmount: '3',
-    label: 'Bamboo MON unlock',
-    positioning: 'Premium shortcut into the first rod tier without the coin grind.',
-  },
-  {
-    level: 2,
-    monAmount: '5',
-    label: 'Carbon MON unlock',
-    positioning: 'Mid-tier shortcut when you want the blue rod immediately.',
-  },
-  {
-    level: 3,
-    monAmount: '10',
-    label: 'Pro MON unlock',
-    positioning: 'Late mid-game shortcut straight into the purple rod tier.',
-  },
-  {
-    level: 4,
-    monAmount: '25',
-    label: 'Legendary MON unlock',
-    positioning: 'Endgame shortcut into the gold rod while bonus MON rods stay separate.',
-  },
-] as const;
+export const MON_ROD_PURCHASES = ROD_DATA
+  .filter((rod) => rod.level > 0 && rod.monUnlockCost)
+  .map((rod) => ({
+    level: rod.level,
+    rodId: rod.id,
+    name: rod.name,
+    description: rod.description,
+    rarity: rod.rarity,
+    monAmount: rod.monUnlockCost!,
+    rareCatchBonus: rod.bonus,
+    monadDropChance: rod.monadDropChance,
+    monadMinReward: rod.monadMinReward,
+    monadMaxReward: rod.monadMaxReward,
+    label: rod.name,
+    positioning: `${rod.name} unlock for Monad Shop progression.`,
+  }));
 
 export interface PremiumMonDropTierConfig {
   id: PremiumDropTierId;
@@ -165,7 +155,7 @@ export interface CubeRebalanceConfig {
   fishTileRatio: number;
   monTileCount: number;
   monPrizeAmount: number;
-  preferredRewardMix: Array<'coins' | 'fish' | 'bait' | 'album' | 'mon'>;
+  preferredRewardMix: Array<'coins' | 'fish' | 'bait' | 'rod' | 'album' | 'mon'>;
 }
 
 export interface EconomyFeatureAvailability {
@@ -275,7 +265,7 @@ export const CUBE_REBALANCE_CONFIG: Readonly<CubeRebalanceConfig> = {
   fishTileRatio: 0.46,
   monTileCount: 1,
   monPrizeAmount: 1,
-  preferredRewardMix: ['fish', 'coins', 'bait', 'mon', 'album'],
+  preferredRewardMix: ['fish', 'coins', 'bait', 'rod', 'mon', 'album'],
 } as const;
 
 const normalizeRolloutSubject = (subject?: string | null) => {

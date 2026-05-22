@@ -9,18 +9,16 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useSendTransaction } from 'wagmi';
+import { useBalance, useSendTransaction } from 'wagmi';
 import { parseEther } from 'viem';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { NFT_ROD_DATA } from '@/types/game';
+import { NFT_ROD_DATA, ROD_DATA, ROD_RARITY_COLORS, ROD_RARITY_NAMES } from '@/types/game';
 import CoinIcon from './CoinIcon';
 import { Check, Coins, ShipWheel } from 'lucide-react';
 import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
 import { getErrorMessage, isUserRejectedError } from '@/lib/errorUtils';
-import { MON_ROD_PURCHASES } from '@/lib/baitEconomy';
-
-const RECEIVER_ADDRESS = '0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D' as const;
+import { MON_MARKET_RECEIVER_ADDRESS, MON_ROD_PURCHASES } from '@/lib/baitEconomy';
+import { invokeHooklootEdge } from '@/lib/serverApi';
 
 const COIN_PACKAGES = [
   { monAmount: '0.01', coins: 10, premium: false },
@@ -32,7 +30,7 @@ const COIN_PACKAGES = [
 
 const ROD_IMAGES = ROD_DISPLAY_INFO.map((rod) => rod.image);
 
-const ROD_NAMES = ['Starter', 'Bamboo', 'Carbon', 'Pro', 'Legendary'];
+const getRodName = (level: number) => ROD_DATA[level]?.name ?? `Rod ${level}`;
 
 interface BuyCoinsDialogProps {
   walletAddress?: string;
@@ -41,6 +39,7 @@ interface BuyCoinsDialogProps {
   nftRods: number[];
   onNftMinted: (rodLevel: number) => void;
   onRodPurchased: (rodLevel: number, monAmount: string) => void;
+  onServerPlayerUpdated?: (playerRecord: unknown) => void;
   initialTab?: 'coins' | 'rods' | 'nft';
   triggerLabel?: string;
 }
@@ -52,6 +51,7 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
   nftRods,
   onNftMinted,
   onRodPurchased,
+  onServerPlayerUpdated,
   initialTab = 'coins',
   triggerLabel = 'MON Market',
 }) => {
@@ -61,6 +61,17 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
   const [buyingRodLevel, setBuyingRodLevel] = useState<number | null>(null);
 
   const { sendTransactionAsync } = useSendTransaction();
+  const walletBalanceAddress = walletAddress?.startsWith('0x') ? walletAddress as `0x${string}` : undefined;
+  const { data: monWalletBalance } = useBalance({ address: walletBalanceAddress });
+  const hasEnoughMon = (monAmount: string) => {
+    if (!monWalletBalance) return true;
+
+    try {
+      return monWalletBalance.value >= parseEther(monAmount);
+    } catch {
+      return true;
+    }
+  };
 
   const handlePurchase = async (pkg: typeof COIN_PACKAGES[0]) => {
     if (!walletAddress || isPurchasing) return;
@@ -70,13 +81,13 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
 
     try {
       const txHash = await sendTransactionAsync({
-        to: RECEIVER_ADDRESS,
+        to: MON_MARKET_RECEIVER_ADDRESS,
         value: parseEther(pkg.monAmount),
       });
 
       toast.info('Transaction sent, awaiting confirmation...');
 
-      const { data, error } = await supabase.functions.invoke('verify-purchase', {
+      const { data, error } = await invokeHooklootEdge('verify-purchase', {
         body: {
           tx_hash: txHash,
           wallet_address: walletAddress,
@@ -88,7 +99,11 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || 'Verification failed');
 
-      onCoinsAdded(pkg.coins);
+      if (data?.player) {
+        onServerPlayerUpdated?.(data.player);
+      } else {
+        onCoinsAdded(pkg.coins);
+      }
       toast.success(`+${pkg.coins} coins added.`);
     } catch (err: unknown) {
       console.error('Purchase failed:', err);
@@ -112,13 +127,13 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
     setMintingLevel(nftRod.rodLevel);
     try {
       const txHash = await sendTransactionAsync({
-        to: RECEIVER_ADDRESS as `0x${string}`,
+        to: MON_MARKET_RECEIVER_ADDRESS,
         value: parseEther(nftRod.mintCost),
       });
 
       toast.info('Transaction sent, verifying...');
 
-      const { data, error } = await supabase.functions.invoke('verify-purchase', {
+      const { data, error } = await invokeHooklootEdge('verify-purchase', {
         body: {
           tx_hash: txHash,
           wallet_address: walletAddress,
@@ -131,8 +146,11 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
         throw new Error(data?.error || 'Verification failed');
       }
 
+      if (data?.player) {
+        onServerPlayerUpdated?.(data.player);
+      }
       onNftMinted(nftRod.rodLevel);
-      toast.success(`${ROD_NAMES[nftRod.rodLevel]} NFT minted.`);
+      toast.success(`${getRodName(nftRod.rodLevel)} NFT minted.`);
     } catch (err: unknown) {
       console.error('NFT mint failed:', err);
       if (isUserRejectedError(err)) {
@@ -150,16 +168,21 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
       return;
     }
 
+    if (!hasEnoughMon(rodOffer.monAmount)) {
+      toast.error(`Not enough MON. This rod costs ${rodOffer.monAmount} MON.`);
+      return;
+    }
+
     setBuyingRodLevel(rodOffer.level);
     try {
       const txHash = await sendTransactionAsync({
-        to: RECEIVER_ADDRESS as `0x${string}`,
+        to: MON_MARKET_RECEIVER_ADDRESS,
         value: parseEther(rodOffer.monAmount),
       });
 
       toast.info('Transaction sent, verifying rod unlock...');
 
-      const { data, error } = await supabase.functions.invoke('verify-purchase', {
+      const { data, error } = await invokeHooklootEdge('verify-purchase', {
         body: {
           tx_hash: txHash,
           wallet_address: walletAddress,
@@ -172,8 +195,11 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
         throw new Error(data?.error || 'Verification failed');
       }
 
+      if (data?.player) {
+        onServerPlayerUpdated?.(data.player);
+      }
       onRodPurchased(rodOffer.level, rodOffer.monAmount);
-      toast.success(`${ROD_NAMES[rodOffer.level]} Rod unlocked.`);
+      toast.success(`${getRodName(rodOffer.level)} unlocked.`);
     } catch (err: unknown) {
       console.error('MON rod purchase failed:', err);
       if (isUserRejectedError(err)) {
@@ -253,7 +279,9 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
                 {MON_ROD_PURCHASES.map((rodOffer) => {
                   const isOwned = rodLevel >= rodOffer.level;
                   const isBuying = buyingRodLevel === rodOffer.level;
+                  const notEnoughMon = Boolean(walletAddress) && !hasEnoughMon(rodOffer.monAmount);
                   const rodImage = ROD_IMAGES[rodOffer.level];
+                  const rod = ROD_DATA[rodOffer.level];
 
                   return (
                     <div
@@ -265,11 +293,22 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
                       }`}
                     >
                       <div className={`relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg bg-black/70 ${isOwned ? 'ring-2 ring-cyan-300/40' : ''}`}>
-                        <img src={rodImage} alt={ROD_NAMES[rodOffer.level]} className="h-10 object-contain" />
+                        <img src={rodImage} alt={getRodName(rodOffer.level)} className="h-10 object-contain" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="font-semibold text-sm text-zinc-100">{ROD_NAMES[rodOffer.level]} Rod</div>
-                        <div className="text-xs text-zinc-500">{rodOffer.positioning}</div>
+                        <div className="font-semibold text-sm text-zinc-100">{getRodName(rodOffer.level)}</div>
+                        <div className="text-xs text-zinc-500">{rodOffer.description}</div>
+                        <div className="mt-1 text-[10px] text-zinc-500">
+                          MON pull {rodOffer.monadDropChance}% / {rodOffer.monadMinReward}-{rodOffer.monadMaxReward} MON / +{rodOffer.rareCatchBonus}% rare+
+                        </div>
+                        {rod && (
+                          <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: ROD_RARITY_COLORS[rod.rarity] }}>
+                            {ROD_RARITY_NAMES[rod.rarity]}
+                          </div>
+                        )}
+                        {notEnoughMon ? (
+                          <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-red-300">Not enough MON</div>
+                        ) : null}
                       </div>
                       {isOwned ? (
                         <span className="inline-flex whitespace-nowrap text-sm font-bold text-cyan-100">
@@ -278,11 +317,11 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
                       ) : (
                         <Button
                           size="sm"
-                          disabled={isBuying || !walletAddress}
+                          disabled={isBuying || !walletAddress || notEnoughMon}
                           onClick={() => void handleRodPurchase(rodOffer)}
                           className="whitespace-nowrap border border-cyan-300/25 bg-zinc-950 text-cyan-100 hover:bg-black"
                         >
-                          {isBuying ? '...' : `${rodOffer.monAmount} MON`}
+                          {isBuying ? '...' : notEnoughMon ? 'No MON' : `${rodOffer.monAmount} MON`}
                         </Button>
                       )}
                     </div>

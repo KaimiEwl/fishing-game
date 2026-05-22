@@ -1,12 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { Check, Coins, Package, ShipWheel, Sparkles, Worm } from 'lucide-react';
-import { useSendTransaction } from 'wagmi';
+import { useBalance, useSendTransaction } from 'wagmi';
 import { parseEther } from 'viem';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FISH_DATA, NFT_ROD_DATA, type FishingNetState, ROD_BONUSES } from '@/types/game';
+import {
+  FISH_DATA,
+  NFT_ROD_DATA,
+  ROD_DATA,
+  ROD_RARITY_COLORS,
+  ROD_RARITY_NAMES,
+  type FishingNetState,
+} from '@/types/game';
 import {
   BAIT_PACKAGES,
   FISHING_NET_DAILY_FISH_COUNT,
@@ -23,6 +29,7 @@ import CoinIcon from './CoinIcon';
 import BuyCoinsDialog from './BuyCoinsDialog';
 import GameScreenShell from './GameScreenShell';
 import QuestBoard, { QuestBoardCard, QuestBoardPlaque } from './QuestBoard';
+import { invokeHooklootEdge } from '@/lib/serverApi';
 
 interface ShopScreenProps {
   coins: number;
@@ -34,20 +41,22 @@ interface ShopScreenProps {
   nftRods?: number[];
   onBuyBait: (amount: number, cost: number) => void;
   onBuyRod: (level: number, cost: number) => void;
-  onBuyFishingNetWithMon: (dailyFishCount: number, monAmount: string) => boolean;
+  onBuyFishingNetWithMon: (dailyFishCount: number, monAmount: string, txHash?: string) => boolean | Promise<boolean>;
   onClaimFishingNet: () => void;
   onBuyRodWithMon: (level: number, monAmount: string) => void;
-  onBuyCubeRollsWithMon: (amount: number, monAmount: string) => boolean;
+  onBuyCubeRollsWithMon: (amount: number, monAmount: string, txHash?: string) => boolean | Promise<boolean>;
   onCoinsAdded: (amount: number) => void;
   onNftMinted: (rodLevel: number) => void;
+  onServerPlayerUpdated?: (playerRecord: unknown) => void;
 }
 
-const ROD_UPGRADES = [
-  { level: 1, cost: 2500, name: 'Bamboo Rod', bonus: 5, image: ROD_DISPLAY_INFO[1].image, bobber: 'Green bobber', bobberColor: '#22aa44' },
-  { level: 2, cost: 15000, name: 'Carbon Rod', bonus: 10, image: ROD_DISPLAY_INFO[2].image, bobber: 'Blue bobber', bobberColor: '#2255cc' },
-  { level: 3, cost: 60000, name: 'Pro Rod', bonus: 15, image: ROD_DISPLAY_INFO[3].image, bobber: 'Purple bobber', bobberColor: '#9944ff' },
-  { level: 4, cost: 250000, name: 'Legendary Rod', bonus: 25, image: ROD_DISPLAY_INFO[4].image, bobber: 'Golden glowing bobber', bobberColor: '#ffcc00' },
-] as const;
+const ROD_UPGRADES = ROD_DATA
+  .filter((rod) => rod.level > 0 && rod.coinCost)
+  .map((rod) => ({
+    ...rod,
+    cost: rod.coinCost!,
+    image: ROD_DISPLAY_INFO[rod.level].image,
+  }));
 
 const FISHING_NET_SHOP_ICON_SRC = publicAsset('assets/fishing_net_shop_icon.png');
 const SHOP_TOAST_DURATION_MS = 5600;
@@ -78,12 +87,15 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
   onBuyCubeRollsWithMon,
   onCoinsAdded,
   onNftMinted,
+  onServerPlayerUpdated,
 }) => {
   const [isMobileLayout, setIsMobileLayout] = useState(() => (
     typeof window !== 'undefined' ? window.innerWidth < 768 : false
   ));
   const [activeMonadPurchase, setActiveMonadPurchase] = useState<string | null>(null);
   const { sendTransactionAsync } = useSendTransaction();
+  const walletBalanceAddress = walletAddress?.startsWith('0x') ? walletAddress as `0x${string}` : undefined;
+  const { data: monWalletBalance } = useBalance({ address: walletBalanceAddress });
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(max-width: 767px)');
@@ -106,6 +118,16 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
     .join(', ');
   const walletConnected = Boolean(walletAddress);
   const currentNetOffer = MON_FISHING_NET_PACKAGES.find((offer) => offer.fishCount === currentNetDailyFishCount) ?? null;
+  const currentRod = ROD_DATA[rodLevel] ?? ROD_DATA[0];
+  const hasEnoughMon = (monAmount: string) => {
+    if (!monWalletBalance) return true;
+
+    try {
+      return monWalletBalance.value >= parseEther(monAmount);
+    } catch {
+      return true;
+    }
+  };
 
   const boardViewportInsets = isMobileLayout
     ? {
@@ -138,10 +160,15 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
     pendingMessage: string;
     successMessage: string;
     verifyBody?: Record<string, unknown>;
-    applyLocalUnlock?: () => boolean | void;
+    applyLocalUnlock?: (context: { txHash: string; data?: unknown }) => boolean | void | Promise<boolean | void>;
   }) => {
     if (!walletAddress) {
       toast.error('Connect wallet first to use Monad Shop.', { duration: SHOP_TOAST_DURATION_MS });
+      return;
+    }
+
+    if (!hasEnoughMon(monAmount)) {
+      toast.error(`Not enough MON. This purchase requires ${monAmount} MON.`, { duration: SHOP_TOAST_DURATION_MS });
       return;
     }
 
@@ -161,8 +188,9 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
         duration: SHOP_TOAST_DURATION_MS,
       });
 
+      let verifiedData: unknown;
       if (verifyBody) {
-        const { data, error } = await supabase.functions.invoke('verify-purchase', {
+        const { data, error } = await invokeHooklootEdge('verify-purchase', {
           body: {
             tx_hash: txHash,
             wallet_address: walletAddress,
@@ -175,9 +203,13 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
         if (!data?.success) {
           throw new Error(data?.error || 'Verification failed');
         }
+        verifiedData = data;
+        if (data?.player) {
+          onServerPlayerUpdated?.(data.player);
+        }
       }
 
-      const applied = applyLocalUnlock?.();
+      const applied = await applyLocalUnlock?.({ txHash, data: verifiedData });
       if (applied === false) {
         throw new Error('Could not apply this purchase to the current player state.');
       }
@@ -243,7 +275,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
   return (
     <GameScreenShell
       title="Shop"
-      subtitle="Coins stay in Bait and Rods. All MON items now live in Monad Shop."
+      subtitle="Coins stay in Bait. Rod upgrades and other MON items live in Monad Shop."
       backgroundImage={isMobileLayout ? publicAsset('assets/shop_board_mobile_reference.webp') : publicAsset('assets/shop_board_reference.webp')}
       backgroundFit="cover"
       overlayClassName="bg-[linear-gradient(180deg,rgba(8,6,3,0.10)_0%,rgba(10,8,5,0.12)_48%,rgba(6,5,3,0.18)_100%)]"
@@ -309,55 +341,79 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                 description={(
                   <>
                     <span className="font-black text-[#f3c777]">
-                      {rodLevel === 0 ? 'Starter' : ROD_UPGRADES[rodLevel - 1]?.name}
+                      {currentRod.name}
                     </span>
                     <span className="ml-2 text-[0.74rem] text-[#f8e8bf]/72 sm:text-xs">
-                      +{ROD_BONUSES[rodLevel]}% rare chance
+                      {ROD_RARITY_NAMES[currentRod.rarity]} / +{currentRod.bonus}% rare chance
                     </span>
                   </>
                 )}
               />
               <QuestBoardPlaque
                 eyebrow="Monad gear"
-                description="Coin rods stay here. The premium MON utility and the stronger bonus NFT rods moved into Monad Shop."
+                description="The Common Rod is available by default. Rare, Epic, and Legendary rods are purchased in Monad Shop with MON."
               />
-              <div className="grid gap-2.5 sm:gap-3 lg:grid-cols-2">
-                {ROD_UPGRADES.map((rod) => {
-                  const isOwned = rodLevel >= rod.level;
-                  const canBuy = !isOwned && coins >= rod.cost;
-
-                  return (
-                    <QuestBoardCard key={rod.level}>
-                      <div className="flex h-full flex-col gap-3 sm:flex-row sm:items-center">
-                        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#6f4928] bg-[rgba(15,10,7,0.72)] shadow-inner">
-                          <img src={rod.image} alt={rod.name} className="h-14 w-14 object-contain" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="font-black text-[#f8e8bf]">{rod.name}</div>
-                          <div className="text-xs font-medium text-[#f8e8bf]/72">+{rod.bonus}% rare fish chance</div>
-                          <div className="mt-1 text-xs font-semibold" style={{ color: rod.bobberColor }}>{rod.bobber}</div>
-                        </div>
-                        {isOwned ? (
-                          <span className="shrink-0 text-sm font-black text-[#f3c777]">
-                            <Check className="mr-1 inline h-4 w-4" />
-                            Owned
-                            {nftRods.includes(rod.level) && <span className="ml-1 text-[#f8e8bf]">NFT</span>}
-                          </span>
-                        ) : (
-                          <Button
-                            size="sm"
-                            disabled={!canBuy}
-                            onClick={() => onBuyRod(rod.level, rod.cost)}
-                            className={`w-full shrink-0 sm:w-auto ${SHOP_BUTTON_CLASS_NAME}`}
-                          >
-                            <CoinIcon size="sm" /> {rod.cost}
-                          </Button>
-                        )}
+              {ROD_UPGRADES.length === 0 ? (
+                <QuestBoardCard>
+                  <div className="flex h-full flex-col gap-3 sm:flex-row sm:items-center">
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#6f4928] bg-[rgba(15,10,7,0.72)] shadow-inner">
+                      <img src={ROD_DISPLAY_INFO[0].image} alt={ROD_DATA[0].name} className="h-14 w-14 object-contain" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-black text-[#f8e8bf]">{ROD_DATA[0].name}</div>
+                      <div className="text-xs font-medium text-[#f8e8bf]/72">{ROD_DATA[0].description}</div>
+                      <div className="mt-1 text-[0.65rem] font-black uppercase tracking-[0.14em]" style={{ color: ROD_RARITY_COLORS[ROD_DATA[0].rarity] }}>
+                        {ROD_RARITY_NAMES[ROD_DATA[0].rarity]}
                       </div>
-                    </QuestBoardCard>
-                  );
-                })}
-              </div>
+                    </div>
+                    <span className="shrink-0 text-sm font-black text-[#f3c777]">
+                      <Check className="mr-1 inline h-4 w-4" />
+                      Default
+                    </span>
+                  </div>
+                </QuestBoardCard>
+              ) : (
+                <div className="grid gap-2.5 sm:gap-3 lg:grid-cols-2">
+                  {ROD_UPGRADES.map((rod) => {
+                    const isOwned = rodLevel >= rod.level;
+                    const canBuy = !isOwned && coins >= rod.cost;
+
+                    return (
+                      <QuestBoardCard key={rod.level}>
+                        <div className="flex h-full flex-col gap-3 sm:flex-row sm:items-center">
+                          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#6f4928] bg-[rgba(15,10,7,0.72)] shadow-inner">
+                            <img src={rod.image} alt={rod.name} className="h-14 w-14 object-contain" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-black text-[#f8e8bf]">{rod.name}</div>
+                            <div className="text-xs font-medium text-[#f8e8bf]/72">+{rod.bonus}% rare fish chance</div>
+                            <div className="mt-1 text-xs font-semibold" style={{ color: rod.bobberColor }}>{rod.bobber}</div>
+                            <div className="mt-1 text-[0.65rem] font-black uppercase tracking-[0.14em]" style={{ color: ROD_RARITY_COLORS[rod.rarity] }}>
+                              {ROD_RARITY_NAMES[rod.rarity]}
+                            </div>
+                          </div>
+                          {isOwned ? (
+                            <span className="shrink-0 text-sm font-black text-[#f3c777]">
+                              <Check className="mr-1 inline h-4 w-4" />
+                              Owned
+                              {nftRods.includes(rod.level) && <span className="ml-1 text-[#f8e8bf]">NFT</span>}
+                            </span>
+                          ) : (
+                            <Button
+                              size="sm"
+                              disabled={!canBuy}
+                              onClick={() => onBuyRod(rod.level, rod.cost)}
+                              className={`w-full shrink-0 sm:w-auto ${SHOP_BUTTON_CLASS_NAME}`}
+                            >
+                              <CoinIcon size="sm" /> {rod.cost}
+                            </Button>
+                          )}
+                        </div>
+                      </QuestBoardCard>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </TabsContent>
 
@@ -375,6 +431,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                       nftRods={nftRods}
                       onNftMinted={onNftMinted}
                       onRodPurchased={onBuyRodWithMon}
+                      onServerPlayerUpdated={onServerPlayerUpdated}
                       initialTab="coins"
                       triggerLabel="Gold packs"
                     />
@@ -507,7 +564,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                               ? `Transaction sent. Upgrading net to ${offer.fishCount} fish/day...`
                               : `Transaction sent. Deploying ${offer.label}...`,
                             successMessage,
-                            applyLocalUnlock: () => onBuyFishingNetWithMon(offer.fishCount, offer.monAmount),
+                            applyLocalUnlock: ({ txHash }) => onBuyFishingNetWithMon(offer.fishCount, offer.monAmount, txHash),
                           })}
                           className={`mt-auto ${SHOP_BUTTON_CLASS_NAME}`}
                         >
@@ -559,7 +616,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                             monAmount: pkg.monAmount,
                             pendingMessage: `Transaction sent. Adding ${pkg.rolls} cube roll${pkg.rolls === 1 ? '' : 's'}...`,
                             successMessage: `${pkg.rolls} cube roll${pkg.rolls === 1 ? '' : 's'} added.`,
-                            applyLocalUnlock: () => onBuyCubeRollsWithMon(pkg.rolls, pkg.monAmount),
+                            applyLocalUnlock: ({ txHash }) => onBuyCubeRollsWithMon(pkg.rolls, pkg.monAmount, txHash),
                           })}
                           className={`mt-auto ${SHOP_BUTTON_CLASS_NAME}`}
                         >
@@ -573,15 +630,16 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
               </div>
 
               <QuestBoardPlaque
-                eyebrow="Premium rod unlocks"
-                description="These MON unlocks are now priced as real shortcuts into higher rod tiers. The heavier stat-buff MON rods are listed just below."
+                eyebrow="Monad rods"
+                description="Rare, Epic, and Legendary rods cost MON. The Common Rod is already owned by every player and is not sold here."
               />
               <div className="grid gap-2.5 sm:gap-3 lg:grid-cols-2">
                 {MON_ROD_PURCHASES.map((rodOffer) => {
                   const purchaseKey = `mon-rod-${rodOffer.level}`;
-                  const rod = ROD_UPGRADES.find((entry) => entry.level === rodOffer.level);
                   const isOwned = rodLevel >= rodOffer.level;
-                  const monadRodImage = MONAD_ROD_IMAGES[rodOffer.level as keyof typeof MONAD_ROD_IMAGES] ?? rod?.image;
+                  const notEnoughMon = walletConnected && !hasEnoughMon(rodOffer.monAmount);
+                  const isProcessing = activeMonadPurchase === purchaseKey;
+                  const monadRodImage = MONAD_ROD_IMAGES[rodOffer.level as keyof typeof MONAD_ROD_IMAGES] ?? ROD_DISPLAY_INFO[rodOffer.level]?.image;
 
                   return (
                     <QuestBoardCard key={rodOffer.level}>
@@ -591,8 +649,19 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="font-black text-[#f8e8bf]">{rodOffer.label}</div>
-                          <div className="text-xs font-medium text-[#f8e8bf]/72">Unlocks the {rod?.name ?? `Rod ${rodOffer.level}`} tier instantly</div>
-                          <div className="mt-1 text-xs text-[#f8e8bf]/72">{rodOffer.positioning}</div>
+                          <div className="text-xs font-medium text-[#f8e8bf]/72">{rodOffer.description}</div>
+                          <div className="mt-2 grid gap-1 text-[0.68rem] font-semibold text-[#f8e8bf]/72 sm:grid-cols-2">
+                            <span>MON pull: {rodOffer.monadDropChance}%</span>
+                            <span>{rodOffer.monadMinReward}-{rodOffer.monadMaxReward} MON</span>
+                            <span>Rare+ bonus: +{rodOffer.rareCatchBonus}%</span>
+                            <span>{rodOffer.monAmount} MON</span>
+                          </div>
+                          <div className="mt-1 text-[0.65rem] font-black uppercase tracking-[0.14em]" style={{ color: ROD_RARITY_COLORS[rodOffer.rarity] }}>
+                            {ROD_RARITY_NAMES[rodOffer.rarity]}
+                          </div>
+                          {notEnoughMon ? (
+                            <div className="mt-1 text-xs font-bold text-[#ff9f7a]">Not enough MON in connected wallet.</div>
+                          ) : null}
                         </div>
                         {isOwned ? (
                           <span className="shrink-0 text-sm font-black text-[#f3c777]">
@@ -602,7 +671,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                         ) : (
                           <Button
                             type="button"
-                            disabled={!walletConnected || activeMonadPurchase !== null}
+                            disabled={!walletConnected || activeMonadPurchase !== null || notEnoughMon}
                             onClick={() => void runMonadPurchase({
                               purchaseKey,
                               monAmount: rodOffer.monAmount,
@@ -617,7 +686,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                             className={`w-full shrink-0 sm:w-auto ${SHOP_BUTTON_CLASS_NAME}`}
                           >
                             <Coins className="mr-2 h-4 w-4" />
-                            {activeMonadPurchase === purchaseKey ? 'Processing...' : `${rodOffer.monAmount} MON`}
+                            {isProcessing ? 'Processing...' : notEnoughMon ? 'Not enough MON' : `${rodOffer.monAmount} MON`}
                           </Button>
                         )}
                       </div>
@@ -658,7 +727,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                             ? 'Already minted on this wallet.'
                             : hasBaseRod
                               ? 'Base rod owned. This mint upgrades it into the heavier MON bonus version.'
-                              : `Buy the ${nft.rodLevel === 0 ? 'Starter' : ROD_UPGRADES[nft.rodLevel - 1]?.name} first, then mint its NFT bonus version here.`}
+                              : `Buy the ${ROD_DATA[nft.rodLevel]?.name ?? `Rod ${nft.rodLevel}`} first, then mint its NFT bonus version here.`}
                         </div>
                         {isOwned ? (
                           <div className="mt-auto text-sm font-black text-[#f3c777]">

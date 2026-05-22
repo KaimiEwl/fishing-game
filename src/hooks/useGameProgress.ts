@@ -255,6 +255,7 @@ const createInitialState = (): GameProgressState => ({
 interface UseGameProgressOptions {
   savedProgress?: GameProgressState | null;
   savedProgressMode?: 'merge' | 'replace';
+  localClientStateEnabled?: boolean;
   onSave?: (progress: GameProgressState) => void;
   weeklyMissionsEnabled?: boolean;
   cubeRebalanceEnabled?: boolean;
@@ -270,7 +271,7 @@ const normalizeWheelPrize = (prize: WheelPrize | null | undefined): WheelPrize |
 
   return {
     ...prize,
-    type: prize.fishId ? 'fish' : 'coins',
+    type: typeof prize.rodLevel === 'number' ? 'rod' : prize.fishId ? 'fish' : 'coins',
     quantity: prize.quantity ?? (prize.fishId ? 1 : undefined),
   };
 };
@@ -660,7 +661,9 @@ const mergeState = (serverState: GameProgressState, localState: GameProgressStat
   });
 };
 
-const loadState = (): GameProgressState => {
+const loadState = (localClientStateEnabled = true): GameProgressState => {
+  if (!localClientStateEnabled) return createInitialState();
+
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return createInitialState();
@@ -684,20 +687,23 @@ export const pickWheelPrize = (cubeRebalanceEnabled = CUBE_REBALANCE_ENABLED) =>
 export function useGameProgress(options?: UseGameProgressOptions) {
   const savedProgress = options?.savedProgress;
   const savedProgressMode = options?.savedProgressMode ?? 'merge';
+  const localClientStateEnabled = options?.localClientStateEnabled ?? true;
   const onSave = options?.onSave;
   const weeklyMissionsEnabled = options?.weeklyMissionsEnabled ?? WEEKLY_MISSIONS_ENABLED;
   const cubeRebalanceEnabled = options?.cubeRebalanceEnabled ?? CUBE_REBALANCE_ENABLED;
-  const [state, setState] = useState<GameProgressState>(() => loadState());
+  const [state, setState] = useState<GameProgressState>(() => loadState(localClientStateEnabled));
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initializedRef = useRef(false);
 
   const syncDailyState = useCallback(() => {
+    if (!localClientStateEnabled) return;
     setState((prev) => ensureFishingNetReady(normalizeState(prev)));
-  }, []);
+  }, [localClientStateEnabled]);
 
   useEffect(() => {
+    if (!localClientStateEnabled) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state]);
+  }, [localClientStateEnabled, state]);
 
   useEffect(() => {
     if (savedProgress) {

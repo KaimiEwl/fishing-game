@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import type { Tables } from '@/integrations/supabase/types';
+import { invokeHooklootEdge } from '@/lib/serverApi';
+import type { Tables } from '@/types/serverDatabase';
 import { useToast } from '@/hooks/use-toast';
 import { getStoredWalletSession } from '@/lib/walletSession';
 
@@ -42,7 +42,7 @@ export function usePlayerMessages(walletAddress: string | undefined, enabled: bo
       throw new Error('Wallet session expired. Reconnect in the game first.');
     }
 
-    const { data, error } = await supabase.functions.invoke('player-messages', {
+    const { data, error } = await invokeHooklootEdge('player-messages', {
       body: {
         action,
         wallet_address: walletAddress.toLowerCase(),

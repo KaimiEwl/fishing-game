@@ -1,4 +1,5 @@
 import { publicAsset } from './assets';
+import { ROD_DATA } from '@/types/game';
 
 interface RodDisplayInfo {
   name: string;
@@ -32,11 +33,15 @@ const ROD_PREVIEW_FALLBACK_FILES = [
 ] as const;
 
 export const ROD_DISPLAY_INFO: readonly RodDisplayInfo[] = [
-  { name: 'Starter', image: versionedRodPreview(ROD_PREVIEW_PRIMARY_FILES[0]), color: '#aaa', bonus: 0, bobber: 'Standard tackle', previewFit: 'cover' as const, previewScale: '' },
-  { name: 'Bamboo', image: versionedRodPreview(ROD_PREVIEW_PRIMARY_FILES[1]), color: '#22aa44', bonus: 5, bobber: 'Green bobber', previewFit: 'cover' as const, previewScale: '' },
-  { name: 'Carbon', image: versionedRodPreview(ROD_PREVIEW_PRIMARY_FILES[2]), color: '#2255cc', bonus: 10, bobber: 'Blue bobber', previewFit: 'cover' as const, previewScale: '' },
-  { name: 'Pro', image: versionedRodPreview(ROD_PREVIEW_PRIMARY_FILES[3]), color: '#9944ff', bonus: 15, bobber: 'Purple bobber', previewFit: 'cover' as const, previewScale: '' },
-  { name: 'Legendary', image: versionedRodPreview(ROD_PREVIEW_PRIMARY_FILES[4]), color: '#ffcc00', bonus: 25, bobber: 'Golden bobber', previewFit: 'cover' as const, previewScale: '' },
+  ...ROD_DATA.map((rod, index) => ({
+    name: rod.name.replace(/\s+Rod$/, ''),
+    image: versionedRodPreview(ROD_PREVIEW_PRIMARY_FILES[index]),
+    color: rod.bobberColor,
+    bonus: rod.bonus,
+    bobber: rod.bobber,
+    previewFit: 'cover' as const,
+    previewScale: '',
+  })),
 ] as const;
 
 export const getRodPreviewFallback = (rodLevel: number) =>

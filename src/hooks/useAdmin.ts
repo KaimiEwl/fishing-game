@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import type { Tables } from '@/integrations/supabase/types';
+import { invokeHooklootEdge } from '@/lib/serverApi';
+import type { Tables } from '@/types/serverDatabase';
 import { normalizeMonAmount } from '@/lib/monRewards';
 import { SOCIAL_TASKS, type SocialTaskId, type SocialTaskStatus } from '@/lib/taskRegistry';
 import { getStoredWalletSession } from '@/lib/walletSession';
@@ -372,7 +372,7 @@ export function useAdmin(walletAddress: string | undefined) {
       throw new Error('Wallet session expired. Reconnect in the game first.');
     }
 
-    const invokePromise = supabase.functions.invoke('admin', {
+    const invokePromise = invokeHooklootEdge('admin', {
       body: {
         action,
         wallet_address: effectiveWalletAddress.toLowerCase(),

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Sparkles } from 'lucide-react';
+import { ShipWheel, Sparkles } from 'lucide-react';
 import { useSendTransaction } from 'wagmi';
 import { parseEther } from 'viem';
 import { toast } from 'sonner';
@@ -15,20 +15,32 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { FISH_DATA, RARITY_COLORS, WHEEL_PRIZES, type WheelPrize } from '@/types/game';
+import {
+  FISH_DATA,
+  RARITY_COLORS,
+  ROD_CUBE_DROP_CONFIG,
+  ROD_DATA,
+  ROD_RARITY_COLORS,
+  ROD_RARITY_NAMES,
+  WHEEL_PRIZES,
+  type WheelPrize,
+} from '@/types/game';
 import CoinIcon from './CoinIcon';
 import FishIcon from './FishIcon';
 import GameScreenShell from './GameScreenShell';
 import { publicAsset } from '@/lib/assets';
+import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
 import {
   CUBE_REBALANCE_CONFIG,
   MON_CUBE_SPIN_PACKAGES,
   MON_MARKET_RECEIVER_ADDRESS,
 } from '@/lib/baitEconomy';
 import { isUserRejectedError } from '@/lib/errorUtils';
+import { formatMonAmount } from '@/lib/monRewards';
 
 interface WheelScreenProps {
   coins: number;
+  rodLevel: number;
   availableRolls: number;
   dailyWheelRolls: number;
   paidWheelRolls: number;
@@ -48,7 +60,7 @@ interface WheelScreenProps {
     prize: WheelPrize;
   } | null;
   onResolveReward: (prize: WheelPrize, rollId?: string) => Promise<WheelPrize | null> | WheelPrize | null;
-  onBuySpin: (amount: number) => void;
+  onBuySpin: (amount: number, txHash?: string) => void | Promise<boolean | void>;
   onOpenTasks: () => void;
   onSpinStartSound?: () => void;
   onRevealSound?: () => void;
@@ -149,10 +161,15 @@ const indexToFaceAndTile = (index: number) => ({
   tileIndex: index % FACE_TILE_COUNT,
 });
 
-const randomUniqueIndexes = (count: number, maxExclusive: number) => {
+const randomUniqueIndexes = (count: number, maxExclusive: number, blocked = new Set<number>()) => {
   const chosen = new Set<number>();
-  while (chosen.size < count) {
-    chosen.add(Math.floor(Math.random() * maxExclusive));
+  const targetCount = Math.max(0, Math.min(count, maxExclusive - blocked.size));
+
+  while (chosen.size < targetCount) {
+    const index = Math.floor(Math.random() * maxExclusive);
+    if (!blocked.has(index)) {
+      chosen.add(index);
+    }
   }
 
   return Array.from(chosen.values());
@@ -185,6 +202,33 @@ const getFishByReward = (reward: WheelPrize) => (
     : null
 );
 
+const getRodByReward = (reward: WheelPrize) => (
+  reward.type === 'rod' && typeof reward.rodLevel === 'number'
+    ? ROD_DATA.find((rod) => rod.level === reward.rodLevel) ?? null
+    : null
+);
+
+const getCubeRodRewardConfig = (rodId: string) => (
+  ROD_CUBE_DROP_CONFIG.cubeRodRewards.find((reward) => reward.rodId === rodId) ?? null
+);
+
+const getEligibleRodDrops = (currentRodLevel: number) => (
+  ROD_DATA.flatMap((rod) => {
+    const rewardConfig = getCubeRodRewardConfig(rod.id);
+    if (
+      !rewardConfig
+      || rod.level <= currentRodLevel
+      || rod.level < ROD_CUBE_DROP_CONFIG.minLevel
+      || rod.level > ROD_CUBE_DROP_CONFIG.maxLevel
+      || rewardConfig.dropWeight <= 0
+    ) {
+      return [];
+    }
+
+    return [{ ...rod, cubeDropWeight: rewardConfig.dropWeight, duplicateCompensationMonads: rewardConfig.duplicateCompensationMonads }];
+  })
+);
+
 const createFishPrize = (): WheelPrize => {
   const fish = pickWeighted(FISH_DATA, (item) => item.chance);
   return {
@@ -212,21 +256,69 @@ const createCubeTilePrize = (): WheelPrize => (
   Math.random() < FISH_TILE_RATIO ? createFishPrize() : createRewardPrize()
 );
 
-const createCubeFaces = (): CubeFaces => {
-  const cubeFaces = CUBE_SIDES.map(() => Array.from({ length: FACE_TILE_COUNT }, () => createCubeTilePrize()));
+const createRodPrize = (currentRodLevel: number): WheelPrize | null => {
+  const eligibleRods = getEligibleRodDrops(currentRodLevel);
+  if (eligibleRods.length === 0) return null;
 
-  if (MON_TILE_COUNT > 0) {
-    const monIndexes = randomUniqueIndexes(MON_TILE_COUNT, CUBE_SIDES.length * FACE_TILE_COUNT);
-    for (const globalIndex of monIndexes) {
-      const { faceIndex, tileIndex } = indexToFaceAndTile(globalIndex);
-      cubeFaces[faceIndex][tileIndex] = {
-        ...SECRET_MON_PRIZE,
-        label: `${SECRET_MON_PRIZE.mon ?? CUBE_REBALANCE_CONFIG.monPrizeAmount} MON`,
-      };
-    }
+  const rod = pickWeighted(eligibleRods, (item) => item.cubeDropWeight);
+  return {
+    id: rod.id,
+    type: 'rod',
+    rodId: rod.id,
+    rodLevel: rod.level,
+    rarity: rod.rarity,
+    duplicateCompensationMonads: rod.duplicateCompensationMonads,
+    label: rod.name,
+  };
+};
+
+const shouldInjectRodTile = () => (
+  ROD_CUBE_DROP_CONFIG.cubeRodDropEnabled
+  && Math.random() < Math.max(0, Math.min(1, ROD_CUBE_DROP_CONFIG.tileInjectionChance))
+);
+
+const createCubeFaces = (currentRodLevel = 0): CubeFaces => {
+  const totalTiles = CUBE_SIDES.length * FACE_TILE_COUNT;
+  const globalPrizes = Array.from({ length: totalTiles }, () => createCubeTilePrize());
+  const reservedIndexes = new Set<number>();
+
+  const monIndexes = MON_TILE_COUNT > 0
+    ? randomUniqueIndexes(MON_TILE_COUNT, totalTiles, reservedIndexes)
+    : [];
+  for (const globalIndex of monIndexes) {
+    globalPrizes[globalIndex] = {
+      ...SECRET_MON_PRIZE,
+      label: `${SECRET_MON_PRIZE.mon ?? CUBE_REBALANCE_CONFIG.monPrizeAmount} MON`,
+    };
+    reservedIndexes.add(globalIndex);
   }
 
-  return cubeFaces;
+  const rodIndexes = shouldInjectRodTile() && ROD_CUBE_DROP_CONFIG.tileCount > 0
+    ? randomUniqueIndexes(ROD_CUBE_DROP_CONFIG.tileCount, totalTiles, reservedIndexes)
+    : [];
+  for (const globalIndex of rodIndexes) {
+    const rodPrize = createRodPrize(currentRodLevel);
+    if (!rodPrize) break;
+    globalPrizes[globalIndex] = rodPrize;
+    reservedIndexes.add(globalIndex);
+  }
+
+  return CUBE_SIDES.map((_, sideIndex) => (
+    globalPrizes.slice(sideIndex * FACE_TILE_COUNT, (sideIndex + 1) * FACE_TILE_COUNT)
+  ));
+};
+
+const getRewardToastLabel = (reward: WheelPrize) => {
+  const rod = getRodByReward(reward);
+  if (rod && reward.duplicateCompensationApplied && reward.duplicateCompensationMonads) {
+    return `${rod.name} duplicate: +${formatMonAmount(reward.duplicateCompensationMonads)} MON`;
+  }
+
+  if (rod) {
+    return `${rod.name} (${ROD_RARITY_NAMES[rod.rarity]})`;
+  }
+
+  return reward.label;
 };
 
 const getFaceViewRotation = (faceIndex: number): RotationState => {
@@ -278,6 +370,7 @@ const PROMPT_CONFIG: Record<PromptType, {
 
 const WheelScreen: React.FC<WheelScreenProps> = ({
   coins,
+  rodLevel,
   availableRolls,
   dailyWheelRolls,
   paidWheelRolls,
@@ -292,7 +385,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
   onRewardSound,
 }) => {
   const [phase, setPhase] = useState<SpinPhase>('idle');
-  const [cubeFaces, setCubeFaces] = useState<CubeFaces>(() => createCubeFaces());
+  const [cubeFaces, setCubeFaces] = useState<CubeFaces>(() => createCubeFaces(rodLevel));
   const [rotation, setRotation] = useState<RotationState>(() => getFaceViewRotation(0));
   const [rotationTransitionEnabled, setRotationTransitionEnabled] = useState(true);
   const [highlightedFaceIndex, setHighlightedFaceIndex] = useState<number | null>(null);
@@ -330,9 +423,11 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     sideIndex: number,
   ) => {
     const fish = getFishByReward(item);
+    const rod = getRodByReward(item);
     const isHighlighted = highlightedFaceIndex === sideIndex && highlightedTileIndex === tileIndex;
     const isMonTile = item.type === 'mon';
     const isBaitTile = item.type === 'bait';
+    const isRodTile = item.type === 'rod';
     const colorIndex = Math.max(WHEEL_PRIZES.findIndex((prizeItem) => prizeItem.id === item.id), 0);
     const accent = item.type === 'fish' && fish
       ? RARITY_COLORS[fish.rarity]
@@ -340,6 +435,8 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
         ? '#14f195'
       : item.type === 'bait'
         ? '#bef264'
+      : item.type === 'rod' && rod
+        ? ROD_RARITY_COLORS[rod.rarity]
         : item.secret
         ? '#f8fafc'
         : CUBE_TILE_COLORS[colorIndex % CUBE_TILE_COLORS.length];
@@ -354,6 +451,8 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
               ? 'border-emerald-100/90 ring-1 ring-emerald-100/85 shadow-[0_0_0_1px_rgba(16,185,129,0.25),0_0_16px_rgba(20,241,149,0.45)]'
             : isBaitTile
               ? 'border-lime-100/90 ring-1 ring-lime-100/80 shadow-[0_0_0_1px_rgba(101,163,13,0.2),0_0_14px_rgba(190,242,100,0.35)]'
+            : isRodTile
+              ? 'border-amber-100/90 ring-1 ring-amber-100/80 shadow-[0_0_0_1px_rgba(251,191,36,0.24),0_0_16px_rgba(250,204,21,0.38)]'
             : 'border-black/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.58),0_5px_10px_rgba(0,0,0,0.22)]'
         }`}
         style={{
@@ -363,6 +462,8 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
               ? 'radial-gradient(circle at top, rgba(236,253,245,0.98), rgba(52,211,153,0.94) 52%, rgba(5,150,105,0.98) 100%)'
             : isBaitTile
               ? 'radial-gradient(circle at top, rgba(247,254,231,0.98), rgba(190,242,100,0.94) 55%, rgba(101,163,13,0.98) 100%)'
+            : isRodTile
+              ? `linear-gradient(135deg, ${accent}f2, ${accent}8f 56%, rgba(17,24,39,0.96))`
             : item.secret
               ? 'linear-gradient(135deg, #f8fafc, #fde68a 45%, #f472b6)'
             : `linear-gradient(135deg, ${accent}, ${accent}bb)`,
@@ -399,6 +500,21 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
             </span>
             <span className="text-[8px] font-black text-lime-950 drop-shadow-[0_1px_0_rgba(255,255,255,0.6)] sm:text-[10px]">
               +{item.bait ?? 0}
+            </span>
+          </div>
+        ) : item.type === 'rod' && rod ? (
+          <div className="relative flex h-full w-full flex-col items-center justify-center gap-0.5 px-0.5 text-center">
+            {ROD_DISPLAY_INFO[rod.level]?.image ? (
+              <img
+                src={ROD_DISPLAY_INFO[rod.level].image}
+                alt=""
+                className="h-4 w-4 object-contain drop-shadow-[0_1px_3px_rgba(0,0,0,0.65)] sm:h-5 sm:w-5"
+              />
+            ) : (
+              <ShipWheel className="h-3.5 w-3.5 text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.65)] sm:h-4 sm:w-4" />
+            )}
+            <span className="text-[6px] font-black tracking-[0.12em] text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)] sm:text-[7px]">
+              ROD
             </span>
           </div>
         ) : (
@@ -450,7 +566,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
             setPhase('idle');
             setHighlightedFaceIndex(target.faceIndex);
             onRewardSound?.();
-            toast.success(`You won: ${result.label}`);
+            toast.success(`You won: ${getRewardToastLabel(result)}`);
           } catch (error) {
             console.error('Cube reward resolve failed:', error);
             toast.error(error instanceof Error ? error.message : 'Could not apply cube reward.');
@@ -503,7 +619,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
 
     setIsBuyingSpin(true);
     try {
-      await sendTransactionAsync({
+      const txHash = await sendTransactionAsync({
         to: MON_MARKET_RECEIVER_ADDRESS,
         value: parseEther(PAID_SPIN_COST_MON),
       });
@@ -511,7 +627,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
         id: BUY_SPIN_TOAST_ID,
         duration: 5600,
       });
-      onBuySpin(1);
+      await onBuySpin(1, txHash);
       toast.success('Paid cube roll added.', {
         id: BUY_SPIN_TOAST_ID,
         duration: 5600,
@@ -553,7 +669,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     clearTimers();
     spinLockRef.current = true;
 
-    let nextFaces = createCubeFaces();
+    let nextFaces = createCubeFaces(rodLevel);
     let faceIndex = Math.floor(Math.random() * CUBE_SIDES.length);
     let tileIndex = Math.floor(Math.random() * FACE_TILE_COUNT);
     let targetPrize = nextFaces[faceIndex][tileIndex];

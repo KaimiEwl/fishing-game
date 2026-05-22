@@ -54,8 +54,9 @@ import AdminStatCard from '@/components/AdminStatCard';
 import AdminTopList from '@/components/AdminTopList';
 import { getErrorMessage } from '@/lib/errorUtils';
 import { cn } from '@/lib/utils';
+import { ROD_DATA } from '@/types/game';
 
-const ROD_NAMES = ['Starter', 'Bamboo', 'Carbon', 'Pro', 'Legendary'];
+const ROD_NAMES = ROD_DATA.map((rod) => rod.name);
 
 type AdminTab = 'overview' | 'players' | 'messages' | 'withdrawals' | 'weekly' | 'social';
 

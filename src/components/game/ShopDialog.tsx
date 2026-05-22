@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ROD_BONUSES } from '@/types/game';
+import { ROD_DATA, ROD_RARITY_COLORS, ROD_RARITY_NAMES } from '@/types/game';
 import { BAIT_PACKAGES } from '@/lib/baitEconomy';
 import CoinIcon from './CoinIcon';
 import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
@@ -25,12 +25,13 @@ interface ShopDialogProps {
   onBuyRod: (level: number, cost: number) => void;
 }
 
-const ROD_UPGRADES = [
-  { level: 1, cost: 200, name: 'Bamboo Rod', bonus: 5, image: ROD_DISPLAY_INFO[1].image, bobber: 'Green bobber', bobberColor: '#22aa44' },
-  { level: 2, cost: 500, name: 'Carbon Rod', bonus: 10, image: ROD_DISPLAY_INFO[2].image, bobber: 'Blue bobber', bobberColor: '#2255cc' },
-  { level: 3, cost: 1000, name: 'Pro Rod', bonus: 15, image: ROD_DISPLAY_INFO[3].image, bobber: 'Purple bobber', bobberColor: '#9944ff' },
-  { level: 4, cost: 2500, name: 'Legendary Rod', bonus: 25, image: ROD_DISPLAY_INFO[4].image, bobber: 'Golden glowing bobber', bobberColor: '#ffcc00' },
-];
+const ROD_UPGRADES = ROD_DATA
+  .filter((rod) => rod.level > 0 && rod.coinCost)
+  .map((rod) => ({
+    ...rod,
+    cost: rod.coinCost!,
+    image: ROD_DISPLAY_INFO[rod.level].image,
+  }));
 
 const ShopDialog: React.FC<ShopDialogProps> = ({
   coins,
@@ -41,6 +42,8 @@ const ShopDialog: React.FC<ShopDialogProps> = ({
   onBuyBait,
   onBuyRod,
 }) => {
+  const currentRod = ROD_DATA[rodLevel] ?? ROD_DATA[0];
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -105,13 +108,31 @@ const ShopDialog: React.FC<ShopDialogProps> = ({
           <TabsContent value="rods" className="mt-4">
             <div className="text-sm text-muted-foreground mb-3">
               Current rod: <span className="text-primary font-bold">
-                {rodLevel === 0 ? 'Starter' : ROD_UPGRADES[rodLevel - 1]?.name}
+                {currentRod.name}
               </span>
-              <span className="ml-2 text-xs">(+{ROD_BONUSES[rodLevel]}% rare chance)</span>
+              <span className="ml-2 text-xs">
+                ({ROD_RARITY_NAMES[currentRod.rarity]} / +{currentRod.bonus}% rare chance)
+              </span>
             </div>
             <ScrollArea className="h-[min(220px,35vh)] pr-2">
               <div className="space-y-3">
-                {ROD_UPGRADES.map((rod) => {
+                {ROD_UPGRADES.length === 0 ? (
+                  <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/10 p-3">
+                    <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg bg-muted">
+                      <img src={ROD_DISPLAY_INFO[0].image} alt={ROD_DATA[0].name} className="h-10 object-contain" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-semibold">{ROD_DATA[0].name}</div>
+                      <div className="text-xs text-muted-foreground">{ROD_DATA[0].description}</div>
+                      <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: ROD_RARITY_COLORS[ROD_DATA[0].rarity] }}>
+                        {ROD_RARITY_NAMES[ROD_DATA[0].rarity]}
+                      </div>
+                    </div>
+                    <span className="flex items-center gap-1 text-sm font-bold text-primary">
+                      <Check className="h-4 w-4" /> Default
+                    </span>
+                  </div>
+                ) : ROD_UPGRADES.map((rod) => {
                   const isOwned = rodLevel >= rod.level;
                   const canBuy = !isOwned && coins >= rod.cost;
 
@@ -135,6 +156,9 @@ const ShopDialog: React.FC<ShopDialogProps> = ({
                         </div>
                         <div className="text-xs mt-1" style={{ color: rod.bobberColor }}>
                           {rod.bobber}
+                        </div>
+                        <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: ROD_RARITY_COLORS[rod.rarity] }}>
+                          {ROD_RARITY_NAMES[rod.rarity]}
                         </div>
                       </div>
                       {isOwned ? (

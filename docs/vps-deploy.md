@@ -3,15 +3,17 @@
 ## Goal
 - Move the site off GitHub Pages onto `vm3661`
 - Serve the game from `https://www.hookloot.xyz`
-- Keep the current Supabase backend unchanged in stage 1
+- Run the game API and player data on our server
 - Use a fully isolated Docker contour so existing `n8n` and `tailscale` stay untouched
 
 ## What this repo now contains
 - `deploy/vps/compose.yml`
+  - `hookloot-api` Node container with SQLite data under `/opt/hookloot/data`
   - isolated `hookloot-web` nginx container
   - binds only `127.0.0.1:18181`
 - `deploy/vps/nginx/default.conf`
   - SPA routing for `/`, `/admin`, `/guide`, `/terms`, `/privacy`
+  - same-origin `/api/*` proxy to `hookloot-api`
 - `deploy/vps/server/*`
   - bootstrap
   - deploy hook
@@ -37,9 +39,11 @@ Required values:
 
 ```env
 VITE_BASE_PATH=/
-VITE_SUPABASE_URL=https://oyhyoqnhqifcwjyputif.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=<current anon key>
 VITE_WALLETCONNECT_PROJECT_ID=<current project id or the fallback from src/lib/wagmi.ts>
+HOOKLOOT_SESSION_SECRET=<long random secret>
+HOOKLOOT_RECEIVER_ADDRESS=0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D
+HOOKLOOT_ADMIN_WALLETS=0xAdminWallet1,0xAdminWallet2
+MONAD_RPC_URL=https://rpc.monad.xyz
 ```
 
 To sync the current local public env to the VPS:
@@ -96,10 +100,11 @@ git push vps main
 The VPS hook will:
 1. create a new release under `/opt/hookloot/releases`
 2. run `npm ci && npm run build` inside `node:20-bookworm`
-3. switch `/opt/hookloot/current`
-4. restart `hookloot-web`
-5. run smoke checks
-6. keep only the latest releases
+3. stop `hookloot-api` briefly and archive `/opt/hookloot/data` to `/opt/hookloot/backups/hookloot-data-<timestamp>.tar.gz`
+4. switch `/opt/hookloot/current`
+5. rebuild/restart `hookloot-api` and `hookloot-web`
+6. run smoke checks
+7. keep only the latest releases and the latest 20 data backups by default
 
 ## DNS
 In Namecheap:
@@ -124,5 +129,5 @@ Redirects:
 
 ## Notes
 - GitHub Pages can stay temporarily as fallback for 1-2 days after cutover.
-- Stage 1 does not move Supabase backend onto the VPS.
+- The full game runtime expects this VPS API; static-only hosting is no longer the production path.
 - If deploy scripts change later, rerun `npm run vps:install` to refresh `/opt/hookloot/bin` and the bare-repo hook.

@@ -7,6 +7,7 @@ import { FISH_GOT_AWAY_PANEL_SRC } from '@/lib/rodAssets';
 import GameStateNotice from '@/components/GameStateNotice';
 import BiteMeter from '@/components/BiteMeter';
 import RodPreviewBadge from '@/components/RodPreviewBadge';
+import { formatMonAmount } from '@/lib/monRewards';
 
 const BUTTON_ART_VERSION = 'fish-hud-20260425a';
 const versionedButtonAsset = (file: string) => `${publicAsset(`assets/${file}`)}?v=${BUTTON_ART_VERSION}`;
@@ -27,6 +28,7 @@ interface GameControlsProps {
   totalBait?: number;
   onCast: () => void;
   onReelIn?: () => void;
+  onEquipRod?: (level: number) => void;
   rodLevel?: number;
   ownedRodLevel?: number;
   nftRods?: number[];
@@ -46,6 +48,7 @@ const GameControls: React.FC<GameControlsProps> = ({
   totalBait = 0,
   onCast,
   onReelIn,
+  onEquipRod,
   rodLevel = 0,
   ownedRodLevel = 0,
   nftRods = [],
@@ -169,6 +172,53 @@ const GameControls: React.FC<GameControlsProps> = ({
                 <div className="flex flex-col items-center">
                   <p className="mb-2 text-lg font-bold text-cyan-100">Caught!</p>
                   <FishDisplay fish={lastResult.fish} showDetails size="lg" />
+                  {lastResult.monReward && lastResult.monReward.amount > 0 ? (
+                    <div className="mt-3 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-2 text-center shadow-[0_10px_24px_rgba(0,0,0,0.28)]">
+                      <p className="text-lg font-black text-cyan-100">
+                        +{formatMonAmount(lastResult.monReward.amount)} MON
+                      </p>
+                      <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-300/85">
+                        Pulled by {lastResult.monReward.rodName}
+                      </p>
+                      {lastResult.monReward.credited === false ? (
+                        <p className="mt-1 text-xs font-semibold text-amber-200">
+                          Could not credit wallet reward.
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-xs font-semibold text-cyan-100/80">
+                          Added to MON rewards
+                        </p>
+                      )}
+                    </div>
+                  ) : null}
+                  {lastResult.specialReward ? (
+                    <div className="mt-3 rounded-2xl border border-fuchsia-300/25 bg-fuchsia-400/10 px-4 py-2 text-center shadow-[0_10px_24px_rgba(0,0,0,0.28)]">
+                      <p className="text-sm font-black uppercase tracking-[0.14em] text-fuchsia-100">
+                        Leviathan feat
+                      </p>
+                      <p className="mt-1 text-xs font-semibold text-zinc-200">
+                        {lastResult.specialReward.fishName} caught with {lastResult.specialReward.requiredRodName}
+                      </p>
+                      {lastResult.specialReward.type === 'rod' ? (
+                        <p className="mt-1 text-base font-black text-cyan-100">
+                          {lastResult.specialReward.bonusRodName} unlocked
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-base font-black text-cyan-100">
+                          +{formatMonAmount(lastResult.specialReward.compensationMon ?? 0)} MON duplicate bonus
+                        </p>
+                      )}
+                      {lastResult.specialReward.credited === false ? (
+                        <p className="mt-1 text-xs font-semibold text-amber-200">
+                          Connect a verified wallet to credit this MON reward.
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-xs font-semibold text-fuchsia-100/80">
+                          Achievement reward applied
+                        </p>
+                      )}
+                    </div>
+                  ) : null}
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-3 text-center">
@@ -239,6 +289,7 @@ const GameControls: React.FC<GameControlsProps> = ({
               ownedRodLevel={ownedRodLevel}
               nftRods={nftRods}
               totalBait={totalBait}
+              onEquipRod={onEquipRod}
             />
 
             <Button

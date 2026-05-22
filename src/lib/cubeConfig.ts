@@ -3,3 +3,5 @@ export const CUBE_SIDE_COUNT = 6;
 export const CUBE_TOTAL_TILES = CUBE_FACE_TILE_COUNT * CUBE_SIDE_COUNT;
 export const MON_CUBE_CELL_COUNT = 2;
 export const MON_CUBE_PRIZE_AMOUNT = 1;
+export const ROD_CUBE_CELL_COUNT = 1;
+export const ROD_CUBE_TILE_INJECTION_CHANCE = 0.3;

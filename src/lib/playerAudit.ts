@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { invokeHooklootEdge } from '@/lib/serverApi';
 import type { PlayerState } from '@/types/game';
 import { getStoredWalletSession } from '@/lib/walletSession';
 
@@ -64,7 +64,7 @@ export async function logPlayerAuditEvent({
   if (session.address.toLowerCase() !== walletAddress.toLowerCase()) return;
 
   try {
-    await supabase.functions.invoke('log-player-event', {
+    await invokeHooklootEdge('log-player-event', {
       body: {
         wallet_address: walletAddress,
         session_token: session.token,

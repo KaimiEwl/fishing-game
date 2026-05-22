@@ -1,7 +1,8 @@
 # Morning Handoff
 
-Working Supabase project:
-- `oyhyoqnhqifcwjyputif`
+Working production target:
+- `https://www.hookloot.xyz`
+- owned API on the VPS, with data stored in the Hook & Loot SQLite volume
 
 This file is the shortest path back into the project tomorrow.
 
@@ -62,9 +63,8 @@ This file is the shortest path back into the project tomorrow.
   - `npm run ops:smoke:mutation`
 
 ## Important notes
-- Do not use the old/non-working Supabase project.
-- Keep using the working project `oyhyoqnhqifcwjyputif`.
+- Do not route new game data through the old external backend.
+- Keep runtime checks pointed at `HOOKLOOT_API_BASE_URL` / `https://www.hookloot.xyz`.
 - Local-only files should stay untouched unless intentionally needed:
   - `public/assets/pepe_final.png`
   - `crop.py`
-  - `supabase/.temp/`

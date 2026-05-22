@@ -4,21 +4,37 @@ import { usePageScroll } from '@/hooks/usePageScroll';
 import ContentPageShell, { ContentPageBackLink } from '@/components/ContentPageShell';
 import GuideSectionCard from '@/components/GuideSectionCard';
 import GameTitleBanner from '@/components/GameTitleBanner';
+import { LEVIATHAN_COMMON_ROD_BONUS_CONFIG, ROD_CUBE_DROP_CONFIG, ROD_DATA } from '@/types/game';
+
+const getRodById = (id: string) => ROD_DATA.find((rod) => rod.id === id);
+const commonRod = getRodById('common_rod') ?? ROD_DATA[0];
+const leviathanRequiredRod = getRodById(LEVIATHAN_COMMON_ROD_BONUS_CONFIG.requiredRodId) ?? commonRod;
+const leviathanBonusRod = getRodById(LEVIATHAN_COMMON_ROD_BONUS_CONFIG.bonusRodId);
+const paidRodNames = ROD_DATA
+  .filter((rod) => Boolean(rod.monUnlockCost))
+  .map((rod) => rod.name)
+  .join(', ');
+const cubeRodNames = ROD_CUBE_DROP_CONFIG.cubeRodRewards
+  .map((reward) => getRodById(reward.rodId)?.name)
+  .filter((name): name is string => Boolean(name))
+  .join(', ');
 
 const sections = [
   {
     id: 'overview',
     title: 'Game Overview',
     icon: Fish,
-    body: 'Hook & Loot lets you cast from the main lake, catch fish by rarity, sell or cook them, upgrade rods, spin the cube, and compete on the grill leaderboard.',
+    body: 'Hook & Loot lets you cast from the main lake, catch fish by rarity, choose active rods, pull occasional MON bonuses, spin the cube, and cook catches for the grill leaderboard.',
   },
   {
     id: 'loop',
     title: 'Core Loop',
     icon: Sparkles,
     bullets: [
+      'Choose an active unlocked rod before fishing, either from the fishing HUD rod badge or the Rods tab in inventory.',
       'Cast the line and react during the bite window.',
-      'Catch fish, earn coins and XP, and unlock stronger rods.',
+      'Catch fish, earn coins and XP, and keep the fish as the main result of the catch.',
+      'Paid rods can add a MON pull as a bonus reward without replacing the fish.',
       'Use the inventory to sell fish or save them for grill recipes and cooked dishes.',
       'Claim any 3 daily task rewards to unlock the cube flow each day.',
     ],
@@ -28,7 +44,12 @@ const sections = [
     title: 'Rods and Progress',
     icon: Trophy,
     bullets: [
-      'Higher rods improve your fishing options and visual loadout.',
+      `Every player starts with the free ${commonRod.name}; it is available by default and stays selectable even after you unlock better rods.`,
+      `${paidRodNames || 'Paid rods'} are purchased with MON in Monad Shop and show their rarity, price, owned state, and not-enough-MON state there.`,
+      'Unlocked rods become available for selection. Locked or unowned rods cannot be equipped.',
+      'Higher rarity rods improve rare+ fish odds, change the visual loadout, and have stronger MON pull parameters.',
+      'During successful wallet-linked fishing, a paid rod can pull extra MON as an additional reward; the chance and reward range come from that rod tier.',
+      `${leviathanBonusRod?.name ?? 'A paid rod'} is awarded if you catch the Cosmic Leviathan with the ${leviathanRequiredRod.name}. If you already own that rod tier, the game grants the configured MON duplicate compensation instead.`,
       'Some rod tiers also have NFT versions with bonus stats.',
       'XP raises your level, and every level-up grants extra coins.',
     ],
@@ -49,7 +70,10 @@ const sections = [
     title: 'Cube and Bonuses',
     icon: Box,
     bullets: [
-      'The prize cube reveals either coin rewards or fish rewards.',
+      'The prize cube reveals coin, bait, fish, MON, or rod rewards.',
+      `${cubeRodNames || 'Paid rods'} can appear in the cube, but the rod tile is intentionally extremely rare.`,
+      'Cube rod rewards only target upgrades above your current unlocked rod tier.',
+      'If a duplicate cube rod is resolved for a verified wallet, the game uses the configured MON compensation instead of granting the same non-stackable rod again.',
       'Boost and paid cube spins use MON and stay separate from normal fishing progression.',
       'Travel, boost, and shortcut actions are available from the fishing screen.',
     ],

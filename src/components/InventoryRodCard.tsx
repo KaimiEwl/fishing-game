@@ -1,7 +1,9 @@
 import { Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
+import { ROD_DATA, ROD_RARITY_COLORS, ROD_RARITY_NAMES } from '@/types/game';
 import Wrapper from '@/components/Wrapper';
+import { formatMonAmount } from '@/lib/monRewards';
 
 interface InventoryRodCardProps {
   level: number;
@@ -17,6 +19,7 @@ const InventoryRodCard = ({
   onEquip,
 }: InventoryRodCardProps) => {
   const rod = ROD_DISPLAY_INFO[level];
+  const rodDefinition = ROD_DATA[level] ?? ROD_DATA[0];
 
   return (
     <div
@@ -33,7 +36,7 @@ const InventoryRodCard = ({
       >
         <img
           src={rod.image}
-          alt={rod.name}
+          alt={rodDefinition.name}
           className="h-12 object-contain drop-shadow-md transition-transform hover:scale-110"
         />
         {hasNft && (
@@ -45,11 +48,17 @@ const InventoryRodCard = ({
 
       <Wrapper dir="column" gap={1}>
         <Wrapper dir="row" gap={2} align="center" wrap>
-          <span className="text-base font-semibold">{rod.name}</span>
+          <span className="text-base font-semibold">{rodDefinition.name}</span>
           {hasNft && <span className="text-xs text-cyan-100 shadow-sm">NFT</span>}
         </Wrapper>
         <div className="text-sm font-medium text-zinc-500">
           {rod.bonus > 0 ? `+${rod.bonus}% legendary chance` : 'Standard rod'}
+        </div>
+        <div className="text-xs font-medium text-cyan-100/80">
+          MON pull {rodDefinition.monadDropChance}% / {formatMonAmount(rodDefinition.monadMinReward)}-{formatMonAmount(rodDefinition.monadMaxReward)} MON
+        </div>
+        <div className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: ROD_RARITY_COLORS[rodDefinition.rarity] }}>
+          {ROD_RARITY_NAMES[rodDefinition.rarity]}
         </div>
       </Wrapper>
 

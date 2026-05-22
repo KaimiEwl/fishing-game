@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { invokeHooklootEdge } from '@/lib/serverApi';
 import { useToast } from '@/hooks/use-toast';
 import { getStoredWalletSession } from '@/lib/walletSession';
 import { MON_HOLD_DAYS, MIN_WITHDRAW_MON, normalizeMonAmount } from '@/lib/monRewards';
@@ -87,7 +87,7 @@ export function usePlayerMon(walletAddress: string | undefined, enabled: boolean
       throw new Error('Wallet session expired. Reconnect in the game first.');
     }
 
-    const { data, error } = await supabase.functions.invoke('player-mon', {
+    const { data, error } = await invokeHooklootEdge('player-mon', {
       body: {
         action,
         wallet_address: walletAddress.toLowerCase(),
@@ -178,6 +178,9 @@ export function usePlayerMon(walletAddress: string | undefined, enabled: boolean
         void refresh();
       }
     };
+    const handleMonReward = () => {
+      void refresh();
+    };
 
     const interval = window.setInterval(() => {
       if (document.visibilityState === 'visible') {
@@ -186,11 +189,13 @@ export function usePlayerMon(walletAddress: string | undefined, enabled: boolean
     }, PLAYER_MON_REFRESH_INTERVAL_MS);
 
     window.addEventListener('focus', handleWindowFocus);
+    window.addEventListener('hookloot:mon-reward', handleMonReward);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       window.clearInterval(interval);
       window.removeEventListener('focus', handleWindowFocus);
+      window.removeEventListener('hookloot:mon-reward', handleMonReward);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [enabled, refresh, walletAddress]);

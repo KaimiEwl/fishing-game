@@ -8,19 +8,18 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { NFT_ROD_DATA, ROD_BONUSES } from '@/types/game';
-import { supabase } from '@/integrations/supabase/client';
+import { NFT_ROD_DATA, ROD_DATA } from '@/types/game';
 import { useSendTransaction } from 'wagmi';
 import { parseEther } from 'viem';
 import { toast } from 'sonner';
 import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
 import { isUserRejectedError } from '@/lib/errorUtils';
+import { MON_MARKET_RECEIVER_ADDRESS } from '@/lib/baitEconomy';
+import { invokeHooklootEdge } from '@/lib/serverApi';
 
 const ROD_IMAGES = ROD_DISPLAY_INFO.map((rod) => rod.image);
 
-const ROD_NAMES = ['Starter', 'Bamboo', 'Carbon', 'Pro', 'Legendary'];
-
-const RECEIVER_ADDRESS = '0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D' as `0x${string}`;
+const getRodName = (level: number) => ROD_DATA[level]?.name ?? `Rod ${level}`;
 
 interface NftRodDialogProps {
   rodLevel: number;
@@ -47,13 +46,13 @@ const NftRodDialog: React.FC<NftRodDialogProps> = ({
     setMintingLevel(nftRod.rodLevel);
     try {
       const txHash = await sendTransactionAsync({
-        to: RECEIVER_ADDRESS,
+        to: MON_MARKET_RECEIVER_ADDRESS,
         value: parseEther(nftRod.mintCost),
       });
 
       toast.info('Transaction sent, verifying...');
 
-      const { data, error } = await supabase.functions.invoke('verify-purchase', {
+      const { data, error } = await invokeHooklootEdge('verify-purchase', {
         body: {
           tx_hash: txHash,
           wallet_address: walletAddress,
@@ -67,7 +66,7 @@ const NftRodDialog: React.FC<NftRodDialogProps> = ({
       }
 
       onMinted(nftRod.rodLevel);
-      toast.success(`🎉 NFT ${ROD_NAMES[nftRod.rodLevel]} minted!`);
+      toast.success(`NFT ${getRodName(nftRod.rodLevel)} minted.`);
     } catch (err: unknown) {
       console.error('NFT mint failed:', err);
       if (isUserRejectedError(err)) {

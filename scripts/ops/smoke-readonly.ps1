@@ -5,22 +5,20 @@ param(
   [Parameter(Mandatory = $true)]
   [string]$SessionToken,
 
-  [string]$BaseUrl = $env:VITE_SUPABASE_URL,
-  [string]$AnonKey = $env:VITE_SUPABASE_PUBLISHABLE_KEY
+  [string]$BaseUrl = $(if ($env:HOOKLOOT_API_BASE_URL) { $env:HOOKLOOT_API_BASE_URL } else { "http://127.0.0.1:8787" })
 )
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $invokeScript = Join-Path $scriptDir "invoke-edge.ps1"
 
 Write-Host ""
-Write-Host "== Admin check =="
+Write-Host "== Owned API admin check =="
 & $invokeScript `
   -FunctionName "admin" `
   -Action "check_admin" `
   -WalletAddress $WalletAddress `
   -SessionToken $SessionToken `
-  -BaseUrl $BaseUrl `
-  -AnonKey $AnonKey | ConvertTo-Json -Depth 20
+  -BaseUrl $BaseUrl | ConvertTo-Json -Depth 20
 
 Write-Host ""
 Write-Host "== Withdraw summary =="
@@ -29,8 +27,7 @@ Write-Host "== Withdraw summary =="
   -Action "get_admin_withdraw_summary" `
   -WalletAddress $WalletAddress `
   -SessionToken $SessionToken `
-  -BaseUrl $BaseUrl `
-  -AnonKey $AnonKey | ConvertTo-Json -Depth 20
+  -BaseUrl $BaseUrl | ConvertTo-Json -Depth 20
 
 Write-Host ""
 Write-Host "== Weekly payout preview =="
@@ -39,8 +36,7 @@ Write-Host "== Weekly payout preview =="
   -Action "preview_weekly_payouts" `
   -WalletAddress $WalletAddress `
   -SessionToken $SessionToken `
-  -BaseUrl $BaseUrl `
-  -AnonKey $AnonKey | ConvertTo-Json -Depth 20
+  -BaseUrl $BaseUrl | ConvertTo-Json -Depth 20
 
 Write-Host ""
 Write-Host "== Suspicious summary =="
@@ -49,8 +45,7 @@ Write-Host "== Suspicious summary =="
   -Action "get_suspicious_summary" `
   -WalletAddress $WalletAddress `
   -SessionToken $SessionToken `
-  -BaseUrl $BaseUrl `
-  -AnonKey $AnonKey | ConvertTo-Json -Depth 20
+  -BaseUrl $BaseUrl | ConvertTo-Json -Depth 20
 
 Write-Host ""
 Write-Host "== Suspicious players =="
@@ -60,7 +55,6 @@ Write-Host "== Suspicious players =="
   -WalletAddress $WalletAddress `
   -SessionToken $SessionToken `
   -BaseUrl $BaseUrl `
-  -AnonKey $AnonKey `
   -BodyJson '{"limit":10}' | ConvertTo-Json -Depth 20
 
 Write-Host ""
@@ -70,5 +64,4 @@ Write-Host "== MON summary =="
   -Action "get_mon_summary" `
   -WalletAddress $WalletAddress `
   -SessionToken $SessionToken `
-  -BaseUrl $BaseUrl `
-  -AnonKey $AnonKey | ConvertTo-Json -Depth 20
+  -BaseUrl $BaseUrl | ConvertTo-Json -Depth 20

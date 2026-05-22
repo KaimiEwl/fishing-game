@@ -3,10 +3,13 @@ import {
   PlayerState, 
   GameState, 
   GameResult, 
+  type FishingMonadReward,
+  type FishingSpecialReward,
   Fish,
   FISH_DATA, 
   CATCH_CHANCE,
   GRILL_RECIPES,
+  ROD_DATA,
   ROD_BONUSES,
   XP_PER_LEVEL,
   NFT_ROD_DATA,
@@ -32,6 +35,11 @@ import {
   type PlayerAuditEventPayload,
   toPlayerAuditSnapshot,
 } from '@/lib/playerAudit';
+import {
+  getSafeEquippedRodLevel,
+  rollRodMonadReward,
+} from '@/lib/rodMonadRewards';
+import { buildLeviathanCommonRodBonus } from '@/lib/rodAchievementRewards';
 
 const INITIAL_PLAYER_STATE: PlayerState = {
   coins: 100,
@@ -72,11 +80,11 @@ const mergePlayerState = (
     : mergeSyncedPlayerState(base, local)
 );
 
-const resolveInitialPlayer = (savedPlayer?: PlayerState | null) => {
+const resolveInitialPlayer = (savedPlayer?: PlayerState | null, localClientStateEnabled = true) => {
   const normalizedSavedPlayer = savedPlayer
     ? normalizePlayerDailyFreeBait(savedPlayer, BAIT_BUCKETS_V2_ENABLED, DAILY_FREE_BAIT)
     : null;
-  const localPlayer = loadStoredPlayer(INITIAL_PLAYER_STATE);
+  const localPlayer = localClientStateEnabled ? loadStoredPlayer(INITIAL_PLAYER_STATE) : null;
   const normalizedLocalPlayer = localPlayer
     ? applyServerBonusBaitSync(
         normalizePlayerDailyFreeBait(localPlayer, BAIT_BUCKETS_V2_ENABLED, DAILY_FREE_BAIT),
@@ -94,10 +102,16 @@ const resolveInitialPlayer = (savedPlayer?: PlayerState | null) => {
 interface UseGameStateOptions {
   savedPlayer?: PlayerState | null;
   savedPlayerSyncMode?: PlayerSnapshotMergeMode;
+  localClientStateEnabled?: boolean;
   onSave?: (player: PlayerState) => void;
   onFishCaught?: (fish: Fish) => void;
+  onFishingMonReward?: (reward: FishingMonadReward, context: { fish: Fish; player: PlayerState }) => Promise<boolean | void> | boolean | void;
+  onLeviathanCommonRodBonus?: (reward: FishingSpecialReward, context: { fish: Fish; player: PlayerState }) => Promise<boolean | void> | boolean | void;
   onAuditEvent?: (event: PlayerAuditEventPayload) => void;
   onPremiumBiteTimeout?: () => void;
+  onStartServerFishingCast?: () => Promise<ServerFishingCastStart>;
+  onResolveServerFishingCast?: (castId: string, resolution: 'reel' | 'timeout') => Promise<ServerFishingCastResolution>;
+  onServerFishingError?: (message: string) => void;
   collectionBookEnabled?: boolean;
 }
 
@@ -109,16 +123,36 @@ interface AlbumRewardInfo {
   pageCompletedIds: string[];
 }
 
+interface ServerFishingCastStart {
+  castId: string;
+  waitMs: number;
+  biteWindowMs: number;
+}
+
+interface ServerFishingCastResolution {
+  fish: Fish | null;
+  monReward?: FishingMonadReward;
+  specialReward?: FishingSpecialReward;
+  levelUpInfo?: { newLevel: number; coinsReward: number } | null;
+  albumRewardInfo?: AlbumRewardInfo | null;
+}
+
 export function useGameState(options?: UseGameStateOptions) {
   const savedPlayer = options?.savedPlayer;
   const savedPlayerSyncMode = options?.savedPlayerSyncMode ?? 'optimistic';
+  const localClientStateEnabled = options?.localClientStateEnabled ?? true;
   const onSave = options?.onSave;
   const onFishCaught = options?.onFishCaught;
+  const onFishingMonReward = options?.onFishingMonReward;
+  const onLeviathanCommonRodBonus = options?.onLeviathanCommonRodBonus;
   const onAuditEvent = options?.onAuditEvent;
   const onPremiumBiteTimeout = options?.onPremiumBiteTimeout;
+  const onStartServerFishingCast = options?.onStartServerFishingCast;
+  const onResolveServerFishingCast = options?.onResolveServerFishingCast;
+  const onServerFishingError = options?.onServerFishingError;
   const collectionBookEnabled = options?.collectionBookEnabled ?? COLLECTION_BOOK_ENABLED;
   const [player, setPlayer] = useState<PlayerState>(
-    resolveInitialPlayer(savedPlayer)
+    resolveInitialPlayer(savedPlayer, localClientStateEnabled)
   );
   const [gameState, setGameState] = useState<GameState>('idle');
   const [lastResult, setLastResult] = useState<GameResult | null>(null);
@@ -130,6 +164,7 @@ export function useGameState(options?: UseGameStateOptions) {
   const initializedRef = useRef(false);
   const lastCastTimeRef = useRef<number>(0);
   const pendingFishRef = useRef<Fish | null>(null);
+  const pendingServerCastRef = useRef<{ castId: string } | null>(null);
   const biteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const biteCountdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const gameStateRef = useRef<GameState>('idle');
@@ -169,6 +204,7 @@ export function useGameState(options?: UseGameStateOptions) {
   }, [savedPlayer, savedPlayerSyncMode]);
 
   const syncDailyFreeBait = useCallback(() => {
+    if (!localClientStateEnabled) return;
     if (!BAIT_BUCKETS_V2_ENABLED) return;
 
     setPlayer((prev) => {
@@ -181,7 +217,7 @@ export function useGameState(options?: UseGameStateOptions) {
       }
       return next;
     });
-  }, []);
+  }, [localClientStateEnabled]);
 
   useEffect(() => {
     if (initializedRef.current) return;
@@ -206,19 +242,18 @@ export function useGameState(options?: UseGameStateOptions) {
   // Debounced save
   useEffect(() => {
     if (!initializedRef.current) return;
+    if (!localClientStateEnabled && !onSave) return;
 
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
-      storePlayerLocally(player);
-      if (onSave) {
-        onSave(player);
-      }
+      if (localClientStateEnabled) storePlayerLocally(player);
+      onSave?.(player);
     }, 3000);
 
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
-  }, [onSave, player]);
+  }, [localClientStateEnabled, onSave, player]);
 
   const getNftBonus = useCallback((rodLevel: number, nftRods: number[]) => {
     if (!nftRods.includes(rodLevel)) return { rarityBonus: 0, xpBonus: 0, sellBonus: 0 };
@@ -233,8 +268,9 @@ export function useGameState(options?: UseGameStateOptions) {
       return null;
     }
 
-    const rodBonus = ROD_BONUSES[player.equippedRod] || 0;
-    const nftBonus = getNftBonus(player.equippedRod, player.nftRods);
+    const equippedRodLevel = getSafeEquippedRodLevel(player.equippedRod, player.rodLevel);
+    const rodBonus = ROD_BONUSES[equippedRodLevel] || 0;
+    const nftBonus = getNftBonus(equippedRodLevel, player.nftRods);
     const totalRodBonus = rodBonus + nftBonus.rarityBonus;
     const roll = Math.random() * 100;
     
@@ -258,7 +294,7 @@ export function useGameState(options?: UseGameStateOptions) {
     }
 
     return FISH_DATA[0];
-  }, [player.equippedRod, player.nftRods, player.level, getNftBonus]);
+  }, [player.equippedRod, player.rodLevel, player.nftRods, player.level, getNftBonus]);
 
   const clearBiteTimers = useCallback(() => {
     if (biteTimerRef.current) { clearTimeout(biteTimerRef.current); biteTimerRef.current = null; }
@@ -274,7 +310,8 @@ export function useGameState(options?: UseGameStateOptions) {
 
     setPlayer(prev => {
       const beforeSnapshot = toPlayerAuditSnapshot(prev);
-      const nftB = getNftBonus(prev.equippedRod, prev.nftRods);
+      const equippedRodLevel = getSafeEquippedRodLevel(prev.equippedRod, prev.rodLevel);
+      const nftB = getNftBonus(equippedRodLevel, prev.nftRods);
       const xpGain = Math.floor((caughtFish.xp + 5) * (1 + nftB.xpBonus / 100));
       const newXp = prev.xp + xpGain;
       let newLevel = prev.level;
@@ -380,7 +417,8 @@ export function useGameState(options?: UseGameStateOptions) {
   const applyMissXp = useCallback(() => {
     setPlayer(prev => {
       const beforeSnapshot = toPlayerAuditSnapshot(prev);
-      const nftB = getNftBonus(prev.equippedRod, prev.nftRods);
+      const equippedRodLevel = getSafeEquippedRodLevel(prev.equippedRod, prev.rodLevel);
+      const nftB = getNftBonus(equippedRodLevel, prev.nftRods);
       const xpGain = Math.floor(5 * (1 + nftB.xpBonus / 100));
       const newXp = prev.xp + xpGain;
       let newLevel = prev.level;
@@ -420,20 +458,133 @@ export function useGameState(options?: UseGameStateOptions) {
     });
   }, [getNftBonus, queueAuditEvent]);
 
-  // reelIn — player reaction during biting state
+  const applySpecialRodReward = useCallback((reward: FishingSpecialReward) => {
+    if (reward.type !== 'rod') return false;
+
+    const rod = ROD_DATA.find((entry) => entry.id === reward.bonusRodId);
+    if (!rod || rod.level <= 0) return false;
+
+    setPlayer(prev => {
+      if (prev.rodLevel >= rod.level) return prev;
+
+      const nextPlayer = {
+        ...prev,
+        rodLevel: rod.level,
+        equippedRod: rod.level,
+      };
+
+      queueAuditEvent({
+        eventType: 'leviathan_common_rod_bonus',
+        beforeState: toPlayerAuditSnapshot(prev),
+        afterState: toPlayerAuditSnapshot(nextPlayer),
+        metadata: {
+          fishId: reward.fishId,
+          requiredRodId: reward.requiredRodId,
+          bonusRodId: rod.id,
+          bonusRodLevel: rod.level,
+          rarity: rod.rarity,
+        },
+      });
+
+      return nextPlayer;
+    });
+
+    return true;
+  }, [queueAuditEvent]);
+
+  // reelIn handles the player reaction during the bite window.
   const reelIn = useCallback(async () => {
     if (gameStateRef.current !== 'biting') return;
     clearBiteTimers();
 
+    const serverCast = pendingServerCastRef.current;
     const fish = pendingFishRef.current;
+    pendingServerCastRef.current = null;
     pendingFishRef.current = null;
 
     setGameState('catching');
     await new Promise(resolve => setTimeout(resolve, 1000));
 
+    if (serverCast && onResolveServerFishingCast) {
+      try {
+        const result = await onResolveServerFishingCast(serverCast.castId, 'reel');
+        if (result.levelUpInfo) {
+          setLevelUpInfo(result.levelUpInfo);
+        }
+        if (result.albumRewardInfo) {
+          setAlbumRewardInfo(result.albumRewardInfo);
+        }
+        if (result.fish) {
+          onFishCaught?.(result.fish);
+          setLastResult({
+            success: true,
+            fish: result.fish,
+            monReward: result.monReward,
+            specialReward: result.specialReward,
+          });
+        } else {
+          setLastResult({ success: false });
+        }
+      } catch (error) {
+        console.error('Server fishing resolution failed:', error);
+        onServerFishingError?.(error instanceof Error ? error.message : 'Could not resolve cast.');
+        setLastResult({ success: false });
+      }
+
+      setGameState('result');
+      await new Promise(resolve => setTimeout(resolve, 2500));
+      setGameState('idle');
+      setLastResult(null);
+      return;
+    }
+
     if (fish) {
       applyFishReward(fish);
-      setLastResult({ success: true, fish });
+      const equippedRodLevel = getSafeEquippedRodLevel(player.equippedRod, player.rodLevel);
+      const monReward = onFishingMonReward ? rollRodMonadReward(equippedRodLevel) : null;
+      const specialReward = buildLeviathanCommonRodBonus(fish, equippedRodLevel, player.rodLevel);
+      let resolvedSpecialReward: FishingSpecialReward | undefined;
+
+      if (specialReward) {
+        const appliedLocally = specialReward.type === 'rod'
+          ? applySpecialRodReward(specialReward)
+          : false;
+        resolvedSpecialReward = {
+          ...specialReward,
+          credited: appliedLocally,
+        };
+
+        if (onLeviathanCommonRodBonus) {
+          try {
+            const rewardResult = await onLeviathanCommonRodBonus(specialReward, { fish, player });
+            resolvedSpecialReward = {
+              ...resolvedSpecialReward,
+              credited: resolvedSpecialReward.credited || rewardResult !== false,
+            };
+          } catch (error) {
+            console.error('Leviathan common rod bonus failed:', error);
+          }
+        }
+      }
+
+      if (monReward) {
+        let credited = false;
+        try {
+          const rewardResult = await onFishingMonReward(monReward, { fish, player });
+          credited = rewardResult !== false;
+        } catch (error) {
+          console.error('Fishing rod MON reward failed:', error);
+        }
+
+        setLastResult({
+          success: true,
+          fish,
+          monReward: { ...monReward, credited },
+          specialReward: resolvedSpecialReward,
+        });
+      } else {
+        setLastResult({ success: true, fish, specialReward: resolvedSpecialReward });
+      }
     } else {
       applyMissXp();
       setLastResult({ success: false });
@@ -443,24 +594,50 @@ export function useGameState(options?: UseGameStateOptions) {
     await new Promise(resolve => setTimeout(resolve, 2500));
     setGameState('idle');
     setLastResult(null);
-  }, [clearBiteTimers, applyFishReward, applyMissXp]);
+  }, [
+    clearBiteTimers,
+    applyFishReward,
+    applyMissXp,
+    applySpecialRodReward,
+    onFishingMonReward,
+    onLeviathanCommonRodBonus,
+    onResolveServerFishingCast,
+    onServerFishingError,
+    onFishCaught,
+    player,
+  ]);
 
   // Bite timeout — fish escapes
   const onBiteTimeout = useCallback(async () => {
     clearBiteTimers();
     premiumCastActiveRef.current = false;
+    const serverCast = pendingServerCastRef.current;
+    pendingServerCastRef.current = null;
     pendingFishRef.current = null;
-    applyMissXp();
+    if (serverCast && onResolveServerFishingCast) {
+      try {
+        const result = await onResolveServerFishingCast(serverCast.castId, 'timeout');
+        if (result.levelUpInfo) {
+          setLevelUpInfo(result.levelUpInfo);
+        }
+      } catch (error) {
+        console.error('Server fishing timeout failed:', error);
+        onServerFishingError?.(error instanceof Error ? error.message : 'Could not resolve cast timeout.');
+      }
+    } else {
+      applyMissXp();
+    }
     setLastResult({ success: false });
     setGameState('result');
     await new Promise(resolve => setTimeout(resolve, 2500));
     setGameState('idle');
     setLastResult(null);
-  }, [clearBiteTimers, applyMissXp]);
+  }, [clearBiteTimers, applyMissXp, onResolveServerFishingCast, onServerFishingError]);
 
   const resetPremiumCastState = useCallback(() => {
     clearBiteTimers();
     premiumCastActiveRef.current = false;
+    pendingServerCastRef.current = null;
     pendingFishRef.current = null;
     setBiteTimeLeft(0);
     setBiteTimeTotal(0);
@@ -493,7 +670,9 @@ export function useGameState(options?: UseGameStateOptions) {
     lastCastTimeRef.current = now;
     premiumCastActiveRef.current = options.premium;
 
-    if (options.consumeBait) {
+    const useServerFishing = options.consumeBait && !options.premium && Boolean(onStartServerFishingCast);
+
+    if (options.consumeBait && !useServerFishing) {
       setPlayer(prev => {
         const next = normalizePlayerDailyFreeBait(prev, BAIT_BUCKETS_V2_ENABLED, DAILY_FREE_BAIT);
         const beforeSnapshot = toPlayerAuditSnapshot(next);
@@ -526,12 +705,29 @@ export function useGameState(options?: UseGameStateOptions) {
     await new Promise(resolve => setTimeout(resolve, 800));
     setGameState('waiting');
 
-    const waitTime = 1000 + Math.random() * 2000;
+    let waitTime = 1000 + Math.random() * 2000;
+    let biteWindow = BITE_WINDOW_MIN + Math.random() * (BITE_WINDOW_MAX - BITE_WINDOW_MIN);
+
+    if (useServerFishing && onStartServerFishingCast) {
+      try {
+        const serverCast = await onStartServerFishingCast();
+        pendingServerCastRef.current = { castId: serverCast.castId };
+        waitTime = serverCast.waitMs;
+        biteWindow = serverCast.biteWindowMs;
+      } catch (error) {
+        console.error('Server fishing cast failed:', error);
+        onServerFishingError?.(error instanceof Error ? error.message : 'Could not start cast.');
+        setGameState('idle');
+        pendingServerCastRef.current = null;
+        lastCastTimeRef.current = 0;
+        return;
+      }
+    }
+
     await new Promise(resolve => setTimeout(resolve, waitTime));
 
-    pendingFishRef.current = options.premium ? null : calculateFishCatch();
+    pendingFishRef.current = options.premium || useServerFishing ? null : calculateFishCatch();
 
-    const biteWindow = BITE_WINDOW_MIN + Math.random() * (BITE_WINDOW_MAX - BITE_WINDOW_MIN);
     setBiteTimeTotal(biteWindow);
     setBiteTimeLeft(biteWindow);
     setGameState('biting');
@@ -554,7 +750,16 @@ export function useGameState(options?: UseGameStateOptions) {
       }
       void onBiteTimeout();
     }, biteWindow);
-  }, [calculateFishCatch, gameState, onBiteTimeout, onPremiumBiteTimeout, player, queueAuditEvent]);
+  }, [
+    calculateFishCatch,
+    gameState,
+    onBiteTimeout,
+    onPremiumBiteTimeout,
+    onServerFishingError,
+    onStartServerFishingCast,
+    player,
+    queueAuditEvent,
+  ]);
 
   const castRod = useCallback(async () => {
     await startCastSequence({ consumeBait: true, premium: false });
@@ -570,7 +775,8 @@ export function useGameState(options?: UseGameStateOptions) {
     
     if (!fish || !inventoryItem || inventoryItem.quantity <= 0) return 0;
 
-    const nftB = getNftBonus(player.equippedRod, player.nftRods);
+    const equippedRodLevel = getSafeEquippedRodLevel(player.equippedRod, player.rodLevel);
+    const nftB = getNftBonus(equippedRodLevel, player.nftRods);
     const sellPrice = Math.floor(fish.price * (1 + nftB.sellBonus / 100));
 
     setPlayer(prev => {
@@ -598,7 +804,7 @@ export function useGameState(options?: UseGameStateOptions) {
       return nextPlayer;
     });
     return sellPrice;
-  }, [player.inventory, player.equippedRod, player.nftRods, getNftBonus, queueAuditEvent]);
+  }, [player.inventory, player.equippedRod, player.rodLevel, player.nftRods, getNftBonus, queueAuditEvent]);
 
   const consumeFish = useCallback((ingredients: Record<string, number>) => {
     const canCook = Object.entries(ingredients).every(([fishId, quantity]) => {
@@ -747,6 +953,8 @@ export function useGameState(options?: UseGameStateOptions) {
   }, [player.coins, queueAuditEvent]);
 
   const unlockRodWithMon = useCallback((level: number, monAmount: string) => {
+    const rod = ROD_DATA.find((entry) => entry.level === level && entry.monUnlockCost);
+    if (!rod || level <= 0) return false;
     if (player.rodLevel >= level) return false;
 
     setPlayer(prev => {
@@ -762,8 +970,40 @@ export function useGameState(options?: UseGameStateOptions) {
         beforeState: toPlayerAuditSnapshot(prev),
         afterState: toPlayerAuditSnapshot(nextPlayer),
         metadata: {
+          rodId: rod.id,
           rodLevel: level,
+          rarity: rod.rarity,
           monAmount,
+        },
+      });
+
+      return nextPlayer;
+    });
+
+    return true;
+  }, [player.rodLevel, queueAuditEvent]);
+
+  const grantRodReward = useCallback((level: number, source = 'cube_reward') => {
+    const rod = ROD_DATA.find((entry) => entry.level === level);
+    if (!rod || level <= 0 || player.rodLevel >= level) return false;
+
+    setPlayer(prev => {
+      if (prev.rodLevel >= level) return prev;
+      const nextPlayer = {
+        ...prev,
+        rodLevel: level,
+        equippedRod: level,
+      };
+
+      queueAuditEvent({
+        eventType: 'rod_reward_unlocked',
+        beforeState: toPlayerAuditSnapshot(prev),
+        afterState: toPlayerAuditSnapshot(nextPlayer),
+        metadata: {
+          source,
+          rodId: rod.id,
+          rodLevel: level,
+          rarity: rod.rarity,
         },
       });
 
@@ -775,7 +1015,8 @@ export function useGameState(options?: UseGameStateOptions) {
 
   const equipRod = useCallback((level: number) => {
     setPlayer(prev => {
-      if (level > prev.rodLevel || level < 0) return prev;
+      const rod = ROD_DATA.find((entry) => entry.level === level);
+      if (!rod || level > prev.rodLevel || level < 0) return prev;
       return { ...prev, equippedRod: level };
     });
   }, []);
@@ -827,9 +1068,9 @@ export function useGameState(options?: UseGameStateOptions) {
   }, []);
 
   const persistIdentitySnapshot = useCallback((nextPlayer: PlayerState) => {
-    storePlayerLocally(nextPlayer);
+    if (localClientStateEnabled) storePlayerLocally(nextPlayer);
     onSave?.(nextPlayer);
-  }, [onSave]);
+  }, [localClientStateEnabled, onSave]);
 
   const setNickname = useCallback((nickname: string | null) => {
     let nextSnapshot: PlayerState | null = null;
@@ -885,6 +1126,7 @@ export function useGameState(options?: UseGameStateOptions) {
     addCoins,
     addBait,
     grantFishReward,
+    grantRodReward,
     claimDailyBonus,
     dismissLevelUp,
     dismissAlbumReward,

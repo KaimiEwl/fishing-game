@@ -45,36 +45,53 @@ if (-not $walletConnectProjectId -and (Test-Path $wagmiPath)) {
   }
 }
 
-$required = @("VITE_SUPABASE_URL", "VITE_SUPABASE_PUBLISHABLE_KEY")
-foreach ($key in $required) {
-  if (-not $envMap[$key]) {
-    throw "Missing $key in local .env"
-  }
+if (-not $envMap["HOOKLOOT_SESSION_SECRET"] -and -not $envMap["SESSION_TOKEN_SECRET"]) {
+  throw "Missing HOOKLOOT_SESSION_SECRET or SESSION_TOKEN_SECRET in local .env"
 }
 
 $content = New-Object System.Collections.Generic.List[string]
 $content.Add("VITE_BASE_PATH=/")
-$content.Add("VITE_SUPABASE_URL=$($envMap["VITE_SUPABASE_URL"])")
-$content.Add("VITE_SUPABASE_PUBLISHABLE_KEY=$($envMap["VITE_SUPABASE_PUBLISHABLE_KEY"])")
 $content.Add("VITE_WALLETCONNECT_PROJECT_ID=$walletConnectProjectId")
 
-$excludedKeys = @(
-  "VITE_BASE_PATH",
-  "VITE_SUPABASE_URL",
-  "VITE_SUPABASE_PUBLISHABLE_KEY",
-  "VITE_WALLETCONNECT_PROJECT_ID"
+$publicViteKeys = @(
+  "VITE_BAIT_BUCKETS_V2_ENABLED",
+  "VITE_COLLECTION_BOOK_ENABLED",
+  "VITE_COLLECTION_BOOK_ROLLOUT_PERCENT",
+  "VITE_CUBE_REBALANCE_ENABLED",
+  "VITE_CUBE_REBALANCE_ROLLOUT_PERCENT",
+  "VITE_ECONOMY_ROLLOUT_ALLOWLIST",
+  "VITE_LEGACY_DAILY_BONUS_DISABLED",
+  "VITE_PLAYER_AUDIT_LOGS_ENABLED",
+  "VITE_PREMIUM_SESSIONS_ENABLED",
+  "VITE_PREMIUM_SESSIONS_ROLLOUT_PERCENT",
+  "VITE_REFERRAL_BAIT_ENABLED",
+  "VITE_WALLET_BAIT_BONUS_ENABLED",
+  "VITE_WEEKLY_MISSIONS_ENABLED",
+  "VITE_WEEKLY_MISSIONS_ROLLOUT_PERCENT"
 )
 
 foreach ($key in ($envMap.Keys | Sort-Object)) {
-  if (-not $key.StartsWith("VITE_")) {
-    continue
-  }
-
-  if ($excludedKeys -contains $key) {
+  if ($publicViteKeys -notcontains $key) {
     continue
   }
 
   $content.Add("$key=$($envMap[$key])")
+}
+
+$serverKeys = @(
+  "HOOKLOOT_SESSION_SECRET",
+  "SESSION_TOKEN_SECRET",
+  "HOOKLOOT_RECEIVER_ADDRESS",
+  "HOOKLOOT_ADMIN_WALLETS",
+  "ADMIN_WALLET_ADDRESS",
+  "MONAD_RPC_URL",
+  "HOOKLOOT_ALLOW_UNVERIFIED_PAYMENTS"
+)
+
+foreach ($key in $serverKeys) {
+  if ($envMap[$key]) {
+    $content.Add("$key=$($envMap[$key])")
+  }
 }
 
 $tempFile = Join-Path $env:TEMP "hookloot.env.production"

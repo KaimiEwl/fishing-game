@@ -5,8 +5,7 @@ param(
   [Parameter(Mandatory = $true)]
   [string]$SessionToken,
 
-  [string]$BaseUrl = $env:VITE_SUPABASE_URL,
-  [string]$AnonKey = $env:VITE_SUPABASE_PUBLISHABLE_KEY,
+  [string]$BaseUrl = $(if ($env:HOOKLOOT_API_BASE_URL) { $env:HOOKLOOT_API_BASE_URL } else { "http://127.0.0.1:8787" }),
 
   [int]$WithdrawLimit = 10,
   [int]$SuspiciousLimit = 10,
@@ -36,7 +35,6 @@ function Invoke-OpsAction {
     -WalletAddress $WalletAddress `
     -SessionToken $SessionToken `
     -BaseUrl $BaseUrl `
-    -AnonKey $AnonKey `
     -BodyJson $bodyJson
 }
 

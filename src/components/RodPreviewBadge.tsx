@@ -1,23 +1,31 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Worm } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { getRodPreviewFallback, ROD_DISPLAY_INFO } from '@/lib/rodAssets';
-import { NFT_ROD_DATA } from '@/types/game';
+import { NFT_ROD_DATA, ROD_DATA, ROD_RARITY_COLORS, ROD_RARITY_NAMES } from '@/types/game';
+import { formatMonAmount } from '@/lib/monRewards';
+import { getSafeEquippedRodLevel } from '@/lib/rodMonadRewards';
 
 interface RodPreviewBadgeProps {
   rodLevel: number;
   ownedRodLevel: number;
   nftRods: number[];
   totalBait?: number;
+  onEquipRod?: (level: number) => void;
 }
 
-const RodPreviewBadge = ({ rodLevel, ownedRodLevel, nftRods, totalBait = 0 }: RodPreviewBadgeProps) => {
-  const displayRodLevel = Math.max(rodLevel, ownedRodLevel);
+const RodPreviewBadge = ({ rodLevel, ownedRodLevel, nftRods, totalBait = 0, onEquipRod }: RodPreviewBadgeProps) => {
+  const safeOwnedRodLevel = Math.min(Math.max(0, ownedRodLevel), ROD_DATA.length - 1);
+  const displayRodLevel = getSafeEquippedRodLevel(rodLevel, safeOwnedRodLevel);
   const rod = ROD_DISPLAY_INFO[displayRodLevel] || ROD_DISPLAY_INFO[0];
+  const rodDefinition = ROD_DATA[displayRodLevel] ?? ROD_DATA[0];
   const hasNft = nftRods.includes(displayRodLevel);
   const nftData = NFT_ROD_DATA.find((entry) => entry.rodLevel === displayRodLevel) ?? null;
   const rodImageFallback = getRodPreviewFallback(displayRodLevel);
-  const rodImageSources = [rod.image, rodImageFallback];
+  const rodImageSources = useMemo(() => [rod.image, rodImageFallback], [rod.image, rodImageFallback]);
+  const ownedRods = Array.from({ length: safeOwnedRodLevel + 1 }, (_, index) => index)
+    .filter((level) => ROD_DATA[level]);
   const [rodImageSourceIndex, setRodImageSourceIndex] = useState(0);
   const rodRetryTimerRef = useRef<number | null>(null);
   const rodRetryCountRef = useRef(0);
@@ -83,72 +91,128 @@ const RodPreviewBadge = ({ rodLevel, ownedRodLevel, nftRods, totalBait = 0 }: Ro
     };
   }, [resetRodPreviewImage, rodImageSourceIndex]);
 
+  const badge = (
+    <button
+      type="button"
+      className={`relative flex h-12 w-12 cursor-pointer flex-col items-center justify-end overflow-hidden rounded-xl border border-cyan-300/30 bg-slate-950/20 shadow-[0_14px_24px_rgba(0,0,0,0.35)] backdrop-blur-sm transition-all hover:scale-105 active:scale-95 sm:h-14 sm:w-14 ${
+        hasNft ? 'ring-2 ring-cyan-300/40' : ''
+      }`}
+      aria-label="Active rod"
+    >
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(34,211,238,0.18),transparent_60%),linear-gradient(180deg,rgba(15,23,42,0.15),rgba(15,23,42,0.35))]" />
+      <img
+        src={rodImageSrc}
+        alt={rod.name}
+        loading="eager"
+        fetchPriority="high"
+        className={`absolute inset-0 h-full w-full ${rod.previewFit === 'contain' ? 'object-contain p-1.5' : 'object-cover'} ${rod.previewScale}`}
+        onLoad={() => {
+          clearRodRetryTimer();
+          rodRetryCountRef.current = 0;
+        }}
+        onError={() => {
+          if (rodImageSourceIndex < rodImageSources.length - 1) {
+            setRodImageSourceIndex((current) => current + 1);
+            return;
+          }
+
+          scheduleRodPreviewRetry();
+        }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+      {rod.bonus > 0 && (
+        <span className="relative z-10 mb-1 rounded-md bg-black/55 px-1 py-[2px] text-[9px] font-bold leading-none text-cyan-50 sm:text-[10px]">
+          +{rod.bonus}%
+        </span>
+      )}
+      {hasNft && (
+        <div className="absolute -right-1.5 -top-1.5 rounded-sm border border-cyan-300/40 bg-cyan-300 px-1.5 text-[8px] font-bold text-black shadow-sm">
+          NFT
+        </div>
+      )}
+    </button>
+  );
+
+  const rodDetails = (
+    <div className="flex flex-col gap-1">
+      <p className="text-sm font-bold" style={{ color: rod.color }}>
+        {rodDefinition.name}
+      </p>
+      <p className="text-xs text-zinc-500">
+        {ROD_RARITY_NAMES[rodDefinition.rarity]} / Active rod
+      </p>
+      {rod.bonus > 0 ? (
+        <p className="text-xs text-zinc-200">+{rod.bonus}% rare fish chance</p>
+      ) : (
+        <p className="text-xs text-zinc-200">Standard catch chance</p>
+      )}
+      <p className="text-xs text-cyan-100">
+        MON pull {rodDefinition.monadDropChance}% / {formatMonAmount(rodDefinition.monadMinReward)}-{formatMonAmount(rodDefinition.monadMaxReward)} MON
+      </p>
+      {hasNft && nftData && (
+        <div className="mt-1 border-t border-cyan-300/15 pt-1 text-xs text-cyan-100">
+          <p className="font-bold">MON rod bonuses:</p>
+          <p>+{nftData.rarityBonus}% rare+ chance</p>
+          <p>+{nftData.xpBonus}% XP</p>
+          {nftData.sellBonus > 0 && <p>+{nftData.sellBonus}% fish price</p>}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="absolute bottom-1 right-[calc(100%+0.55rem)] flex flex-col items-center gap-1 sm:bottom-1.5">
-      <TooltipProvider delayDuration={200}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div
-              className={`relative flex h-12 w-12 cursor-pointer flex-col items-center justify-end overflow-hidden rounded-xl border border-cyan-300/30 bg-slate-950/20 shadow-[0_14px_24px_rgba(0,0,0,0.35)] backdrop-blur-sm transition-all hover:scale-105 active:scale-95 sm:h-14 sm:w-14 ${
-                hasNft ? 'ring-2 ring-cyan-300/40' : ''
-              }`}
-            >
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(34,211,238,0.18),transparent_60%),linear-gradient(180deg,rgba(15,23,42,0.15),rgba(15,23,42,0.35))]" />
-              <img
-                src={rodImageSrc}
-                alt={rod.name}
-                loading="eager"
-                fetchPriority="high"
-                className={`absolute inset-0 h-full w-full ${rod.previewFit === 'contain' ? 'object-contain p-1.5' : 'object-cover'} ${rod.previewScale}`}
-                onLoad={() => {
-                  clearRodRetryTimer();
-                  rodRetryCountRef.current = 0;
-                }}
-                onError={() => {
-                  if (rodImageSourceIndex < rodImageSources.length - 1) {
-                    setRodImageSourceIndex((current) => current + 1);
-                    return;
-                  }
+      {onEquipRod ? (
+        <Popover>
+          <PopoverTrigger asChild>{badge}</PopoverTrigger>
+          <PopoverContent side="top" align="center" className="w-[min(18rem,calc(100vw-1rem))] border-cyan-300/15 bg-black/95 p-3 text-zinc-100 backdrop-blur-md">
+            <div className="mb-2">
+              {rodDetails}
+            </div>
+            <div className="mt-3 grid gap-2 border-t border-cyan-300/15 pt-3">
+              {ownedRods.map((level) => {
+                const option = ROD_DATA[level] ?? ROD_DATA[0];
+                const info = ROD_DISPLAY_INFO[level] ?? ROD_DISPLAY_INFO[0];
+                const active = level === displayRodLevel;
 
-                  scheduleRodPreviewRetry();
-                }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-              {rod.bonus > 0 && (
-                <span className="relative z-10 mb-1 rounded-md bg-black/55 px-1 py-[2px] text-[9px] font-bold leading-none text-cyan-50 sm:text-[10px]">
-                  +{rod.bonus}%
-                </span>
-              )}
-              {hasNft && (
-                <div className="absolute -right-1.5 -top-1.5 rounded-sm border border-cyan-300/40 bg-cyan-300 px-1.5 text-[8px] font-bold text-black shadow-sm">
-                  NFT
-                </div>
-              )}
+                return (
+                  <button
+                    type="button"
+                    key={option.id}
+                    onClick={() => onEquipRod(level)}
+                    disabled={active}
+                    className={`flex items-center gap-2 rounded-xl border px-2 py-2 text-left transition ${
+                      active
+                        ? 'border-cyan-300/35 bg-cyan-300/10'
+                        : 'border-zinc-800 bg-zinc-950 hover:border-cyan-300/25'
+                    }`}
+                  >
+                    <img src={info.image} alt="" className="h-9 w-9 object-contain" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-bold text-zinc-100">{option.name}</span>
+                      <span className="block text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: ROD_RARITY_COLORS[option.rarity] }}>
+                        {ROD_RARITY_NAMES[option.rarity]}
+                      </span>
+                    </span>
+                    <span className="text-xs font-bold text-cyan-100">
+                      {active ? 'Active' : 'Equip'}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-          </TooltipTrigger>
-          <TooltipContent side="top" className="max-w-[200px] border-cyan-300/15 bg-black/95 p-3 text-zinc-100 backdrop-blur-md">
-            <div className="flex flex-col gap-1">
-              <p className="text-sm font-bold" style={{ color: rod.color }}>
-                {rod.name}
-              </p>
-              <p className="text-xs text-zinc-500">Level {displayRodLevel + 1}</p>
-              {rod.bonus > 0 ? (
-                <p className="text-xs text-zinc-200">+{rod.bonus}% rare fish chance</p>
-              ) : (
-                <p className="text-xs text-zinc-200">Standard catch chance</p>
-              )}
-              {hasNft && nftData && (
-                <div className="mt-1 border-t border-cyan-300/15 pt-1 text-xs text-cyan-100">
-                  <p className="font-bold">MON rod bonuses:</p>
-                  <p>+{nftData.rarityBonus}% rare+ chance</p>
-                  <p>+{nftData.xpBonus}% XP</p>
-                  {nftData.sellBonus > 0 && <p>+{nftData.sellBonus}% fish price</p>}
-                </div>
-              )}
-            </div>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+          </PopoverContent>
+        </Popover>
+      ) : (
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>{badge}</TooltipTrigger>
+            <TooltipContent side="top" className="max-w-[220px] border-cyan-300/15 bg-black/95 p-3 text-zinc-100 backdrop-blur-md">
+              {rodDetails}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
 
       <div className="flex min-h-6 min-w-[3.25rem] items-center justify-center gap-1 rounded-full border border-amber-300/40 bg-black/70 px-2 py-1 shadow-[0_10px_18px_rgba(0,0,0,0.35)] backdrop-blur-sm">
         <Worm className="h-3.5 w-3.5 text-amber-200" />

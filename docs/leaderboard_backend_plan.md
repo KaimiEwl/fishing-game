@@ -1,8 +1,8 @@
 # Grill Leaderboard Backend Plan
 
-Recommended backend: Supabase.
+Status: superseded by the owned Hook & Loot API.
 
-Reason: the game is hosted on GitHub Pages as a static app, while Supabase is already used for wallet verification and player saves. Extending Supabase is more stable than adding a separate server.
+The leaderboard now belongs on the Node API under `server/`, with data stored in the same SQLite volume as player state. The game frontend should call same-origin `/api/leaderboard/grill` and `/api/edge/player-actions`, not a third-party backend.
 
 ## Table
 
@@ -38,7 +38,7 @@ create index if not exists grill_leaderboard_weekly_idx
 
 Only verified wallets can publish score.
 
-The existing `verify-wallet` Supabase function should accept a `grill_score_delta` payload, verify the session token, and upsert:
+The owned API should verify the wallet session token and upsert:
 
 - `wallet_address`
 - `nickname`

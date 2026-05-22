@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { invokeHooklootEdge } from '@/lib/serverApi';
 import { getStoredWalletSession } from '@/lib/walletSession';
 
 const ADMIN_ACCESS_REFRESH_INTERVAL_MS = 300_000;
 
 interface AdminWithdrawSummaryResponse {
+  error?: string;
   summary: {
     pending_count: number;
   };
@@ -31,7 +32,7 @@ export function useAdminAccess(walletAddress: string | undefined, enabled: boole
           return;
         }
 
-        const { data, error } = await supabase.functions.invoke('admin', {
+        const { data, error } = await invokeHooklootEdge<AdminWithdrawSummaryResponse>('admin', {
           body: {
             action: 'get_admin_withdraw_summary',
             wallet_address: walletAddress.toLowerCase(),
@@ -45,7 +46,7 @@ export function useAdminAccess(walletAddress: string | undefined, enabled: boole
 
         if (!cancelled) {
           setIsAdmin(true);
-          setPendingWithdrawCount((data as AdminWithdrawSummaryResponse).summary?.pending_count ?? 0);
+          setPendingWithdrawCount(data.summary?.pending_count ?? 0);
         }
       } catch {
         if (!cancelled) {
