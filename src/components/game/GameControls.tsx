@@ -8,6 +8,7 @@ import GameStateNotice from '@/components/GameStateNotice';
 import BiteMeter from '@/components/BiteMeter';
 import RodPreviewBadge from '@/components/RodPreviewBadge';
 import { formatMonAmount } from '@/lib/monRewards';
+import { HIGH_FETCH_PRIORITY_PROPS } from '@/lib/imagePriority';
 
 const BUTTON_ART_VERSION = 'fish-hud-20260425a';
 const versionedButtonAsset = (file: string) => `${publicAsset(`assets/${file}`)}?v=${BUTTON_ART_VERSION}`;
@@ -305,7 +306,7 @@ const GameControls: React.FC<GameControlsProps> = ({
                   alt=""
                   aria-hidden="true"
                   loading="eager"
-                  fetchPriority="high"
+                  {...HIGH_FETCH_PRIORITY_PROPS}
                   className={`relative block h-auto w-full select-none transition-all duration-200 ${primaryDisabled ? 'grayscale-[0.9] brightness-[0.72] opacity-90' : gameState === 'biting' ? 'drop-shadow-[0_10px_22px_rgba(163,230,53,0.22)]' : 'drop-shadow-[0_10px_22px_rgba(34,211,238,0.24)]'}`}
                   draggable={false}
                   onLoad={() => {

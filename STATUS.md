@@ -1,5 +1,12 @@
 # STATUS
 
+## 2026-05-22 full gameplay QA pass is complete locally
+- Added `tasks.md` as the release readiness checklist and completed the first P0 gameplay QA task.
+- Documented the desktop and mobile QA evidence in `docs/release-qa-2026-05-22.md`: guest entry, cast/reload persistence, wallet linking from the UI, inbox desktop/mobile behavior, main game screens, guide/terms/privacy/admin routes, validation commands, and remaining release risks.
+- Fixed image `fetchpriority` handling so the local browser no longer reports React `fetchPriority` DOM prop errors during gameplay.
+- Fixed regular wallet admin probing: non-admin wallets now receive `is_admin=false` from `check_admin` instead of causing a `403` network error while the player panel loads, and `/admin` now respects that flag instead of treating every 200 response as admin access.
+- Validation for this pass included browser desktop/mobile QA, local guest-to-wallet UI linking with a generated injected wallet, inbox desktop/mobile UI, browser `/admin` checks for non-admin and admin sessions, `node --check ./server/index.mjs`, `npm run typecheck`, `npm run build`, `npm run lint`, and `npm run ops:smoke`.
+
 ## 2026-05-22 player progress standard is documented and exposed to admin
 - Added a canonical server-side `progress_profile` shape for admin/debug reads. It is generated in one place by `server/player-progress-profile.mjs` and groups the player state into identity, economy, progression, rods, inventory, cooking, tasks, cube, collection, fishing net, premium session, MON, timestamps, and raw storage.
 - Kept the live database schema stable: `players` remains the canonical progress store, while cast/cube/MON/premium/social/audit tables remain side tables for operations and history.

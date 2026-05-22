@@ -2557,9 +2557,13 @@ function auditRowsForPlayer(playerId, limit = 25) {
 }
 
 function admin(body) {
-  const adminPlayer = requireAdmin(body);
   const action = String(body.action || '');
-  if (action === 'check_admin') return edgeResponse({ is_admin: true });
+  if (action === 'check_admin') {
+    const player = requireWalletSession(body);
+    return edgeResponse({ is_admin: isAdminWallet(player.wallet_address) });
+  }
+
+  const adminPlayer = requireAdmin(body);
 
   if (action === 'list_players') {
     const perPage = Math.max(1, Math.min(100, Number(body.per_page || 25)));

@@ -521,9 +521,10 @@ export function useAdmin(walletAddress: string | undefined) {
     }
     try {
       setLoading(true);
-      await callAdmin<AdminCheckResponse>('check_admin');
-      setIsAdmin(true);
-      return true;
+      const data = await callAdmin<AdminCheckResponse>('check_admin');
+      const allowed = data.is_admin === true;
+      setIsAdmin(allowed);
+      return allowed;
     } catch {
       setIsAdmin(false);
       return false;

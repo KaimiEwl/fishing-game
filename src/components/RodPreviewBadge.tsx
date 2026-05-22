@@ -6,6 +6,7 @@ import { getRodPreviewFallback, ROD_DISPLAY_INFO } from '@/lib/rodAssets';
 import { NFT_ROD_DATA, ROD_DATA, ROD_RARITY_COLORS, ROD_RARITY_NAMES } from '@/types/game';
 import { formatMonAmount } from '@/lib/monRewards';
 import { getSafeEquippedRodLevel } from '@/lib/rodMonadRewards';
+import { HIGH_FETCH_PRIORITY_PROPS } from '@/lib/imagePriority';
 
 interface RodPreviewBadgeProps {
   rodLevel: number;
@@ -104,7 +105,7 @@ const RodPreviewBadge = ({ rodLevel, ownedRodLevel, nftRods, totalBait = 0, onEq
         src={rodImageSrc}
         alt={rod.name}
         loading="eager"
-        fetchPriority="high"
+        {...HIGH_FETCH_PRIORITY_PROPS}
         className={`absolute inset-0 h-full w-full ${rod.previewFit === 'contain' ? 'object-contain p-1.5' : 'object-cover'} ${rod.previewScale}`}
         onLoad={() => {
           clearRodRetryTimer();

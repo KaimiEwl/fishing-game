@@ -1,6 +1,7 @@
 import React from 'react';
 import { publicAsset } from '@/lib/assets';
 import GameTitleBanner from '@/components/GameTitleBanner';
+import { HIGH_FETCH_PRIORITY_PROPS } from '@/lib/imagePriority';
 
 interface GameLoadingScreenProps {
   visible: boolean;
@@ -28,7 +29,7 @@ const GameLoadingScreen: React.FC<GameLoadingScreenProps> = ({ visible, progress
             className="h-full w-full object-cover object-center"
             draggable={false}
             loading="eager"
-            fetchPriority="high"
+            {...HIGH_FETCH_PRIORITY_PROPS}
           />
           <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[#040913] via-[#040913]/76 to-transparent" />
         </div>

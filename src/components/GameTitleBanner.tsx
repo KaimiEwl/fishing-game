@@ -1,5 +1,6 @@
 import React from 'react';
 import { publicAsset } from '@/lib/assets';
+import { HIGH_FETCH_PRIORITY_PROPS } from '@/lib/imagePriority';
 
 interface GameTitleBannerProps {
   className?: string;
@@ -16,7 +17,7 @@ const GameTitleBanner: React.FC<GameTitleBannerProps> = ({
     className={className}
     draggable={false}
     loading="eager"
-    fetchPriority="high"
+    {...HIGH_FETCH_PRIORITY_PROPS}
   />
 );
 

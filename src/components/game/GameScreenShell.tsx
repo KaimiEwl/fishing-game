@@ -1,5 +1,6 @@
 import React from 'react';
 import CoinIcon from './CoinIcon';
+import { HIGH_FETCH_PRIORITY_PROPS } from '@/lib/imagePriority';
 
 interface GameScreenShellProps {
   title: string;
@@ -41,7 +42,7 @@ const GameScreenShell: React.FC<GameScreenShellProps> = ({
           alt=""
           aria-hidden="true"
           decoding="async"
-          fetchPriority="high"
+          {...HIGH_FETCH_PRIORITY_PROPS}
           className={`absolute inset-0 h-full w-full ${backgroundFit === 'contain' ? 'object-contain' : 'object-cover'}`}
         />
       )}

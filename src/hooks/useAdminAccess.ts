@@ -11,6 +11,11 @@ interface AdminWithdrawSummaryResponse {
   };
 }
 
+interface AdminCheckResponse {
+  error?: string;
+  is_admin?: boolean;
+}
+
 export function useAdminAccess(walletAddress: string | undefined, enabled: boolean) {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [pendingWithdrawCount, setPendingWithdrawCount] = useState(0);
@@ -29,6 +34,26 @@ export function useAdminAccess(walletAddress: string | undefined, enabled: boole
         const session = getStoredWalletSession();
         if (!session || session.address.toLowerCase() !== walletAddress.toLowerCase()) {
           if (!cancelled) setIsAdmin(false);
+          return;
+        }
+
+        const { data: adminCheck, error: adminCheckError } = await invokeHooklootEdge<AdminCheckResponse>('admin', {
+          body: {
+            action: 'check_admin',
+            wallet_address: walletAddress.toLowerCase(),
+            session_token: session.token,
+          },
+        });
+
+        if (adminCheckError || adminCheck?.error) {
+          throw adminCheckError ?? new Error(adminCheck.error);
+        }
+
+        if (!adminCheck?.is_admin) {
+          if (!cancelled) {
+            setIsAdmin(false);
+            setPendingWithdrawCount(0);
+          }
           return;
         }
 
