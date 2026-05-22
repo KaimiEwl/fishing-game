@@ -1,5 +1,14 @@
 # STATUS
 
+## 2026-05-22 guest-to-wallet progress linking is server-backed
+- Guest players now receive a generated server nickname like `Guest_ABC123`, so guest progress has a stable visible identity without asking for a wallet first.
+- `verify-wallet` accepts a valid `guest_id` plus `guest_session_token` and links that SQLite guest row to the verified wallet inside a server transaction.
+- On first wallet link, guest bait, XP, rods, inventory, cooked dishes, collection/task progress, cube/grill counters, and related player rows are carried into the wallet profile. Generated guest nicknames are not copied to a new wallet, so the normal wallet name prompt can still ask for a real nickname.
+- If the wallet already existed, the server merges conservatively instead of overwriting the stronger wallet profile: stackable inventory/dishes are summed, progress books are merged, and level/XP/rods use the better value.
+- After a guest profile has been linked, the old guest session no longer restores as an active guest profile; it rotates to a fresh guest identity so new guest progress cannot silently diverge from the linked wallet.
+- The frontend sends the stored guest identity during wallet verification, applies the returned wallet snapshot as server-owned when `linked_guest_id` is present, and clears the old guest session from localStorage after the server confirms the link.
+- Validation: `node --check ./server/index.mjs`, `npm run typecheck`, `npm run build`, `npm run ops:smoke`, and an in-app browser reload at `http://127.0.0.1:5175/` showing the guest HUD with `Guest_...` and `Cast line`.
+
 ## 2026-05-22 guest profiles are server-backed after the Supabase removal
 - Restored guest entry without returning to local-only gameplay: the client now creates or resumes a signed `guest:<uuid>` session through the local API, sends core game actions to the server, and applies the returned server player snapshot.
 - Guest progress is stored in the server SQLite database alongside wallet players. The browser keeps only the guest identity/session token needed to restore that server row; clearing browser storage will still lose access to that guest unless a recovery/link flow is added later.

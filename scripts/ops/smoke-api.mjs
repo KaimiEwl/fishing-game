@@ -130,6 +130,39 @@ async function main() {
     throw new Error(`guest XP was not persisted on the server: resolve=${guestResolvedCast.player?.xp} restore=${guestRestoredAfterResolve.player?.xp}`);
   }
 
+  const linkAccount = privateKeyToAccount(generatePrivateKey());
+  const linkMessage = `Hook & Loot guest link smoke ${Date.now()}`;
+  const linkSignature = await linkAccount.signMessage({ message: linkMessage });
+  const linkedWallet = await post('/api/edge/verify-wallet', {
+    wallet_address: linkAccount.address,
+    message: linkMessage,
+    signature: linkSignature,
+    guest_id: guestId,
+    guest_session_token: guestSession,
+  });
+  if (linkedWallet.linked_guest_id !== guestId) {
+    throw new Error(`guest link did not return the linked guest id: ${JSON.stringify(linkedWallet)}`);
+  }
+  if (linkedWallet.player?.wallet_address?.toLowerCase() !== linkAccount.address.toLowerCase()) {
+    throw new Error(`guest link did not produce the expected wallet player: ${JSON.stringify(linkedWallet.player)}`);
+  }
+  if (linkedWallet.player?.daily_free_bait !== guestResolvedCast.player?.daily_free_bait) {
+    throw new Error(`guest daily bait was not carried into the wallet: guest=${guestResolvedCast.player?.daily_free_bait} wallet=${linkedWallet.player?.daily_free_bait}`);
+  }
+  if (linkedWallet.player?.xp !== guestResolvedCast.player?.xp) {
+    throw new Error(`guest XP was not carried into the wallet: guest=${guestResolvedCast.player?.xp} wallet=${linkedWallet.player?.xp}`);
+  }
+  const guestAfterLink = await post('/api/edge/guest-session', {
+    guest_id: guestId,
+    session_token: guestSession,
+  });
+  if (guestAfterLink.guest_id === guestId) {
+    throw new Error('linked guest profile was restored as an active guest instead of rotating to a new guest identity');
+  }
+  if (guestAfterLink.player?.wallet_address !== guestAfterLink.guest_id) {
+    throw new Error(`rotated guest session did not return its own player row: ${JSON.stringify(guestAfterLink)}`);
+  }
+
   let purchaseSmoke = { skipped: 'set HOOKLOOT_ALLOW_UNVERIFIED_PAYMENTS=1 for local fake-payment checks' };
   if (fakePaymentsEnabled) {
     const fakeTxHash = `0x${'1'.repeat(64)}`;
@@ -219,6 +252,10 @@ async function main() {
       restoredDailyBait: guestRestoredAfterStart.player?.daily_free_bait,
       fishingResult: guestResolvedCast.fishing_result,
       restoredXp: guestRestoredAfterResolve.player?.xp,
+      linkedWallet: linkedWallet.player?.wallet_address,
+      linkedWalletBait: linkedWallet.player?.daily_free_bait,
+      linkedWalletXp: linkedWallet.player?.xp,
+      rotatedGuestId: guestAfterLink.guest_id,
     },
     purchaseSmoke,
     cubePrize,

@@ -272,6 +272,12 @@ db.exec(`
     UNIQUE(player_id, task_id)
   );
 
+  CREATE TABLE IF NOT EXISTS guest_wallet_links (
+    guest_wallet_address TEXT PRIMARY KEY,
+    wallet_address TEXT NOT NULL,
+    linked_at TEXT NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS edge_rate_limits (
     action_key TEXT NOT NULL,
     subject_key TEXT NOT NULL,
@@ -377,6 +383,19 @@ function isGuestPlayer(player) {
   return isGuestIdentity(player?.wallet_address);
 }
 
+function deriveGuestNickname(guestId) {
+  const suffix = String(guestId || '')
+    .replace(/^guest:/i, '')
+    .replace(/[^a-z0-9]/gi, '')
+    .slice(0, 6)
+    .toUpperCase();
+  return `Guest_${suffix || 'PLAYER'}`;
+}
+
+function isGeneratedGuestNickname(value) {
+  return typeof value === 'string' && /^Guest_[A-Z0-9]{4,12}$/i.test(value.trim());
+}
+
 function safeJsonParse(value, fallback) {
   try {
     if (value == null || value === '') return fallback;
@@ -438,13 +457,14 @@ function ensurePlayer(walletAddress) {
   let player = getPlayerByWallet(wallet);
   const now = nowIso();
   if (!player) {
+    const nickname = isGuestIdentity(wallet) ? deriveGuestNickname(wallet) : null;
     db.prepare(`
       INSERT INTO players (
         id, wallet_address, coins, bait, daily_free_bait, daily_free_bait_reset_at,
         level, xp, xp_to_next, rod_level, equipped_rod, inventory, cooked_dishes,
-        game_progress, total_catches, login_streak, nft_rods, created_at, updated_at, last_login
-      ) VALUES (?, ?, 100, 0, ?, ?, 1, 0, 100, 0, 0, '[]', '[]', '{}', 0, 1, '[]', ?, ?, ?)
-    `).run(randomUUID(), wallet, DAILY_FREE_BAIT, todayKey(), now, now, now);
+        game_progress, total_catches, login_streak, nft_rods, nickname, created_at, updated_at, last_login
+      ) VALUES (?, ?, 100, 0, ?, ?, 1, 0, 100, 0, 0, '[]', '[]', '{}', 0, 1, '[]', ?, ?, ?, ?)
+    `).run(randomUUID(), wallet, DAILY_FREE_BAIT, todayKey(), nickname, now, now, now);
     player = getPlayerByWallet(wallet);
   }
 
@@ -460,6 +480,11 @@ function ensurePlayer(walletAddress) {
   }
 
   player = getPlayerByWallet(wallet);
+  if (isGuestIdentity(wallet) && !player.nickname) {
+    updatePlayer(wallet, { nickname: deriveGuestNickname(wallet) });
+    player = getPlayerByWallet(wallet);
+  }
+
   const normalizedProgress = ensureGameProgress(player.game_progress);
   if (JSON.stringify(normalizedProgress) !== JSON.stringify(player.game_progress || {})) {
     updatePlayer(wallet, { game_progress: normalizedProgress });
@@ -494,6 +519,318 @@ function patchPlayerById(playerId, patch) {
   const player = getPlayerById(playerId);
   if (!player) throw httpError(404, 'Player not found');
   return updatePlayer(player.wallet_address, patch);
+}
+
+function getGuestWalletLink(guestWalletAddress) {
+  const guestWallet = normalizeGuestIdentity(guestWalletAddress);
+  if (!guestWallet) return null;
+  return db.prepare('SELECT * FROM guest_wallet_links WHERE guest_wallet_address = ?').get(guestWallet) || null;
+}
+
+function withTransaction(callback) {
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const result = callback();
+    db.exec('COMMIT');
+    return result;
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+}
+
+function toTimeValue(value) {
+  if (!value) return 0;
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function earlierIso(first, second) {
+  if (!first) return second || null;
+  if (!second) return first || null;
+  return toTimeValue(first) <= toTimeValue(second) ? first : second;
+}
+
+function laterIso(first, second) {
+  if (!first) return second || null;
+  if (!second) return first || null;
+  return toTimeValue(first) >= toTimeValue(second) ? first : second;
+}
+
+function mergeQuantityStacksBySum(currentValue, nextValue, keyField, timeField) {
+  const current = Array.isArray(currentValue) ? currentValue : [];
+  const next = Array.isArray(nextValue) ? nextValue : [];
+  const merged = new Map();
+
+  for (const item of current) {
+    const key = typeof item?.[keyField] === 'string' ? item[keyField] : null;
+    const quantity = Math.max(0, Math.floor(Number(item?.quantity || 0)));
+    if (key && quantity > 0) merged.set(key, { ...item, quantity });
+  }
+
+  for (const item of next) {
+    const key = typeof item?.[keyField] === 'string' ? item[keyField] : null;
+    const quantity = Math.max(0, Math.floor(Number(item?.quantity || 0)));
+    if (!key || quantity <= 0) continue;
+
+    const existing = merged.get(key);
+    if (!existing) {
+      merged.set(key, { ...item, quantity });
+      continue;
+    }
+
+    merged.set(key, {
+      ...existing,
+      ...item,
+      [keyField]: key,
+      quantity: Math.max(0, Number(existing.quantity || 0)) + quantity,
+      [timeField]: laterIso(existing[timeField], item[timeField]) || existing[timeField] || item[timeField] || nowIso(),
+    });
+  }
+
+  return Array.from(merged.values()).filter((item) => Number(item.quantity || 0) > 0);
+}
+
+function mergeProgressEntries(currentEntries, nextEntries, targets) {
+  return Object.fromEntries(Object.keys(targets).map((id) => {
+    const current = currentEntries?.[id] || {};
+    const next = nextEntries?.[id] || {};
+    return [id, {
+      progress: Math.min(
+        targets[id],
+        Math.max(
+          Math.max(0, Math.floor(Number(current.progress || 0))),
+          Math.max(0, Math.floor(Number(next.progress || 0))),
+        ),
+      ),
+      claimed: Boolean(current.claimed || next.claimed),
+    }];
+  }));
+}
+
+function mergeCollectionBooks(currentBook, nextBook) {
+  if (!currentBook && !nextBook) return null;
+  const current = ensureCollectionBook(currentBook);
+  const next = ensureCollectionBook(nextBook);
+  const species = Object.fromEntries(FISH_DATA.map((fish) => {
+    const currentSpecies = current.species[fish.id] || {};
+    const nextSpecies = next.species[fish.id] || {};
+    return [fish.id, {
+      fishId: fish.id,
+      discovered: Boolean(currentSpecies.discovered || nextSpecies.discovered),
+      catches: Math.max(0, Number(currentSpecies.catches || 0)) + Math.max(0, Number(nextSpecies.catches || 0)),
+      firstCaughtAt: earlierIso(currentSpecies.firstCaughtAt, nextSpecies.firstCaughtAt),
+      lastCaughtAt: laterIso(currentSpecies.lastCaughtAt, nextSpecies.lastCaughtAt),
+      firstCatchBonusClaimed: Boolean(currentSpecies.firstCatchBonusClaimed || nextSpecies.firstCatchBonusClaimed),
+    }];
+  }));
+  const pages = COLLECTION_BOOK_PAGES.map((page) => {
+    const currentPage = current.pages.find((item) => item.pageId === page.id);
+    const nextPage = next.pages.find((item) => item.pageId === page.id);
+    return {
+      pageId: page.id,
+      completed: Boolean(currentPage?.completed || nextPage?.completed || page.fishIds.every((fishId) => species[fishId]?.discovered)),
+      claimed: Boolean(currentPage?.claimed || nextPage?.claimed),
+    };
+  });
+  return {
+    species,
+    pages,
+    totalSpeciesCaught: Object.values(species).filter((item) => item.discovered).length,
+    totalFirstCatchBonusesClaimed: Object.values(species).filter((item) => item.firstCatchBonusClaimed).length,
+  };
+}
+
+function mergeRodMastery(currentValue, nextValue) {
+  if (!currentValue && !nextValue) return null;
+  const current = currentValue && typeof currentValue === 'object' ? currentValue : {};
+  const next = nextValue && typeof nextValue === 'object' ? nextValue : {};
+  const trackKeys = new Set([
+    ...Object.keys(current.tracks || {}),
+    ...Object.keys(next.tracks || {}),
+  ]);
+  const tracks = Object.fromEntries(Array.from(trackKeys).map((key) => {
+    const currentTrack = current.tracks?.[key] || {};
+    const nextTrack = next.tracks?.[key] || {};
+    return [key, {
+      ...currentTrack,
+      ...nextTrack,
+      masteryLevel: Math.max(0, Number(currentTrack.masteryLevel || 0), Number(nextTrack.masteryLevel || 0)),
+      masteryPoints: Math.max(0, Number(currentTrack.masteryPoints || 0), Number(nextTrack.masteryPoints || 0)),
+      lastUpdatedAt: laterIso(currentTrack.lastUpdatedAt, nextTrack.lastUpdatedAt),
+    }];
+  }));
+  return {
+    totalMasteryPoints: Math.max(0, Number(current.totalMasteryPoints || 0), Number(next.totalMasteryPoints || 0)),
+    tracks,
+  };
+}
+
+function mergeDailyFreeBait(currentPlayer, nextPlayer, preferNext = false) {
+  if (preferNext) {
+    return {
+      daily_free_bait: nextPlayer.daily_free_bait,
+      daily_free_bait_reset_at: nextPlayer.daily_free_bait_reset_at,
+    };
+  }
+
+  const currentReset = currentPlayer.daily_free_bait_reset_at || null;
+  const nextReset = nextPlayer.daily_free_bait_reset_at || null;
+  if (currentReset && nextReset && currentReset === nextReset) {
+    return {
+      daily_free_bait: Math.min(currentPlayer.daily_free_bait, nextPlayer.daily_free_bait),
+      daily_free_bait_reset_at: currentReset,
+    };
+  }
+  if (currentReset && (!nextReset || currentReset > nextReset)) {
+    return {
+      daily_free_bait: currentPlayer.daily_free_bait,
+      daily_free_bait_reset_at: currentReset,
+    };
+  }
+  if (nextReset) {
+    return {
+      daily_free_bait: nextPlayer.daily_free_bait,
+      daily_free_bait_reset_at: nextReset,
+    };
+  }
+  return {
+    daily_free_bait: Math.min(currentPlayer.daily_free_bait, nextPlayer.daily_free_bait),
+    daily_free_bait_reset_at: null,
+  };
+}
+
+function mergeGameProgress(currentValue, nextValue, preferNextDaily = false) {
+  const current = ensureGameProgress(currentValue);
+  const next = ensureGameProgress(nextValue);
+  return {
+    ...current,
+    ...next,
+    date: todayKey(),
+    weekKey: weekKey(),
+    tasks: mergeProgressEntries(current.tasks, next.tasks, DAILY_TASK_TARGETS),
+    specialTasks: mergeProgressEntries(current.specialTasks, next.specialTasks, SPECIAL_TASK_TARGETS),
+    weeklyMissions: mergeProgressEntries(current.weeklyMissions, next.weeklyMissions, WEEKLY_MISSION_TARGETS),
+    lastWeeklyCubeUnlockDate: current.lastWeeklyCubeUnlockDate || next.lastWeeklyCubeUnlockDate || null,
+    wheelSpun: preferNextDaily ? Boolean(next.wheelSpun) : Boolean(current.wheelSpun || next.wheelSpun),
+    wheelPrize: preferNextDaily ? next.wheelPrize ?? null : current.wheelPrize ?? next.wheelPrize ?? null,
+    dailyWheelRolls: preferNextDaily
+      ? Math.max(0, Math.floor(Number(next.dailyWheelRolls || 0)))
+      : Math.max(0, Math.floor(Number(current.dailyWheelRolls || 0)), Math.floor(Number(next.dailyWheelRolls || 0))),
+    dailyRollRewardGranted: preferNextDaily ? Boolean(next.dailyRollRewardGranted) : Boolean(current.dailyRollRewardGranted || next.dailyRollRewardGranted),
+    paidWheelRolls: Math.max(0, Math.floor(Number(current.paidWheelRolls || 0)), Math.floor(Number(next.paidWheelRolls || 0))),
+    grillScore: Math.max(0, Math.floor(Number(current.grillScore || 0)), Math.floor(Number(next.grillScore || 0))),
+    dishesToday: preferNextDaily
+      ? Math.max(0, Math.floor(Number(next.dishesToday || 0)))
+      : Math.max(0, Math.floor(Number(current.dishesToday || 0)), Math.floor(Number(next.dishesToday || 0))),
+    premiumSession: current.premiumSession ?? null,
+    fishingNet: preferNextDaily ? next.fishingNet : current.fishingNet?.owned ? current.fishingNet : next.fishingNet,
+    collectionBook: mergeCollectionBooks(current.collectionBook, next.collectionBook),
+    rodMastery: mergeRodMastery(current.rodMastery, next.rodMastery),
+    lastWalletCheckInTxHash: current.lastWalletCheckInTxHash ?? next.lastWalletCheckInTxHash ?? null,
+  };
+}
+
+function buildGuestMergePatch(walletPlayer, guestPlayer, walletExisted) {
+  const preferGuest = !walletExisted;
+  const dailyBait = mergeDailyFreeBait(walletPlayer, guestPlayer, preferGuest);
+  const guestNickname = typeof guestPlayer.nickname === 'string' ? guestPlayer.nickname.trim() : '';
+  const shouldCarryGuestNickname = guestNickname && !isGeneratedGuestNickname(guestNickname);
+
+  return {
+    coins: preferGuest ? guestPlayer.coins : Math.max(walletPlayer.coins, guestPlayer.coins),
+    bait: preferGuest ? guestPlayer.bait : Math.max(walletPlayer.bait, guestPlayer.bait),
+    ...dailyBait,
+    bonus_bait_granted_total: preferGuest
+      ? guestPlayer.bonus_bait_granted_total
+      : Math.max(walletPlayer.bonus_bait_granted_total, guestPlayer.bonus_bait_granted_total),
+    level: preferGuest ? guestPlayer.level : Math.max(walletPlayer.level, guestPlayer.level),
+    xp: preferGuest ? guestPlayer.xp : Math.max(walletPlayer.xp, guestPlayer.xp),
+    xp_to_next: preferGuest ? guestPlayer.xp_to_next : Math.max(walletPlayer.xp_to_next, guestPlayer.xp_to_next),
+    rod_level: preferGuest ? guestPlayer.rod_level : Math.max(walletPlayer.rod_level, guestPlayer.rod_level),
+    equipped_rod: preferGuest ? guestPlayer.equipped_rod : Math.max(walletPlayer.equipped_rod, guestPlayer.equipped_rod),
+    inventory: mergeQuantityStacksBySum(preferGuest ? [] : walletPlayer.inventory, guestPlayer.inventory, 'fishId', 'caughtAt'),
+    cooked_dishes: mergeQuantityStacksBySum(preferGuest ? [] : walletPlayer.cooked_dishes, guestPlayer.cooked_dishes, 'recipeId', 'createdAt'),
+    game_progress: mergeGameProgress(preferGuest ? {} : walletPlayer.game_progress, guestPlayer.game_progress, preferGuest),
+    total_catches: preferGuest ? guestPlayer.total_catches : Math.max(walletPlayer.total_catches, guestPlayer.total_catches),
+    login_streak: preferGuest ? guestPlayer.login_streak : Math.max(walletPlayer.login_streak, guestPlayer.login_streak),
+    nft_rods: Array.from(new Set([
+      ...(Array.isArray(walletPlayer.nft_rods) && !preferGuest ? walletPlayer.nft_rods : []),
+      ...(Array.isArray(guestPlayer.nft_rods) ? guestPlayer.nft_rods : []),
+    ])).sort((a, b) => Number(a) - Number(b)),
+    nickname: walletPlayer.nickname || (shouldCarryGuestNickname ? guestNickname : null),
+    avatar_url: walletPlayer.avatar_url || guestPlayer.avatar_url || null,
+  };
+}
+
+function moveGuestOwnedRowsToWallet(guestPlayer, walletPlayer) {
+  const guestWallet = guestPlayer.wallet_address;
+  const wallet = walletPlayer.wallet_address;
+  db.prepare('UPDATE player_audit_logs SET wallet_address = ? WHERE wallet_address = ?').run(wallet, guestWallet);
+  db.prepare('UPDATE player_messages SET player_id = ? WHERE player_id = ?').run(walletPlayer.id, guestPlayer.id);
+  db.prepare('UPDATE social_task_verifications SET player_id = ?, wallet_address = ? WHERE player_id = ? OR wallet_address = ?')
+    .run(walletPlayer.id, wallet, guestPlayer.id, guestWallet);
+  db.prepare('UPDATE player_cube_rolls SET player_id = ?, wallet_address = ? WHERE player_id = ? OR wallet_address = ?')
+    .run(walletPlayer.id, wallet, guestPlayer.id, guestWallet);
+  db.prepare('UPDATE player_fishing_casts SET player_id = ?, wallet_address = ? WHERE player_id = ? OR wallet_address = ?')
+    .run(walletPlayer.id, wallet, guestPlayer.id, guestWallet);
+
+  const guestLeaderboardId = `wallet:${guestWallet}`;
+  const walletLeaderboardId = `wallet:${wallet}`;
+  const guestEntry = db.prepare('SELECT * FROM grill_leaderboard WHERE id = ?').get(guestLeaderboardId);
+  if (guestEntry) {
+    const walletEntry = db.prepare('SELECT * FROM grill_leaderboard WHERE id = ?').get(walletLeaderboardId);
+    const name = walletPlayer.nickname || guestEntry.name || 'Guest griller';
+    const nextScore = Math.max(Number(walletEntry?.score || 0), Number(guestEntry.score || 0));
+    const nextDishes = Math.max(Number(walletEntry?.dishes || 0), Number(guestEntry.dishes || 0));
+    if (walletEntry) {
+      db.prepare('UPDATE grill_leaderboard SET name = ?, score = ?, dishes = ?, wallet_address = ?, updated_at = ? WHERE id = ?')
+        .run(name, nextScore, nextDishes, wallet, nowIso(), walletLeaderboardId);
+    } else {
+      db.prepare('INSERT INTO grill_leaderboard (id, name, score, dishes, wallet_address, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+        .run(walletLeaderboardId, name, nextScore, nextDishes, wallet, guestEntry.created_at || nowIso(), nowIso());
+    }
+    db.prepare('DELETE FROM grill_leaderboard WHERE id = ?').run(guestLeaderboardId);
+  }
+}
+
+function linkGuestToWallet(guestWalletAddress, walletAddress, walletExisted) {
+  const guestWallet = normalizeGuestIdentity(guestWalletAddress);
+  const wallet = normalizeWallet(walletAddress);
+  if (!guestWallet || !wallet) throw httpError(400, 'Invalid guest or wallet identity');
+  if (guestWallet === wallet) throw httpError(400, 'Guest and wallet identities cannot match');
+
+  return withTransaction(() => {
+    const existingLink = db.prepare('SELECT * FROM guest_wallet_links WHERE guest_wallet_address = ?').get(guestWallet);
+    if (existingLink) {
+      if (existingLink.wallet_address !== wallet) {
+        throw httpError(409, 'This guest profile is already linked to another wallet');
+      }
+      return {
+        player: getPlayerByWallet(wallet),
+        linked: false,
+        alreadyLinked: true,
+      };
+    }
+
+    const guestPlayer = ensurePlayer(guestWallet);
+    const walletPlayer = ensurePlayer(wallet);
+    const patch = buildGuestMergePatch(walletPlayer, guestPlayer, walletExisted);
+    const linkedPlayer = updatePlayer(wallet, patch);
+    moveGuestOwnedRowsToWallet(guestPlayer, linkedPlayer);
+    db.prepare('INSERT INTO guest_wallet_links (guest_wallet_address, wallet_address, linked_at) VALUES (?, ?, ?)')
+      .run(guestWallet, wallet, nowIso());
+    const finalPlayer = getPlayerByWallet(wallet);
+    addAudit(wallet, 'guest_profile_linked', {
+      guestWalletAddress: guestWallet,
+      walletExisted,
+    }, walletPlayer, finalPlayer);
+    return {
+      player: finalPlayer,
+      linked: true,
+      alreadyLinked: false,
+    };
+  });
 }
 
 function addAudit(walletAddress, eventType, metadata = {}, beforeState = {}, afterState = {}) {
@@ -770,8 +1107,11 @@ function requireWalletSession(body) {
   const wallet = normalizePlayerIdentity(body.wallet_address || body.walletAddress);
   if (!wallet) throw httpError(400, 'Invalid player identity');
   if (!verifySessionToken(body.session_token, wallet)) throw httpError(401, 'Invalid session');
-  const player = ensurePlayer(wallet);
   const session = readSessionToken(body.session_token);
+  if (session?.typ === 'guest' && getGuestWalletLink(wallet)) {
+    throw httpError(409, 'This guest profile is already linked to a wallet. Start a new guest session or connect that wallet.');
+  }
+  const player = ensurePlayer(wallet);
   return {
     ...player,
     session_type: session?.typ === 'guest' ? 'guest' : 'wallet',
@@ -850,6 +1190,22 @@ async function verifyWallet(body) {
 
   const beforePlayer = getPlayerByWallet(wallet);
   let player = ensurePlayer(wallet);
+  let linkedGuestId = null;
+  const guestLinkId = normalizeGuestIdentity(body.guest_id || body.guest_wallet_address || body.guestWalletAddress);
+  const guestLinkToken = typeof body.guest_session_token === 'string'
+    ? body.guest_session_token
+    : typeof body.guest_token === 'string'
+      ? body.guest_token
+      : null;
+
+  if (guestLinkId || guestLinkToken) {
+    if (!guestLinkId || !guestLinkToken) throw httpError(400, 'Guest link requires guest id and guest session token');
+    if (!verifySessionToken(guestLinkToken, guestLinkId, 'guest')) throw httpError(401, 'Invalid guest session');
+    const linkResult = linkGuestToWallet(guestLinkId, wallet, Boolean(beforePlayer));
+    player = linkResult.player || getPlayerByWallet(wallet);
+    linkedGuestId = linkResult.linked || linkResult.alreadyLinked ? guestLinkId : null;
+  }
+
   const referrer = normalizeWallet(body.referrer_wallet_address);
   if (referrer && referrer !== wallet && !player.referrer_wallet_address) {
     const inviter = ensurePlayer(referrer);
@@ -876,6 +1232,7 @@ async function verifyWallet(body) {
     player,
     isNew: !beforePlayer,
     session_token: createSessionToken(wallet, Date.now() + TOKEN_TTL_MS, 'wallet'),
+    linked_guest_id: linkedGuestId,
     latest_referral_reward: null,
   });
 }
@@ -886,6 +1243,9 @@ async function guestSession(body) {
 
   let guestId = requestedGuest;
   if (guestId && requestedToken && !verifySessionToken(requestedToken, guestId, 'guest')) {
+    guestId = null;
+  }
+  if (guestId && getGuestWalletLink(guestId)) {
     guestId = null;
   }
 

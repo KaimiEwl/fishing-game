@@ -32,6 +32,10 @@ import {
   getStoredWalletSession,
   storeWalletSession,
 } from '@/lib/walletSession';
+import {
+  clearStoredGuestSession,
+  getStoredGuestSession,
+} from '@/lib/guestSession';
 import { useToast } from '@/hooks/use-toast';
 
 const VERIFIED_SESSION_REFRESH_INTERVAL_MS = 300_000;
@@ -864,6 +868,7 @@ export function useWalletAuth() {
     invokeEdgeFunctionHttp<{
       player?: PlayerRecord;
       session_token?: string;
+      linked_guest_id?: string | null;
       latest_referral_reward?: ReferralRewardNotification | null;
       error?: string;
     }>('verify-wallet', { body: payload })
@@ -1285,13 +1290,17 @@ export function useWalletAuth() {
       const pendingReferrer = REFERRAL_BAIT_ENABLED ? getPendingReferrer() : null;
       const message = `Hook & Loot: Sign to verify your wallet\nAddress: ${address}\nTimestamp: ${Date.now()}`;
       const signature = await signMessageAsync({ account: address, message });
+      const guestSession = getStoredGuestSession();
 
       const data = await invokeVerifyWallet({
         wallet_address: address,
         signature,
         message,
         referrer_wallet_address: pendingReferrer,
+        guest_id: guestSession?.guestId,
+        guest_session_token: guestSession?.token,
       });
+      const linkedGuestId = typeof data.linked_guest_id === 'string' ? data.linked_guest_id : null;
 
       const token = data.session_token || address.toLowerCase();
       setVerificationError(null);
@@ -1303,9 +1312,13 @@ export function useWalletAuth() {
         const nextStoredPlayer = applyVerifiedPlayerPayload(
           playerRecord,
           (data.latest_referral_reward as ReferralRewardNotification | null | undefined) ?? null,
-          { mergeMode: 'link' },
+          { mergeMode: linkedGuestId ? 'server' : 'link' },
         );
-        pendingLinkedPlayerSaveRef.current = nextStoredPlayer;
+        pendingLinkedPlayerSaveRef.current = linkedGuestId ? null : nextStoredPlayer;
+
+        if (linkedGuestId) {
+          clearStoredGuestSession();
+        }
 
         if (
           pendingReferrer
