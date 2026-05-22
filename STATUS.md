@@ -1,5 +1,12 @@
 # STATUS
 
+## 2026-05-22 interface-to-server authority check is green
+- Ran a browser flow from the game UI with a fresh guest session: `Cast line` produced `player-actions.start_fishing_cast`, `Hook fish` / timeout produced `player-actions.resolve_fishing_cast`, and reload restored the same guest profile from `/api/edge/guest-session`.
+- Verified the server database changed from UI actions, not local calculation: the tested guest row moved from fresh state to lower `daily_free_bait`, higher XP/level, fish inventory, collection book, and task/weekly progress stored in SQLite.
+- Fixed a replay gap in `resolve_fishing_cast`: already-resolved cast ids now return `409` and the resolution path runs inside a SQLite transaction with a conditional pending-cast update.
+- Hardened `scripts/ops/smoke-api.mjs` so future smoke runs assert that duplicate cast resolution is rejected and client-authored `save-player-progress` attempts cannot grant coins, bait, XP, inventory, cube rolls, or task progress.
+- Validation: browser UI guest cast/reload check, `node --check ./server/index.mjs`, `node --check ./scripts/ops/smoke-api.mjs`, `npm run typecheck`, `npm run ops:smoke`, `npm run build`, and `npm run lint` passed. Lint still reports the existing 11 warnings in older React UI files.
+
 ## 2026-05-22 guest-to-wallet progress linking is server-backed
 - Guest players now receive a generated server nickname like `Guest_ABC123`, so guest progress has a stable visible identity without asking for a wallet first.
 - `verify-wallet` accepts a valid `guest_id` plus `guest_session_token` and links that SQLite guest row to the verified wallet inside a server transaction.

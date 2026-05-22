@@ -1824,41 +1824,43 @@ function applyFishingCatch(player, castId, fishId) {
 }
 
 function resolveFishingCast(player, body) {
-  const castId = String(body.cast_id || body.castId || '');
-  if (!castId) throw httpError(400, 'Missing cast id');
-  const row = db.prepare('SELECT * FROM player_fishing_casts WHERE id = ? AND wallet_address = ?').get(castId, player.wallet_address);
-  if (!row) throw httpError(404, 'Fishing cast not found');
-  if (row.status !== 'pending') {
+  return withTransaction(() => {
+    const castId = String(body.cast_id || body.castId || '');
+    if (!castId) throw httpError(400, 'Missing cast id');
+    const row = db.prepare('SELECT * FROM player_fishing_casts WHERE id = ? AND wallet_address = ?').get(castId, player.wallet_address);
+    if (!row) throw httpError(404, 'Fishing cast not found');
+    if (row.status !== 'pending') {
+      throw httpError(409, 'Fishing cast is already resolved');
+    }
+
+    const resolution = String(body.resolution || 'reel');
+    const nowMs = Date.now();
+    const startedMs = new Date(row.started_at).getTime();
+    const biteStartMs = startedMs + Number(row.wait_ms || 0);
+    const biteEndMs = biteStartMs + Number(row.bite_window_ms || 0);
+    const isTimedOut = resolution === 'timeout';
+    if (!isTimedOut && nowMs < biteStartMs - REEL_EARLY_GRACE_MS) {
+      throw httpError(400, 'Fish is not biting yet');
+    }
+
+    const latestPlayer = getPlayerByWallet(player.wallet_address) || player;
+    const shouldCatch = !isTimedOut
+      && Boolean(row.fish_id)
+      && nowMs <= biteEndMs + REEL_LATE_GRACE_MS;
+    const resolved = shouldCatch
+      ? applyFishingCatch(latestPlayer, castId, row.fish_id)
+      : applyFishingMiss(latestPlayer, castId);
+    const status = shouldCatch ? 'caught' : isTimedOut || nowMs > biteEndMs + REEL_LATE_GRACE_MS ? 'escaped' : 'missed';
+    const updatedCast = db.prepare("UPDATE player_fishing_casts SET status = ?, resolved_at = ?, result_json = ? WHERE id = ? AND wallet_address = ? AND status = 'pending'")
+      .run(status, nowIso(), toJson(resolved.result, {}), castId, player.wallet_address);
+    if (updatedCast.changes !== 1) {
+      throw httpError(409, 'Fishing cast is already resolved');
+    }
+
     return edgeResponse({
-      player,
-      fishing_result: safeJsonParse(row.result_json, { success: false, fishId: null }),
+      player: resolved.player,
+      fishing_result: resolved.result,
     });
-  }
-
-  const resolution = String(body.resolution || 'reel');
-  const nowMs = Date.now();
-  const startedMs = new Date(row.started_at).getTime();
-  const biteStartMs = startedMs + Number(row.wait_ms || 0);
-  const biteEndMs = biteStartMs + Number(row.bite_window_ms || 0);
-  const isTimedOut = resolution === 'timeout';
-  if (!isTimedOut && nowMs < biteStartMs - REEL_EARLY_GRACE_MS) {
-    throw httpError(400, 'Fish is not biting yet');
-  }
-
-  const latestPlayer = getPlayerByWallet(player.wallet_address) || player;
-  const shouldCatch = !isTimedOut
-    && Boolean(row.fish_id)
-    && nowMs <= biteEndMs + REEL_LATE_GRACE_MS;
-  const resolved = shouldCatch
-    ? applyFishingCatch(latestPlayer, castId, row.fish_id)
-    : applyFishingMiss(latestPlayer, castId);
-  const status = shouldCatch ? 'caught' : isTimedOut || nowMs > biteEndMs + REEL_LATE_GRACE_MS ? 'escaped' : 'missed';
-  db.prepare('UPDATE player_fishing_casts SET status = ?, resolved_at = ?, result_json = ? WHERE id = ?')
-    .run(status, nowIso(), toJson(resolved.result, {}), castId);
-
-  return edgeResponse({
-    player: resolved.player,
-    fishing_result: resolved.result,
   });
 }
 

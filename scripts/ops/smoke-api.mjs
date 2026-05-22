@@ -24,6 +24,28 @@ async function post(path, body) {
   return payload;
 }
 
+async function expectPostFailure(path, body, expectedStatuses, label) {
+  const response = await fetch(`${baseUrl}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const payload = await response.json().catch(() => null);
+  if (response.ok || !expectedStatuses.includes(response.status)) {
+    throw new Error(`${label} unexpectedly returned ${response.status}: ${JSON.stringify(payload)}`);
+  }
+  return {
+    status: response.status,
+    error: payload?.error ?? null,
+  };
+}
+
+function assertEqualJson(label, actual, expected) {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(`${label} changed unexpectedly: actual=${JSON.stringify(actual)} expected=${JSON.stringify(expected)}`);
+  }
+}
+
 async function main() {
   const health = await fetch(`${baseUrl}/healthz`);
   if (!health.ok) throw new Error(`healthz failed: ${health.status}`);
@@ -128,6 +150,85 @@ async function main() {
   });
   if (guestRestoredAfterResolve.player?.xp !== guestResolvedCast.player?.xp) {
     throw new Error(`guest XP was not persisted on the server: resolve=${guestResolvedCast.player?.xp} restore=${guestRestoredAfterResolve.player?.xp}`);
+  }
+  const duplicateResolveFailure = await expectPostFailure('/api/edge/player-actions', {
+    action: 'resolve_fishing_cast',
+    wallet_address: guestId,
+    session_token: guestSession,
+    cast_id: guestStartedCast.fishing_cast.id,
+    resolution: 'reel',
+  }, [400, 409], 'duplicate fishing cast resolve');
+
+  const authoritativeGuestPlayer = guestRestoredAfterResolve.player;
+  const authoritativeProgress = authoritativeGuestPlayer?.game_progress || {};
+  await post('/api/edge/save-player-progress', {
+    wallet_address: guestId,
+    session_token: guestSession,
+    player_data: {
+      coins: 999_999,
+      bait: 999,
+      daily_free_bait: 999,
+      level: 99,
+      xp: 99_999,
+      xp_to_next: 1,
+      rod_level: 99,
+      equipped_rod: 99,
+      inventory: [{ fishId: 'leviathan', quantity: 999, caughtAt: new Date().toISOString() }],
+      cooked_dishes: [{ recipeId: 'legendary_feast', quantity: 999, createdAt: new Date().toISOString() }],
+      total_catches: 999,
+      nft_rods: [99],
+    },
+    game_progress: {
+      ...authoritativeProgress,
+      tasks: {
+        ...(authoritativeProgress.tasks || {}),
+        catch_10: { progress: 10, claimed: true },
+        rare_1: { progress: 1, claimed: true },
+      },
+      weeklyMissions: {
+        ...(authoritativeProgress.weeklyMissions || {}),
+        catch_60_fish: { progress: 60, claimed: true },
+      },
+      dailyWheelRolls: 999,
+      paidWheelRolls: 999,
+      grillScore: 999_999,
+      dishesToday: 999,
+      fishingNet: {
+        owned: true,
+        dailyFishCount: 999,
+        pendingCatch: [{ fishId: 'leviathan', quantity: 999 }],
+      },
+    },
+  });
+  const guestRestoredAfterTamper = await post('/api/edge/guest-session', {
+    guest_id: guestId,
+    session_token: guestSession,
+  });
+  const tamperPlayer = guestRestoredAfterTamper.player;
+  for (const field of [
+    'coins',
+    'bait',
+    'daily_free_bait',
+    'level',
+    'xp',
+    'xp_to_next',
+    'rod_level',
+    'equipped_rod',
+    'total_catches',
+  ]) {
+    if (tamperPlayer?.[field] !== authoritativeGuestPlayer?.[field]) {
+      throw new Error(`client-authored ${field} was accepted by save-player-progress: before=${authoritativeGuestPlayer?.[field]} after=${tamperPlayer?.[field]}`);
+    }
+  }
+  assertEqualJson('client-authored inventory', tamperPlayer?.inventory, authoritativeGuestPlayer?.inventory);
+  assertEqualJson('client-authored cooked dishes', tamperPlayer?.cooked_dishes, authoritativeGuestPlayer?.cooked_dishes);
+  assertEqualJson('client-authored task progress', tamperPlayer?.game_progress?.tasks, authoritativeGuestPlayer?.game_progress?.tasks);
+  assertEqualJson('client-authored weekly progress', tamperPlayer?.game_progress?.weeklyMissions, authoritativeGuestPlayer?.game_progress?.weeklyMissions);
+  if (tamperPlayer?.game_progress?.dailyWheelRolls !== authoritativeGuestPlayer?.game_progress?.dailyWheelRolls) {
+    throw new Error('client-authored daily cube rolls were accepted by save-player-progress');
+  }
+  if (tamperPlayer?.game_progress?.paidWheelRolls !== authoritativeGuestPlayer?.game_progress?.paidWheelRolls) {
+    throw new Error('client-authored paid cube rolls were accepted by save-player-progress');
   }
 
   const linkAccount = privateKeyToAccount(generatePrivateKey());
@@ -256,6 +357,8 @@ async function main() {
       linkedWalletBait: linkedWallet.player?.daily_free_bait,
       linkedWalletXp: linkedWallet.player?.xp,
       rotatedGuestId: guestAfterLink.guest_id,
+      duplicateResolveRejected: duplicateResolveFailure.status,
+      clientAuthoredProgressRejected: true,
     },
     purchaseSmoke,
     cubePrize,
