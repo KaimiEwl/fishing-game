@@ -62,7 +62,7 @@ const readEnvFlag = (value, fallback) => {
 const TEST_ACTIVITY_LOGS_ENABLED = readEnvFlag(process.env.HOOKLOOT_TEST_ACTIVITY_LOGS_ENABLED, true);
 const MONAD_SHOP_TEST_MODE_ENABLED = readEnvFlag(
   process.env.HOOKLOOT_MONAD_SHOP_TEST_MODE_ENABLED ?? process.env.VITE_MONAD_SHOP_TEST_MODE_ENABLED,
-  false,
+  true,
 );
 const MONAD_TEST_DROPS_ALWAYS = readEnvFlag(process.env.HOOKLOOT_MONAD_TEST_DROPS_ALWAYS, MONAD_SHOP_TEST_MODE_ENABLED);
 const ADMIN_WALLETS = new Set(

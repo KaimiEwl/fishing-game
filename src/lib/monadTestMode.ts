@@ -11,7 +11,7 @@ const readFlag = (value: string | undefined, fallback: boolean) => {
 
 export const MONAD_SHOP_TEST_MODE_ENABLED = readFlag(
   import.meta.env.VITE_MONAD_SHOP_TEST_MODE_ENABLED,
-  import.meta.env.DEV,
+  true,
 );
 
 export const isRealWalletAddress = (value?: string | null): value is `0x${string}` => (
