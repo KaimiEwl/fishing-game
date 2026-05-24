@@ -65,6 +65,7 @@ const MONAD_SHOP_TEST_MODE_ENABLED = readEnvFlag(
   true,
 );
 const MONAD_TEST_DROPS_ALWAYS = readEnvFlag(process.env.HOOKLOOT_MONAD_TEST_DROPS_ALWAYS, MONAD_SHOP_TEST_MODE_ENABLED);
+const TEST_FISHING_NET_GRANT_REASON = 'monad-shop-test-default-net';
 const ADMIN_WALLETS = new Set(
   (process.env.HOOKLOOT_ADMIN_WALLETS || process.env.ADMIN_WALLET_ADDRESS || RECEIVER_ADDRESS)
     .split(',')
@@ -620,9 +621,20 @@ function ensurePlayer(walletAddress) {
     player = getPlayerByWallet(wallet);
   }
 
-  const normalizedProgress = ensureGameProgress(player.game_progress);
-  if (JSON.stringify(normalizedProgress) !== JSON.stringify(player.game_progress || {})) {
-    updatePlayer(wallet, { game_progress: normalizedProgress });
+  const beforeProgress = player.game_progress || {};
+  const normalizedProgress = ensureGameProgress(beforeProgress);
+  const testNetGrant = withTestFishingNetGrant(normalizedProgress);
+  if (JSON.stringify(testNetGrant.progress) !== JSON.stringify(beforeProgress)) {
+    const beforeUpdate = player;
+    updatePlayer(wallet, { game_progress: testNetGrant.progress });
+    player = getPlayerByWallet(wallet);
+    if (testNetGrant.granted) {
+      addAudit(wallet, 'test_fishing_net_granted', {
+        reason: TEST_FISHING_NET_GRANT_REASON,
+        dailyFishCount: testNetGrant.dailyFishCount,
+        packageLabel: testNetGrant.packageLabel,
+      }, beforeUpdate, player);
+    }
   }
 
   return getPlayerByWallet(wallet);
@@ -1429,6 +1441,46 @@ function ensureFishingNetState(value, currentDate = todayKey()) {
     readyDate: currentDate,
     lastNotificationDate: null,
     pendingCatch: rollFishingNetCatch(net.dailyFishCount),
+  };
+}
+
+function withTestFishingNetGrant(progressValue) {
+  const progress = progressValue && typeof progressValue === 'object'
+    ? { ...progressValue }
+    : ensureGameProgress(progressValue);
+  if (!MONAD_SHOP_TEST_MODE_ENABLED) return { progress, granted: false };
+
+  const currentDate = typeof progress.date === 'string' ? progress.date : todayKey();
+  const currentNet = ensureFishingNetState(progress.fishingNet, currentDate);
+  if (currentNet.owned) {
+    return {
+      progress: {
+        ...progress,
+        fishingNet: currentNet,
+      },
+      granted: false,
+    };
+  }
+
+  const netPackage = MON_FISHING_NET_PACKAGES[0] || { dailyFishCount: 10, label: 'Scout Net' };
+  const dailyFishCount = Math.max(1, Math.floor(Number(netPackage.dailyFishCount || 10)));
+  return {
+    progress: {
+      ...progress,
+      fishingNet: {
+        owned: true,
+        dailyFishCount,
+        purchasedAt: nowIso(),
+        readyDate: currentDate,
+        lastCollectedDate: null,
+        lastNotificationDate: null,
+        pendingCatch: rollFishingNetCatch(dailyFishCount),
+        txHash: null,
+      },
+    },
+    granted: true,
+    dailyFishCount,
+    packageLabel: netPackage.label || 'Scout Net',
   };
 }
 
