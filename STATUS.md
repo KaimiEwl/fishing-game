@@ -1,5 +1,9 @@
 # STATUS
 
+## 2026-05-24 shop balance and cube MON icon polish
+- The shop board header now shows `Gold Balance` and `Monad Balance` side by side, with the MON card using the active wallet balance when available and the temporary test-mode state when fake MON purchases are enabled.
+- The cube MON prize tile now renders the prize amount next to a Monad-style mark instead of the plain `1 MON` text tile, so the winning MON face reads as a visual reward.
+
 ## 2026-05-24 temporary MON test net autogrant
 - While MON shop test mode is enabled, every guest or wallet profile without an Auto Fishing Net now receives a temporary Scout Net on the next server profile refresh/API action.
 - The granted net immediately has a pending 10-fish catch, so testers should see it under Inventory/Gear and be able to open it and claim the fish without making a real MON payment.

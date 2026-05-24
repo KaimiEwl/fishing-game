@@ -24,8 +24,10 @@ import {
 } from '@/lib/baitEconomy';
 import { publicAsset } from '@/lib/assets';
 import { getErrorMessage, isUserRejectedError } from '@/lib/errorUtils';
+import { formatMonAmount } from '@/lib/monRewards';
 import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
 import CoinIcon from './CoinIcon';
+import MonadIcon from './MonadIcon';
 import BuyCoinsDialog from './BuyCoinsDialog';
 import GameScreenShell from './GameScreenShell';
 import QuestBoard, { QuestBoardCard, QuestBoardPlaque } from './QuestBoard';
@@ -100,6 +102,17 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
   const { sendTransactionAsync } = useSendTransaction();
   const walletBalanceAddress = walletAddress?.startsWith('0x') ? walletAddress as `0x${string}` : undefined;
   const { data: monWalletBalance } = useBalance({ address: walletBalanceAddress });
+  const parsedMonWalletBalance = monWalletBalance ? Number(monWalletBalance.formatted) : null;
+  const monadBalanceLabel = parsedMonWalletBalance !== null && Number.isFinite(parsedMonWalletBalance)
+    ? `${formatMonAmount(parsedMonWalletBalance)} ${monWalletBalance?.symbol ?? 'MON'}`
+    : MONAD_SHOP_TEST_MODE_ENABLED
+      ? 'TEST'
+      : '-- MON';
+  const monadBalanceNote = monWalletBalance
+    ? (MONAD_SHOP_TEST_MODE_ENABLED ? 'Test buys unlocked' : 'Wallet funds')
+    : MONAD_SHOP_TEST_MODE_ENABLED
+      ? 'Test buys unlocked'
+      : 'Connect wallet';
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(max-width: 767px)');
@@ -250,20 +263,34 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
 
   const boardHeader = (
     <div className="flex flex-col gap-2 sm:gap-2.5">
-      <div className="flex items-center justify-between gap-3 rounded-[1.05rem] border border-[#8f6a38]/75 bg-[rgba(16,11,8,0.9)] px-3 py-2.5 text-[#f8dfab] shadow-[0_14px_28px_rgba(0,0,0,0.34)] backdrop-blur-md sm:rounded-[1.2rem] sm:px-4 sm:py-3">
-        <div className="min-w-0">
-          <div className="text-[0.58rem] font-black uppercase tracking-[0.18em] text-[#f3c777]/88 sm:text-[0.66rem]">
-            Gold balance
+      <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
+        <div className="min-w-0 rounded-[1.05rem] border border-[#8f6a38]/75 bg-[rgba(16,11,8,0.9)] px-3 py-2.5 text-[#f8dfab] shadow-[0_14px_28px_rgba(0,0,0,0.34)] backdrop-blur-md sm:rounded-[1.2rem] sm:px-4 sm:py-3">
+          <div className="text-[0.56rem] font-black uppercase tracking-[0.14em] text-[#f3c777]/88 sm:text-[0.66rem]">
+            Gold Balance
           </div>
-          <div className="mt-1 text-[0.72rem] font-semibold leading-4 text-[#f8e8bf]/74 sm:text-[0.86rem]">
-            Use gold for bait and everyday upgrades.
+          <div className="mt-1.5 flex min-w-0 items-center gap-2">
+            <CoinIcon size="lg" />
+            <span className="min-w-0 truncate text-base font-black tracking-[0.01em] text-[#ffe6ac] sm:text-[1.08rem]">
+              {coins.toLocaleString()}
+            </span>
+          </div>
+          <div className="mt-1 text-[0.62rem] font-semibold leading-3 text-[#f8e8bf]/62 sm:text-[0.72rem]">
+            Bait and gear
           </div>
         </div>
-        <div className="inline-flex shrink-0 items-center gap-2 rounded-[0.95rem] border border-[#b6884b]/80 bg-[rgba(38,24,10,0.92)] px-3 py-2 shadow-[inset_0_0_0_1px_rgba(255,215,150,0.07)]">
-          <CoinIcon size="md" />
-          <span className="text-base font-black tracking-[0.01em] text-[#ffe6ac] sm:text-[1.08rem]">
-            {coins.toLocaleString()}
-          </span>
+        <div className="min-w-0 rounded-[1.05rem] border border-[#836EF9]/70 bg-[linear-gradient(135deg,rgba(32,0,82,0.92),rgba(14,16,15,0.9))] px-3 py-2.5 text-[#fbfaf9] shadow-[0_14px_28px_rgba(32,0,82,0.28)] backdrop-blur-md sm:rounded-[1.2rem] sm:px-4 sm:py-3">
+          <div className="text-[0.56rem] font-black uppercase tracking-[0.14em] text-[#cfc7ff] sm:text-[0.66rem]">
+            Monad Balance
+          </div>
+          <div className="mt-1.5 flex min-w-0 items-center gap-2">
+            <MonadIcon size="lg" className="drop-shadow-[0_0_10px_rgba(131,110,249,0.55)]" />
+            <span className="min-w-0 truncate text-base font-black tracking-[0.01em] text-[#fbfaf9] sm:text-[1.08rem]">
+              {monadBalanceLabel}
+            </span>
+          </div>
+          <div className="mt-1 truncate text-[0.62rem] font-semibold leading-3 text-[#fbfaf9]/64 sm:text-[0.72rem]">
+            {monadBalanceNote}
+          </div>
         </div>
       </div>
 

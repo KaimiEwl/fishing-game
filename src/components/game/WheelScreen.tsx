@@ -27,6 +27,7 @@ import {
 import CoinIcon from './CoinIcon';
 import FishIcon from './FishIcon';
 import GameScreenShell from './GameScreenShell';
+import MonadIcon from './MonadIcon';
 import { publicAsset } from '@/lib/assets';
 import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
 import {
@@ -495,9 +496,12 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
           <div className="relative flex h-full w-full items-center justify-center overflow-hidden px-0.5 text-center">
             <span className="pointer-events-none absolute inset-x-[10%] top-[16%] h-[1px] bg-white/80" />
             <span className="pointer-events-none absolute inset-x-[12%] bottom-[18%] h-[1px] bg-emerald-950/20" />
-            <span className="text-[8px] font-black tracking-[0.08em] text-emerald-950 drop-shadow-[0_1px_0_rgba(255,255,255,0.65)] sm:text-[10px]">
-              {item.mon ?? 1} MON
-            </span>
+            <div className="relative z-10 flex items-center justify-center gap-0.5">
+              <span className="text-[12px] font-black text-[#200052] drop-shadow-[0_1px_0_rgba(255,255,255,0.68)] sm:text-[14px]">
+                {formatMonAmount(item.mon ?? 1)}
+              </span>
+              <MonadIcon size="xs" className="drop-shadow-[0_1px_0_rgba(255,255,255,0.45)] sm:[&>svg]:scale-110" />
+            </div>
           </div>
         ) : item.type === 'bait' ? (
           <div className="relative flex h-full w-full flex-col items-center justify-center px-0.5 text-center">
