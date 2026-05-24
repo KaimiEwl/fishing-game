@@ -254,6 +254,47 @@ function playNoise(dur: number, vol: number = 0.08, delay: number = 0) {
   }
 }
 
+const playChord = (
+  freqs: readonly number[],
+  dur: number,
+  type: OscillatorType,
+  vol: number,
+  delay: number,
+) => {
+  freqs.forEach((freq, index) => {
+    playTone(freq, dur, type, vol * (index === 0 ? 1 : 0.78), undefined, delay + index * 0.012);
+  });
+};
+
+const playCubeSpinFanfare = () => {
+  if (globalMuted) return;
+
+  const drumHits = [0, 0.18, 0.36, 0.54, 0.72, 0.9, 1.08, 1.26, 1.44];
+  drumHits.forEach((delay, index) => {
+    playTone(index % 2 === 0 ? 92 : 138, 0.13, 'sine', 0.085, 58, delay);
+    playNoise(0.055, 0.015, delay + 0.012);
+  });
+
+  [
+    { freq: 523, delay: 0.02 },
+    { freq: 659, delay: 0.18 },
+    { freq: 784, delay: 0.34 },
+    { freq: 1047, delay: 0.5 },
+    { freq: 784, delay: 0.69 },
+    { freq: 1047, delay: 0.86 },
+    { freq: 1319, delay: 1.03 },
+    { freq: 1568, delay: 1.22 },
+  ].forEach(({ freq, delay }) => {
+    playTone(freq, 0.18, 'triangle', 0.07, undefined, delay);
+    playTone(freq * 2, 0.12, 'sine', 0.022, undefined, delay + 0.015);
+  });
+
+  playChord([523, 659, 784], 0.34, 'triangle', 0.045, 1.42);
+  playChord([659, 784, 1047], 0.36, 'triangle', 0.044, 1.63);
+  playChord([784, 1047, 1319, 1568], 0.48, 'sine', 0.038, 1.86);
+  playNoise(0.45, 0.018, 1.88);
+};
+
 export function useSoundEffects() {
   useEffect(() => {
     const warmOnce = () => requestSampleWarmup();
@@ -350,14 +391,11 @@ export function useSoundEffects() {
   }, []);
 
   const playCubeSpinSound = useCallback(() => {
-    if (playSampleBuffer(CUBE_SPIN_SAMPLE_URL, 0.26)) {
-      return;
+    if (!playSampleBuffer(CUBE_SPIN_SAMPLE_URL, 0.16)) {
+      void ensureSampleLoaded(CUBE_SPIN_SAMPLE_URL);
     }
 
-    void ensureSampleLoaded(CUBE_SPIN_SAMPLE_URL);
-    playTone(180, 0.3, 'sawtooth', 0.05, 260);
-    playTone(240, 0.35, 'triangle', 0.04, 340, 0.08);
-    playNoise(0.18, 0.025, 0.12);
+    playCubeSpinFanfare();
   }, []);
 
   const playGrillCookSound = useCallback(() => {
