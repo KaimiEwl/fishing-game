@@ -331,6 +331,7 @@ const FishingGame: React.FC = () => {
     buyRod: requestBuyRod,
     buyFishingNet: requestBuyFishingNet,
     claimFishingNet: requestClaimFishingNet,
+    markFishingNetNotified: requestMarkFishingNetNotified,
     buyCubeRolls: requestBuyCubeRolls,
     equipRod: requestEquipRod,
     rollCube,
@@ -360,6 +361,7 @@ const FishingGame: React.FC = () => {
   const premiumSessionRefreshKeyRef = useRef<string | null>(null);
   const premiumSessionLastRefreshAtRef = useRef(0);
   const backgroundErrorToastRef = useRef<Record<string, number>>({});
+  const fishingNetNotificationKeyRef = useRef<string | null>(null);
   const linkedGameProgressFlushedForWalletRef = useRef<string | null>(null);
   const activityContextRef = useRef<Record<string, unknown>>({});
   const activitySessionKeyRef = useRef<string | null>(null);
@@ -1148,13 +1150,35 @@ const FishingGame: React.FC = () => {
       return;
     }
 
+    const notificationKey = [
+      activeServerAddress?.toLowerCase() ?? 'unknown',
+      fishingNet.readyDate,
+      fishingNetPendingCount,
+    ].join(':');
+    if (fishingNetNotificationKeyRef.current === notificationKey) {
+      return;
+    }
+    fishingNetNotificationKeyRef.current = notificationKey;
+
     gameProgress.markFishingNetNotified();
+    void requestMarkFishingNetNotified()
+      .then((result) => {
+        applyServerPlayerSnapshot(result.player, { mergeMode: 'server' });
+      })
+      .catch((error) => {
+        console.error('Could not mark fishing net notification:', error);
+      });
     sounds.playSuccessSound();
-    toast.success(`Your fishing net is full. Open Inventory -> Gear to review and collect ${fishingNetPendingCount} fish.`);
+    toast.success(`Your fishing net is full. Open Inventory -> Gear to review and collect ${fishingNetPendingCount} fish.`, {
+      id: `fishing-net-full-${notificationKey}`,
+    });
   }, [
+    activeServerAddress,
+    applyServerPlayerSnapshot,
     fishingNet,
     fishingNetPendingCount,
     gameProgress,
+    requestMarkFishingNetNotified,
     serverEconomyReady,
     sounds,
   ]);

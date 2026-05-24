@@ -4,6 +4,7 @@
 - While MON shop test mode is enabled, every guest or wallet profile without an Auto Fishing Net now receives a temporary Scout Net on the next server profile refresh/API action.
 - The granted net immediately has a pending 10-fish catch, so testers should see it under Inventory/Gear and be able to open it and claim the fish without making a real MON payment.
 - The grant writes a `test_fishing_net_granted` audit event and is tied to the existing MON test-mode flag, so disabling/reverting test mode removes this temporary free-net behavior.
+- Added a server-backed `mark_fishing_net_notified` action and a client in-session guard so the "net is full" toast is shown once per ready catch instead of repeating after server refreshes.
 
 ## 2026-05-22 economy actions are server-authoritative
 - Hardened `player-actions` so bait, coin rod, fishing net, cube-roll, wallet check-in, premium-session, MON reward, Leviathan bonus, and grill leaderboard paths no longer trust client-authored prices, reward amounts, or final score/dish totals.

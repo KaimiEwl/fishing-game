@@ -267,6 +267,10 @@ export function usePlayerActions(walletAddress: string | undefined, enabled: boo
     callPlayerActions<{ player: Tables<'players'>; claimed_catch: Array<{ fishId: string; quantity: number }> }>('claim_fishing_net')
   ), [callPlayerActions]);
 
+  const markFishingNetNotified = useCallback(async () => (
+    callPlayerActions<{ player: Tables<'players'>; fishing_net: unknown; already_notified?: boolean }>('mark_fishing_net_notified')
+  ), [callPlayerActions]);
+
   const buyCubeRolls = useCallback(async (rolls: number, txHash: string, _expectedMon: string) => (
     callPlayerActions<{ player: Tables<'players'>; rolls: number }>('buy_cube_rolls', {
       rolls,
@@ -409,6 +413,7 @@ export function usePlayerActions(walletAddress: string | undefined, enabled: boo
     buyRod,
     buyFishingNet,
     claimFishingNet,
+    markFishingNetNotified,
     buyCubeRolls,
     equipRod,
     rollCube,

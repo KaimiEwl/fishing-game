@@ -2625,7 +2625,7 @@ async function buyFishingNetAction(player, body) {
       dailyFishCount,
       purchasedAt: latestNet.purchasedAt || nowIso(),
       readyDate: latestNet.pendingCatch.length > 0 ? latestNet.readyDate : latestProgress.date,
-      lastNotificationDate: null,
+      lastNotificationDate: latestNet.pendingCatch.length > 0 ? latestNet.lastNotificationDate : null,
       pendingCatch: latestNet.pendingCatch.length > 0
         ? latestNet.pendingCatch
         : rollFishingNetCatch(dailyFishCount),
@@ -2684,6 +2684,34 @@ function claimFishingNetAction(player) {
       quantityTotal,
     }, currentPlayer, updated);
     return edgeResponse({ player: updated, claimed_catch: claimedCatch });
+  });
+}
+
+function markFishingNetNotifiedAction(player) {
+  return withTransaction(() => {
+    const currentPlayer = getPlayerByWallet(player.wallet_address) || player;
+    const progress = ensureGameProgress(currentPlayer.game_progress);
+    const net = ensureFishingNetState(progress.fishingNet, progress.date);
+    if (
+      !net.owned
+      || !net.readyDate
+      || net.pendingCatch.length <= 0
+      || net.lastNotificationDate === net.readyDate
+    ) {
+      return edgeResponse({
+        player: currentPlayer,
+        fishing_net: net,
+        already_notified: net.lastNotificationDate === net.readyDate,
+      });
+    }
+
+    const nextNet = {
+      ...net,
+      lastNotificationDate: net.readyDate,
+    };
+    progress.fishingNet = nextNet;
+    const updated = updatePlayer(currentPlayer.wallet_address, { game_progress: progress });
+    return edgeResponse({ player: updated, fishing_net: nextNet });
   });
 }
 
@@ -2756,6 +2784,9 @@ async function playerActions(body) {
 
     case 'claim_fishing_net':
       return claimFishingNetAction(player);
+
+    case 'mark_fishing_net_notified':
+      return markFishingNetNotifiedAction(player);
 
     case 'buy_cube_rolls':
       requireRealWalletOrMonadTestPlayer(player, 'Connect a verified wallet to buy MON cube rolls.');
