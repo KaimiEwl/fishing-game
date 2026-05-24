@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 
 const baseUrl = (process.env.HOOKLOOT_API_BASE_URL || 'http://127.0.0.1:8787').replace(/\/$/, '');
@@ -10,6 +11,10 @@ const fakePaymentsEnabled = /^(1|true|yes|on)$/i.test(
 );
 
 const account = privateKeyToAccount(privateKey);
+
+function fakeTxHash(label) {
+  return `0x${createHash('sha256').update(`${label}:${Date.now()}:${Math.random()}`).digest('hex')}`;
+}
 
 async function post(path, body) {
   const response = await fetch(`${baseUrl}${path}`, {
@@ -37,6 +42,32 @@ async function expectPostFailure(path, body, expectedStatuses, label) {
   return {
     status: response.status,
     error: payload?.error ?? null,
+  };
+}
+
+async function expectDeleteFailure(path, expectedStatuses, label) {
+  const response = await fetch(`${baseUrl}${path}`, { method: 'DELETE' });
+  const payload = await response.json().catch(() => null);
+  if (response.ok || !expectedStatuses.includes(response.status)) {
+    throw new Error(`${label} unexpectedly returned ${response.status}: ${JSON.stringify(payload)}`);
+  }
+  return {
+    status: response.status,
+    error: payload?.error ?? null,
+  };
+}
+
+async function postForStatus(path, body) {
+  const response = await fetch(`${baseUrl}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const payload = await response.json().catch(() => null);
+  return {
+    status: response.status,
+    ok: response.ok,
+    payload,
   };
 }
 
@@ -92,6 +123,91 @@ async function main() {
       dishesToday: 0,
     },
   });
+
+  const baitUnderpayFailure = await expectPostFailure('/api/edge/player-actions', {
+    action: 'buy_bait',
+    wallet_address: wallet,
+    session_token: session,
+    amount: 5,
+    cost: 1,
+  }, [400], 'bait package underpay');
+  const invalidBaitPackageFailure = await expectPostFailure('/api/edge/player-actions', {
+    action: 'buy_bait',
+    wallet_address: wallet,
+    session_token: session,
+    amount: 999,
+    cost: 1,
+  }, [400], 'invalid bait package');
+  const coinRodUnderpayFailure = await expectPostFailure('/api/edge/player-actions', {
+    action: 'buy_rod',
+    wallet_address: wallet,
+    session_token: session,
+    level: 1,
+    cost: 1,
+  }, [400], 'coin rod underpay');
+  const invalidNetPackageFailure = await expectPostFailure('/api/edge/player-actions', {
+    action: 'buy_fishing_net',
+    wallet_address: wallet,
+    session_token: session,
+    daily_fish_count: 2,
+    tx_hash: fakeTxHash('invalid-net-package'),
+    expected_mon: '0.01',
+  }, [400], 'invalid fishing net package');
+  const invalidCubePackageFailure = await expectPostFailure('/api/edge/player-actions', {
+    action: 'buy_cube_rolls',
+    wallet_address: wallet,
+    session_token: session,
+    rolls: 999,
+    tx_hash: fakeTxHash('invalid-cube-package'),
+    expected_mon: '0.01',
+  }, [400], 'invalid cube roll package');
+  const missingWalletCheckInTxFailure = await expectPostFailure('/api/edge/player-actions', {
+    action: 'verify_wallet_check_in',
+    wallet_address: wallet,
+    session_token: session,
+  }, [400], 'missing wallet check-in transaction');
+  const premiumCompletionFailure = await expectPostFailure('/api/edge/player-actions', {
+    action: 'complete_premium_session',
+    wallet_address: wallet,
+    session_token: session,
+  }, [410], 'manual premium session completion');
+  const directMonGrantFailure = await expectPostFailure('/api/edge/player-actions', {
+    action: 'grant_fishing_mon_reward',
+    wallet_address: wallet,
+    session_token: session,
+    mon_amount: 999,
+    source_ref: 'smoke-direct-grant',
+  }, [410], 'direct fishing MON grant');
+  const directLeviathanBonusFailure = await expectPostFailure('/api/edge/player-actions', {
+    action: 'grant_leviathan_common_rod_bonus',
+    wallet_address: wallet,
+    session_token: session,
+    source_ref: 'smoke-direct-leviathan',
+    bonus_rod_id: 'common_rod',
+  }, [410], 'direct Leviathan bonus grant');
+  const grillTamper = await post('/api/edge/player-actions', {
+    action: 'update_grill_leaderboard',
+    wallet_address: wallet,
+    session_token: session,
+    name: 'Smoke Tester',
+    score: 999_999,
+    dishes_delta: 999,
+  });
+  if (Number(grillTamper.leaderboard_entry?.score || 0) >= 999_999 || Number(grillTamper.leaderboard_entry?.dishes || 0) >= 999) {
+    throw new Error(`client-authored grill leaderboard values were accepted: ${JSON.stringify(grillTamper.leaderboard_entry)}`);
+  }
+  const publicLeaderboardTamperFailure = await expectPostFailure('/api/leaderboard/grill', {
+    id: `wallet:${wallet}`,
+    name: 'Smoke Tester',
+    score: 999_999,
+    dishes: 999,
+    walletAddress: wallet,
+  }, [410], 'public leaderboard write');
+  const publicLeaderboardDeleteFailure = await expectDeleteFailure(
+    `/api/leaderboard/grill/${encodeURIComponent(`wallet:${wallet}`)}`,
+    [410],
+    'public leaderboard delete',
+  );
 
   const startedCast = await post('/api/edge/player-actions', {
     action: 'start_fishing_cast',
@@ -291,43 +407,209 @@ async function main() {
 
   let purchaseSmoke = { skipped: 'set HOOKLOOT_ALLOW_UNVERIFIED_PAYMENTS=1 for local fake-payment checks' };
   if (fakePaymentsEnabled) {
-    const fakeTxHash = `0x${'1'.repeat(64)}`;
-    const coinPurchase = await post('/api/edge/verify-purchase', {
-      tx_hash: fakeTxHash,
+    const coinTxHash = fakeTxHash('coin-purchase');
+    const netTxHash = fakeTxHash('fishing-net');
+    const cubeTxHash = fakeTxHash('cube-rolls');
+    const checkInTxHash = fakeTxHash('wallet-check-in');
+    const premiumTxHash = fakeTxHash('premium-session');
+    const poisonedTxHash = fakeTxHash('audit-poison');
+    const unauthVerifyPurchaseFailure = await expectPostFailure('/api/edge/verify-purchase', {
+      tx_hash: fakeTxHash('unauth-verify-purchase'),
       wallet_address: wallet,
       expected_coins: 100,
       expected_mon: '0.1',
+    }, [401], 'unauthenticated purchase verification');
+    await post('/api/edge/log-player-event', {
+      wallet_address: wallet,
+      event_type: 'coin_purchase_verified',
+      metadata: { txHash: poisonedTxHash },
     });
+    const poisonedAuditPurchase = await post('/api/edge/verify-purchase', {
+      tx_hash: poisonedTxHash,
+      wallet_address: wallet,
+      session_token: session,
+      expected_coins: 100,
+      expected_mon: '0.1',
+    });
+    const coinPurchase = await post('/api/edge/verify-purchase', {
+      tx_hash: coinTxHash,
+      wallet_address: wallet,
+      session_token: session,
+      expected_coins: 100,
+      expected_mon: '0.1',
+    });
+    const duplicateCoinPurchase = await post('/api/edge/verify-purchase', {
+      tx_hash: coinTxHash,
+      wallet_address: wallet,
+      session_token: session,
+      expected_coins: 100,
+      expected_mon: '0.1',
+    });
+    if (duplicateCoinPurchase.player?.coins !== coinPurchase.player?.coins || duplicateCoinPurchase.already_applied !== true) {
+      throw new Error(`applied purchase retry was not idempotent: first=${JSON.stringify(coinPurchase)} duplicate=${JSON.stringify(duplicateCoinPurchase)}`);
+    }
+    const crossEndpointTxFailure = await expectPostFailure('/api/edge/player-actions', {
+      action: 'buy_cube_rolls',
+      wallet_address: wallet,
+      session_token: session,
+      rolls: 1,
+      tx_hash: coinTxHash,
+      expected_mon: '1',
+    }, [409], 'cross-endpoint duplicate payment transaction');
+    const concurrentTxHash = fakeTxHash('concurrent-payment');
+    const concurrentPurchaseBody = {
+      tx_hash: concurrentTxHash,
+      wallet_address: wallet,
+      session_token: session,
+      expected_coins: 100,
+      expected_mon: '0.1',
+    };
+    const concurrentPurchaseResults = await Promise.all([
+      postForStatus('/api/edge/verify-purchase', concurrentPurchaseBody),
+      postForStatus('/api/edge/verify-purchase', concurrentPurchaseBody),
+    ]);
+    const concurrentStatuses = concurrentPurchaseResults.map((result) => result.status).sort((a, b) => a - b);
+    if (JSON.stringify(concurrentStatuses) !== JSON.stringify([200, 200])) {
+      throw new Error(`concurrent duplicate payment transaction was not idempotent: ${JSON.stringify(concurrentPurchaseResults)}`);
+    }
+    const concurrentCoins = concurrentPurchaseResults
+      .map((result) => Number(result.payload?.player?.coins || 0))
+      .filter((coins) => coins > 0);
+    if (new Set(concurrentCoins).size > 1) {
+      throw new Error(`concurrent duplicate payment credited inconsistent balances: ${JSON.stringify(concurrentPurchaseResults)}`);
+    }
 
     const netPurchase = await post('/api/edge/player-actions', {
       action: 'buy_fishing_net',
       wallet_address: wallet,
       session_token: session,
-      daily_fish_count: 2,
-      tx_hash: fakeTxHash,
-      expected_mon: '1',
+      daily_fish_count: 10,
+      tx_hash: netTxHash,
+      expected_mon: '0.01',
     });
-
-    const netClaim = await post('/api/edge/player-actions', {
-      action: 'claim_fishing_net',
+    const duplicateNetPurchase = await post('/api/edge/player-actions', {
+      action: 'buy_fishing_net',
       wallet_address: wallet,
       session_token: session,
+      daily_fish_count: 10,
+      tx_hash: netTxHash,
+      expected_mon: '0.01',
     });
+    const differentNetTxFailure = await expectPostFailure('/api/edge/player-actions', {
+      action: 'buy_fishing_net',
+      wallet_address: wallet,
+      session_token: session,
+      daily_fish_count: 10,
+      tx_hash: fakeTxHash('fishing-net-duplicate-payment'),
+      expected_mon: '0.01',
+    }, [409], 'already-owned fishing net with a different tx');
+
+    const netClaimResults = await Promise.all([
+      postForStatus('/api/edge/player-actions', {
+        action: 'claim_fishing_net',
+        wallet_address: wallet,
+        session_token: session,
+      }),
+      postForStatus('/api/edge/player-actions', {
+        action: 'claim_fishing_net',
+        wallet_address: wallet,
+        session_token: session,
+      }),
+    ]);
+    const netClaimStatuses = netClaimResults.map((result) => result.status).sort((a, b) => a - b);
+    if (JSON.stringify(netClaimStatuses) !== JSON.stringify([200, 400])) {
+      throw new Error(`concurrent fishing net claim was not exactly-once: ${JSON.stringify(netClaimResults)}`);
+    }
+    const netClaim = netClaimResults.find((result) => result.status === 200)?.payload;
 
     const cubeTopUp = await post('/api/edge/player-actions', {
       action: 'buy_cube_rolls',
       wallet_address: wallet,
       session_token: session,
       rolls: 1,
-      tx_hash: fakeTxHash,
-      expected_mon: '1',
+      tx_hash: cubeTxHash,
+      expected_mon: '0.01',
     });
+    const duplicateCubeTopUp = await post('/api/edge/player-actions', {
+      action: 'buy_cube_rolls',
+      wallet_address: wallet,
+      session_token: session,
+      rolls: 1,
+      tx_hash: cubeTxHash,
+      expected_mon: '0.01',
+    });
+    if (duplicateCubeTopUp.player?.game_progress?.paidWheelRolls !== cubeTopUp.player?.game_progress?.paidWheelRolls) {
+      throw new Error(`cube-roll payment retry credited twice: first=${cubeTopUp.player?.game_progress?.paidWheelRolls} duplicate=${duplicateCubeTopUp.player?.game_progress?.paidWheelRolls}`);
+    }
+
+    const walletCheckIn = await post('/api/edge/player-actions', {
+      action: 'verify_wallet_check_in',
+      wallet_address: wallet,
+      session_token: session,
+      tx_hash: checkInTxHash,
+    });
+    const duplicateWalletCheckIn = await post('/api/edge/player-actions', {
+      action: 'verify_wallet_check_in',
+      wallet_address: wallet,
+      session_token: session,
+      tx_hash: checkInTxHash,
+    });
+    const differentWalletCheckInFailure = await expectPostFailure('/api/edge/player-actions', {
+      action: 'verify_wallet_check_in',
+      wallet_address: wallet,
+      session_token: session,
+      tx_hash: fakeTxHash('wallet-check-in-duplicate-payment'),
+    }, [409], 'second wallet check-in with a different tx');
+
+    const premiumSession = await post('/api/edge/player-actions', {
+      action: 'start_premium_session',
+      wallet_address: wallet,
+      session_token: session,
+      tx_hash: premiumTxHash,
+    });
+    const duplicatePremiumSession = await post('/api/edge/player-actions', {
+      action: 'start_premium_session',
+      wallet_address: wallet,
+      session_token: session,
+      tx_hash: premiumTxHash,
+    });
+    const differentPremiumTxFailure = await expectPostFailure('/api/edge/player-actions', {
+      action: 'start_premium_session',
+      wallet_address: wallet,
+      session_token: session,
+      tx_hash: fakeTxHash('premium-session-duplicate-payment'),
+    }, [409], 'active premium session with a different tx');
+    const premiumPerfectTamper = await post('/api/edge/player-actions', {
+      action: 'resolve_premium_cast',
+      wallet_address: wallet,
+      session_token: session,
+      reaction_quality: 'perfect',
+    });
+    if (premiumPerfectTamper.cast_result?.reactionQuality !== 'good') {
+      throw new Error(`client-authored premium reaction quality was accepted: ${JSON.stringify(premiumPerfectTamper.cast_result)}`);
+    }
 
     purchaseSmoke = {
+      auditPoisonIgnored: Boolean(poisonedAuditPurchase.success),
       coinPurchasePlayerCoins: coinPurchase.player?.coins,
+      unauthVerifyPurchaseRejected: unauthVerifyPurchaseFailure.status,
+      duplicateCoinPurchaseIdempotent: duplicateCoinPurchase.already_applied === true,
+      crossEndpointTxRejected: crossEndpointTxFailure.status,
+      concurrentDuplicateTxStatuses: concurrentStatuses,
       netOwned: netPurchase.fishing_net?.owned,
-      netClaimed: netClaim.claimed_catch,
+      duplicateNetIdempotent: duplicateNetPurchase.already_applied === true,
+      differentNetTxRejected: differentNetTxFailure.status,
+      concurrentNetClaimStatuses: netClaimStatuses,
+      netClaimed: netClaim?.claimed_catch,
       paidWheelRolls: cubeTopUp.player?.game_progress?.paidWheelRolls,
+      duplicateCubeTopUpIdempotent: duplicateCubeTopUp.already_applied === true,
+      walletCheckedIn: walletCheckIn.wallet_check_in_summary?.todayCheckedIn,
+      duplicateWalletCheckInIdempotent: duplicateWalletCheckIn.already_applied === true,
+      differentWalletCheckInRejected: differentWalletCheckInFailure.status,
+      premiumSessionStatus: premiumSession.premium_session?.status,
+      duplicatePremiumSessionIdempotent: duplicatePremiumSession.already_applied === true,
+      differentPremiumTxRejected: differentPremiumTxFailure.status,
+      premiumReactionQualityServerOwned: premiumPerfectTamper.cast_result?.reactionQuality,
     };
   }
 
@@ -347,6 +629,12 @@ async function main() {
       roll_id: rolled.roll.id,
     });
     cubePrize = applied.prize;
+    await expectPostFailure('/api/edge/player-actions', {
+      action: 'apply_cube_reward',
+      wallet_address: wallet,
+      session_token: session,
+      roll_id: rolled.roll.id,
+    }, [400, 409], 'duplicate cube reward apply');
   } catch (error) {
     cubeSkipped = error instanceof Error ? error.message : String(error);
   }
@@ -357,13 +645,12 @@ async function main() {
     session_token: session,
   });
 
-  const leaderboard = await post('/api/leaderboard/grill', {
-    id: `wallet:${wallet}`,
-    name: 'Smoke Tester',
-    score: 10,
-    dishes: 1,
-    walletAddress: wallet,
+  const leaderboardResponse = await fetch(`${baseUrl}/api/leaderboard/grill`, {
+    headers: { Accept: 'application/json' },
   });
+  if (!leaderboardResponse.ok) throw new Error(`leaderboard read failed: ${leaderboardResponse.status}`);
+  const leaderboardPayload = await leaderboardResponse.json();
+  const leaderboardEntry = (leaderboardPayload.entries || []).find((entry) => entry.id === `wallet:${wallet}`) || null;
 
   console.log(JSON.stringify({
     ok: true,
@@ -387,11 +674,25 @@ async function main() {
       duplicateResolveRejected: duplicateResolveFailure.status,
       clientAuthoredProgressRejected: true,
     },
+    economyTamper: {
+      baitUnderpayRejected: baitUnderpayFailure.status,
+      invalidBaitPackageRejected: invalidBaitPackageFailure.status,
+      coinRodUnderpayRejected: coinRodUnderpayFailure.status,
+      invalidNetPackageRejected: invalidNetPackageFailure.status,
+      invalidCubePackageRejected: invalidCubePackageFailure.status,
+      missingWalletCheckInTxRejected: missingWalletCheckInTxFailure.status,
+      premiumCompletionRejected: premiumCompletionFailure.status,
+      directMonGrantRejected: directMonGrantFailure.status,
+      directLeviathanBonusRejected: directLeviathanBonusFailure.status,
+      grillLeaderboardTamperRejected: true,
+      publicLeaderboardWriteRejected: publicLeaderboardTamperFailure.status,
+      publicLeaderboardDeleteRejected: publicLeaderboardDeleteFailure.status,
+    },
     purchaseSmoke,
     cubePrize,
     cubeSkipped,
     monSummary: mon.summary,
-    leaderboard: leaderboard.entry,
+    leaderboard: leaderboardEntry,
   }, null, 2));
 }
 

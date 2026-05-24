@@ -6,6 +6,46 @@ import { DatabaseSync } from 'node:sqlite';
 import { hashMessage, recoverAddress } from 'viem';
 import { buildPlayerProgressProfile } from './player-progress-profile.mjs';
 
+const loadLocalEnvFiles = () => {
+  const locallyLoadedKeys = new Set();
+
+  const assignLocalValue = (key, value) => {
+    if (process.env[key] != null && !locallyLoadedKeys.has(key)) return;
+    process.env[key] = value;
+    locallyLoadedKeys.add(key);
+  };
+
+  const parseValue = (rawValue) => {
+    const trimmed = rawValue.trim();
+    const quote = trimmed[0];
+    if ((quote === '"' || quote === "'") && trimmed.endsWith(quote)) {
+      return trimmed.slice(1, -1);
+    }
+    return trimmed;
+  };
+
+  for (const fileName of ['.env', '.env.local']) {
+    const filePath = join(process.cwd(), fileName);
+    if (!existsSync(filePath)) continue;
+
+    const contents = readFileSync(filePath, 'utf8');
+    for (const line of contents.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+
+      const equalsIndex = trimmed.indexOf('=');
+      if (equalsIndex <= 0) continue;
+
+      const key = trimmed.slice(0, equalsIndex).trim();
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) continue;
+
+      assignLocalValue(key, parseValue(trimmed.slice(equalsIndex + 1)));
+    }
+  }
+};
+
+loadLocalEnvFiles();
+
 const PORT = Number(process.env.HOOKLOOT_API_PORT || process.env.PORT || 8787);
 const DATA_DIR = process.env.HOOKLOOT_DATA_DIR || join(process.cwd(), 'server', '.data');
 const DB_PATH = process.env.HOOKLOOT_DB_PATH || join(DATA_DIR, 'hookloot.sqlite');
@@ -13,19 +53,52 @@ const UPLOAD_DIR = process.env.HOOKLOOT_UPLOAD_DIR || join(DATA_DIR, 'uploads');
 const SESSION_SECRET = process.env.SESSION_TOKEN_SECRET || process.env.HOOKLOOT_SESSION_SECRET || 'hookloot-local-dev-secret';
 const MONAD_RPC_URL = process.env.MONAD_RPC_URL || 'https://rpc.monad.xyz';
 const RECEIVER_ADDRESS = (process.env.HOOKLOOT_RECEIVER_ADDRESS || '0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D').toLowerCase();
+const readEnvFlag = (value, fallback) => {
+  if (value == null || String(value).trim() === '') return fallback;
+  if (/^(1|true|yes|on)$/i.test(String(value))) return true;
+  if (/^(0|false|no|off)$/i.test(String(value))) return false;
+  return fallback;
+};
+const TEST_ACTIVITY_LOGS_ENABLED = readEnvFlag(process.env.HOOKLOOT_TEST_ACTIVITY_LOGS_ENABLED, true);
+const MONAD_SHOP_TEST_MODE_ENABLED = readEnvFlag(
+  process.env.HOOKLOOT_MONAD_SHOP_TEST_MODE_ENABLED ?? process.env.VITE_MONAD_SHOP_TEST_MODE_ENABLED,
+  false,
+);
+const MONAD_TEST_DROPS_ALWAYS = readEnvFlag(process.env.HOOKLOOT_MONAD_TEST_DROPS_ALWAYS, MONAD_SHOP_TEST_MODE_ENABLED);
 const ADMIN_WALLETS = new Set(
   (process.env.HOOKLOOT_ADMIN_WALLETS || process.env.ADMIN_WALLET_ADDRESS || RECEIVER_ADDRESS)
     .split(',')
     .map((wallet) => normalizeWallet(wallet))
     .filter(Boolean),
 );
-const ALLOW_UNVERIFIED_PAYMENTS = /^(1|true|yes|on)$/i.test(process.env.HOOKLOOT_ALLOW_UNVERIFIED_PAYMENTS || '');
+const ALLOW_UNVERIFIED_PAYMENTS = readEnvFlag(process.env.HOOKLOOT_ALLOW_UNVERIFIED_PAYMENTS, MONAD_SHOP_TEST_MODE_ENABLED);
 const TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 const DAILY_FREE_BAIT = 30;
 const REFERRAL_BAIT_BONUS = 10;
 const MAX_REWARDED_REFERRALS = 10;
-const PREMIUM_SESSION_COST_MON = '1';
-const PREMIUM_SESSION_CASTS = 10;
+const PREMIUM_SESSION_COST_MON = '3';
+const PREMIUM_SESSION_CASTS = 20;
+const WALLET_CHECK_IN_COST_MON = '0.0001';
+const BAIT_PACKAGES = [
+  { amount: 5, cost: 400, label: 'Small bait pack' },
+  { amount: 10, cost: 800, label: 'Double bait pack' },
+  { amount: 25, cost: 2000, label: 'Big bait pack' },
+  { amount: 50, cost: 4000, label: 'Bulk bait box' },
+];
+const BAIT_PACKAGES_BY_AMOUNT = new Map(BAIT_PACKAGES.map((item) => [item.amount, item]));
+const COIN_ROD_COSTS = new Map();
+const MON_FISHING_NET_PACKAGES = [
+  { dailyFishCount: 10, monAmount: '3', label: 'Scout Net' },
+  { dailyFishCount: 25, monAmount: '30', label: 'Harbor Net' },
+  { dailyFishCount: 50, monAmount: '60', label: 'Fleet Net' },
+];
+const MON_FISHING_NET_PACKAGES_BY_COUNT = new Map(MON_FISHING_NET_PACKAGES.map((item) => [item.dailyFishCount, item]));
+const MON_CUBE_ROLL_PACKAGES = [
+  { rolls: 1, monAmount: '1', label: '1 cube roll' },
+  { rolls: 3, monAmount: '3', label: '3 cube rolls' },
+  { rolls: 5, monAmount: '5', label: '5 cube rolls' },
+];
+const MON_CUBE_ROLL_PACKAGES_BY_ROLLS = new Map(MON_CUBE_ROLL_PACKAGES.map((item) => [item.rolls, item]));
 const MON_HOLD_DAYS = 7;
 const MIN_WITHDRAW_MON = 1;
 const XP_PER_LEVEL = 100;
@@ -210,6 +283,21 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS idx_player_audit_wallet_created ON player_audit_logs(wallet_address, created_at DESC);
 
+  CREATE TABLE IF NOT EXISTS payment_transactions (
+    tx_hash TEXT PRIMARY KEY,
+    wallet_address TEXT NOT NULL,
+    purpose TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'reserved',
+    expected_mon TEXT NOT NULL,
+    paid_mon REAL,
+    metadata TEXT NOT NULL DEFAULT '{}',
+    error_message TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    verified_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_payment_transactions_wallet_created ON payment_transactions(wallet_address, created_at DESC);
+
   CREATE TABLE IF NOT EXISTS player_messages (
     id TEXT PRIMARY KEY,
     player_id TEXT NOT NULL,
@@ -233,6 +321,17 @@ db.exec(`
     admin_note TEXT,
     created_at TEXT NOT NULL
   );
+  DELETE FROM player_mon_rewards
+    WHERE source_ref IS NOT NULL
+      AND source_ref <> ''
+      AND rowid NOT IN (
+        SELECT MIN(rowid) FROM player_mon_rewards
+        WHERE source_ref IS NOT NULL AND source_ref <> ''
+        GROUP BY wallet_address, source_type, source_ref
+      );
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_player_mon_rewards_unique_source
+    ON player_mon_rewards(wallet_address, source_type, source_ref)
+    WHERE source_ref IS NOT NULL AND source_ref <> '';
 
   CREATE TABLE IF NOT EXISTS mon_withdraw_requests (
     id TEXT PRIMARY KEY,
@@ -318,6 +417,13 @@ db.exec(`
     mon_amount REAL NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL
   );
+  DELETE FROM premium_fishing_casts
+    WHERE rowid NOT IN (
+      SELECT MIN(rowid) FROM premium_fishing_casts
+      GROUP BY session_id, cast_index
+    );
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_premium_fishing_casts_session_index
+    ON premium_fishing_casts(session_id, cast_index);
 
   CREATE TABLE IF NOT EXISTS player_fishing_casts (
     id TEXT PRIMARY KEY,
@@ -370,6 +476,22 @@ function normalizeWallet(value) {
   return /^0x[a-fA-F0-9]{40}$/.test(trimmed) ? trimmed.toLowerCase() : null;
 }
 
+function normalizeTxHash(value) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return /^0x[a-fA-F0-9]{64}$/.test(trimmed) ? trimmed.toLowerCase() : null;
+}
+
+function requireTxHash(value, missingMessage = 'Missing transaction hash') {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw httpError(400, missingMessage);
+  }
+
+  const normalized = normalizeTxHash(value);
+  if (!normalized) throw httpError(400, 'Invalid transaction hash');
+  return normalized;
+}
+
 function normalizeGuestIdentity(value) {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim().toLowerCase();
@@ -378,6 +500,10 @@ function normalizeGuestIdentity(value) {
 
 function normalizePlayerIdentity(value) {
   return normalizeWallet(value) || normalizeGuestIdentity(value);
+}
+
+function normalizePaymentIdentity(value) {
+  return MONAD_SHOP_TEST_MODE_ENABLED ? normalizePlayerIdentity(value) : normalizeWallet(value);
 }
 
 function createGuestIdentity() {
@@ -947,12 +1073,253 @@ function linkGuestToWallet(guestWalletAddress, walletAddress, walletExisted) {
   });
 }
 
-function addAudit(walletAddress, eventType, metadata = {}, beforeState = {}, afterState = {}) {
+function addAudit(walletAddress, eventType, metadata = {}, beforeState = {}, afterState = {}, eventSource = 'server') {
   db.prepare(`
     INSERT INTO player_audit_logs
       (id, wallet_address, event_type, event_source, before_state, after_state, delta_state, metadata, created_at)
-    VALUES (?, ?, ?, 'server', ?, ?, '{}', ?, ?)
-  `).run(randomUUID(), walletAddress, eventType, toJson(beforeState, {}), toJson(afterState, {}), toJson(metadata, {}), nowIso());
+    VALUES (?, ?, ?, ?, ?, ?, '{}', ?, ?)
+  `).run(
+    randomUUID(),
+    walletAddress,
+    eventType,
+    String(eventSource || 'server') === 'client' ? 'client' : 'server',
+    toJson(beforeState, {}),
+    toJson(afterState, {}),
+    toJson(metadata, {}),
+    nowIso(),
+  );
+}
+
+const LEGACY_PAYMENT_AUDIT_EVENTS = [
+  'coin_purchase_verified',
+  'rod_purchase_verified',
+  'nft_rod_minted',
+  'wallet_check_in',
+  'fishing_net_bought_with_mon',
+  'cube_rolls_bought_with_mon',
+  'premium_session_payment',
+];
+
+function findPaymentTxUse(txHash) {
+  const normalizedTxHash = normalizeTxHash(txHash);
+  if (!normalizedTxHash) return null;
+
+  const premiumSession = db.prepare(`
+    SELECT wallet_address, status, started_at FROM premium_fishing_sessions
+    WHERE lower(tx_hash) = ?
+    LIMIT 1
+  `).get(normalizedTxHash);
+  if (premiumSession) {
+    return {
+      source: 'premium_fishing_sessions',
+      walletAddress: premiumSession.wallet_address,
+      eventType: 'premium_session_payment',
+      createdAt: premiumSession.started_at,
+    };
+  }
+
+  const eventPlaceholders = LEGACY_PAYMENT_AUDIT_EVENTS.map(() => '?').join(', ');
+  const auditRows = db.prepare(`
+    SELECT wallet_address, event_type, metadata, created_at FROM player_audit_logs
+    WHERE event_source = 'server'
+      AND event_type IN (${eventPlaceholders})
+      AND metadata LIKE ?
+    ORDER BY created_at DESC
+    LIMIT 250
+  `).all(...LEGACY_PAYMENT_AUDIT_EVENTS, `%${normalizedTxHash.slice(2)}%`);
+
+  for (const row of auditRows) {
+    const metadata = safeJsonParse(row.metadata, {});
+    const metadataTxHash = normalizeTxHash(metadata.txHash || metadata.tx_hash);
+    if (metadataTxHash === normalizedTxHash) {
+      return {
+        source: 'player_audit_logs',
+        walletAddress: row.wallet_address,
+        eventType: row.event_type,
+        createdAt: row.created_at,
+      };
+    }
+  }
+
+  return null;
+}
+
+function getPaymentTransaction(txHash) {
+  const normalizedTxHash = normalizeTxHash(txHash);
+  if (!normalizedTxHash) return null;
+  return db.prepare('SELECT * FROM payment_transactions WHERE tx_hash = ?').get(normalizedTxHash);
+}
+
+function reservePaymentTx(walletAddress, txHash, purpose, expectedMon, metadata = {}) {
+  const wallet = normalizePaymentIdentity(walletAddress);
+  if (!wallet) throw httpError(400, 'Invalid payment identity');
+  const normalizedTxHash = requireTxHash(txHash);
+  const normalizedPurpose = String(purpose || '').trim();
+  const normalizedExpectedMon = String(expectedMon || '').trim();
+  if (!normalizedPurpose || !normalizedExpectedMon) throw httpError(400, 'Missing payment reservation data');
+
+  const now = nowIso();
+  const metadataJson = toJson(metadata, {});
+  try {
+    db.prepare(`
+      INSERT INTO payment_transactions
+        (tx_hash, wallet_address, purpose, status, expected_mon, metadata, created_at, updated_at)
+      VALUES (?, ?, ?, 'reserved', ?, ?, ?, ?)
+    `).run(normalizedTxHash, wallet, normalizedPurpose, normalizedExpectedMon, metadataJson, now, now);
+    return {
+      txHash: normalizedTxHash,
+      status: 'reserved',
+      paidMon: null,
+    };
+  } catch (error) {
+    const message = String(error?.message || '');
+    if (!/constraint|unique/i.test(message)) throw error;
+
+    const existing = getPaymentTransaction(normalizedTxHash);
+    const samePayment = existing
+      && existing.wallet_address === wallet
+      && existing.purpose === normalizedPurpose
+      && String(existing.expected_mon) === normalizedExpectedMon;
+
+    if (samePayment && existing.status === 'verified') {
+      return {
+        txHash: normalizedTxHash,
+        status: 'verified',
+        paidMon: Number(existing.paid_mon || 0),
+      };
+    }
+
+    if (samePayment && existing.status === 'applied') {
+      return {
+        txHash: normalizedTxHash,
+        status: 'applied',
+        paidMon: Number(existing.paid_mon || 0),
+      };
+    }
+
+    if (existing?.status !== 'failed') {
+      throw httpError(409, `Transaction already used for ${existing?.purpose || 'another payment'}`);
+    }
+
+    db.prepare(`
+      UPDATE payment_transactions
+      SET wallet_address = ?, purpose = ?, expected_mon = ?, status = 'reserved',
+          metadata = ?, error_message = NULL, updated_at = ?, verified_at = NULL, paid_mon = NULL
+      WHERE tx_hash = ?
+    `).run(wallet, normalizedPurpose, normalizedExpectedMon, metadataJson, now, normalizedTxHash);
+    return {
+      txHash: normalizedTxHash,
+      status: 'reserved',
+      paidMon: null,
+    };
+  }
+}
+
+function markPaymentTxVerified(txHash, paidMon) {
+  const normalizedTxHash = requireTxHash(txHash);
+  const result = db.prepare(`
+    UPDATE payment_transactions
+    SET status = 'verified', paid_mon = ?, error_message = NULL, updated_at = ?, verified_at = ?
+    WHERE tx_hash = ? AND status = 'reserved'
+  `).run(Number(paidMon || 0), nowIso(), nowIso(), normalizedTxHash);
+  if (result.changes !== 1) {
+    const existing = getPaymentTransaction(normalizedTxHash);
+    if (existing?.status === 'verified') return;
+    throw httpError(409, `Transaction is already ${existing?.status || 'unavailable'}`);
+  }
+}
+
+function markPaymentTxFailed(txHash, error) {
+  const normalizedTxHash = normalizeTxHash(txHash);
+  if (!normalizedTxHash) return;
+  db.prepare(`
+    UPDATE payment_transactions
+    SET status = 'failed', error_message = ?, updated_at = ?
+    WHERE tx_hash = ? AND status = 'reserved'
+  `).run(error instanceof Error ? error.message : String(error || 'Payment verification failed'), nowIso(), normalizedTxHash);
+}
+
+function markPaymentTxApplied(txHash) {
+  const normalizedTxHash = normalizeTxHash(txHash);
+  if (!normalizedTxHash) return;
+  db.prepare(`
+    UPDATE payment_transactions
+    SET status = 'applied', error_message = NULL, updated_at = ?
+    WHERE tx_hash = ? AND status = 'verified'
+  `).run(nowIso(), normalizedTxHash);
+}
+
+async function verifyPaymentWithLedger(walletAddress, txHash, expectedMon, purpose, metadata = {}) {
+  const reservation = reservePaymentTx(walletAddress, txHash, purpose, expectedMon, metadata);
+  const normalizedTxHash = reservation.txHash;
+  if (reservation.status === 'applied') {
+    return { paidMon: reservation.paidMon, txHash: normalizedTxHash, alreadyApplied: true };
+  }
+
+  const legacyUse = findPaymentTxUse(normalizedTxHash);
+  if (legacyUse) {
+    if (reservation.status === 'reserved') {
+      markPaymentTxFailed(normalizedTxHash, `Transaction already used for ${legacyUse.eventType}`);
+    } else if (reservation.status === 'verified') {
+      markPaymentTxApplied(normalizedTxHash);
+      return { paidMon: reservation.paidMon, txHash: normalizedTxHash, alreadyApplied: true };
+    }
+    throw httpError(409, `Transaction already used for ${legacyUse.eventType}`);
+  }
+
+  if (reservation.status === 'verified') {
+    return { paidMon: reservation.paidMon, txHash: normalizedTxHash };
+  }
+
+  try {
+    const payment = await verifyPaymentTx(walletAddress, normalizedTxHash, expectedMon);
+    markPaymentTxVerified(normalizedTxHash, payment.paidMon);
+    return payment;
+  } catch (error) {
+    markPaymentTxFailed(normalizedTxHash, error);
+    throw error;
+  }
+}
+
+function applyVerifiedPaymentTx(txHash, purpose, callback, onAlreadyApplied = null) {
+  const normalizedTxHash = requireTxHash(txHash);
+  const normalizedPurpose = String(purpose || '').trim();
+  if (!normalizedPurpose) throw httpError(400, 'Missing payment application purpose');
+
+  return withTransaction(() => {
+    const payment = getPaymentTransaction(normalizedTxHash);
+    if (!payment) throw httpError(409, 'Payment transaction was not reserved');
+    if (payment.purpose !== normalizedPurpose) {
+      throw httpError(409, `Transaction already used for ${payment.purpose || 'another payment'}`);
+    }
+    if (payment.status === 'applied') {
+      if (typeof onAlreadyApplied === 'function') return onAlreadyApplied(payment);
+      throw httpError(409, 'Transaction already applied');
+    }
+    if (payment.status !== 'verified') {
+      throw httpError(409, `Transaction is ${payment.status || 'not verified'}`);
+    }
+
+    const result = callback(payment);
+    const updated = db.prepare(`
+      UPDATE payment_transactions
+      SET status = 'applied', error_message = NULL, updated_at = ?
+      WHERE tx_hash = ? AND purpose = ? AND status = 'verified'
+    `).run(nowIso(), normalizedTxHash, normalizedPurpose);
+    if (updated.changes !== 1) throw httpError(409, 'Payment transaction changed while applying');
+    return result;
+  });
+}
+
+function isAppliedPaymentTx(walletAddress, txHash, purpose, expectedMon) {
+  const wallet = normalizePaymentIdentity(walletAddress);
+  const payment = getPaymentTransaction(txHash);
+  return Boolean(payment
+    && wallet
+    && payment.wallet_address === wallet
+    && payment.purpose === purpose
+    && String(payment.expected_mon) === String(expectedMon)
+    && payment.status === 'applied');
 }
 
 function createProgressEntries(targets, seed = {}) {
@@ -1025,10 +1392,11 @@ function sanitizeFishingNet(value) {
       dailyFishCount: 0,
       purchasedAt: null,
       readyDate: null,
-      lastCollectedDate: null,
-      lastNotificationDate: null,
-      pendingCatch: [],
-    };
+    lastCollectedDate: null,
+    lastNotificationDate: null,
+    pendingCatch: [],
+    txHash: null,
+  };
   }
 
   const pendingCatch = Array.isArray(value.pendingCatch)
@@ -1047,6 +1415,7 @@ function sanitizeFishingNet(value) {
     lastCollectedDate: typeof value.lastCollectedDate === 'string' ? value.lastCollectedDate : null,
     lastNotificationDate: typeof value.lastNotificationDate === 'string' ? value.lastNotificationDate : null,
     pendingCatch,
+    txHash: normalizeTxHash(value.txHash) || null,
   };
 }
 
@@ -1138,43 +1507,46 @@ function progressSpecialTask(player, taskId, metadata = {}) {
 }
 
 function claimProgressReward(player, taskId) {
-  const isDaily = Object.prototype.hasOwnProperty.call(DAILY_TASK_TARGETS, taskId);
-  const isSpecial = Object.prototype.hasOwnProperty.call(SPECIAL_TASK_TARGETS, taskId);
-  const isWeekly = Object.prototype.hasOwnProperty.call(WEEKLY_MISSION_TARGETS, taskId);
-  if (!isDaily && !isSpecial && !isWeekly) throw httpError(400, 'Unknown task');
+  return withTransaction(() => {
+    const currentPlayer = getPlayerByWallet(player.wallet_address) || player;
+    const isDaily = Object.prototype.hasOwnProperty.call(DAILY_TASK_TARGETS, taskId);
+    const isSpecial = Object.prototype.hasOwnProperty.call(SPECIAL_TASK_TARGETS, taskId);
+    const isWeekly = Object.prototype.hasOwnProperty.call(WEEKLY_MISSION_TARGETS, taskId);
+    if (!isDaily && !isSpecial && !isWeekly) throw httpError(400, 'Unknown task');
 
-  const progress = ensureGameProgress(player.game_progress);
-  const bucket = isWeekly ? progress.weeklyMissions : isSpecial ? progress.specialTasks : progress.tasks;
-  const targets = isWeekly ? WEEKLY_MISSION_TARGETS : isSpecial ? SPECIAL_TASK_TARGETS : DAILY_TASK_TARGETS;
-  const entry = bucket[taskId];
-  if (!entry || entry.claimed || Number(entry.progress || 0) < targets[taskId]) {
-    throw httpError(400, isWeekly ? 'Weekly mission is not ready to claim' : 'Task is not ready to claim');
-  }
-
-  bucket[taskId] = { ...entry, claimed: true };
-  const reward = TASK_REWARDS[taskId] || {};
-  const patch = {
-    coins: Number(player.coins || 0) + Number(reward.coins || 0),
-    bait: Number(player.bait || 0) + Number(reward.bait || 0),
-  };
-
-  if (isDaily && countClaimedDailyTasks(progress) >= DAILY_CLAIMS_FOR_CUBE && !progress.dailyRollRewardGranted) {
-    progress.dailyWheelRolls = Number(progress.dailyWheelRolls || 0) + DAILY_CUBE_ROLL_REWARD;
-    progress.dailyRollRewardGranted = true;
-    if (progress.lastWeeklyCubeUnlockDate !== progress.date) {
-      incrementProgressEntry(progress.weeklyMissions, WEEKLY_MISSION_TARGETS, 'cube_3_days', 1);
-      progress.lastWeeklyCubeUnlockDate = progress.date;
+    const progress = ensureGameProgress(currentPlayer.game_progress);
+    const bucket = isWeekly ? progress.weeklyMissions : isSpecial ? progress.specialTasks : progress.tasks;
+    const targets = isWeekly ? WEEKLY_MISSION_TARGETS : isSpecial ? SPECIAL_TASK_TARGETS : DAILY_TASK_TARGETS;
+    const entry = bucket[taskId];
+    if (!entry || entry.claimed || Number(entry.progress || 0) < targets[taskId]) {
+      throw httpError(400, isWeekly ? 'Weekly mission is not ready to claim' : 'Task is not ready to claim');
     }
-  }
 
-  if (reward.cubeCharge) {
-    progress.dailyWheelRolls = Number(progress.dailyWheelRolls || 0) + Number(reward.cubeCharge || 0);
-  }
+    bucket[taskId] = { ...entry, claimed: true };
+    const reward = TASK_REWARDS[taskId] || {};
+    const patch = {
+      coins: Number(currentPlayer.coins || 0) + Number(reward.coins || 0),
+      bait: Number(currentPlayer.bait || 0) + Number(reward.bait || 0),
+    };
 
-  patch.game_progress = progress;
-  const updated = updatePlayer(player.wallet_address, patch);
-  addAudit(player.wallet_address, isWeekly ? 'weekly_mission_claimed' : 'task_claimed', { taskId, reward }, player, updated);
-  return updated;
+    if (isDaily && countClaimedDailyTasks(progress) >= DAILY_CLAIMS_FOR_CUBE && !progress.dailyRollRewardGranted) {
+      progress.dailyWheelRolls = Number(progress.dailyWheelRolls || 0) + DAILY_CUBE_ROLL_REWARD;
+      progress.dailyRollRewardGranted = true;
+      if (progress.lastWeeklyCubeUnlockDate !== progress.date) {
+        incrementProgressEntry(progress.weeklyMissions, WEEKLY_MISSION_TARGETS, 'cube_3_days', 1);
+        progress.lastWeeklyCubeUnlockDate = progress.date;
+      }
+    }
+
+    if (reward.cubeCharge) {
+      progress.dailyWheelRolls = Number(progress.dailyWheelRolls || 0) + Number(reward.cubeCharge || 0);
+    }
+
+    patch.game_progress = progress;
+    const updated = updatePlayer(currentPlayer.wallet_address, patch);
+    addAudit(currentPlayer.wallet_address, isWeekly ? 'weekly_mission_claimed' : 'task_claimed', { taskId, reward }, currentPlayer, updated);
+    return updated;
+  });
 }
 
 function httpError(status, message) {
@@ -1259,6 +1631,11 @@ function requireRealWalletPlayer(player, message = 'Connect a verified wallet fo
   if (isGuestPlayer(player) || player.session_type === 'guest') {
     throw httpError(403, message);
   }
+}
+
+function requireRealWalletOrMonadTestPlayer(player, message = 'Connect a verified wallet for this action') {
+  if (MONAD_SHOP_TEST_MODE_ENABLED) return;
+  requireRealWalletPlayer(player, message);
 }
 
 function consumeRateLimit(actionKey, subjectKey, windowSeconds, maxHits) {
@@ -1451,53 +1828,85 @@ async function rpcCall(method, params) {
 }
 
 async function verifyPaymentTx(walletAddress, txHash, expectedMon) {
-  if (ALLOW_UNVERIFIED_PAYMENTS) return { paidMon: Number(expectedMon) || 0, txHash };
-  const receipt = await rpcCall('eth_getTransactionReceipt', [txHash]);
+  const normalizedTxHash = requireTxHash(txHash);
+  if (ALLOW_UNVERIFIED_PAYMENTS) return { paidMon: Number(expectedMon) || 0, txHash: normalizedTxHash };
+  const receipt = await rpcCall('eth_getTransactionReceipt', [normalizedTxHash]);
   if (!receipt) throw httpError(202, 'Transaction pending, try again later');
   if (receipt.status !== '0x1') throw httpError(400, 'Transaction failed on-chain');
-  const tx = await rpcCall('eth_getTransactionByHash', [txHash]);
+  const tx = await rpcCall('eth_getTransactionByHash', [normalizedTxHash]);
   if (!tx) throw httpError(400, 'Cannot fetch transaction details');
   if (tx.from?.toLowerCase() !== walletAddress.toLowerCase()) throw httpError(403, 'Transaction sender mismatch');
   if (tx.to?.toLowerCase() !== RECEIVER_ADDRESS) throw httpError(400, 'Wrong recipient address');
   const value = BigInt(tx.value);
   const expectedWei = BigInt(Math.round(Number(expectedMon) * 1e18));
   if (value < (expectedWei * 99n / 100n)) throw httpError(400, 'Insufficient payment amount');
-  return { paidMon: Number(value) / 1e18, txHash };
+  return { paidMon: Number(value) / 1e18, txHash: normalizedTxHash };
 }
 
 async function verifyPurchase(body) {
-  const wallet = normalizeWallet(body.wallet_address);
-  if (!wallet) throw httpError(400, 'Invalid wallet address');
-  const player = ensurePlayer(wallet);
-  const txHash = typeof body.tx_hash === 'string' ? body.tx_hash : '';
+  const player = requireWalletSession(body);
+  requireRealWalletOrMonadTestPlayer(player, 'Connect a verified wallet to verify purchases.');
+  const wallet = player.wallet_address;
+  const txHash = requireTxHash(body.tx_hash);
   const rodLevel = Number.isInteger(body.rod_level) ? Number(body.rod_level) : null;
   const rodPurchaseLevel = Number.isInteger(body.rod_purchase_level) ? Number(body.rod_purchase_level) : null;
   const nftCosts = { 0: '1', 1: '3', 2: '5', 3: '10', 4: '25' };
   const rodCosts = { 1: '3', 2: '10', 3: '25' };
   const expectedMon = rodLevel !== null ? nftCosts[rodLevel] : rodPurchaseLevel !== null ? rodCosts[rodPurchaseLevel] : String(body.expected_mon || '0');
-  if (!txHash || !expectedMon) throw httpError(400, 'Missing required fields');
-  const payment = await verifyPaymentTx(wallet, txHash, expectedMon);
+  if (!expectedMon) throw httpError(400, 'Missing required fields');
+  const purchasePurpose = rodLevel !== null
+    ? 'nft_rod_mint'
+    : rodPurchaseLevel !== null
+      ? 'mon_rod_purchase'
+      : 'coin_purchase';
+  const alreadyAppliedPurchaseResponse = (paidMon = 0) => {
+    const currentPlayer = getPlayerByWallet(wallet) || player;
+    if (rodLevel !== null) {
+      return edgeResponse({ success: true, player: currentPlayer, nft_rods: currentPlayer.nft_rods || [], rod_level: rodLevel, already_applied: true });
+    }
+    if (rodPurchaseLevel !== null) {
+      return edgeResponse({ success: true, player: currentPlayer, rod_level: currentPlayer.rod_level, equipped_rod: currentPlayer.equipped_rod, already_applied: true });
+    }
+    return edgeResponse({
+      success: true,
+      player: currentPlayer,
+      coins_credited: Math.floor(Number(paidMon || 0) * 1000),
+      already_applied: true,
+    });
+  };
+  const payment = await verifyPaymentWithLedger(wallet, txHash, expectedMon, purchasePurpose, {
+    rodLevel,
+    rodPurchaseLevel,
+  });
 
-  if (rodLevel !== null) {
-    const rods = Array.isArray(player.nft_rods) ? player.nft_rods : [];
-    const next = Array.from(new Set([...rods, rodLevel])).sort((a, b) => a - b);
-    const updated = updatePlayer(wallet, { nft_rods: next });
-    addAudit(wallet, 'nft_rod_minted', { txHash, rodLevel });
-    return edgeResponse({ success: true, player: updated, nft_rods: next, rod_level: rodLevel });
+  if (payment.alreadyApplied) {
+    return alreadyAppliedPurchaseResponse(payment.paidMon);
   }
 
-  if (rodPurchaseLevel !== null) {
-    const nextRod = Math.max(player.rod_level || 0, rodPurchaseLevel);
-    const nextEquipped = Math.max(player.equipped_rod || 0, nextRod);
-    const updated = updatePlayer(wallet, { rod_level: nextRod, equipped_rod: nextEquipped });
-    addAudit(wallet, 'rod_purchase_verified', { txHash, rodLevel: nextRod });
-    return edgeResponse({ success: true, player: updated, rod_level: nextRod, equipped_rod: nextEquipped });
-  }
+  return applyVerifiedPaymentTx(payment.txHash, purchasePurpose, () => {
+    const currentPlayer = getPlayerByWallet(wallet) || player;
 
-  const coinsCredited = Math.floor(payment.paidMon * 1000);
-  const updated = updatePlayer(wallet, { coins: player.coins + coinsCredited });
-  addAudit(wallet, 'coin_purchase_verified', { txHash, coinsCredited, paidMon: payment.paidMon });
-  return edgeResponse({ success: true, player: updated, coins_credited: coinsCredited });
+    if (rodLevel !== null) {
+      const rods = Array.isArray(currentPlayer.nft_rods) ? currentPlayer.nft_rods : [];
+      const next = Array.from(new Set([...rods, rodLevel])).sort((a, b) => a - b);
+      const updated = updatePlayer(wallet, { nft_rods: next });
+      addAudit(wallet, 'nft_rod_minted', { txHash: payment.txHash, rodLevel }, currentPlayer, updated);
+      return edgeResponse({ success: true, player: updated, nft_rods: next, rod_level: rodLevel });
+    }
+
+    if (rodPurchaseLevel !== null) {
+      const nextRod = Math.max(currentPlayer.rod_level || 0, rodPurchaseLevel);
+      const nextEquipped = Math.max(currentPlayer.equipped_rod || 0, nextRod);
+      const updated = updatePlayer(wallet, { rod_level: nextRod, equipped_rod: nextEquipped });
+      addAudit(wallet, 'rod_purchase_verified', { txHash: payment.txHash, rodLevel: nextRod }, currentPlayer, updated);
+      return edgeResponse({ success: true, player: updated, rod_level: nextRod, equipped_rod: nextEquipped });
+    }
+
+    const coinsCredited = Math.floor(payment.paidMon * 1000);
+    const updated = updatePlayer(wallet, { coins: Number(currentPlayer.coins || 0) + coinsCredited });
+    addAudit(wallet, 'coin_purchase_verified', { txHash: payment.txHash, coinsCredited, paidMon: payment.paidMon }, currentPlayer, updated);
+    return edgeResponse({ success: true, player: updated, coins_credited: coinsCredited });
+  }, (paymentRow) => alreadyAppliedPurchaseResponse(paymentRow.paid_mon));
 }
 
 function getWalletCheckInSummary(walletAddress) {
@@ -1526,7 +1935,7 @@ function getWalletCheckInSummary(walletAddress) {
     lastCheckInDate: latestDate,
     lastCheckInTxHash: latestMeta.txHash ?? null,
     receiverAddress: RECEIVER_ADDRESS,
-    amountMon: '0.0001',
+    amountMon: WALLET_CHECK_IN_COST_MON,
     source: 'server',
   };
 }
@@ -1535,6 +1944,14 @@ function activePremiumSession(walletAddress) {
   const row = db.prepare('SELECT * FROM premium_fishing_sessions WHERE wallet_address = ? AND status = ? ORDER BY started_at DESC LIMIT 1')
     .get(walletAddress, 'active');
   return row || null;
+}
+
+function premiumSessionByTxHash(walletAddress, txHash) {
+  const wallet = normalizeWallet(walletAddress);
+  const normalizedTxHash = normalizeTxHash(txHash);
+  if (!wallet || !normalizedTxHash) return null;
+  return db.prepare('SELECT * FROM premium_fishing_sessions WHERE wallet_address = ? AND lower(tx_hash) = ? ORDER BY started_at DESC LIMIT 1')
+    .get(wallet, normalizedTxHash) || null;
 }
 
 function premiumSessionState(row) {
@@ -1573,17 +1990,46 @@ function premiumSessionState(row) {
   };
 }
 
+function getMonRewardBySource(walletAddress, sourceType, sourceRef) {
+  const wallet = normalizeWallet(walletAddress);
+  const normalizedSourceType = String(sourceType || '').trim();
+  const normalizedSourceRef = sourceRef == null ? '' : String(sourceRef).trim();
+  if (!wallet || !normalizedSourceType || !normalizedSourceRef) return null;
+  return db.prepare(`
+    SELECT * FROM player_mon_rewards
+    WHERE wallet_address = ? AND source_type = ? AND source_ref = ?
+    LIMIT 1
+  `).get(wallet, normalizedSourceType, normalizedSourceRef) || null;
+}
+
 function insertMonReward(player, amountMon, sourceType, sourceRef, createdByWallet = null, adminNote = null) {
+  const normalizedSourceType = String(sourceType || '').trim();
+  const normalizedSourceRef = sourceRef == null ? null : String(sourceRef).trim();
+  if (normalizedSourceRef) {
+    const existing = getMonRewardBySource(player.wallet_address, normalizedSourceType, normalizedSourceRef);
+    if (existing) return existing;
+  }
+
   const holdUntil = new Date(Date.now() + MON_HOLD_DAYS * 24 * 60 * 60 * 1000).toISOString();
-  db.prepare(`
-    INSERT INTO player_mon_rewards
-      (id, player_id, wallet_address, amount_mon, source_type, source_ref, hold_until, created_by_wallet, admin_note, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(randomUUID(), player.id, player.wallet_address, amountMon, sourceType, sourceRef, holdUntil, createdByWallet, adminNote, nowIso());
+  const id = randomUUID();
+  try {
+    db.prepare(`
+      INSERT INTO player_mon_rewards
+        (id, player_id, wallet_address, amount_mon, source_type, source_ref, hold_until, created_by_wallet, admin_note, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, player.id, player.wallet_address, amountMon, normalizedSourceType, normalizedSourceRef, holdUntil, createdByWallet, adminNote, nowIso());
+  } catch (error) {
+    const message = String(error?.message || '');
+    if (!/constraint|unique/i.test(message) || !normalizedSourceRef) throw error;
+    const existing = getMonRewardBySource(player.wallet_address, normalizedSourceType, normalizedSourceRef);
+    if (existing) return existing;
+    throw error;
+  }
+  return db.prepare('SELECT * FROM player_mon_rewards WHERE id = ?').get(id);
 }
 
 function getWheelPrizesForPlayer(player) {
-  if (!isGuestPlayer(player)) return WHEEL_PRIZES;
+  if (!isGuestPlayer(player) || MONAD_SHOP_TEST_MODE_ENABLED) return WHEEL_PRIZES;
   return WHEEL_PRIZES.filter((prize) => prize.type !== 'mon');
 }
 
@@ -1592,13 +2038,21 @@ function generateCubeRoll(player) {
   const faces = Array.from({ length: 6 }, () => (
     Array.from({ length: 25 }, () => ({ ...wheelPrizes[Math.floor(Math.random() * wheelPrizes.length)] }))
   ));
-  const targetFace = Math.floor(Math.random() * 6);
-  const targetTile = Math.floor(Math.random() * 25);
+  let targetFace = Math.floor(Math.random() * 6);
+  let targetTile = Math.floor(Math.random() * 25);
+  const testMonPrize = MONAD_TEST_DROPS_ALWAYS
+    ? wheelPrizes.find((prize) => prize.type === 'mon' && Number(prize.mon || 0) > 0)
+    : null;
+  if (testMonPrize) {
+    targetFace = 0;
+    targetTile = 0;
+    faces[targetFace][targetTile] = { ...testMonPrize };
+  }
   const prize = faces[targetFace][targetTile];
   return { faces, targetFace, targetTile, prize };
 }
 
-function applyPrize(player, prize) {
+function applyPrize(player, prize, options = {}) {
   const patch = {};
   if (prize.type === 'coins') patch.coins = player.coins + Number(prize.coins || 0);
   if (prize.type === 'bait') patch.bait = player.bait + Number(prize.bait || 0);
@@ -1614,8 +2068,8 @@ function applyPrize(player, prize) {
     patch.equipped_rod = Math.max(player.equipped_rod, prize.rodLevel);
   }
   const updated = Object.keys(patch).length ? updatePlayer(player.wallet_address, patch) : player;
-  if (prize.type === 'mon' && Number(prize.mon || 0) > 0 && !isGuestPlayer(player)) {
-    insertMonReward(player, Number(prize.mon), 'cube', prize.id);
+  if (prize.type === 'mon' && Number(prize.mon || 0) > 0 && (!isGuestPlayer(player) || MONAD_SHOP_TEST_MODE_ENABLED)) {
+    insertMonReward(player, Number(prize.mon), 'cube', options.monSourceRef || prize.id);
   }
   return updated;
 }
@@ -1787,16 +2241,16 @@ function advanceXp(player, xpGain, extraCoins = 0) {
 }
 
 function rollRodMonRewardForServer(player, sourceRef) {
-  if (isGuestPlayer(player)) return null;
+  if (isGuestPlayer(player) && !MONAD_SHOP_TEST_MODE_ENABLED) return null;
 
   const rodLevel = getSafeRodLevel(player);
   const rod = ROD_DATA[rodLevel] || ROD_DATA[0];
   const chance = Number(rod.monadDropChance || 0);
-  if (chance <= 0 || Math.random() * 100 > chance) return null;
+  if (chance <= 0 || (!MONAD_TEST_DROPS_ALWAYS && Math.random() * 100 > chance)) return null;
 
   const min = Number(rod.monadMinReward || 0);
   const max = Number(rod.monadMaxReward || min);
-  const amount = Number((min + Math.random() * Math.max(0, max - min)).toFixed(6));
+  const amount = Number((MONAD_TEST_DROPS_ALWAYS ? Math.max(min, max) : min + Math.random() * Math.max(0, max - min)).toFixed(6));
   if (amount <= 0) return null;
 
   insertMonReward(player, amount, 'fishing_rod', sourceRef);
@@ -1815,51 +2269,54 @@ function expireOldFishingCasts(walletAddress) {
 }
 
 function startFishingCast(player) {
-  expireOldFishingCasts(player.wallet_address);
+  return withTransaction(() => {
+    const currentPlayer = getPlayerByWallet(player.wallet_address) || player;
+    expireOldFishingCasts(currentPlayer.wallet_address);
 
-  const latest = db.prepare('SELECT started_at FROM player_fishing_casts WHERE wallet_address = ? ORDER BY started_at DESC LIMIT 1')
-    .get(player.wallet_address);
-  if (latest && Date.now() - new Date(latest.started_at).getTime() < MIN_CAST_INTERVAL_MS) {
-    throw httpError(429, 'Casting too fast. Wait a moment before casting again.');
-  }
+    const latest = db.prepare('SELECT started_at FROM player_fishing_casts WHERE wallet_address = ? ORDER BY started_at DESC LIMIT 1')
+      .get(currentPlayer.wallet_address);
+    if (latest && Date.now() - new Date(latest.started_at).getTime() < MIN_CAST_INTERVAL_MS) {
+      throw httpError(429, 'Casting too fast. Wait a moment before casting again.');
+    }
 
-  let consumedBucket = null;
-  const patch = {};
-  if (Number(player.daily_free_bait || 0) > 0) {
-    consumedBucket = 'daily_free_bait';
-    patch.daily_free_bait = Number(player.daily_free_bait || 0) - 1;
-  } else if (Number(player.bait || 0) > 0) {
-    consumedBucket = 'bait';
-    patch.bait = Number(player.bait || 0) - 1;
-  } else {
-    throw httpError(400, 'No bait available');
-  }
+    let consumedBucket = null;
+    const patch = {};
+    if (Number(currentPlayer.daily_free_bait || 0) > 0) {
+      consumedBucket = 'daily_free_bait';
+      patch.daily_free_bait = Number(currentPlayer.daily_free_bait || 0) - 1;
+    } else if (Number(currentPlayer.bait || 0) > 0) {
+      consumedBucket = 'bait';
+      patch.bait = Number(currentPlayer.bait || 0) - 1;
+    } else {
+      throw httpError(400, 'No bait available');
+    }
 
-  const id = randomUUID();
-  const resolveToken = createCastResolveToken();
-  const resolveTokenHash = hashCastResolveToken(player.wallet_address, id, resolveToken);
-  const startedAt = nowIso();
-  const waitMs = Math.floor(1000 + Math.random() * 2000);
-  const biteWindowMs = Math.floor(BITE_WINDOW_MIN_MS + Math.random() * (BITE_WINDOW_MAX_MS - BITE_WINDOW_MIN_MS));
-  const fish = calculateFishCatch(player);
-  const updated = updatePlayer(player.wallet_address, patch);
-  db.prepare(`
-    INSERT INTO player_fishing_casts
-      (id, player_id, wallet_address, status, consumed_bucket, fish_id, wait_ms, bite_window_ms, started_at, resolve_token_hash)
-    VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)
-  `).run(id, player.id, player.wallet_address, consumedBucket, fish?.id ?? null, waitMs, biteWindowMs, startedAt, resolveTokenHash);
-  addAudit(player.wallet_address, 'cast_started', { consumedBucket, castId: id }, player, updated);
+    const id = randomUUID();
+    const resolveToken = createCastResolveToken();
+    const resolveTokenHash = hashCastResolveToken(currentPlayer.wallet_address, id, resolveToken);
+    const startedAt = nowIso();
+    const waitMs = Math.floor(1000 + Math.random() * 2000);
+    const biteWindowMs = Math.floor(BITE_WINDOW_MIN_MS + Math.random() * (BITE_WINDOW_MAX_MS - BITE_WINDOW_MIN_MS));
+    const fish = calculateFishCatch(currentPlayer);
+    const updated = updatePlayer(currentPlayer.wallet_address, patch);
+    db.prepare(`
+      INSERT INTO player_fishing_casts
+        (id, player_id, wallet_address, status, consumed_bucket, fish_id, wait_ms, bite_window_ms, started_at, resolve_token_hash)
+      VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)
+    `).run(id, currentPlayer.id, currentPlayer.wallet_address, consumedBucket, fish?.id ?? null, waitMs, biteWindowMs, startedAt, resolveTokenHash);
+    addAudit(currentPlayer.wallet_address, 'cast_started', { consumedBucket, castId: id }, currentPlayer, updated);
 
-  return edgeResponse({
-    player: updated,
-    fishing_cast: {
-      id,
-      waitMs,
-      biteWindowMs,
-      startedAt,
-      consumedBucket,
-      resolveToken,
-    },
+    return edgeResponse({
+      player: updated,
+      fishing_cast: {
+        id,
+        waitMs,
+        biteWindowMs,
+        startedAt,
+        consumedBucket,
+        resolveToken,
+      },
+    });
   });
 }
 
@@ -2013,29 +2470,33 @@ function resolveFishingCast(player, body) {
 }
 
 function sellFishAction(player, body) {
-  const fishId = String(body.fish_id || body.fishId || '');
-  const fish = FISH_BY_ID.get(fishId);
-  if (!fish) throw httpError(400, 'Unknown fish');
-  const inventory = Array.isArray(player.inventory) ? [...player.inventory] : [];
-  const item = inventory.find((entry) => entry.fishId === fishId);
-  if (!item || Number(item.quantity || 0) <= 0) throw httpError(400, 'Fish not found');
+  return withTransaction(() => {
+    const currentPlayer = getPlayerByWallet(player.wallet_address) || player;
+    const fishId = String(body.fish_id || body.fishId || '');
+    const fish = FISH_BY_ID.get(fishId);
+    if (!fish) throw httpError(400, 'Unknown fish');
+    const inventory = Array.isArray(currentPlayer.inventory) ? [...currentPlayer.inventory] : [];
+    const item = inventory.find((entry) => entry.fishId === fishId);
+    if (!item || Number(item.quantity || 0) <= 0) throw httpError(400, 'Fish not found');
 
-  const rodLevel = getSafeRodLevel(player);
-  const nftBonus = getNftBonus(player, rodLevel);
-  const sellPrice = Math.floor(fish.price * (1 + nftBonus.sellBonus / 100));
-  item.quantity = Number(item.quantity || 0) - 1;
-  const updated = updatePlayer(player.wallet_address, {
-    coins: Number(player.coins || 0) + sellPrice,
-    inventory: inventory.filter((entry) => Number(entry.quantity || 0) > 0),
+    const rodLevel = getSafeRodLevel(currentPlayer);
+    const nftBonus = getNftBonus(currentPlayer, rodLevel);
+    const sellPrice = Math.floor(fish.price * (1 + nftBonus.sellBonus / 100));
+    item.quantity = Number(item.quantity || 0) - 1;
+    const updated = updatePlayer(currentPlayer.wallet_address, {
+      coins: Number(currentPlayer.coins || 0) + sellPrice,
+      inventory: inventory.filter((entry) => Number(entry.quantity || 0) > 0),
+    });
+    addAudit(currentPlayer.wallet_address, 'fish_sold', { fishId, sellPrice, quantity: 1 }, currentPlayer, updated);
+    return edgeResponse({ player: updated, sell_price: sellPrice });
   });
-  addAudit(player.wallet_address, 'fish_sold', { fishId, sellPrice, quantity: 1 }, player, updated);
-  return edgeResponse({ player: updated, sell_price: sellPrice });
 }
 
 function buyBaitAction(player, body) {
   const amount = Math.max(0, Math.floor(Number(body.amount || 0)));
-  const cost = Math.max(0, Math.floor(Number(body.cost || 0)));
-  if (amount <= 0 || cost <= 0) throw httpError(400, 'Invalid bait purchase');
+  const baitPackage = BAIT_PACKAGES_BY_AMOUNT.get(amount);
+  if (!baitPackage) throw httpError(400, 'Unknown bait package');
+  const cost = baitPackage.cost;
   if (Number(player.coins || 0) < cost) throw httpError(400, 'Not enough coins');
   const progressUpdate = progressCoinsSpent(player, cost);
   const updated = updatePlayer(player.wallet_address, {
@@ -2049,9 +2510,10 @@ function buyBaitAction(player, body) {
 
 function buyRodAction(player, body) {
   const level = Math.max(0, Math.floor(Number(body.level || 0)));
-  const cost = Math.max(0, Math.floor(Number(body.cost || 0)));
   if (!ROD_DATA[level] || level <= 0) throw httpError(400, 'Invalid rod level');
   if (Number(player.rod_level || 0) >= level) return edgeResponse({ player });
+  const cost = COIN_ROD_COSTS.get(level);
+  if (!Number.isFinite(cost)) throw httpError(400, 'Coin rod purchase is not available for this rod');
   if (Number(player.coins || 0) < cost) throw httpError(400, 'Not enough coins');
   const progressUpdate = progressCoinsSpent(player, cost);
   const updated = updatePlayer(player.wallet_address, {
@@ -2066,87 +2528,146 @@ function buyRodAction(player, body) {
 
 async function buyFishingNetAction(player, body) {
   const dailyFishCount = Math.max(1, Math.floor(Number(body.daily_fish_count || body.dailyFishCount || 0)));
-  const expectedMon = String(body.expected_mon || body.mon_amount || '');
-  const txHash = String(body.tx_hash || '');
-  if (!txHash || !expectedMon) throw httpError(400, 'Missing fishing net payment');
-  await verifyPaymentTx(player.wallet_address, txHash, expectedMon);
+  const netPackage = MON_FISHING_NET_PACKAGES_BY_COUNT.get(dailyFishCount);
+  if (!netPackage) throw httpError(400, 'Unknown fishing net package');
+  const txHash = requireTxHash(body.tx_hash, 'Missing fishing net payment transaction hash');
 
   const progress = ensureGameProgress(player.game_progress);
   const currentNet = ensureFishingNetState(progress.fishingNet, progress.date);
   if (currentNet.owned && Number(currentNet.dailyFishCount || 0) >= dailyFishCount) {
-    return edgeResponse({ player, fishing_net: currentNet });
+    if (normalizeTxHash(currentNet.txHash) === txHash || isAppliedPaymentTx(player.wallet_address, txHash, 'fishing_net', netPackage.monAmount)) {
+      return edgeResponse({ player, fishing_net: currentNet, already_applied: true });
+    }
+    throw httpError(409, 'Fishing net is already owned');
   }
 
-  const nextNet = {
-    ...currentNet,
-    owned: true,
-    dailyFishCount,
-    purchasedAt: currentNet.purchasedAt || nowIso(),
-    readyDate: currentNet.pendingCatch.length > 0 ? currentNet.readyDate : progress.date,
-    lastNotificationDate: null,
-    pendingCatch: currentNet.pendingCatch.length > 0
-      ? currentNet.pendingCatch
-      : rollFishingNetCatch(dailyFishCount),
-  };
-  progress.fishingNet = nextNet;
-  const updated = updatePlayer(player.wallet_address, { game_progress: progress });
-  addAudit(player.wallet_address, 'fishing_net_bought_with_mon', {
+  const payment = await verifyPaymentWithLedger(
+    player.wallet_address,
     txHash,
-    dailyFishCount,
-    expectedMon,
-  }, player, updated);
-  return edgeResponse({ player: updated, fishing_net: nextNet });
+    netPackage.monAmount,
+    'fishing_net',
+    { dailyFishCount, packageLabel: netPackage.label },
+  );
+
+  if (payment.alreadyApplied) {
+    const currentPlayer = getPlayerByWallet(player.wallet_address) || player;
+    const currentProgress = ensureGameProgress(currentPlayer.game_progress);
+    const currentFishingNet = ensureFishingNetState(currentProgress.fishingNet, currentProgress.date);
+    if (currentFishingNet.owned) {
+      return edgeResponse({ player: currentPlayer, fishing_net: currentFishingNet, already_applied: true });
+    }
+    throw httpError(409, 'Fishing net payment was already applied');
+  }
+
+  return applyVerifiedPaymentTx(payment.txHash, 'fishing_net', () => {
+    const currentPlayer = getPlayerByWallet(player.wallet_address) || player;
+    const latestProgress = ensureGameProgress(currentPlayer.game_progress);
+    const latestNet = ensureFishingNetState(latestProgress.fishingNet, latestProgress.date);
+    if (latestNet.owned && Number(latestNet.dailyFishCount || 0) >= dailyFishCount) {
+      throw httpError(409, 'Fishing net is already owned');
+    }
+
+    const nextNet = {
+      ...latestNet,
+      owned: true,
+      dailyFishCount,
+      purchasedAt: latestNet.purchasedAt || nowIso(),
+      readyDate: latestNet.pendingCatch.length > 0 ? latestNet.readyDate : latestProgress.date,
+      lastNotificationDate: null,
+      pendingCatch: latestNet.pendingCatch.length > 0
+        ? latestNet.pendingCatch
+        : rollFishingNetCatch(dailyFishCount),
+      txHash: payment.txHash,
+    };
+    latestProgress.fishingNet = nextNet;
+    const updated = updatePlayer(currentPlayer.wallet_address, { game_progress: latestProgress });
+    addAudit(currentPlayer.wallet_address, 'fishing_net_bought_with_mon', {
+      txHash: payment.txHash,
+      dailyFishCount,
+      expectedMon: netPackage.monAmount,
+      packageLabel: netPackage.label,
+    }, currentPlayer, updated);
+    return edgeResponse({ player: updated, fishing_net: nextNet });
+  }, () => {
+    const currentPlayer = getPlayerByWallet(player.wallet_address) || player;
+    const currentProgress = ensureGameProgress(currentPlayer.game_progress);
+    return edgeResponse({
+      player: currentPlayer,
+      fishing_net: ensureFishingNetState(currentProgress.fishingNet, currentProgress.date),
+      already_applied: true,
+    });
+  });
 }
 
 function claimFishingNetAction(player) {
-  const progress = ensureGameProgress(player.game_progress);
-  const net = ensureFishingNetState(progress.fishingNet, progress.date);
-  if (!net.owned || net.pendingCatch.length <= 0) throw httpError(400, 'Fishing net is empty');
+  return withTransaction(() => {
+    const currentPlayer = getPlayerByWallet(player.wallet_address) || player;
+    const progress = ensureGameProgress(currentPlayer.game_progress);
+    const net = ensureFishingNetState(progress.fishingNet, progress.date);
+    if (!net.owned || net.pendingCatch.length <= 0) throw httpError(400, 'Fishing net is empty');
 
-  let inventory = Array.isArray(player.inventory) ? [...player.inventory] : [];
-  let quantityTotal = 0;
-  for (const entry of net.pendingCatch) {
-    const quantity = Math.max(0, Math.floor(Number(entry.quantity || 0)));
-    if (!FISH_BY_ID.has(entry.fishId) || quantity <= 0) continue;
-    inventory = addFishToInventory(inventory, entry.fishId, quantity, nowIso());
-    quantityTotal += quantity;
-  }
+    let inventory = Array.isArray(currentPlayer.inventory) ? [...currentPlayer.inventory] : [];
+    let quantityTotal = 0;
+    for (const entry of net.pendingCatch) {
+      const quantity = Math.max(0, Math.floor(Number(entry.quantity || 0)));
+      if (!FISH_BY_ID.has(entry.fishId) || quantity <= 0) continue;
+      inventory = addFishToInventory(inventory, entry.fishId, quantity, nowIso());
+      quantityTotal += quantity;
+    }
 
-  const claimedCatch = net.pendingCatch;
-  progress.fishingNet = {
-    ...net,
-    readyDate: null,
-    lastCollectedDate: progress.date,
-    lastNotificationDate: null,
-    pendingCatch: [],
-  };
-  const updated = updatePlayer(player.wallet_address, {
-    inventory,
-    game_progress: progress,
+    const claimedCatch = net.pendingCatch;
+    progress.fishingNet = {
+      ...net,
+      readyDate: null,
+      lastCollectedDate: progress.date,
+      lastNotificationDate: null,
+      pendingCatch: [],
+    };
+    const updated = updatePlayer(currentPlayer.wallet_address, {
+      inventory,
+      game_progress: progress,
+    });
+    addAudit(currentPlayer.wallet_address, 'fishing_net_claimed', {
+      claimedCatch,
+      quantityTotal,
+    }, currentPlayer, updated);
+    return edgeResponse({ player: updated, claimed_catch: claimedCatch });
   });
-  addAudit(player.wallet_address, 'fishing_net_claimed', {
-    claimedCatch,
-    quantityTotal,
-  }, player, updated);
-  return edgeResponse({ player: updated, claimed_catch: claimedCatch });
 }
 
 async function buyCubeRollsAction(player, body) {
   const rolls = Math.max(1, Math.floor(Number(body.rolls || body.amount || 0)));
-  const expectedMon = String(body.expected_mon || body.mon_amount || '');
-  const txHash = String(body.tx_hash || '');
-  if (!txHash || !expectedMon) throw httpError(400, 'Missing cube roll payment');
-  await verifyPaymentTx(player.wallet_address, txHash, expectedMon);
+  const rollPackage = MON_CUBE_ROLL_PACKAGES_BY_ROLLS.get(rolls);
+  if (!rollPackage) throw httpError(400, 'Unknown cube roll package');
+  const payment = await verifyPaymentWithLedger(
+    player.wallet_address,
+    requireTxHash(body.tx_hash, 'Missing cube roll payment transaction hash'),
+    rollPackage.monAmount,
+    'cube_rolls',
+    { rolls, packageLabel: rollPackage.label },
+  );
 
-  const progress = ensureGameProgress(player.game_progress);
-  progress.paidWheelRolls = Number(progress.paidWheelRolls || 0) + rolls;
-  const updated = updatePlayer(player.wallet_address, { game_progress: progress });
-  addAudit(player.wallet_address, 'cube_rolls_bought_with_mon', {
-    txHash,
+  if (payment.alreadyApplied) {
+    return edgeResponse({ player: getPlayerByWallet(player.wallet_address) || player, rolls, already_applied: true });
+  }
+
+  return applyVerifiedPaymentTx(payment.txHash, 'cube_rolls', () => {
+    const currentPlayer = getPlayerByWallet(player.wallet_address) || player;
+    const progress = ensureGameProgress(currentPlayer.game_progress);
+    progress.paidWheelRolls = Number(progress.paidWheelRolls || 0) + rolls;
+    const updated = updatePlayer(currentPlayer.wallet_address, { game_progress: progress });
+    addAudit(currentPlayer.wallet_address, 'cube_rolls_bought_with_mon', {
+      txHash: payment.txHash,
+      rolls,
+      expectedMon: rollPackage.monAmount,
+      packageLabel: rollPackage.label,
+    }, currentPlayer, updated);
+    return edgeResponse({ player: updated, rolls });
+  }, () => edgeResponse({
+    player: getPlayerByWallet(player.wallet_address) || player,
     rolls,
-    expectedMon,
-  }, player, updated);
-  return edgeResponse({ player: updated, rolls });
+    already_applied: true,
+  }));
 }
 
 function equipRodAction(player, body) {
@@ -2178,14 +2699,14 @@ async function playerActions(body) {
       return buyRodAction(player, body);
 
     case 'buy_fishing_net':
-      requireRealWalletPlayer(player, 'Connect a verified wallet to buy MON fishing nets.');
+      requireRealWalletOrMonadTestPlayer(player, 'Connect a verified wallet to buy MON fishing nets.');
       return buyFishingNetAction(player, body);
 
     case 'claim_fishing_net':
       return claimFishingNetAction(player);
 
     case 'buy_cube_rolls':
-      requireRealWalletPlayer(player, 'Connect a verified wallet to buy MON cube rolls.');
+      requireRealWalletOrMonadTestPlayer(player, 'Connect a verified wallet to buy MON cube rolls.');
       return buyCubeRollsAction(player, body);
 
     case 'equip_rod':
@@ -2195,165 +2716,244 @@ async function playerActions(body) {
       return edgeResponse({ wallet_check_in_summary: getWalletCheckInSummary(player.wallet_address) });
 
     case 'verify_wallet_check_in': {
-      requireRealWalletPlayer(player, 'Connect a verified wallet to use wallet check-in.');
-      const txHash = String(body.tx_hash || '');
-      if (!txHash) throw httpError(400, 'Missing wallet check-in transaction hash');
-      addAudit(player.wallet_address, 'wallet_check_in', {
+      requireRealWalletOrMonadTestPlayer(player, 'Connect a verified wallet to use wallet check-in.');
+      const txHash = requireTxHash(body.tx_hash, 'Missing wallet check-in transaction hash');
+      const currentSummary = getWalletCheckInSummary(player.wallet_address);
+      if (currentSummary.todayCheckedIn) {
+        if (normalizeTxHash(currentSummary.lastCheckInTxHash) === txHash || isAppliedPaymentTx(player.wallet_address, txHash, 'wallet_check_in', WALLET_CHECK_IN_COST_MON)) {
+          return edgeResponse({ player, wallet_check_in_summary: currentSummary, already_applied: true });
+        }
+        throw httpError(409, 'Wallet check-in is already complete today');
+      }
+      const checkInDate = todayKey();
+
+      const payment = await verifyPaymentWithLedger(
+        player.wallet_address,
         txHash,
-        checkInDate: todayKey(),
-        recipient: RECEIVER_ADDRESS,
-      });
-      const progressUpdate = progressSpecialTask(player, 'wallet_check_in', { txHash });
-      const updated = updatePlayer(player.wallet_address, progressUpdate.patch);
-      return edgeResponse({
-        player: updated,
+        WALLET_CHECK_IN_COST_MON,
+        'wallet_check_in',
+        { checkInDate },
+      );
+      if (payment.alreadyApplied) {
+        return edgeResponse({
+          player: getPlayerByWallet(player.wallet_address) || player,
+          wallet_check_in_summary: getWalletCheckInSummary(player.wallet_address),
+          already_applied: true,
+        });
+      }
+      return applyVerifiedPaymentTx(payment.txHash, 'wallet_check_in', (paymentRow) => {
+        const paymentMeta = safeJsonParse(paymentRow.metadata, {});
+        if (paymentMeta.checkInDate && paymentMeta.checkInDate !== checkInDate) {
+          throw httpError(409, 'Wallet check-in payment was reserved for another date');
+        }
+
+        const currentPlayer = getPlayerByWallet(player.wallet_address) || player;
+        const latestSummary = getWalletCheckInSummary(currentPlayer.wallet_address);
+        if (latestSummary.todayCheckedIn) {
+          if (normalizeTxHash(latestSummary.lastCheckInTxHash) === payment.txHash) {
+            return edgeResponse({ player: currentPlayer, wallet_check_in_summary: latestSummary });
+          }
+          throw httpError(409, 'Wallet check-in is already complete today');
+        }
+
+        addAudit(currentPlayer.wallet_address, 'wallet_check_in', {
+          txHash: payment.txHash,
+          checkInDate,
+          recipient: RECEIVER_ADDRESS,
+          expectedMon: WALLET_CHECK_IN_COST_MON,
+        });
+        const progressUpdate = progressSpecialTask(currentPlayer, 'wallet_check_in', { txHash: payment.txHash });
+        const updated = updatePlayer(currentPlayer.wallet_address, progressUpdate.patch);
+        return edgeResponse({
+          player: updated,
+          wallet_check_in_summary: getWalletCheckInSummary(currentPlayer.wallet_address),
+        });
+      }, () => edgeResponse({
+        player: getPlayerByWallet(player.wallet_address) || player,
         wallet_check_in_summary: getWalletCheckInSummary(player.wallet_address),
-      });
+        already_applied: true,
+      }));
     }
 
     case 'start_premium_session': {
-      requireRealWalletPlayer(player, 'Connect a verified wallet to start a MON expedition.');
-      const txHash = String(body.tx_hash || '');
-      if (!txHash) throw httpError(400, 'Missing premium session payment transaction hash');
-      await verifyPaymentTx(player.wallet_address, txHash, PREMIUM_SESSION_COST_MON);
+      requireRealWalletOrMonadTestPlayer(player, 'Connect a verified wallet to start a MON expedition.');
+      const txHash = requireTxHash(body.tx_hash, 'Missing premium session payment transaction hash');
       const existing = activePremiumSession(player.wallet_address);
-      if (existing) return edgeResponse({ player, premium_session: premiumSessionState(existing) });
-      const id = randomUUID();
-      db.prepare(`
-        INSERT INTO premium_fishing_sessions
-          (id, player_id, wallet_address, status, price_mon, casts_total, casts_used, started_at, tx_hash)
-        VALUES (?, ?, ?, 'active', ?, ?, 0, ?, ?)
-      `).run(id, player.id, player.wallet_address, Number(PREMIUM_SESSION_COST_MON), PREMIUM_SESSION_CASTS, nowIso(), txHash);
-      return edgeResponse({ player, premium_session: premiumSessionState(activePremiumSession(player.wallet_address)) });
+      if (existing) {
+        if (normalizeTxHash(existing.tx_hash) === txHash || isAppliedPaymentTx(player.wallet_address, txHash, 'premium_session', PREMIUM_SESSION_COST_MON)) {
+          return edgeResponse({ player, premium_session: premiumSessionState(existing), already_applied: true });
+        }
+        throw httpError(409, 'Active premium session already exists');
+      }
+
+      const payment = await verifyPaymentWithLedger(
+        player.wallet_address,
+        txHash,
+        PREMIUM_SESSION_COST_MON,
+        'premium_session',
+        { castsTotal: PREMIUM_SESSION_CASTS },
+      );
+      if (payment.alreadyApplied) {
+        const currentPlayer = getPlayerByWallet(player.wallet_address) || player;
+        const sessionByTx = premiumSessionByTxHash(currentPlayer.wallet_address, payment.txHash);
+        return edgeResponse({
+          player: currentPlayer,
+          premium_session: premiumSessionState(sessionByTx || activePremiumSession(currentPlayer.wallet_address)),
+          already_applied: true,
+        });
+      }
+      return applyVerifiedPaymentTx(payment.txHash, 'premium_session', () => {
+        const currentPlayer = getPlayerByWallet(player.wallet_address) || player;
+        const currentSession = activePremiumSession(currentPlayer.wallet_address);
+        if (currentSession) {
+          if (normalizeTxHash(currentSession.tx_hash) === payment.txHash) {
+            return edgeResponse({ player: currentPlayer, premium_session: premiumSessionState(currentSession) });
+          }
+          throw httpError(409, 'Active premium session already exists');
+        }
+
+        const id = randomUUID();
+        db.prepare(`
+          INSERT INTO premium_fishing_sessions
+            (id, player_id, wallet_address, status, price_mon, casts_total, casts_used, started_at, tx_hash)
+          VALUES (?, ?, ?, 'active', ?, ?, 0, ?, ?)
+        `).run(id, currentPlayer.id, currentPlayer.wallet_address, Number(PREMIUM_SESSION_COST_MON), PREMIUM_SESSION_CASTS, nowIso(), payment.txHash);
+        return edgeResponse({ player: currentPlayer, premium_session: premiumSessionState(activePremiumSession(currentPlayer.wallet_address)) });
+      }, () => {
+        const currentPlayer = getPlayerByWallet(player.wallet_address) || player;
+        const sessionByTx = premiumSessionByTxHash(currentPlayer.wallet_address, payment.txHash);
+        return edgeResponse({
+          player: currentPlayer,
+          premium_session: premiumSessionState(sessionByTx || activePremiumSession(currentPlayer.wallet_address)),
+          already_applied: true,
+        });
+      });
     }
 
     case 'get_premium_session_state':
       return edgeResponse({ player, premium_session: premiumSessionState(activePremiumSession(player.wallet_address)) });
 
     case 'resolve_premium_cast': {
-      requireRealWalletPlayer(player, 'Connect a verified wallet to use MON expeditions.');
-      const session = activePremiumSession(player.wallet_address);
-      if (!session) throw httpError(400, 'No active premium session');
-      if (session.casts_used >= session.casts_total) throw httpError(400, 'Premium session is complete');
-      const reactionQuality = ['miss', 'good', 'perfect'].includes(body.reaction_quality) ? body.reaction_quality : 'good';
-      const castIndex = session.casts_used + 1;
-      const fishId = PREMIUM_FISH_IDS[Math.floor(Math.random() * PREMIUM_FISH_IDS.length)];
-      const qualityMultiplier = reactionQuality === 'perfect' ? 3 : reactionQuality === 'good' ? 2 : 1;
-      const monAmount = Math.random() < (reactionQuality === 'perfect' ? 0.12 : 0.05) ? 0.05 * qualityMultiplier : 0;
-      const tier = monAmount > 0 ? 'small' : 'zero';
-      const bonusCoins = 30 * qualityMultiplier;
-      const bonusXp = 10 * qualityMultiplier;
-      const now = nowIso();
-      db.prepare(`
-        INSERT INTO premium_fishing_casts
-          (id, session_id, cast_index, reaction_quality, fish_id, bonus_coins_awarded, bonus_xp_awarded, mon_drop_tier, mon_amount, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(randomUUID(), session.id, castIndex, reactionQuality, fishId, bonusCoins, bonusXp, tier, monAmount, now);
-      if (monAmount > 0) insertMonReward(player, monAmount, 'premium_fishing', `${session.id}:${castIndex}`);
-      db.prepare(`
-        UPDATE premium_fishing_sessions
-        SET casts_used = ?, recovered_mon_total = recovered_mon_total + ?, zero_drop_streak = ?, completed_at = CASE WHEN ? >= casts_total THEN ? ELSE completed_at END,
-            status = CASE WHEN ? >= casts_total THEN 'completed' ELSE status END
-        WHERE id = ?
-      `).run(castIndex, monAmount, monAmount > 0 ? 0 : session.zero_drop_streak + 1, castIndex, now, castIndex, session.id);
-      const completedProgressUpdate = castIndex >= session.casts_total
-        ? progressPremiumSessionCompleted(player)
-        : null;
-      const updatedPlayer = updatePlayer(player.wallet_address, {
-        ...(completedProgressUpdate?.patch || {}),
-        coins: player.coins + bonusCoins,
-        xp: player.xp + bonusXp,
-      });
-      return edgeResponse({
-        player: updatedPlayer,
-        premium_session: premiumSessionState(db.prepare('SELECT * FROM premium_fishing_sessions WHERE id = ?').get(session.id)),
-        cast_result: {
-          castIndex,
-          reactionQuality,
-          fishId,
-          bonusCoinsAwarded: bonusCoins,
-          bonusXpAwarded: bonusXp,
-          monDropTier: tier,
-          monAmount,
-          recoveredMonTotal: session.recovered_mon_total + monAmount,
-          luckMeterStacks: session.luck_meter_stacks,
-          zeroDropStreak: monAmount > 0 ? 0 : session.zero_drop_streak + 1,
-          pityTriggered: false,
-          rescueTriggered: false,
-          hotStreakActive: false,
-          occurredAt: now,
-        },
+      requireRealWalletOrMonadTestPlayer(player, 'Connect a verified wallet to use MON expeditions.');
+      return withTransaction(() => {
+        const session = activePremiumSession(player.wallet_address);
+        if (!session) throw httpError(400, 'No active premium session');
+        if (session.casts_used >= session.casts_total) throw httpError(400, 'Premium session is complete');
+        const latestPlayer = getPlayerByWallet(player.wallet_address) || player;
+        const reactionQuality = 'good';
+        const castIndex = session.casts_used + 1;
+        const fishId = PREMIUM_FISH_IDS[Math.floor(Math.random() * PREMIUM_FISH_IDS.length)];
+        const qualityMultiplier = reactionQuality === 'perfect' ? 3 : reactionQuality === 'good' ? 2 : 1;
+        const monAmount = MONAD_TEST_DROPS_ALWAYS
+          ? 0.05 * qualityMultiplier
+          : Math.random() < (reactionQuality === 'perfect' ? 0.12 : 0.05) ? 0.05 * qualityMultiplier : 0;
+        const tier = monAmount > 0 ? 'small' : 'zero';
+        const bonusCoins = 30 * qualityMultiplier;
+        const bonusXp = 10 * qualityMultiplier;
+        const now = nowIso();
+        const nextZeroDropStreak = monAmount > 0 ? 0 : Number(session.zero_drop_streak || 0) + 1;
+        const sessionUpdate = db.prepare(`
+          UPDATE premium_fishing_sessions
+          SET casts_used = ?, recovered_mon_total = recovered_mon_total + ?, zero_drop_streak = ?,
+              completed_at = CASE WHEN ? >= casts_total THEN ? ELSE completed_at END,
+              status = CASE WHEN ? >= casts_total THEN 'completed' ELSE status END
+          WHERE id = ? AND status = 'active' AND casts_used = ? AND casts_used < casts_total
+        `).run(castIndex, monAmount, nextZeroDropStreak, castIndex, now, castIndex, session.id, session.casts_used);
+        if (sessionUpdate.changes !== 1) throw httpError(409, 'Premium session changed while resolving cast');
+
+        db.prepare(`
+          INSERT INTO premium_fishing_casts
+            (id, session_id, cast_index, reaction_quality, fish_id, bonus_coins_awarded, bonus_xp_awarded, mon_drop_tier, mon_amount, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(randomUUID(), session.id, castIndex, reactionQuality, fishId, bonusCoins, bonusXp, tier, monAmount, now);
+        if (monAmount > 0) insertMonReward(latestPlayer, monAmount, 'premium_fishing', `premium:${session.id}:${castIndex}`);
+        const completedProgressUpdate = castIndex >= session.casts_total
+          ? progressPremiumSessionCompleted(latestPlayer)
+          : null;
+        const updatedPlayer = updatePlayer(latestPlayer.wallet_address, {
+          ...(completedProgressUpdate?.patch || {}),
+          coins: Number(latestPlayer.coins || 0) + bonusCoins,
+          xp: Number(latestPlayer.xp || 0) + bonusXp,
+        });
+        return edgeResponse({
+          player: updatedPlayer,
+          premium_session: premiumSessionState(db.prepare('SELECT * FROM premium_fishing_sessions WHERE id = ?').get(session.id)),
+          cast_result: {
+            castIndex,
+            reactionQuality,
+            fishId,
+            bonusCoinsAwarded: bonusCoins,
+            bonusXpAwarded: bonusXp,
+            monDropTier: tier,
+            monAmount,
+            recoveredMonTotal: Number(session.recovered_mon_total || 0) + monAmount,
+            luckMeterStacks: session.luck_meter_stacks,
+            zeroDropStreak: nextZeroDropStreak,
+            pityTriggered: false,
+            rescueTriggered: false,
+            hotStreakActive: false,
+            occurredAt: now,
+          },
+        });
       });
     }
 
     case 'complete_premium_session': {
-      requireRealWalletPlayer(player, 'Connect a verified wallet to complete MON expeditions.');
-      const session = activePremiumSession(player.wallet_address);
-      const progressUpdate = progressPremiumSessionCompleted(player);
-      if (session) {
-        db.prepare("UPDATE premium_fishing_sessions SET status = 'completed', completed_at = ? WHERE id = ?").run(nowIso(), session.id);
-      }
-      const updated = updatePlayer(player.wallet_address, progressUpdate.patch);
-      return edgeResponse({ player: updated, premium_session: premiumSessionState(session ? db.prepare('SELECT * FROM premium_fishing_sessions WHERE id = ?').get(session.id) : null) });
+      throw httpError(410, 'Premium sessions are completed by the server when the final cast resolves');
     }
 
     case 'grant_fishing_mon_reward': {
-      requireRealWalletPlayer(player, 'Connect a verified wallet to receive MON rewards.');
-      const amount = Math.max(0, Number(body.mon_amount || 0));
-      if (amount > 0) insertMonReward(player, amount, 'fishing_rod', String(body.source_ref || randomUUID()));
-      return edgeResponse({ mon_reward: { amountMon: amount, sourceRef: body.source_ref, rodId: body.rod_id, rodLevel: body.rod_level } });
+      throw httpError(410, 'Fishing MON rewards are resolved by the server when a cast is resolved');
     }
 
     case 'grant_leviathan_common_rod_bonus': {
-      const updated = updatePlayer(player.wallet_address, { rod_level: Math.max(player.rod_level, 0), equipped_rod: Math.max(player.equipped_rod, 0) });
-      return edgeResponse({
-        player: updated,
-        leviathan_bonus: {
-          type: 'rod_unlock',
-          sourceRef: body.source_ref,
-          bonusRodId: body.bonus_rod_id,
-          bonusRodLevel: 0,
-          credited: true,
-        },
-      });
+      throw httpError(410, 'Leviathan bonuses are resolved by the server when a cast is resolved');
     }
 
     case 'roll_cube': {
-      const progress = ensureGameProgress(player.game_progress);
-      const dailyRolls = Number(progress.dailyWheelRolls || 0);
-      const paidRolls = Number(progress.paidWheelRolls || 0);
-      if (dailyRolls + paidRolls <= 0) throw httpError(400, 'No cube rolls available');
-      if (dailyRolls > 0) progress.dailyWheelRolls = dailyRolls - 1;
-      else progress.paidWheelRolls = paidRolls - 1;
-      const rolledPlayer = updatePlayer(player.wallet_address, { game_progress: progress });
-      const roll = generateCubeRoll(player);
-      const id = randomUUID();
-      db.prepare(`
-        INSERT INTO player_cube_rolls
-          (id, player_id, wallet_address, cube_faces, target_face_index, target_tile_index, prize, status, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)
-      `).run(id, player.id, player.wallet_address, toJson(roll.faces, []), roll.targetFace, roll.targetTile, toJson(roll.prize, {}), nowIso());
-      return edgeResponse({
-        player: rolledPlayer,
-        roll: {
-          id,
-          cube_faces: roll.faces,
-          target_face_index: roll.targetFace,
-          target_tile_index: roll.targetTile,
-          prize: roll.prize,
-        },
+      return withTransaction(() => {
+        const latestPlayer = getPlayerByWallet(player.wallet_address) || player;
+        const progress = ensureGameProgress(latestPlayer.game_progress);
+        const dailyRolls = Number(progress.dailyWheelRolls || 0);
+        const paidRolls = Number(progress.paidWheelRolls || 0);
+        if (dailyRolls + paidRolls <= 0) throw httpError(400, 'No cube rolls available');
+        if (dailyRolls > 0) progress.dailyWheelRolls = dailyRolls - 1;
+        else progress.paidWheelRolls = paidRolls - 1;
+        const rolledPlayer = updatePlayer(latestPlayer.wallet_address, { game_progress: progress });
+        const roll = generateCubeRoll(latestPlayer);
+        const id = randomUUID();
+        db.prepare(`
+          INSERT INTO player_cube_rolls
+            (id, player_id, wallet_address, cube_faces, target_face_index, target_tile_index, prize, status, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+        `).run(id, latestPlayer.id, latestPlayer.wallet_address, toJson(roll.faces, []), roll.targetFace, roll.targetTile, toJson(roll.prize, {}), nowIso());
+        return edgeResponse({
+          player: rolledPlayer,
+          roll: {
+            id,
+            cube_faces: roll.faces,
+            target_face_index: roll.targetFace,
+            target_tile_index: roll.targetTile,
+            prize: roll.prize,
+          },
+        });
       });
     }
 
     case 'apply_cube_reward': {
-      const rollId = String(body.roll_id || '');
-      const row = db.prepare('SELECT * FROM player_cube_rolls WHERE id = ? AND wallet_address = ?').get(rollId, player.wallet_address);
-      if (!row) throw httpError(404, 'Cube roll not found');
-      if (row.status !== 'pending') throw httpError(400, 'Cube reward already applied');
-      const prize = safeJsonParse(row.prize, {});
-      const updated = applyPrize(player, prize);
-      db.prepare("UPDATE player_cube_rolls SET status = 'applied', applied_at = ? WHERE id = ?").run(nowIso(), rollId);
-      return edgeResponse({ player: updated, prize });
+      return withTransaction(() => {
+        const rollId = String(body.roll_id || '');
+        const row = db.prepare('SELECT * FROM player_cube_rolls WHERE id = ? AND wallet_address = ?').get(rollId, player.wallet_address);
+        if (!row) throw httpError(404, 'Cube roll not found');
+        if (row.status !== 'pending') throw httpError(400, 'Cube reward already applied');
+        const latestPlayer = getPlayerByWallet(player.wallet_address) || player;
+        const prize = safeJsonParse(row.prize, {});
+        const updated = applyPrize(latestPlayer, prize, { monSourceRef: `cube:${rollId}` });
+        const applied = db.prepare("UPDATE player_cube_rolls SET status = 'applied', applied_at = ? WHERE id = ? AND wallet_address = ? AND status = 'pending'")
+          .run(nowIso(), rollId, latestPlayer.wallet_address);
+        if (applied.changes !== 1) throw httpError(409, 'Cube reward already applied');
+        return edgeResponse({ player: updated, prize });
+      });
     }
 
     case 'claim_task_reward': {
@@ -2372,60 +2972,68 @@ async function playerActions(body) {
     }
 
     case 'cook_recipe': {
-      const recipeId = String(body.recipe_id || '');
-      const recipe = GRILL_RECIPES[recipeId];
-      if (!recipe) throw httpError(400, 'Unknown recipe');
-      const inventory = Array.isArray(player.inventory) ? [...player.inventory] : [];
-      for (const [fishId, qty] of Object.entries(recipe.ingredients)) {
-        const item = inventory.find((entry) => entry.fishId === fishId);
-        if (!item || Number(item.quantity || 0) < qty) throw httpError(400, 'Not enough fish');
-      }
-      for (const [fishId, qty] of Object.entries(recipe.ingredients)) {
-        const item = inventory.find((entry) => entry.fishId === fishId);
-        item.quantity -= qty;
-      }
-      const cooked = Array.isArray(player.cooked_dishes) ? [...player.cooked_dishes] : [];
-      const dish = cooked.find((entry) => entry.recipeId === recipeId);
-      if (dish) dish.quantity = Number(dish.quantity || 0) + 1;
-      else cooked.push({ recipeId, quantity: 1, createdAt: nowIso() });
-      const progressUpdate = progressGrillCook(player, recipe.score);
-      const updated = updatePlayer(player.wallet_address, {
-        ...progressUpdate.patch,
-        inventory: inventory.filter((item) => Number(item.quantity || 0) > 0),
-        cooked_dishes: cooked,
+      return withTransaction(() => {
+        const currentPlayer = getPlayerByWallet(player.wallet_address) || player;
+        const recipeId = String(body.recipe_id || '');
+        const recipe = GRILL_RECIPES[recipeId];
+        if (!recipe) throw httpError(400, 'Unknown recipe');
+        const inventory = Array.isArray(currentPlayer.inventory) ? [...currentPlayer.inventory] : [];
+        for (const [fishId, qty] of Object.entries(recipe.ingredients)) {
+          const item = inventory.find((entry) => entry.fishId === fishId);
+          if (!item || Number(item.quantity || 0) < qty) throw httpError(400, 'Not enough fish');
+        }
+        for (const [fishId, qty] of Object.entries(recipe.ingredients)) {
+          const item = inventory.find((entry) => entry.fishId === fishId);
+          item.quantity -= qty;
+        }
+        const cooked = Array.isArray(currentPlayer.cooked_dishes) ? [...currentPlayer.cooked_dishes] : [];
+        const dish = cooked.find((entry) => entry.recipeId === recipeId);
+        if (dish) dish.quantity = Number(dish.quantity || 0) + 1;
+        else cooked.push({ recipeId, quantity: 1, createdAt: nowIso() });
+        const progressUpdate = progressGrillCook(currentPlayer, recipe.score);
+        const updated = updatePlayer(currentPlayer.wallet_address, {
+          ...progressUpdate.patch,
+          inventory: inventory.filter((item) => Number(item.quantity || 0) > 0),
+          cooked_dishes: cooked,
+        });
+        const leaderboard = upsertLeaderboard({
+          id: `wallet:${currentPlayer.wallet_address}`,
+          name: currentPlayer.nickname || 'Guest griller',
+          score: Number(ensureGameProgress(updated.game_progress).grillScore || 0),
+          dishesDelta: 1,
+          walletAddress: currentPlayer.wallet_address,
+        });
+        return edgeResponse({ player: updated, leaderboard_entry: leaderboard });
       });
-      const leaderboard = upsertLeaderboard({
-        id: `wallet:${player.wallet_address}`,
-        name: player.nickname || 'Guest griller',
-        score: recipe.score,
-        dishesDelta: 1,
-        walletAddress: player.wallet_address,
-      });
-      return edgeResponse({ player: updated, leaderboard_entry: leaderboard });
     }
 
     case 'sell_cooked_dish': {
-      const recipeId = String(body.recipe_id || '');
-      const recipe = GRILL_RECIPES[recipeId];
-      const cooked = Array.isArray(player.cooked_dishes) ? [...player.cooked_dishes] : [];
-      const dish = cooked.find((entry) => entry.recipeId === recipeId);
-      if (!dish || Number(dish.quantity || 0) <= 0) throw httpError(400, 'Dish not found');
-      dish.quantity -= 1;
-      const progressUpdate = progressDishSold(player);
-      const updated = updatePlayer(player.wallet_address, {
-        ...progressUpdate.patch,
-        cooked_dishes: cooked.filter((item) => Number(item.quantity || 0) > 0),
-        coins: player.coins + Number(recipe?.score || 0),
+      return withTransaction(() => {
+        const currentPlayer = getPlayerByWallet(player.wallet_address) || player;
+        const recipeId = String(body.recipe_id || '');
+        const recipe = GRILL_RECIPES[recipeId];
+        const cooked = Array.isArray(currentPlayer.cooked_dishes) ? [...currentPlayer.cooked_dishes] : [];
+        const dish = cooked.find((entry) => entry.recipeId === recipeId);
+        if (!dish || Number(dish.quantity || 0) <= 0) throw httpError(400, 'Dish not found');
+        dish.quantity -= 1;
+        const progressUpdate = progressDishSold(currentPlayer);
+        const updated = updatePlayer(currentPlayer.wallet_address, {
+          ...progressUpdate.patch,
+          cooked_dishes: cooked.filter((item) => Number(item.quantity || 0) > 0),
+          coins: Number(currentPlayer.coins || 0) + Number(recipe?.score || 0),
+        });
+        return edgeResponse({ player: updated });
       });
-      return edgeResponse({ player: updated });
     }
 
     case 'update_grill_leaderboard': {
+      const leaderboardId = `wallet:${player.wallet_address}`;
+      const existing = db.prepare('SELECT * FROM grill_leaderboard WHERE id = ?').get(leaderboardId);
       const leaderboard = upsertLeaderboard({
-        id: `wallet:${player.wallet_address}`,
+        id: leaderboardId,
         name: String(body.name || player.nickname || 'Guest griller'),
-        score: Number(body.score || 0),
-        dishesDelta: Number(body.dishes_delta || 0),
+        score: Number(existing?.score || 0),
+        dishes: Number(existing?.dishes || 0),
         walletAddress: player.wallet_address,
       });
       return edgeResponse({ leaderboard_entry: leaderboard });
@@ -2745,6 +3353,50 @@ async function uploadAvatar(body) {
   return { player: updated, publicUrl };
 }
 
+function sanitizeClientEventType(value) {
+  return String(value || 'client_event')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_.:-]+/g, '_')
+    .slice(0, 80) || 'client_event';
+}
+
+function sanitizeClientAuditValue(value, fallback = {}) {
+  try {
+    const serialized = JSON.stringify(value ?? fallback);
+    if (serialized.length <= 12_000) return JSON.parse(serialized);
+    return {
+      truncated: true,
+      preview: serialized.slice(0, 12_000),
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function logClientPlayerEvent(body) {
+  const wallet = normalizePlayerIdentity(body.wallet_address || body.walletAddress);
+  if (!wallet) return { success: true, skipped: 'missing_identity' };
+  if (!verifySessionToken(body.session_token, wallet)) return { success: true, skipped: 'invalid_session' };
+
+  const player = ensurePlayer(wallet);
+  const eventType = sanitizeClientEventType(body.event_type);
+  addAudit(
+    player.wallet_address,
+    eventType,
+    sanitizeClientAuditValue(body.metadata),
+    sanitizeClientAuditValue(body.before_state),
+    sanitizeClientAuditValue(body.after_state),
+    'client',
+  );
+
+  if (TEST_ACTIVITY_LOGS_ENABLED) {
+    console.info(`[hookloot-activity] ${new Date().toISOString()} ${player.wallet_address} ${eventType}`);
+  }
+
+  return { success: true };
+}
+
 async function handleEdge(functionName, body) {
   switch (functionName) {
     case 'guest-session': return guestSession(body);
@@ -2756,11 +3408,7 @@ async function handleEdge(functionName, body) {
     case 'player-mon': return playerMon(body);
     case 'player-messages': return playerMessages(body);
     case 'admin': return admin(body);
-    case 'log-player-event': {
-      const wallet = normalizeWallet(body.wallet_address);
-      if (wallet) addAudit(wallet, String(body.event_type || 'client_event'), body.metadata || {}, body.before_state || {}, body.after_state || {});
-      return { success: true };
-    }
+    case 'log-player-event': return logClientPlayerEvent(body);
     default:
       throw httpError(404, 'Unknown function');
   }
@@ -2785,6 +3433,14 @@ function serveUpload(req, res, url) {
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+  const requestStartedAt = Date.now();
+
+  if (TEST_ACTIVITY_LOGS_ENABLED) {
+    res.on('finish', () => {
+      console.info(`[hookloot-api] ${new Date().toISOString()} ${req.method} ${url.pathname} ${res.statusCode} ${Date.now() - requestStartedAt}ms`);
+    });
+  }
+
   try {
     if (req.method === 'OPTIONS') {
       res.writeHead(204, {
@@ -2819,15 +3475,12 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && url.pathname === '/api/leaderboard/grill') {
-      const body = await readJson(req);
-      sendJson(res, 200, { entry: upsertLeaderboard(body) });
+      sendJson(res, 410, { error: 'Leaderboard writes are handled by authenticated player actions' });
       return;
     }
 
     if (req.method === 'DELETE' && url.pathname.startsWith('/api/leaderboard/grill/')) {
-      const id = decodeURIComponent(url.pathname.slice('/api/leaderboard/grill/'.length));
-      db.prepare('DELETE FROM grill_leaderboard WHERE id = ?').run(id);
-      sendJson(res, 200, { success: true });
+      sendJson(res, 410, { error: 'Leaderboard deletion is handled by admin tools' });
       return;
     }
 
@@ -2839,8 +3492,13 @@ const server = createServer(async (req, res) => {
     sendJson(res, 404, { error: 'Not found' });
   } catch (error) {
     const status = Number(error?.status || 500);
-    if (status >= 500) console.error(error);
-    sendJson(res, status, { error: error instanceof Error ? error.message : 'Internal error' });
+    const message = error instanceof Error ? error.message : 'Internal error';
+    if (status >= 500) {
+      console.error(`[hookloot-api] ${req.method} ${url.pathname} failed`, error);
+    } else if (TEST_ACTIVITY_LOGS_ENABLED && status >= 400) {
+      console.info(`[hookloot-api-error] ${new Date().toISOString()} ${req.method} ${url.pathname} ${status} ${message}`);
+    }
+    sendJson(res, status, { error: message });
   }
 });
 

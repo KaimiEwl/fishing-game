@@ -10,12 +10,17 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { NFT_ROD_DATA, ROD_DATA } from '@/types/game';
 import { useSendTransaction } from 'wagmi';
-import { parseEther } from 'viem';
 import { toast } from 'sonner';
 import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
 import { isUserRejectedError } from '@/lib/errorUtils';
 import { MON_MARKET_RECEIVER_ADDRESS } from '@/lib/baitEconomy';
 import { invokeHooklootEdge } from '@/lib/serverApi';
+import {
+  canUseMonadPaymentIdentity,
+  monadPriceLabel,
+  MONAD_SHOP_TEST_MODE_ENABLED,
+  sendMonadPayment,
+} from '@/lib/monadTestMode';
 
 const ROD_IMAGES = ROD_DISPLAY_INFO.map((rod) => rod.image);
 
@@ -36,21 +41,24 @@ const NftRodDialog: React.FC<NftRodDialogProps> = ({
 }) => {
   const [mintingLevel, setMintingLevel] = useState<number | null>(null);
   const { sendTransactionAsync } = useSendTransaction();
+  const canUseMonadPayment = canUseMonadPaymentIdentity(walletAddress);
 
   const handleMint = async (nftRod: typeof NFT_ROD_DATA[0]) => {
-    if (!walletAddress) {
+    if (!walletAddress || !canUseMonadPayment) {
       toast.error('Wallet not connected');
       return;
     }
 
     setMintingLevel(nftRod.rodLevel);
     try {
-      const txHash = await sendTransactionAsync({
-        to: MON_MARKET_RECEIVER_ADDRESS,
-        value: parseEther(nftRod.mintCost),
+      const txHash = await sendMonadPayment({
+        sendTransactionAsync,
+        receiverAddress: MON_MARKET_RECEIVER_ADDRESS,
+        monAmount: nftRod.mintCost,
+        purpose: `nft-rod:${nftRod.rodLevel}`,
       });
 
-      toast.info('Transaction sent, verifying...');
+      toast.info(MONAD_SHOP_TEST_MODE_ENABLED ? 'Test payment created, verifying...' : 'Transaction sent, verifying...');
 
       const { data, error } = await invokeHooklootEdge('verify-purchase', {
         body: {
@@ -150,7 +158,7 @@ const NftRodDialog: React.FC<NftRodDialogProps> = ({
                       onClick={() => handleMint(nft)}
                       className="bg-yellow-500 hover:bg-yellow-600 text-black whitespace-nowrap"
                     >
-                      {isMinting ? '...' : `${nft.mintCost} MON`}
+                      {isMinting ? '...' : monadPriceLabel(nft.mintCost)}
                     </Button>
                   )}
                 </div>

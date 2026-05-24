@@ -1,9 +1,5 @@
 import type { GrillLeaderboardEntry } from '@/types/game';
-import {
-  deleteServerLeaderboardEntry,
-  loadServerLeaderboardEntries,
-  saveServerLeaderboardEntry,
-} from '@/lib/serverApi';
+import { loadServerLeaderboardEntries } from '@/lib/serverApi';
 
 const LEADERBOARD_STORAGE_KEY = 'monadfish_grill_leaderboard_v1';
 const LOCAL_PLAYER_ID_KEY = 'monadfish_leaderboard_player_id_v1';
@@ -227,8 +223,8 @@ const syncNamedLocalEntries = async (remoteEntries: GrillLeaderboardEntry[]) => 
     return false;
   }
 
-  await Promise.allSettled(syncTargets.map((entry) => saveGlobalLeaderboardEntry(entry)));
-  return true;
+  const results = await Promise.allSettled(syncTargets.map((entry) => saveGlobalLeaderboardEntry(entry)));
+  return results.some((result) => result.status === 'fulfilled' && result.value === true);
 };
 
 export const loadGlobalLeaderboardEntries = async () => {
@@ -247,21 +243,6 @@ export const loadGlobalLeaderboardEntries = async () => {
   }
 };
 
-export const saveGlobalLeaderboardEntry = async (entry: GrillLeaderboardEntry) => {
-  const normalized = normalizeEntry(entry);
-  try {
-    await saveServerLeaderboardEntry(normalized);
-    return true;
-  } catch {
-    return false;
-  }
-};
+export const saveGlobalLeaderboardEntry = async (_entry: GrillLeaderboardEntry) => false;
 
-export const deleteGlobalLeaderboardEntry = async (id: string) => {
-  try {
-    await deleteServerLeaderboardEntry(id);
-    return true;
-  } catch {
-    return false;
-  }
-};
+export const deleteGlobalLeaderboardEntry = async (_id: string) => false;

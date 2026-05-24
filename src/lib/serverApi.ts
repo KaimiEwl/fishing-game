@@ -1,4 +1,6 @@
 import { getStoredWalletSession } from '@/lib/walletSession';
+import { getStoredGuestSession } from '@/lib/guestSession';
+import { logTestActivityEvent } from '@/lib/testActivityLog';
 import type { GrillLeaderboardEntry } from '@/types/game';
 
 const EDGE_CALL_TRACE_STORAGE_KEY = 'hookloot_edge_call_trace_v1';
@@ -71,6 +73,61 @@ const getInvokeWallet = (body: unknown) => {
   const normalized = wallet.trim();
   if (!/^0x[a-fA-F0-9]{40}$/.test(normalized)) return null;
   return `${normalized.slice(0, 6)}...${normalized.slice(-4)}`.toLowerCase();
+};
+
+const getInvokeIdentity = (body: unknown) => {
+  const wallet = getRecordValue(body, 'wallet_address') ?? getRecordValue(body, 'walletAddress');
+  if (typeof wallet === 'string' && wallet.trim()) return wallet.trim().toLowerCase();
+
+  const guestId = getRecordValue(body, 'guest_id') ?? getRecordValue(body, 'guestId');
+  if (typeof guestId === 'string' && guestId.trim()) return guestId.trim().toLowerCase();
+
+  return null;
+};
+
+const getInvokeSessionToken = (body: unknown) => {
+  const sessionToken = getRecordValue(body, 'session_token') ?? getRecordValue(body, 'sessionToken');
+  return typeof sessionToken === 'string' && sessionToken.trim() ? sessionToken.trim() : null;
+};
+
+const bodyWithStoredSession = (body: unknown) => {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return body;
+  if (
+    body instanceof Blob
+    || body instanceof FormData
+    || body instanceof URLSearchParams
+    || body instanceof ReadableStream
+    || body instanceof ArrayBuffer
+  ) {
+    return body;
+  }
+
+  const record = body as Record<string, unknown>;
+  if (typeof record.session_token === 'string' && record.session_token.trim()) return body;
+
+  const wallet = record.wallet_address ?? record.walletAddress;
+  if (typeof wallet !== 'string') return body;
+
+  const normalizedIdentity = wallet.trim().toLowerCase();
+  if (normalizedIdentity.startsWith('guest:')) {
+    const session = getStoredGuestSession();
+    if (!session || session.guestId.toLowerCase() !== normalizedIdentity) return body;
+
+    return {
+      ...record,
+      session_token: session.token,
+    };
+  }
+
+  if (!/^0x[a-fA-F0-9]{40}$/.test(wallet.trim())) return body;
+
+  const session = getStoredWalletSession();
+  if (!session || session.address.toLowerCase() !== wallet.trim().toLowerCase()) return body;
+
+  return {
+    ...record,
+    session_token: session.token,
+  };
 };
 
 const readStoredEdgeCalls = (): EdgeCallTraceEntry[] => {
@@ -166,6 +223,36 @@ const finishEdgeCallTrace = (
   writeStoredEdgeCalls(calls);
 };
 
+const logEdgeCallActivity = (
+  trace: EdgeCallTrace,
+  requestBody: unknown,
+  {
+    ok,
+    status = null,
+    error = null,
+  }: {
+    ok: boolean;
+    status?: number | null;
+    error?: string | null;
+  },
+) => {
+  if (trace.functionName === 'log-player-event') return;
+
+  void logTestActivityEvent({
+    eventType: ok ? 'api_call_succeeded' : 'api_call_failed',
+    walletAddress: getInvokeIdentity(requestBody),
+    sessionToken: getInvokeSessionToken(requestBody),
+    metadata: {
+      functionName: trace.functionName,
+      action: trace.action,
+      method: trace.method,
+      status,
+      durationMs: Date.now() - trace.startedAt,
+      error,
+    },
+  });
+};
+
 const buildInvokeBody = (body: unknown): BodyInit | undefined => {
   if (body == null) return undefined;
   if (
@@ -235,17 +322,22 @@ export const invokeEdgeFunctionHttp = async <T>(
   functionName: string,
   options?: EdgeInvokeOptions,
 ): Promise<T> => {
-  const trace = beginEdgeCallTrace(functionName, options);
+  const requestBody = bodyWithStoredSession(options?.body);
+  const trace = beginEdgeCallTrace(functionName, { ...options, body: requestBody });
   let response: Response;
 
   try {
     response = await fetch(`/api/edge/${functionName}`, {
       method: options?.method ?? 'POST',
-      headers: buildInvokeHeaders(options?.body, options?.headers),
-      body: buildInvokeBody(options?.body),
+      headers: buildInvokeHeaders(requestBody, options?.headers),
+      body: buildInvokeBody(requestBody),
     });
   } catch (error) {
     finishEdgeCallTrace(trace, {
+      ok: false,
+      error: error instanceof Error ? error.message : 'fetch failed',
+    });
+    logEdgeCallActivity(trace, requestBody, {
       ok: false,
       error: error instanceof Error ? error.message : 'fetch failed',
     });
@@ -257,6 +349,11 @@ export const invokeEdgeFunctionHttp = async <T>(
 
   if (!response.ok) {
     finishEdgeCallTrace(trace, {
+      ok: false,
+      status: response.status,
+      error: 'non-2xx',
+    });
+    logEdgeCallActivity(trace, requestBody, {
       ok: false,
       status: response.status,
       error: 'non-2xx',
@@ -276,6 +373,7 @@ export const invokeEdgeFunctionHttp = async <T>(
   }
 
   finishEdgeCallTrace(trace, { ok: true, status: response.status });
+  logEdgeCallActivity(trace, requestBody, { ok: true, status: response.status });
   return responseData as T;
 };
 
@@ -332,8 +430,6 @@ export const saveServerLeaderboardEntry = async (entry: GrillLeaderboardEntry) =
   postJson<{ entry: Record<string, unknown> }>('/api/leaderboard/grill', {
     id: entry.id,
     name: entry.name,
-    score: entry.score,
-    dishes: entry.dishes,
     walletAddress: entry.walletAddress ?? null,
   })
 );

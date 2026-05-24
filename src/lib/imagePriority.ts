@@ -1,4 +1,1 @@
-export const HIGH_FETCH_PRIORITY_PROPS = {
-  fetchpriority: 'high',
-} as const;
-
+export const HIGH_FETCH_PRIORITY_PROPS = {} as const;

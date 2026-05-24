@@ -3,7 +3,6 @@ import { invokeHooklootEdge } from '@/lib/serverApi';
 import { getStoredWalletSession } from '@/lib/walletSession';
 import type { Tables } from '@/types/serverDatabase';
 import {
-  type FishingMonadReward,
   type FishingSpecialReward,
   type PremiumCastResult,
   type PremiumSessionState,
@@ -138,12 +137,9 @@ const PLAYER_ACTION_FALLBACK_ERRORS: Record<string, string> = {
   get_premium_session_state: 'Premium fishing status is temporarily unavailable. Please try again in a minute.',
   start_premium_session: 'Could not start the premium fishing session right now. Please try again in a minute.',
   resolve_premium_cast: 'Could not resolve the premium cast right now. Please try again in a moment.',
-  complete_premium_session: 'Could not finalize the premium fishing session right now. Please try again in a moment.',
   claim_task_reward: 'Could not claim this task right now. Please try again.',
   roll_cube: 'Could not start the cube roll right now. Please try again.',
   apply_cube_reward: 'Could not apply the cube reward right now. Please try again.',
-  grant_fishing_mon_reward: 'Could not credit the rod MON reward right now. Please try again.',
-  grant_leviathan_common_rod_bonus: 'Could not apply the Leviathan rod bonus right now. Please try again.',
   cook_recipe: 'Could not cook this recipe right now. Please try again.',
   sell_cooked_dish: 'Could not sell this dish right now. Please try again.',
   update_grill_leaderboard: 'Could not update the grill leaderboard right now. Please try again.',
@@ -248,25 +244,22 @@ export function usePlayerActions(walletAddress: string | undefined, enabled: boo
     })
   ), [callPlayerActions]);
 
-  const buyBait = useCallback(async (amount: number, cost: number) => (
+  const buyBait = useCallback(async (amount: number) => (
     callPlayerActions<{ player: Tables<'players'> }>('buy_bait', {
       amount,
-      cost,
     })
   ), [callPlayerActions]);
 
-  const buyRod = useCallback(async (level: number, cost: number) => (
+  const buyRod = useCallback(async (level: number) => (
     callPlayerActions<{ player: Tables<'players'> }>('buy_rod', {
       level,
-      cost,
     })
   ), [callPlayerActions]);
 
-  const buyFishingNet = useCallback(async (dailyFishCount: number, txHash: string, expectedMon: string) => (
+  const buyFishingNet = useCallback(async (dailyFishCount: number, txHash: string, _expectedMon: string) => (
     callPlayerActions<{ player: Tables<'players'>; fishing_net: unknown }>('buy_fishing_net', {
       daily_fish_count: dailyFishCount,
       tx_hash: txHash,
-      expected_mon: expectedMon,
     })
   ), [callPlayerActions]);
 
@@ -274,11 +267,10 @@ export function usePlayerActions(walletAddress: string | undefined, enabled: boo
     callPlayerActions<{ player: Tables<'players'>; claimed_catch: Array<{ fishId: string; quantity: number }> }>('claim_fishing_net')
   ), [callPlayerActions]);
 
-  const buyCubeRolls = useCallback(async (rolls: number, txHash: string, expectedMon: string) => (
+  const buyCubeRolls = useCallback(async (rolls: number, txHash: string, _expectedMon: string) => (
     callPlayerActions<{ player: Tables<'players'>; rolls: number }>('buy_cube_rolls', {
       rolls,
       tx_hash: txHash,
-      expected_mon: expectedMon,
     })
   ), [callPlayerActions]);
 
@@ -365,62 +357,6 @@ export function usePlayerActions(walletAddress: string | undefined, enabled: boo
     };
   }, [callPlayerActions]);
 
-  const grantFishingMonReward = useCallback(async (
-    reward: FishingMonadReward,
-    fishId: string,
-  ) => (
-    callPlayerActions<{
-      mon_reward: {
-        amountMon: number;
-        sourceRef: string;
-        rodId: string;
-        rodLevel: number;
-      };
-    }>('grant_fishing_mon_reward', {
-      source_ref: reward.sourceRef,
-      mon_amount: reward.amount,
-      rod_id: reward.rodId,
-      rod_level: reward.rodLevel,
-      fish_id: fishId,
-    })
-  ), [callPlayerActions]);
-
-  const grantLeviathanCommonRodBonus = useCallback(async (
-    reward: FishingSpecialReward,
-  ) => (
-    callPlayerActions<{
-      player: Tables<'players'>;
-      leviathan_bonus: {
-        type: FishingSpecialReward['type'];
-        sourceRef: string;
-        bonusRodId: string;
-        bonusRodLevel: number;
-        compensationMon?: number;
-        credited: boolean;
-      };
-    }>('grant_leviathan_common_rod_bonus', {
-      source_ref: reward.sourceRef,
-      fish_id: reward.fishId,
-      equipped_rod_id: reward.requiredRodId,
-      equipped_rod_level: reward.requiredRodLevel,
-      bonus_rod_id: reward.bonusRodId,
-    })
-  ), [callPlayerActions]);
-
-  const completePremiumSession = useCallback(async (sessionId?: string) => {
-    const data = await callPlayerActions<{
-      player: Tables<'players'>;
-      premium_session: PremiumSessionState;
-    }>('complete_premium_session', {
-      session_id: sessionId ?? null,
-    });
-
-    return {
-      player: data.player,
-      premiumSession: data.premium_session,
-    };
-  }, [callPlayerActions]);
-
   const cookRecipe = useCallback(async (recipeId: string) => (
     callPlayerActions<{
       player: Tables<'players'>;
@@ -436,11 +372,9 @@ export function usePlayerActions(walletAddress: string | undefined, enabled: boo
     })
   ), [callPlayerActions]);
 
-  const updateGrillLeaderboard = useCallback(async (name: string, score: number, dishesDelta = 0) => (
+  const updateGrillLeaderboard = useCallback(async (name: string) => (
     callPlayerActions<{ leaderboard_entry: NonNullable<PlayerActionResponse['leaderboard_entry']> }>('update_grill_leaderboard', {
       name,
-      score,
-      dishes_delta: dishesDelta,
     })
   ), [callPlayerActions]);
 
@@ -485,9 +419,6 @@ export function usePlayerActions(walletAddress: string | undefined, enabled: boo
     startPremiumSession,
     getPremiumSessionState,
     resolvePremiumCast,
-    grantFishingMonReward,
-    grantLeviathanCommonRodBonus,
-    completePremiumSession,
     cookRecipe,
     sellCookedDish,
     updateGrillLeaderboard,

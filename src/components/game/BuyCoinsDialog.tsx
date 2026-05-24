@@ -19,6 +19,12 @@ import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
 import { getErrorMessage, isUserRejectedError } from '@/lib/errorUtils';
 import { MON_MARKET_RECEIVER_ADDRESS, MON_ROD_PURCHASES } from '@/lib/baitEconomy';
 import { invokeHooklootEdge } from '@/lib/serverApi';
+import {
+  canUseMonadPaymentIdentity,
+  monadPriceLabel,
+  MONAD_SHOP_TEST_MODE_ENABLED,
+  sendMonadPayment,
+} from '@/lib/monadTestMode';
 
 const COIN_PACKAGES = [
   { monAmount: '0.01', coins: 10, premium: false },
@@ -42,6 +48,7 @@ interface BuyCoinsDialogProps {
   onServerPlayerUpdated?: (playerRecord: unknown) => void;
   initialTab?: 'coins' | 'rods' | 'nft';
   triggerLabel?: string;
+  coinsOnly?: boolean;
 }
 
 const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
@@ -54,6 +61,7 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
   onServerPlayerUpdated,
   initialTab = 'coins',
   triggerLabel = 'MON Market',
+  coinsOnly = false,
 }) => {
   const [selectedPackage, setSelectedPackage] = useState<typeof COIN_PACKAGES[0] | null>(null);
   const [isPurchasing, setIsPurchasing] = useState(false);
@@ -63,7 +71,9 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
   const { sendTransactionAsync } = useSendTransaction();
   const walletBalanceAddress = walletAddress?.startsWith('0x') ? walletAddress as `0x${string}` : undefined;
   const { data: monWalletBalance } = useBalance({ address: walletBalanceAddress });
+  const canUseMonadPayment = canUseMonadPaymentIdentity(walletAddress);
   const hasEnoughMon = (monAmount: string) => {
+    if (MONAD_SHOP_TEST_MODE_ENABLED) return true;
     if (!monWalletBalance) return true;
 
     try {
@@ -74,18 +84,20 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
   };
 
   const handlePurchase = async (pkg: typeof COIN_PACKAGES[0]) => {
-    if (!walletAddress || isPurchasing) return;
+    if (!walletAddress || !canUseMonadPayment || isPurchasing) return;
     
     setSelectedPackage(pkg);
     setIsPurchasing(true);
 
     try {
-      const txHash = await sendTransactionAsync({
-        to: MON_MARKET_RECEIVER_ADDRESS,
-        value: parseEther(pkg.monAmount),
+      const txHash = await sendMonadPayment({
+        sendTransactionAsync,
+        receiverAddress: MON_MARKET_RECEIVER_ADDRESS,
+        monAmount: pkg.monAmount,
+        purpose: `coin-pack-${pkg.monAmount}`,
       });
 
-      toast.info('Transaction sent, awaiting confirmation...');
+      toast.info(MONAD_SHOP_TEST_MODE_ENABLED ? 'Test payment created, applying coins...' : 'Transaction sent, awaiting confirmation...');
 
       const { data, error } = await invokeHooklootEdge('verify-purchase', {
         body: {
@@ -119,19 +131,21 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
   };
 
   const handleMint = async (nftRod: typeof NFT_ROD_DATA[0]) => {
-    if (!walletAddress) {
-      toast.error('Wallet not connected');
+    if (!walletAddress || !canUseMonadPayment) {
+      toast.error(MONAD_SHOP_TEST_MODE_ENABLED ? 'Test profile not ready' : 'Wallet not connected');
       return;
     }
 
     setMintingLevel(nftRod.rodLevel);
     try {
-      const txHash = await sendTransactionAsync({
-        to: MON_MARKET_RECEIVER_ADDRESS,
-        value: parseEther(nftRod.mintCost),
+      const txHash = await sendMonadPayment({
+        sendTransactionAsync,
+        receiverAddress: MON_MARKET_RECEIVER_ADDRESS,
+        monAmount: nftRod.mintCost,
+        purpose: `nft-rod-${nftRod.rodLevel}`,
       });
 
-      toast.info('Transaction sent, verifying...');
+      toast.info(MONAD_SHOP_TEST_MODE_ENABLED ? 'Test mint payment created, verifying...' : 'Transaction sent, verifying...');
 
       const { data, error } = await invokeHooklootEdge('verify-purchase', {
         body: {
@@ -164,7 +178,7 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
   };
 
   const handleRodPurchase = async (rodOffer: typeof MON_ROD_PURCHASES[number]) => {
-    if (!walletAddress || buyingRodLevel !== null) {
+    if (!walletAddress || !canUseMonadPayment || buyingRodLevel !== null) {
       return;
     }
 
@@ -175,12 +189,14 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
 
     setBuyingRodLevel(rodOffer.level);
     try {
-      const txHash = await sendTransactionAsync({
-        to: MON_MARKET_RECEIVER_ADDRESS,
-        value: parseEther(rodOffer.monAmount),
+      const txHash = await sendMonadPayment({
+        sendTransactionAsync,
+        receiverAddress: MON_MARKET_RECEIVER_ADDRESS,
+        monAmount: rodOffer.monAmount,
+        purpose: `mon-rod-${rodOffer.level}`,
       });
 
-      toast.info('Transaction sent, verifying rod unlock...');
+      toast.info(MONAD_SHOP_TEST_MODE_ENABLED ? 'Test rod payment created, unlocking...' : 'Transaction sent, verifying rod unlock...');
 
       const { data, error } = await invokeHooklootEdge('verify-purchase', {
         body: {
@@ -212,6 +228,41 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
     }
   };
 
+  const coinPackageGrid = (
+    <>
+      <p className="mb-4 text-sm text-zinc-500">
+        {MONAD_SHOP_TEST_MODE_ENABLED
+          ? 'Test mode: no wallet transaction is sent. Fake MON payments still go through the server purchase path.'
+          : 'Send MON and receive game coins. Rate: 0.1 MON = 100 coins.'}
+      </p>
+      <div className="grid gap-3">
+        {COIN_PACKAGES.map((pkg) => {
+          const isLoading = isPurchasing && selectedPackage?.monAmount === pkg.monAmount;
+          return (
+            <Button
+              key={pkg.monAmount}
+              variant="outline"
+              className="h-auto flex-row justify-between border-zinc-800 bg-zinc-950 px-5 py-4 text-zinc-100 hover:border-cyan-300/30 hover:bg-black"
+              disabled={isPurchasing}
+              onClick={() => handlePurchase(pkg)}
+            >
+              <div className="flex items-center gap-3">
+                {pkg.premium ? <Coins className="h-7 w-7 text-cyan-100" /> : <CoinIcon size="xl" />}
+                <span className="font-bold text-lg">{pkg.coins} coins</span>
+              </div>
+              <span className="font-mono font-bold text-cyan-100">
+                {isLoading ? '...' : monadPriceLabel(pkg.monAmount)}
+              </span>
+            </Button>
+          );
+        })}
+      </div>
+      <p className="mt-3 text-center text-xs text-zinc-500">
+        {MONAD_SHOP_TEST_MODE_ENABLED ? 'Temporary MON test mode is active' : 'Transaction confirmed automatically'}
+      </p>
+    </>
+  );
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -232,45 +283,23 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue={initialTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-zinc-950">
-            <TabsTrigger value="coins" className="flex items-center gap-1 data-[state=active]:bg-black data-[state=active]:text-cyan-100"><CoinIcon size="sm" /> Coins</TabsTrigger>
-            <TabsTrigger value="rods" className="gap-1.5 data-[state=active]:bg-black data-[state=active]:text-cyan-100"><ShipWheel className="h-4 w-4" /> Rods</TabsTrigger>
-            <TabsTrigger value="nft" className="gap-1.5 data-[state=active]:bg-black data-[state=active]:text-cyan-100"><ShipWheel className="h-4 w-4" /> NFT Rods</TabsTrigger>
-          </TabsList>
+        {coinsOnly ? (
+          <div className="mt-4">
+            {coinPackageGrid}
+          </div>
+        ) : (
+          <Tabs defaultValue={initialTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-3 bg-zinc-950">
+              <TabsTrigger value="coins" className="flex items-center gap-1 data-[state=active]:bg-black data-[state=active]:text-cyan-100"><CoinIcon size="sm" /> Coins</TabsTrigger>
+              <TabsTrigger value="rods" className="gap-1.5 data-[state=active]:bg-black data-[state=active]:text-cyan-100"><ShipWheel className="h-4 w-4" /> Rods</TabsTrigger>
+              <TabsTrigger value="nft" className="gap-1.5 data-[state=active]:bg-black data-[state=active]:text-cyan-100"><ShipWheel className="h-4 w-4" /> NFT Rods</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="coins" className="mt-4">
-            <p className="mb-4 text-sm text-zinc-500">
-              Send MON and receive game coins. Rate: 0.1 MON = 100 coins.
-            </p>
-            <div className="grid gap-3">
-              {COIN_PACKAGES.map((pkg) => {
-                const isLoading = isPurchasing && selectedPackage?.monAmount === pkg.monAmount;
-                return (
-                  <Button
-                    key={pkg.monAmount}
-                    variant="outline"
-                    className="h-auto flex-row justify-between border-zinc-800 bg-zinc-950 px-5 py-4 text-zinc-100 hover:border-cyan-300/30 hover:bg-black"
-                    disabled={isPurchasing}
-                    onClick={() => handlePurchase(pkg)}
-                  >
-                    <div className="flex items-center gap-3">
-                      {pkg.premium ? <Coins className="h-7 w-7 text-cyan-100" /> : <CoinIcon size="xl" />}
-                      <span className="font-bold text-lg">{pkg.coins} coins</span>
-                    </div>
-                    <span className="font-mono font-bold text-cyan-100">
-                      {isLoading ? '⏳...' : `${pkg.monAmount} MON`}
-                    </span>
-                  </Button>
-                );
-              })}
-            </div>
-            <p className="mt-3 text-center text-xs text-zinc-500">
-              Transaction confirmed automatically
-            </p>
-          </TabsContent>
+            <TabsContent value="coins" className="mt-4">
+              {coinPackageGrid}
+            </TabsContent>
 
-          <TabsContent value="rods" className="mt-4">
+            <TabsContent value="rods" className="mt-4">
             <p className="mb-3 text-sm text-zinc-500">
               Instant rod unlocks with MON. Priced below NFT minting so NFTs keep their premium value.
             </p>
@@ -279,7 +308,7 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
                 {MON_ROD_PURCHASES.map((rodOffer) => {
                   const isOwned = rodLevel >= rodOffer.level;
                   const isBuying = buyingRodLevel === rodOffer.level;
-                  const notEnoughMon = Boolean(walletAddress) && !hasEnoughMon(rodOffer.monAmount);
+                  const notEnoughMon = canUseMonadPayment && !hasEnoughMon(rodOffer.monAmount);
                   const rodImage = ROD_IMAGES[rodOffer.level];
                   const rod = ROD_DATA[rodOffer.level];
 
@@ -317,11 +346,11 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
                       ) : (
                         <Button
                           size="sm"
-                          disabled={isBuying || !walletAddress || notEnoughMon}
+                          disabled={isBuying || !canUseMonadPayment || notEnoughMon}
                           onClick={() => void handleRodPurchase(rodOffer)}
                           className="whitespace-nowrap border border-cyan-300/25 bg-zinc-950 text-cyan-100 hover:bg-black"
                         >
-                          {isBuying ? '...' : notEnoughMon ? 'No MON' : `${rodOffer.monAmount} MON`}
+                          {isBuying ? '...' : notEnoughMon ? 'No MON' : monadPriceLabel(rodOffer.monAmount)}
                         </Button>
                       )}
                     </div>
@@ -329,9 +358,9 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
                 })}
               </div>
             </ScrollArea>
-          </TabsContent>
+            </TabsContent>
 
-          <TabsContent value="nft" className="mt-4">
+            <TabsContent value="nft" className="mt-4">
             <p className="mb-3 text-sm text-zinc-500">
               Mint NFT versions of rods for MON and get bonuses!
             </p>
@@ -385,7 +414,7 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
                           onClick={() => handleMint(nft)}
                           className="whitespace-nowrap border border-cyan-300/25 bg-zinc-950 text-cyan-100 hover:bg-black"
                         >
-                          {isMinting ? '...' : `${nft.mintCost} MON`}
+                          {isMinting ? '...' : monadPriceLabel(nft.mintCost)}
                         </Button>
                       )}
                     </div>
@@ -393,8 +422,9 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
                 })}
               </div>
             </ScrollArea>
-          </TabsContent>
-        </Tabs>
+            </TabsContent>
+          </Tabs>
+        )}
       </DialogContent>
     </Dialog>
   );

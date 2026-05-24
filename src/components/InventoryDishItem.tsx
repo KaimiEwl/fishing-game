@@ -1,7 +1,8 @@
 import { Button } from '@/components/ui/button';
 import CoinIcon from '@/components/game/CoinIcon';
+import RecipeGrillIcon from '@/components/game/RecipeGrillIcon';
 import Wrapper from '@/components/Wrapper';
-import { ChefHat, Trophy } from 'lucide-react';
+import { Trophy } from 'lucide-react';
 import type { GrillRecipe } from '@/types/game';
 
 interface InventoryDishItemProps {
@@ -16,10 +17,8 @@ const InventoryDishItem = ({ recipe, quantity, onSell }: InventoryDishItemProps)
   return (
     <Wrapper as="article" dir="column" gap={3}>
       <div className="group grid grid-cols-[3.5rem_minmax(0,1fr)] gap-3 overflow-hidden rounded-xl border border-zinc-800 bg-black p-3 shadow-sm transition-all hover:border-amber-300/20 hover:bg-zinc-950 hover:shadow-md">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-amber-300/25 bg-[linear-gradient(135deg,rgba(251,191,36,0.22),rgba(234,88,12,0.12))] shadow-inner">
-          <div className="transition-transform group-hover:scale-110">
-            <ChefHat className="h-7 w-7 text-amber-100" />
-          </div>
+        <div className="transition-transform group-hover:scale-110">
+          <RecipeGrillIcon recipe={recipe} size="inventory" />
         </div>
 
         <Wrapper dir="column" gap={1}>

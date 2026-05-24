@@ -7,6 +7,7 @@ import FishIcon from './FishIcon';
 import { publicAsset } from '@/lib/assets';
 import QuestBoard, { QuestBoardCard } from './QuestBoard';
 import GrillScoreInfoButton from './GrillScoreInfoButton';
+import RecipeGrillIcon from './RecipeGrillIcon';
 
 interface GrillScreenProps {
   inventory: CaughtFish[];
@@ -116,8 +117,8 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ inventory, onCook, onCookStar
             <div className="w-full max-w-md rounded-2xl border border-amber-300/25 bg-black/82 p-5 text-center shadow-[0_0_45px_rgba(0,0,0,0.5)] backdrop-blur-md">
               {cookPhase === 'cooking' ? (
                 <>
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-amber-300/25 bg-zinc-950 text-amber-200 shadow-[0_0_35px_rgba(251,146,60,0.22)]">
-                    <Flame className="h-8 w-8 animate-pulse" />
+                  <div className="mx-auto flex justify-center">
+                    <RecipeGrillIcon recipe={activeRecipe} size="modal" />
                   </div>
                   <p className="mt-4 text-xs font-black uppercase tracking-[0.2em] text-amber-200/80">Cooking</p>
                   <h3 className="mt-2 text-2xl font-black text-white">{activeRecipe.name}</h3>
@@ -138,8 +139,8 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ inventory, onCook, onCookStar
                 </>
               ) : (
                 <>
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-cyan-300/25 bg-zinc-950 text-cyan-100 shadow-[0_0_35px_rgba(34,211,238,0.22)]">
-                    <Trophy className="h-8 w-8" />
+                  <div className="mx-auto flex justify-center">
+                    <RecipeGrillIcon recipe={activeRecipe} size="modal" />
                   </div>
                   <p className="mt-4 text-xs font-black uppercase tracking-[0.2em] text-cyan-100/80">Dish ready</p>
                   <h3 className="mt-2 text-2xl font-black text-white">{activeRecipe.name}</h3>
@@ -169,15 +170,20 @@ const GrillScreen: React.FC<GrillScreenProps> = ({ inventory, onCook, onCookStar
               return (
                 <QuestBoardCard key={recipe.id}>
                   <div className="flex h-full flex-col">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h2 className="text-[1rem] font-black text-[#f8e8bf] sm:text-lg">{recipe.name}</h2>
-                        <p className="mt-1 text-[0.78rem] leading-5 text-[#f8e8bf]/70 sm:text-sm sm:leading-6">{recipe.description}</p>
-                      </div>
-                      <div className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-[#8f6a38]/70 bg-[rgba(16,11,8,0.84)] px-2 py-1 text-sm font-black text-[#f3c777]">
-                        <Trophy className="h-4 w-4" />
-                        {recipe.score}
-                        <GrillScoreInfoButton side="bottom" className="ml-1 h-4.5 w-4.5 text-[10px]" />
+                    <div className="flex items-start gap-2.5 sm:gap-3">
+                      <RecipeGrillIcon recipe={recipe} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <h2 className="text-[0.95rem] font-black leading-tight text-[#f8e8bf] sm:text-lg">{recipe.name}</h2>
+                            <p className="mt-1 text-[0.76rem] leading-5 text-[#f8e8bf]/70 sm:text-sm sm:leading-6">{recipe.description}</p>
+                          </div>
+                          <div className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-[#8f6a38]/70 bg-[rgba(16,11,8,0.84)] px-1.5 py-1 text-xs font-black text-[#f3c777] sm:px-2 sm:text-sm">
+                            <Trophy className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                            {recipe.score}
+                            <GrillScoreInfoButton side="bottom" className="ml-0.5 h-4.5 w-4.5 text-[10px] sm:ml-1" />
+                          </div>
+                        </div>
                       </div>
                     </div>
 

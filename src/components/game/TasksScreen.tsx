@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Box, Check, Clock3, Coins, Copy, ExternalLink, Heart, Lock, MessageCircle, Repeat2, Send, Trophy, Worm } from 'lucide-react';
 import { useSendTransaction } from 'wagmi';
-import { parseEther } from 'viem';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +28,12 @@ import {
   WALLET_CHECK_IN_AMOUNT_MON,
   WALLET_CHECK_IN_RECEIVER_ADDRESS,
 } from '@/lib/walletCheckIn';
+import {
+  canUseMonadPaymentIdentity,
+  monadPriceLabel,
+  MONAD_SHOP_TEST_MODE_ENABLED,
+  sendMonadPayment,
+} from '@/lib/monadTestMode';
 
 interface TasksScreenProps {
   coins: number;
@@ -88,6 +93,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   const [walletCheckInSubmitting, setWalletCheckInSubmitting] = useState(false);
   const [copiedReferral, setCopiedReferral] = useState(false);
   const { sendTransactionAsync } = useSendTransaction();
+  const canUseMonadPayment = canUseMonadPaymentIdentity(walletAddress);
   const walletCheckInAmountMon = walletCheckInSummary?.amountMon ?? WALLET_CHECK_IN_AMOUNT_MON;
   const walletCheckInReceiverAddress = walletCheckInSummary?.receiverAddress ?? WALLET_CHECK_IN_RECEIVER_ADDRESS;
   const socialTaskCards = useMemo(() => socialTasks.map((task) => ({
@@ -174,16 +180,18 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   };
 
   const handleWalletCheckIn = async () => {
-    if (!walletAddress || walletCheckInSubmitting) return;
+    if (!walletAddress || !canUseMonadPayment || walletCheckInSubmitting) return;
 
     setWalletCheckInSubmitting(true);
     try {
-      const txHash = await sendTransactionAsync({
-        to: walletCheckInReceiverAddress as `0x${string}`,
-        value: parseEther(walletCheckInAmountMon),
+      const txHash = await sendMonadPayment({
+        sendTransactionAsync,
+        receiverAddress: walletCheckInReceiverAddress as `0x${string}`,
+        monAmount: walletCheckInAmountMon,
+        purpose: 'wallet-check-in',
       });
 
-      toast.loading('Wallet check-in transaction sent. Verifying...', {
+      toast.loading(MONAD_SHOP_TEST_MODE_ENABLED ? 'Test wallet check-in created. Verifying...' : 'Wallet check-in transaction sent. Verifying...', {
         id: WALLET_CHECK_IN_TOAST_ID,
         duration: 5600,
       });
@@ -281,19 +289,20 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
         const isClaiming = claimingId === task.id;
         const isWalletCheckInTask = task.id === 'wallet_check_in';
         const isInviteFriendTask = task.id === 'invite_friend';
-        const hasConnectedWallet = Boolean(walletAddress);
+        const hasPaymentIdentity = Boolean(walletAddress) && canUseMonadPayment;
+        const walletCheckInReady = isWalletVerified || MONAD_SHOP_TEST_MODE_ENABLED;
         const walletAlreadyCheckedInToday = Boolean(walletCheckInSummary?.todayCheckedIn);
-        const walletCheckInStatusText = !hasConnectedWallet
-          ? `Connect your wallet first, then send today's ${walletCheckInAmountMon} MON transaction to start or continue your streak.`
-          : !isWalletVerified
+        const walletCheckInStatusText = !hasPaymentIdentity
+          ? `Connect your wallet first, then send today's ${monadPriceLabel(walletCheckInAmountMon)} transaction to start or continue your streak.`
+          : !walletCheckInReady
             ? 'Preparing your verified wallet session so you can send the on-chain check-in.'
           : walletCheckInLoading
             ? 'Refreshing streak status...'
             : walletAlreadyCheckedInToday
               ? `Checked in today. Streak: ${formatStreakDays(walletCheckInSummary.streakDays)}.`
-              : walletCheckInSummary?.lastCheckInDate
-                ? `Current streak: ${formatStreakDays(walletCheckInSummary.streakDays)}. Send today's ${walletCheckInSummary.amountMon} MON check-in to keep it going.`
-                : `Start your streak with a ${walletCheckInAmountMon} MON check-in today.`;
+            : walletCheckInSummary?.lastCheckInDate
+                ? `Current streak: ${formatStreakDays(walletCheckInSummary.streakDays)}. Send today's ${monadPriceLabel(walletCheckInSummary.amountMon)} check-in to keep it going.`
+                : `Start your streak with a ${monadPriceLabel(walletCheckInAmountMon)} check-in today.`;
 
         return (
           <QuestBoardCard key={task.id} className={isWalletCheckInTask || isInviteFriendTask ? 'md:col-span-2' : ''}>
@@ -340,10 +349,10 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                         walletCheckInSubmitting
                         || walletCheckInLoading
                         || walletAlreadyCheckedInToday
-                        || (hasConnectedWallet && !isWalletVerified)
+                        || (hasPaymentIdentity && !walletCheckInReady)
                       }
                       onClick={() => {
-                        if (!hasConnectedWallet) {
+                        if (!hasPaymentIdentity) {
                           openConnectModal?.();
                           return;
                         }
@@ -362,12 +371,12 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                           <Check className="mr-2 h-4 w-4" />
                           Checked in today
                         </>
-                      ) : !hasConnectedWallet ? (
+                      ) : !hasPaymentIdentity ? (
                         <>
                           <ExternalLink className="mr-2 h-4 w-4" />
                           Connect wallet to check in
                         </>
-                      ) : !isWalletVerified ? (
+                      ) : !walletCheckInReady ? (
                         <>
                           <Clock3 className="mr-2 h-4 w-4" />
                           Preparing wallet
@@ -375,7 +384,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                       ) : (
                         <>
                           <ExternalLink className="mr-2 h-4 w-4" />
-                          Send {walletCheckInAmountMon} MON check-in
+                          Send {monadPriceLabel(walletCheckInAmountMon)} check-in
                         </>
                       )}
                     </Button>
@@ -386,7 +395,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
 
             {isInviteFriendTask && REFERRAL_BAIT_ENABLED && (
               <div className="mt-3 rounded-[1.05rem] border border-[#8f6a38] bg-[linear-gradient(180deg,rgba(30,22,15,0.82)_0%,rgba(20,15,10,0.9)_100%)] p-3 sm:mt-4 sm:rounded-[1.2rem]">
-                {hasConnectedWallet && referralSummary?.referralLink ? (
+                {Boolean(walletAddress) && referralSummary?.referralLink ? (
                   <>
                     <div className="flex items-center justify-between gap-3 rounded-xl border border-[#8f6a38] bg-[rgba(15,10,7,0.7)] px-3 py-2">
                       <div>

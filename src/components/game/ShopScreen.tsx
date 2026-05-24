@@ -30,6 +30,12 @@ import BuyCoinsDialog from './BuyCoinsDialog';
 import GameScreenShell from './GameScreenShell';
 import QuestBoard, { QuestBoardCard, QuestBoardPlaque } from './QuestBoard';
 import { invokeHooklootEdge } from '@/lib/serverApi';
+import {
+  canUseMonadPaymentIdentity,
+  monadPriceLabel,
+  MONAD_SHOP_TEST_MODE_ENABLED,
+  sendMonadPayment,
+} from '@/lib/monadTestMode';
 
 interface ShopScreenProps {
   coins: number;
@@ -42,7 +48,6 @@ interface ShopScreenProps {
   onBuyBait: (amount: number, cost: number) => void;
   onBuyRod: (level: number, cost: number) => void;
   onBuyFishingNetWithMon: (dailyFishCount: number, monAmount: string, txHash?: string) => boolean | Promise<boolean>;
-  onClaimFishingNet: () => void;
   onBuyRodWithMon: (level: number, monAmount: string) => void;
   onBuyCubeRollsWithMon: (amount: number, monAmount: string, txHash?: string) => boolean | Promise<boolean>;
   onCoinsAdded: (amount: number) => void;
@@ -82,7 +87,6 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
   onBuyBait,
   onBuyRod,
   onBuyFishingNetWithMon,
-  onClaimFishingNet,
   onBuyRodWithMon,
   onBuyCubeRollsWithMon,
   onCoinsAdded,
@@ -116,10 +120,11 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
     .filter(Boolean)
     .slice(0, 4)
     .join(', ');
-  const walletConnected = Boolean(walletAddress);
+  const walletConnected = canUseMonadPaymentIdentity(walletAddress);
   const currentNetOffer = MON_FISHING_NET_PACKAGES.find((offer) => offer.fishCount === currentNetDailyFishCount) ?? null;
   const currentRod = ROD_DATA[rodLevel] ?? ROD_DATA[0];
   const hasEnoughMon = (monAmount: string) => {
+    if (MONAD_SHOP_TEST_MODE_ENABLED) return true;
     if (!monWalletBalance) return true;
 
     try {
@@ -162,7 +167,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
     verifyBody?: Record<string, unknown>;
     applyLocalUnlock?: (context: { txHash: string; data?: unknown }) => boolean | void | Promise<boolean | void>;
   }) => {
-    if (!walletAddress) {
+    if (!walletAddress || !walletConnected) {
       toast.error('Connect wallet first to use Monad Shop.', { duration: SHOP_TOAST_DURATION_MS });
       return;
     }
@@ -178,15 +183,22 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
     setActiveMonadPurchase(purchaseKey);
 
     try {
-      const txHash = await sendTransactionAsync({
-        to: MON_MARKET_RECEIVER_ADDRESS,
-        value: parseEther(monAmount),
+      const txHash = await sendMonadPayment({
+        sendTransactionAsync,
+        receiverAddress: MON_MARKET_RECEIVER_ADDRESS,
+        monAmount,
+        purpose: purchaseKey,
       });
 
-      toast.loading(pendingMessage, {
+      toast.loading(
+        MONAD_SHOP_TEST_MODE_ENABLED
+          ? pendingMessage.replace('Transaction sent.', 'Test payment created.')
+          : pendingMessage,
+        {
         id: toastId,
         duration: SHOP_TOAST_DURATION_MS,
-      });
+        },
+      );
 
       let verifiedData: unknown;
       if (verifyBody) {
@@ -244,7 +256,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
             Gold balance
           </div>
           <div className="mt-1 text-[0.72rem] font-semibold leading-4 text-[#f8e8bf]/74 sm:text-[0.86rem]">
-            Use gold for bait, rods, and everyday upgrades.
+            Use gold for bait and everyday upgrades.
           </div>
         </div>
         <div className="inline-flex shrink-0 items-center gap-2 rounded-[0.95rem] border border-[#b6884b]/80 bg-[rgba(38,24,10,0.92)] px-3 py-2 shadow-[inset_0_0_0_1px_rgba(255,215,150,0.07)]">
@@ -275,7 +287,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
   return (
     <GameScreenShell
       title="Shop"
-      subtitle="Coins stay in Bait. Rod upgrades and other MON items live in Monad Shop."
+      subtitle="Bait, rods, and MON utilities are separated so gear is always in one place."
       backgroundImage={isMobileLayout ? publicAsset('assets/shop_board_mobile_reference.webp') : publicAsset('assets/shop_board_reference.webp')}
       backgroundFit="cover"
       overlayClassName="bg-[linear-gradient(180deg,rgba(8,6,3,0.10)_0%,rgba(10,8,5,0.12)_48%,rgba(6,5,3,0.18)_100%)]"
@@ -306,8 +318,8 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                 )}
               />
               <QuestBoardPlaque
-                eyebrow="Monad items moved"
-                description="Auto Fishing Net tiers, MON cube rolls, instant unlock rods, and NFT bonus rods now sit in Monad Shop."
+                eyebrow="Clean split"
+                description="Bait stays here. All rods are in Rods. Gold packs, Auto Fishing Net tiers, and MON cube rolls stay in Monad Shop."
               />
               <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
                 {BAIT_PACKAGES.map((pkg) => {
@@ -350,8 +362,8 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                 )}
               />
               <QuestBoardPlaque
-                eyebrow="Monad gear"
-                description="The Common Rod is available by default. Rare, Epic, and Legendary rods are purchased in Monad Shop with MON."
+                eyebrow="All rods"
+                description="Common, MON unlock rods, and bonus MON rods are grouped here. Monad Shop no longer sells rods in a second place."
               />
               {ROD_UPGRADES.length === 0 ? (
                 <QuestBoardCard>
@@ -414,224 +426,10 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                   })}
                 </div>
               )}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="monad" className="mt-0">
-            <div className="grid gap-2.5 sm:gap-3">
-              {walletConnected ? (
-                <QuestBoardPlaque
-                  eyebrow="Quick gold"
-                  description="If you just want raw coins instead of gear, the old MON gold packs stay available here."
-                  action={(
-                    <BuyCoinsDialog
-                      walletAddress={walletAddress}
-                      onCoinsAdded={onCoinsAdded}
-                      rodLevel={rodLevel}
-                      nftRods={nftRods}
-                      onNftMinted={onNftMinted}
-                      onRodPurchased={onBuyRodWithMon}
-                      onServerPlayerUpdated={onServerPlayerUpdated}
-                      initialTab="coins"
-                      triggerLabel="Gold packs"
-                    />
-                  )}
-                />
-              ) : (
-                <QuestBoardPlaque
-                  eyebrow="Connect wallet"
-                  description="Monad Shop is wallet-only. Connect from the HUD wallet button, then come back here for MON purchases."
-                />
-              )}
-
-              <QuestBoardCard className="md:min-h-0">
-                <div className="flex h-full flex-col gap-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-[0.64rem] font-black uppercase tracking-[0.18em] text-[#f3c777]/85">
-                        Passive utility
-                      </div>
-                      <div className="mt-1 text-lg font-black text-[#f8e8bf] sm:text-xl">Auto Fishing Net</div>
-                      <p className="mt-1 text-sm leading-5 text-[#f8e8bf]/78">
-                        Pick a Monad net tier. Bigger nets refill with more random fish every 24 hours and keep the passive loop out of the bait tab.
-                      </p>
-                    </div>
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#6f4928] bg-[rgba(15,10,7,0.72)] shadow-inner">
-                      <img
-                        src={FISHING_NET_SHOP_ICON_SRC}
-                        alt=""
-                        className="h-12 w-12 scale-[1.08] object-contain mix-blend-screen drop-shadow-[0_0_12px_rgba(255,190,92,0.3)]"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="rounded-[0.9rem] border border-[#6f4928] bg-[rgba(15,10,7,0.72)] px-3 py-2.5 text-sm text-[#f8e8bf]/82">
-                    {fishingNet.owned ? (
-                      fishingNetPendingCount > 0 ? (
-                        <>
-                          <span className="font-black text-[#f3c777]">{currentNetOffer?.label ?? 'Your net'} is full.</span>{' '}
-                          {fishingNetPendingCount} fish are waiting.
-                          {fishingNetPreview ? (
-                            <span className="mt-1 block text-xs text-[#f8e8bf]/70">{fishingNetPreview}</span>
-                          ) : null}
-                        </>
-                      ) : (
-                        <>
-                          <span className="font-black text-[#f3c777]">{currentNetOffer?.label ?? 'Net'} deployed.</span>{' '}
-                          {currentNetDailyFishCount} fish per day are configured. It will refill after the next daily reset.
-                        </>
-                      )
-                    ) : (
-                      <>
-                        Choose the tier you want first. The original coin price was tuned around a {FISHING_NET_PAYBACK_DAYS_ESTIMATE}-day payback, so these stay premium convenience upgrades instead of mandatory progression.
-                      </>
-                    )}
-                  </div>
-
-                  {fishingNet.owned ? (
-                    <Button
-                      type="button"
-                      onClick={onClaimFishingNet}
-                      disabled={fishingNetPendingCount <= 0}
-                      className={SHOP_BUTTON_CLASS_NAME}
-                    >
-                      Collect {fishingNetPendingCount > 0 ? fishingNetPendingCount : currentNetDailyFishCount} fish
-                    </Button>
-                  ) : (
-                    <div className="rounded-[0.9rem] border border-dashed border-[#8d6436] bg-[rgba(15,10,7,0.46)] px-3 py-3 text-sm text-[#f8e8bf]/76">
-                      Buy any net tier below. Your first purchase fills the net immediately for today.
-                    </div>
-                  )}
-                </div>
-              </QuestBoardCard>
-
-              <QuestBoardPlaque
-                eyebrow="Net tiers"
-                description={fishingNet.owned
-                  ? `Current deployed tier: ${currentNetDailyFishCount} fish per day. You can still upgrade to a larger net.`
-                  : 'All net tiers are bought with MON only. Higher tiers increase the daily passive fish haul.'}
-              />
-              <div className="grid gap-2.5 sm:gap-3 lg:grid-cols-3">
-                {MON_FISHING_NET_PACKAGES.map((offer) => {
-                  const purchaseKey = `fishing-net-${offer.fishCount}`;
-                  const isOwnedTier = fishingNet.owned && currentNetDailyFishCount === offer.fishCount;
-                  const hasBetterTier = fishingNet.owned && currentNetDailyFishCount > offer.fishCount;
-                  const canUpgrade = !hasBetterTier && !isOwnedTier;
-                  const actionLabel = !fishingNet.owned
-                    ? `Deploy ${offer.fishCount} fish/day`
-                    : currentNetDailyFishCount < offer.fishCount
-                      ? `Upgrade to ${offer.fishCount}`
-                      : `Owned`;
-                  const successMessage = !fishingNet.owned
-                    ? `${offer.label} deployed.`
-                    : `${offer.label} upgraded.`;
-
-                  return (
-                    <QuestBoardCard key={offer.fishCount}>
-                      <div className="flex h-full flex-col gap-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="inline-flex h-12 w-12 items-center justify-center rounded-[1rem] border border-[#8f6a38] bg-[rgba(15,10,7,0.72)] text-[#f3c777] shadow-[0_8px_16px_rgba(0,0,0,0.28)]">
-                            <img
-                              src={FISHING_NET_SHOP_ICON_SRC}
-                              alt=""
-                              className="h-10 w-10 object-contain mix-blend-screen drop-shadow-[0_0_12px_rgba(255,190,92,0.3)]"
-                            />
-                          </div>
-                          <span className="rounded-full border border-[#9a7a33] bg-[rgba(92,70,21,0.42)] px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-[#f3d47e]">
-                            {offer.fishCount} fish/day
-                          </span>
-                        </div>
-                        <div>
-                          <div className="text-base font-black text-[#f8e8bf]">{offer.label}</div>
-                          <p className="mt-1 text-sm leading-5 text-[#f8e8bf]/78">{offer.positioning}</p>
-                        </div>
-                        <div className="rounded-[0.9rem] border border-[#6f4928] bg-[rgba(15,10,7,0.72)] px-3 py-2 text-xs text-[#f8e8bf]/74">
-                          {hasBetterTier
-                            ? 'A bigger net is already active on this account.'
-                            : isOwnedTier
-                              ? 'This is your current active net tier.'
-                              : fishingNet.owned
-                                ? 'Upgrade now, then the larger daily refill size applies from the active net state onward.'
-                                : 'First purchase deploys the net immediately and starts the passive loop today.'}
-                        </div>
-                        <Button
-                          type="button"
-                          disabled={!walletConnected || activeMonadPurchase !== null || !canUpgrade}
-                          onClick={() => void runMonadPurchase({
-                            purchaseKey,
-                            monAmount: offer.monAmount,
-                            pendingMessage: fishingNet.owned
-                              ? `Transaction sent. Upgrading net to ${offer.fishCount} fish/day...`
-                              : `Transaction sent. Deploying ${offer.label}...`,
-                            successMessage,
-                            applyLocalUnlock: ({ txHash }) => onBuyFishingNetWithMon(offer.fishCount, offer.monAmount, txHash),
-                          })}
-                          className={`mt-auto ${SHOP_BUTTON_CLASS_NAME}`}
-                        >
-                          {isOwnedTier || hasBetterTier ? (
-                            <>
-                              <Check className="mr-2 h-4 w-4" />
-                              {hasBetterTier ? 'Better tier owned' : 'Current tier'}
-                            </>
-                          ) : (
-                            <>
-                              <Coins className="mr-2 h-4 w-4" />
-                              {activeMonadPurchase === purchaseKey ? 'Processing...' : `${offer.monAmount} MON`}
-                            </>
-                          )}
-                        </Button>
-                        {canUpgrade ? (
-                          <div className="text-center text-xs font-bold uppercase tracking-[0.08em] text-[#f3c777]/78">
-                            {actionLabel}
-                          </div>
-                        ) : null}
-                      </div>
-                    </QuestBoardCard>
-                  );
-                })}
-              </div>
-
-              <QuestBoardPlaque
-                eyebrow="Cube rolls"
-                description="Buy extra cube rolls straight from the shop instead of bouncing into the cube screen first. These are now premium-priced top-ups, not cheap spam rolls."
-              />
-              <div className="grid gap-2.5 sm:gap-3 lg:grid-cols-3">
-                {MON_CUBE_SPIN_PACKAGES.map((pkg) => {
-                  const purchaseKey = `cube-rolls-${pkg.rolls}`;
-                  return (
-                    <QuestBoardCard key={pkg.rolls}>
-                      <div className="flex h-full flex-col gap-3">
-                        <div className="inline-flex h-12 w-12 items-center justify-center rounded-[1rem] border border-[#8f6a38] bg-[rgba(15,10,7,0.72)] text-[#f3c777] shadow-[0_8px_16px_rgba(0,0,0,0.28)]">
-                          <Sparkles className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <div className="text-base font-black text-[#f8e8bf]">{pkg.label}</div>
-                          <p className="mt-1 text-sm leading-5 text-[#f8e8bf]/78">{pkg.positioning}</p>
-                        </div>
-                        <Button
-                          type="button"
-                          disabled={!walletConnected || activeMonadPurchase !== null}
-                          onClick={() => void runMonadPurchase({
-                            purchaseKey,
-                            monAmount: pkg.monAmount,
-                            pendingMessage: `Transaction sent. Adding ${pkg.rolls} cube roll${pkg.rolls === 1 ? '' : 's'}...`,
-                            successMessage: `${pkg.rolls} cube roll${pkg.rolls === 1 ? '' : 's'} added.`,
-                            applyLocalUnlock: ({ txHash }) => onBuyCubeRollsWithMon(pkg.rolls, pkg.monAmount, txHash),
-                          })}
-                          className={`mt-auto ${SHOP_BUTTON_CLASS_NAME}`}
-                        >
-                          <Coins className="mr-2 h-4 w-4" />
-                          {activeMonadPurchase === purchaseKey ? 'Processing...' : `${pkg.monAmount} MON`}
-                        </Button>
-                      </div>
-                    </QuestBoardCard>
-                  );
-                })}
-              </div>
 
               <QuestBoardPlaque
                 eyebrow="Monad rods"
-                description="Rare, Epic, and Legendary rods cost MON. The Common Rod is already owned by every player and is not sold here."
+                description="Rare, Epic, and Legendary rods cost MON. The Common Rod is already owned by every player and is not sold separately."
               />
               <div className="grid gap-2.5 sm:gap-3 lg:grid-cols-2">
                 {MON_ROD_PURCHASES.map((rodOffer) => {
@@ -686,7 +484,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                             className={`w-full shrink-0 sm:w-auto ${SHOP_BUTTON_CLASS_NAME}`}
                           >
                             <Coins className="mr-2 h-4 w-4" />
-                            {isProcessing ? 'Processing...' : notEnoughMon ? 'Not enough MON' : `${rodOffer.monAmount} MON`}
+                            {isProcessing ? 'Processing...' : notEnoughMon ? 'Not enough MON' : monadPriceLabel(rodOffer.monAmount)}
                           </Button>
                         )}
                       </div>
@@ -697,12 +495,15 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
 
               <QuestBoardPlaque
                 eyebrow="Bonus MON rods"
-                description="These are the serious MON rods: separate shop art, much stronger rare+, XP, and sell-price buffs, and premium pricing to match."
+                description={MONAD_SHOP_TEST_MODE_ENABLED
+                  ? 'Test mode unlocks these bonus rods directly, so every MON rod can be bought and tested now.'
+                  : 'Bonus rods add stronger rare+, XP, and sell-price buffs. In live mode they require the matching base rod first.'}
               />
               <div className="grid gap-2.5 sm:gap-3 lg:grid-cols-2">
                 {NFT_ROD_DATA.map((nft) => {
                   const purchaseKey = `nft-rod-${nft.rodLevel}`;
                   const hasBaseRod = rodLevel >= nft.rodLevel;
+                  const baseRequirementMet = hasBaseRod || MONAD_SHOP_TEST_MODE_ENABLED;
                   const isOwned = nftRods.includes(nft.rodLevel);
                   const rodImage = MONAD_ROD_IMAGES[nft.rodLevel as keyof typeof MONAD_ROD_IMAGES] ?? ROD_DISPLAY_INFO[nft.rodLevel].image;
 
@@ -724,10 +525,12 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                         </div>
                         <div className="rounded-[0.9rem] border border-[#6f4928] bg-[rgba(15,10,7,0.72)] px-3 py-2 text-xs text-[#f8e8bf]/74">
                           {isOwned
-                            ? 'Already minted on this wallet.'
+                            ? 'Already minted on this account.'
                             : hasBaseRod
                               ? 'Base rod owned. This mint upgrades it into the heavier MON bonus version.'
-                              : `Buy the ${ROD_DATA[nft.rodLevel]?.name ?? `Rod ${nft.rodLevel}`} first, then mint its NFT bonus version here.`}
+                              : MONAD_SHOP_TEST_MODE_ENABLED
+                                ? 'Test mode: base-rod gating is bypassed so this bonus rod can be purchased now.'
+                                : `Buy the ${ROD_DATA[nft.rodLevel]?.name ?? `Rod ${nft.rodLevel}`} first, then mint its bonus version here.`}
                         </div>
                         {isOwned ? (
                           <div className="mt-auto text-sm font-black text-[#f3c777]">
@@ -737,7 +540,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                         ) : (
                           <Button
                             type="button"
-                            disabled={!walletConnected || !hasBaseRod || activeMonadPurchase !== null}
+                            disabled={!walletConnected || !baseRequirementMet || activeMonadPurchase !== null}
                             onClick={() => void runMonadPurchase({
                               purchaseKey,
                               monAmount: nft.mintCost,
@@ -752,7 +555,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                             className={`mt-auto ${SHOP_BUTTON_CLASS_NAME}`}
                           >
                             <Coins className="mr-2 h-4 w-4" />
-                            {activeMonadPurchase === purchaseKey ? 'Processing...' : `${nft.mintCost} MON`}
+                            {activeMonadPurchase === purchaseKey ? 'Processing...' : monadPriceLabel(nft.mintCost)}
                           </Button>
                         )}
                       </div>
@@ -760,6 +563,224 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                   );
                 })}
               </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="monad" className="mt-0">
+            <div className="grid gap-2.5 sm:gap-3">
+              {MONAD_SHOP_TEST_MODE_ENABLED ? (
+                <QuestBoardPlaque
+                  eyebrow="Temporary MON test"
+                  description="Fake MON payments are active for this test build. Purchases still apply through the server flow and can be disabled with VITE_MONAD_SHOP_TEST_MODE_ENABLED=0."
+                />
+              ) : null}
+
+              {walletConnected ? (
+                <QuestBoardPlaque
+                  eyebrow="Quick gold"
+                  description="If you just want raw coins instead of gear, the old MON gold packs stay available here."
+                  action={(
+                    <BuyCoinsDialog
+                      walletAddress={walletAddress}
+                      onCoinsAdded={onCoinsAdded}
+                      rodLevel={rodLevel}
+                      nftRods={nftRods}
+                      onNftMinted={onNftMinted}
+                      onRodPurchased={onBuyRodWithMon}
+                      onServerPlayerUpdated={onServerPlayerUpdated}
+                      initialTab="coins"
+                      triggerLabel="Gold packs"
+                      coinsOnly
+                    />
+                  )}
+                />
+              ) : (
+                <QuestBoardPlaque
+                  eyebrow="Connect wallet"
+                  description="Monad Shop is wallet-only. Connect from the HUD wallet button, then come back here for MON purchases."
+                />
+              )}
+
+              <QuestBoardCard className="md:min-h-0">
+                <div className="flex h-full flex-col gap-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-[0.64rem] font-black uppercase tracking-[0.18em] text-[#f3c777]/85">
+                        Passive utility
+                      </div>
+                      <div className="mt-1 text-lg font-black text-[#f8e8bf] sm:text-xl">Auto Fishing Net</div>
+                      <p className="mt-1 text-sm leading-5 text-[#f8e8bf]/78">
+                        Pick a Monad net tier. Bigger nets refill with more random fish every 24 hours, then you manage the catch from Inventory -&gt; Gear.
+                      </p>
+                    </div>
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#6f4928] bg-[rgba(15,10,7,0.72)] shadow-inner">
+                      <img
+                        src={FISHING_NET_SHOP_ICON_SRC}
+                        alt=""
+                        className="h-12 w-12 scale-[1.08] object-contain mix-blend-screen drop-shadow-[0_0_12px_rgba(255,190,92,0.3)]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="rounded-[0.9rem] border border-[#6f4928] bg-[rgba(15,10,7,0.72)] px-3 py-2.5 text-sm text-[#f8e8bf]/82">
+                    {fishingNet.owned ? (
+                      fishingNetPendingCount > 0 ? (
+                        <>
+                          <span className="font-black text-[#f3c777]">{currentNetOffer?.label ?? 'Your net'} is full.</span>{' '}
+                          Open Inventory -&gt; Gear to review the catch and press Забрать.
+                          {fishingNetPreview ? (
+                            <span className="mt-1 block text-xs text-[#f8e8bf]/70">{fishingNetPreview}</span>
+                          ) : null}
+                        </>
+                      ) : (
+                        <>
+                          <span className="font-black text-[#f3c777]">{currentNetOffer?.label ?? 'Net'} deployed.</span>{' '}
+                          {currentNetDailyFishCount} fish per day are configured. It stays in Inventory -&gt; Gear and refills after the next daily reset.
+                        </>
+                      )
+                    ) : (
+                      <>
+                        Choose the tier you want first. The original coin price was tuned around a {FISHING_NET_PAYBACK_DAYS_ESTIMATE}-day payback, so these stay premium convenience upgrades instead of mandatory progression.
+                      </>
+                    )}
+                  </div>
+
+                  <div className="rounded-[0.9rem] border border-dashed border-[#8d6436] bg-[rgba(15,10,7,0.46)] px-3 py-3 text-sm text-[#f8e8bf]/76">
+                    {fishingNet.owned
+                      ? 'Manage and collect this net from Inventory -> Gear.'
+                      : 'Buy any net tier below. Your first purchase fills the net immediately for today, then the net appears in Inventory -> Gear.'}
+                  </div>
+                </div>
+              </QuestBoardCard>
+
+              <QuestBoardPlaque
+                eyebrow="Net tiers"
+                description={fishingNet.owned
+                  ? `Current deployed tier: ${currentNetDailyFishCount} fish per day. Collect from Inventory -> Gear, or upgrade here to a larger net.`
+                  : 'All net tiers are bought with MON only. Higher tiers increase the daily passive fish haul.'}
+              />
+              <div className="grid gap-2.5 sm:gap-3 lg:grid-cols-3">
+                {MON_FISHING_NET_PACKAGES.map((offer) => {
+                  const purchaseKey = `fishing-net-${offer.fishCount}`;
+                  const isOwnedTier = fishingNet.owned && currentNetDailyFishCount === offer.fishCount;
+                  const hasBetterTier = fishingNet.owned && currentNetDailyFishCount > offer.fishCount;
+                  const canUpgrade = !hasBetterTier && !isOwnedTier;
+                  const actionLabel = !fishingNet.owned
+                    ? `Deploy ${offer.fishCount} fish/day`
+                    : currentNetDailyFishCount < offer.fishCount
+                      ? `Upgrade to ${offer.fishCount}`
+                      : `Owned`;
+                  const successMessage = !fishingNet.owned
+                    ? `${offer.label} deployed. Open Inventory -> Gear to collect today's fish.`
+                    : `${offer.label} upgraded. Collect it from Inventory -> Gear.`;
+
+                  return (
+                    <QuestBoardCard key={offer.fishCount}>
+                      <div className="flex h-full flex-col gap-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="inline-flex h-12 w-12 items-center justify-center rounded-[1rem] border border-[#8f6a38] bg-[rgba(15,10,7,0.72)] text-[#f3c777] shadow-[0_8px_16px_rgba(0,0,0,0.28)]">
+                            <img
+                              src={FISHING_NET_SHOP_ICON_SRC}
+                              alt=""
+                              className="h-10 w-10 object-contain mix-blend-screen drop-shadow-[0_0_12px_rgba(255,190,92,0.3)]"
+                            />
+                          </div>
+                          <span className="rounded-full border border-[#9a7a33] bg-[rgba(92,70,21,0.42)] px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-[#f3d47e]">
+                            {offer.fishCount} fish/day
+                          </span>
+                        </div>
+                        <div>
+                          <div className="text-base font-black text-[#f8e8bf]">{offer.label}</div>
+                          <p className="mt-1 text-sm leading-5 text-[#f8e8bf]/78">{offer.positioning}</p>
+                        </div>
+                        <div className="rounded-[0.9rem] border border-[#6f4928] bg-[rgba(15,10,7,0.72)] px-3 py-2 text-xs text-[#f8e8bf]/74">
+                          {hasBetterTier
+                            ? 'A bigger net is already active on this account.'
+                            : isOwnedTier
+                              ? 'This is your current active net tier.'
+                              : fishingNet.owned
+                                ? 'Upgrade now, then the larger daily refill size applies from the active net state onward.'
+                                : 'First purchase deploys the net immediately, fills it for today, and puts it in Inventory -> Gear.'}
+                        </div>
+                        <Button
+                          type="button"
+                          disabled={!walletConnected || activeMonadPurchase !== null || !canUpgrade}
+                          onClick={() => void runMonadPurchase({
+                            purchaseKey,
+                            monAmount: offer.monAmount,
+                            pendingMessage: fishingNet.owned
+                              ? `Transaction sent. Upgrading net to ${offer.fishCount} fish/day...`
+                              : `Transaction sent. Deploying ${offer.label}...`,
+                            successMessage,
+                            applyLocalUnlock: ({ txHash }) => onBuyFishingNetWithMon(offer.fishCount, offer.monAmount, txHash),
+                          })}
+                          className={`mt-auto ${SHOP_BUTTON_CLASS_NAME}`}
+                        >
+                          {isOwnedTier || hasBetterTier ? (
+                            <>
+                              <Check className="mr-2 h-4 w-4" />
+                              {hasBetterTier ? 'Better tier owned' : 'Current tier'}
+                            </>
+                          ) : (
+                            <>
+                              <Coins className="mr-2 h-4 w-4" />
+                              {activeMonadPurchase === purchaseKey ? 'Processing...' : monadPriceLabel(offer.monAmount)}
+                            </>
+                          )}
+                        </Button>
+                        {canUpgrade ? (
+                          <div className="text-center text-xs font-bold uppercase tracking-[0.08em] text-[#f3c777]/78">
+                            {actionLabel}
+                          </div>
+                        ) : null}
+                      </div>
+                    </QuestBoardCard>
+                  );
+                })}
+              </div>
+
+              <QuestBoardPlaque
+                eyebrow="Cube rolls"
+                description="Buy extra cube rolls straight from the shop instead of bouncing into the cube screen first. These are now premium-priced top-ups, not cheap spam rolls."
+              />
+              <div className="grid gap-2.5 sm:gap-3 lg:grid-cols-3">
+                {MON_CUBE_SPIN_PACKAGES.map((pkg) => {
+                  const purchaseKey = `cube-rolls-${pkg.rolls}`;
+                  return (
+                    <QuestBoardCard key={pkg.rolls}>
+                      <div className="flex h-full flex-col gap-3">
+                        <div className="inline-flex h-12 w-12 items-center justify-center rounded-[1rem] border border-[#8f6a38] bg-[rgba(15,10,7,0.72)] text-[#f3c777] shadow-[0_8px_16px_rgba(0,0,0,0.28)]">
+                          <Sparkles className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <div className="text-base font-black text-[#f8e8bf]">{pkg.label}</div>
+                          <p className="mt-1 text-sm leading-5 text-[#f8e8bf]/78">{pkg.positioning}</p>
+                        </div>
+                        <Button
+                          type="button"
+                          disabled={!walletConnected || activeMonadPurchase !== null}
+                          onClick={() => void runMonadPurchase({
+                            purchaseKey,
+                            monAmount: pkg.monAmount,
+                            pendingMessage: `Transaction sent. Adding ${pkg.rolls} cube roll${pkg.rolls === 1 ? '' : 's'}...`,
+                            successMessage: `${pkg.rolls} cube roll${pkg.rolls === 1 ? '' : 's'} added.`,
+                            applyLocalUnlock: ({ txHash }) => onBuyCubeRollsWithMon(pkg.rolls, pkg.monAmount, txHash),
+                          })}
+                          className={`mt-auto ${SHOP_BUTTON_CLASS_NAME}`}
+                        >
+                          <Coins className="mr-2 h-4 w-4" />
+                          {activeMonadPurchase === purchaseKey ? 'Processing...' : monadPriceLabel(pkg.monAmount)}
+                        </Button>
+                      </div>
+                    </QuestBoardCard>
+                  );
+                })}
+              </div>
+
+              <QuestBoardPlaque
+                eyebrow="Rods moved"
+                description="All rod unlocks and bonus rod mints now live in the Rods tab, so Monad Shop is only for gold packs, nets, and cube rolls."
+              />
             </div>
           </TabsContent>
         </QuestBoard>

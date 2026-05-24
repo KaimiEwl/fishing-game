@@ -28,6 +28,12 @@ import {
   type PlayerAuditEventPayload,
   toPlayerAuditSnapshot,
 } from '@/lib/playerAudit';
+import {
+  installTestActivityErrorLogging,
+  logTestActivityEvent,
+  serializeError,
+} from '@/lib/testActivityLog';
+import { MONAD_SHOP_TEST_MODE_ENABLED } from '@/lib/monadTestMode';
 import { cn } from '@/lib/utils';
 import { publicAsset } from '@/lib/assets';
 import {
@@ -153,6 +159,14 @@ class TabScreenErrorBoundary extends React.Component<TabScreenErrorBoundaryProps
   }
 
   componentDidCatch(error: Error) {
+    void logTestActivityEvent({
+      eventType: 'screen_error',
+      metadata: {
+        screen: this.props.screenKey,
+        error: serializeError(error),
+      },
+    });
+
     if (typeof window === 'undefined' || !isRecoverableTabScreenError(error)) return;
 
     const now = Date.now();
@@ -262,6 +276,7 @@ const FishingGame: React.FC = () => {
   const guestServerReady = guestSession.ready;
   const serverEconomyReady = walletServerReady || guestServerReady;
   const activeServerAddress = walletServerReady ? address : guestSession.guestId ?? undefined;
+  const monadPaymentAddress = walletServerReady || MONAD_SHOP_TEST_MODE_ENABLED ? activeServerAddress : undefined;
   const activeServerSessionToken = walletServerReady ? null : guestSession.sessionToken;
   const activeSavedPlayer = walletServerReady ? savedPlayer : guestSession.savedPlayer;
   const activeSavedGameProgress = walletServerReady ? savedGameProgress : guestSession.savedGameProgress;
@@ -326,8 +341,6 @@ const FishingGame: React.FC = () => {
     startPremiumSession,
     getPremiumSessionState,
     resolvePremiumCast,
-    grantFishingMonReward,
-    grantLeviathanCommonRodBonus,
     cookRecipe: requestCookRecipe,
     sellCookedDish: requestSellCookedDish,
     updateGrillLeaderboard,
@@ -348,6 +361,79 @@ const FishingGame: React.FC = () => {
   const premiumSessionLastRefreshAtRef = useRef(0);
   const backgroundErrorToastRef = useRef<Record<string, number>>({});
   const linkedGameProgressFlushedForWalletRef = useRef<string | null>(null);
+  const activityContextRef = useRef<Record<string, unknown>>({});
+  const activitySessionKeyRef = useRef<string | null>(null);
+  const lastLoggedTabKeyRef = useRef<string | null>(null);
+  activityContextRef.current = {
+    activeTab,
+    walletAddress: activeServerAddress ?? null,
+    sessionType: walletServerReady ? 'wallet' : guestServerReady ? 'guest' : 'none',
+    isConnected,
+    isVerified,
+    serverEconomyReady,
+  };
+
+  useEffect(() => (
+    installTestActivityErrorLogging(() => activityContextRef.current)
+  ), []);
+
+  useEffect(() => {
+    if (!serverEconomyReady || !activeServerAddress) return;
+
+    const sessionType = walletServerReady ? 'wallet' : 'guest';
+    const sessionKey = `${sessionType}:${activeServerAddress.toLowerCase()}`;
+    if (activitySessionKeyRef.current === sessionKey) return;
+    activitySessionKeyRef.current = sessionKey;
+
+    void logTestActivityEvent({
+      eventType: 'app_session_started',
+      walletAddress: activeServerAddress,
+      sessionToken: activeServerSessionToken,
+      metadata: {
+        sessionType,
+        isConnected,
+        isVerified,
+        nickname: activeSavedPlayer?.nickname ?? null,
+        level: activeSavedPlayer?.level ?? null,
+        coins: activeSavedPlayer?.coins ?? null,
+        bait: activeSavedPlayer ? activeSavedPlayer.bait + activeSavedPlayer.dailyFreeBait : null,
+      },
+    });
+  }, [
+    activeSavedPlayer,
+    activeServerAddress,
+    activeServerSessionToken,
+    isConnected,
+    isVerified,
+    serverEconomyReady,
+    walletServerReady,
+  ]);
+
+  useEffect(() => {
+    const sessionType = walletServerReady ? 'wallet' : guestServerReady ? 'guest' : 'none';
+    const tabKey = `${sessionType}:${activeServerAddress ?? 'anonymous'}:${activeTab}`;
+    if (lastLoggedTabKeyRef.current === tabKey) return;
+    lastLoggedTabKeyRef.current = tabKey;
+
+    void logTestActivityEvent({
+      eventType: 'screen_opened',
+      walletAddress: activeServerAddress,
+      sessionToken: activeServerSessionToken,
+      metadata: {
+        screen: activeTab,
+        sessionType,
+        serverEconomyReady,
+      },
+    });
+  }, [
+    activeServerAddress,
+    activeServerSessionToken,
+    activeTab,
+    guestServerReady,
+    serverEconomyReady,
+    walletServerReady,
+  ]);
+
   const showBackgroundActionError = useCallback((key: string, message: string) => {
     const now = Date.now();
     const lastShownAt = backgroundErrorToastRef.current[key] ?? 0;
@@ -360,9 +446,19 @@ const FishingGame: React.FC = () => {
   const requireServerEconomy = useCallback(() => {
     if (serverEconomyReady) return true;
 
+    void logTestActivityEvent({
+      eventType: 'action_blocked',
+      walletAddress: activeServerAddress,
+      sessionToken: activeServerSessionToken,
+      metadata: {
+        reason: 'server_economy_not_ready',
+        screen: activeTab,
+        guestError: guestSession.error,
+      },
+    });
     toast.error(guestSession.error || 'Starting guest profile. Please try again in a moment.');
     return false;
-  }, [guestSession.error, serverEconomyReady]);
+  }, [activeServerAddress, activeServerSessionToken, activeTab, guestSession.error, serverEconomyReady]);
   const logAuditEvent = useCallback((event: PlayerAuditEventPayload) => {
     if (!address || !isVerified) return;
 
@@ -385,38 +481,6 @@ const FishingGame: React.FC = () => {
 
     guestSession.syncServerPlayerRecord(playerRecord, options);
   }, [guestSession, syncServerPlayerRecord, walletServerReady]);
-  const handleFishingMonReward = useCallback(async (
-    reward: FishingMonadReward,
-    { fish, player: rewardPlayer }: { fish: Fish; player: PlayerState },
-  ) => {
-    if (!isVerified) return false;
-
-    const synced = await flushPlayerSave(rewardPlayer, 5000);
-    if (!synced) {
-      throw new Error('Could not sync equipped rod before crediting MON reward.');
-    }
-
-    await grantFishingMonReward(reward, fish.id);
-    window.dispatchEvent(new CustomEvent('hookloot:mon-reward'));
-    return true;
-  }, [flushPlayerSave, grantFishingMonReward, isVerified]);
-  const handleLeviathanCommonRodBonus = useCallback(async (
-    reward: FishingSpecialReward,
-    { player: rewardPlayer }: { fish: Fish; player: PlayerState },
-  ) => {
-    if (!isVerified) return false;
-
-    const synced = await flushPlayerSave(rewardPlayer, 5000);
-    if (!synced) {
-      throw new Error('Could not sync equipped rod before applying Leviathan bonus.');
-    }
-
-    await grantLeviathanCommonRodBonus(reward);
-    if (reward.type === 'mon_compensation') {
-      window.dispatchEvent(new CustomEvent('hookloot:mon-reward'));
-    }
-    return true;
-  }, [flushPlayerSave, grantLeviathanCommonRodBonus, isVerified]);
   const handleStartServerFishingCast = useCallback(async () => {
     const result = await requestStartFishingCast();
     applyServerPlayerSnapshot(result.player, { mergeMode: 'server' });
@@ -530,6 +594,19 @@ const FishingGame: React.FC = () => {
     }
   }, [economyFeatures.premiumSessions, getPremiumSessionState, showBackgroundActionError, walletServerReady]);
 
+  const handleServerFishingError = useCallback((message: string) => {
+    void logTestActivityEvent({
+      eventType: 'server_fishing_error',
+      walletAddress: activeServerAddress,
+      sessionToken: activeServerSessionToken,
+      metadata: {
+        screen: activeTab,
+        message,
+      },
+    });
+    toast.error(message);
+  }, [activeServerAddress, activeServerSessionToken, activeTab]);
+
   const {
     player,
     gameState,
@@ -553,11 +630,11 @@ const FishingGame: React.FC = () => {
     localClientStateEnabled: false,
     onSave: walletServerReady ? saveMirroredPlayer : undefined,
     onFishCaught: undefined,
-    onFishingMonReward: walletServerReady ? handleFishingMonReward : undefined,
-    onLeviathanCommonRodBonus: walletServerReady ? handleLeviathanCommonRodBonus : undefined,
+    onFishingMonReward: undefined,
+    onLeviathanCommonRodBonus: undefined,
     onStartServerFishingCast: serverEconomyReady ? handleStartServerFishingCast : undefined,
     onResolveServerFishingCast: serverEconomyReady ? handleResolveServerFishingCast : undefined,
-    onServerFishingError: (message) => toast.error(message),
+    onServerFishingError: handleServerFishingError,
     onAuditEvent: logAuditEvent,
     collectionBookEnabled: economyFeatures.collectionBook,
     onPremiumBiteTimeout: () => {
@@ -972,7 +1049,7 @@ const FishingGame: React.FC = () => {
       walletAddress: address,
     }));
 
-    void updateGrillLeaderboard(canonicalName, effectiveScore, 0)
+    void updateGrillLeaderboard(canonicalName)
       .then((result) => {
         syncServerLeaderboardEntry(result.leaderboard_entry);
       })
@@ -1073,7 +1150,7 @@ const FishingGame: React.FC = () => {
 
     gameProgress.markFishingNetNotified();
     sounds.playSuccessSound();
-    toast.success(`Your fishing net is full. ${fishingNetPendingCount} fish are waiting in the shop.`);
+    toast.success(`Your fishing net is full. Open Inventory -> Gear to review and collect ${fishingNetPendingCount} fish.`);
   }, [
     fishingNet,
     fishingNetPendingCount,
@@ -1082,11 +1159,11 @@ const FishingGame: React.FC = () => {
     sounds,
   ]);
 
-  const handleBuyBait = async (amount: number, cost: number) => {
+  const handleBuyBait = async (amount: number, _cost: number) => {
     if (!requireServerEconomy()) return;
 
     try {
-      const result = await requestBuyBait(amount, cost);
+      const result = await requestBuyBait(amount);
       applyServerPlayerSnapshot(result.player, { mergeMode: 'server' });
       sounds.playBuySound();
     } catch (error) {
@@ -1094,11 +1171,11 @@ const FishingGame: React.FC = () => {
     }
   };
 
-  const handleBuyRod = async (level: number, cost: number) => {
+  const handleBuyRod = async (level: number, _cost: number) => {
     if (!requireServerEconomy()) return;
 
     try {
-      const result = await requestBuyRod(level, cost);
+      const result = await requestBuyRod(level);
       applyServerPlayerSnapshot(result.player, { mergeMode: 'server' });
       sounds.playBuySound();
     } catch (error) {
@@ -1514,7 +1591,7 @@ const FishingGame: React.FC = () => {
                 {activeTab === 'tasks' ? (
                   <TasksScreen
                     coins={player.coins}
-                    walletAddress={walletServerReady ? address : undefined}
+                    walletAddress={monadPaymentAddress}
                     dailyTasks={gameProgress.dailyTasks}
                     specialTasks={gameProgress.specialTasks}
                     weeklyMissions={gameProgress.weeklyMissions}
@@ -1542,13 +1619,12 @@ const FishingGame: React.FC = () => {
                     coins={player.coins}
                     bait={totalBait}
                     dailyFreeBait={player.dailyFreeBait}
-                    walletAddress={walletServerReady ? address : undefined}
+                    walletAddress={monadPaymentAddress}
                     rodLevel={player.rodLevel}
                     fishingNet={fishingNet}
                     nftRods={player.nftRods}
                     onBuyBait={handleBuyBait}
                     onBuyFishingNetWithMon={handleBuyFishingNetWithMon}
-                    onClaimFishingNet={handleClaimFishingNet}
                     onBuyRod={handleBuyRod}
                     onBuyRodWithMon={handleUnlockRodWithMon}
                     onBuyCubeRollsWithMon={handleBuyCubeRollsWithMon}
@@ -1572,7 +1648,7 @@ const FishingGame: React.FC = () => {
                     dailyWheelRolls={gameProgress.dailyWheelRolls}
                     paidWheelRolls={gameProgress.paidWheelRolls}
                     dailyTaskClaimsMet={gameProgress.dailyTaskClaimsMet}
-                    walletAddress={walletServerReady ? address : undefined}
+                    walletAddress={monadPaymentAddress}
                     onRequestRoll={handleRequestCubeRoll}
                     onResolveReward={handleResolveCubeReward}
                     onBuySpin={(amount, txHash) => handleBuyCubeRollsWithMon(amount, '1', txHash)}
@@ -1603,7 +1679,7 @@ const FishingGame: React.FC = () => {
           {isFishingScreen && (
             <div className="absolute right-[2.5%] top-[12.5%] z-20 flex flex-col items-center gap-3 sm:right-[2.25%] sm:top-[13.5%]">
               <BoostDialog
-                walletAddress={walletServerReady ? address : undefined}
+                walletAddress={monadPaymentAddress}
                 premiumSession={premiumSession}
                 onStartPremiumSession={handleStartPremiumSession}
                 premiumSessionLoading={premiumSessionLoading}
@@ -1617,9 +1693,11 @@ const FishingGame: React.FC = () => {
                 rodLevel={serverEconomyReady ? player.rodLevel : 0}
                 equippedRod={serverEconomyReady ? player.equippedRod : 0}
                 nftRods={serverEconomyReady ? player.nftRods : []}
+                fishingNet={serverEconomyReady ? fishingNet : null}
                 onEquipRod={handleEquipRod}
                 onSellFish={handleSellFish}
                 onSellCookedDish={handleSellCookedDish}
+                onClaimFishingNet={handleClaimFishingNet}
                 triggerVariant="shortcut"
               />
             </div>

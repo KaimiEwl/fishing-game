@@ -11,7 +11,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { useSendTransaction } from 'wagmi';
 import { waitForTransactionReceipt } from '@wagmi/core';
-import { parseEther } from 'viem';
 import { Coins, Crown, Fish, Rocket, Sparkles, X, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { BOOST_ICON_SRC } from '@/lib/rodAssets';
@@ -22,6 +21,12 @@ import {
   PREMIUM_SESSION_CASTS,
   PREMIUM_SESSION_COST_MON,
 } from '@/lib/baitEconomy';
+import {
+  canUseMonadPaymentIdentity,
+  monadPriceLabel,
+  MONAD_SHOP_TEST_MODE_ENABLED,
+  sendMonadPayment,
+} from '@/lib/monadTestMode';
 import type { PremiumSessionState } from '@/types/game';
 
 const RECEIVER_ADDRESS = '0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D' as const;
@@ -54,6 +59,7 @@ const BoostDialog: React.FC<BoostDialogProps> = ({
   const { sendTransactionAsync } = useSendTransaction();
   const hasActivePremiumSession = premiumSession?.status === 'active';
   const canOfferPremiumSession = premiumSessionsEnabled && typeof onStartPremiumSession === 'function';
+  const canUseMonadPayment = canUseMonadPaymentIdentity(walletAddress);
 
   const boostPackages = [
     ...BOOST_PACKAGES,
@@ -71,8 +77,8 @@ const BoostDialog: React.FC<BoostDialogProps> = ({
     monAmount: string,
     options?: { isPremiumSession?: boolean },
   ) => {
-    if (!walletAddress) {
-      toast.error('Connect wallet first');
+    if (!walletAddress || !canUseMonadPayment) {
+      toast.error(MONAD_SHOP_TEST_MODE_ENABLED ? 'Test profile not ready' : 'Connect wallet first');
       return;
     }
 
@@ -83,20 +89,24 @@ const BoostDialog: React.FC<BoostDialogProps> = ({
 
     setSelectedBoostId(boostId);
     try {
-      const txHash = await sendTransactionAsync({
-        to: RECEIVER_ADDRESS,
-        value: parseEther(monAmount),
+      const txHash = await sendMonadPayment({
+        sendTransactionAsync,
+        receiverAddress: RECEIVER_ADDRESS,
+        monAmount,
+        purpose: `boost-${boostId}`,
       });
 
       if (options?.isPremiumSession) {
-        toast.info('Transaction sent. Waiting for Monad confirmation...');
-        const receipt = await waitForTransactionReceipt(wagmiConfig, {
-          hash: txHash,
-          confirmations: 1,
-        });
+        toast.info(MONAD_SHOP_TEST_MODE_ENABLED ? 'Test payment created. Starting MON Expedition...' : 'Transaction sent. Waiting for Monad confirmation...');
+        if (!MONAD_SHOP_TEST_MODE_ENABLED) {
+          const receipt = await waitForTransactionReceipt(wagmiConfig, {
+            hash: txHash as `0x${string}`,
+            confirmations: 1,
+          });
 
-        if (receipt.status !== 'success') {
-          throw new Error('Premium session payment failed on-chain.');
+          if (receipt.status !== 'success') {
+            throw new Error('Premium session payment failed on-chain.');
+          }
         }
 
         if (!onStartPremiumSession) {
@@ -197,7 +207,7 @@ const BoostDialog: React.FC<BoostDialogProps> = ({
             {boostPackages.map((pkg) => {
               const isBusy = selectedBoostId === pkg.id;
               const isPremiumSession = pkg.id === 'premium_session';
-              const isDisabled = !walletAddress
+              const isDisabled = !canUseMonadPayment
                 || isBusy
                 || premiumSessionLoading
                 || (isPremiumSession && hasActivePremiumSession);
@@ -230,7 +240,7 @@ const BoostDialog: React.FC<BoostDialogProps> = ({
                     </div>
                     <span className="inline-flex items-center gap-1 rounded-lg border border-[#8f6a38]/70 bg-[rgba(16,11,8,0.84)] px-2.5 py-1 text-sm font-black text-[#f3c777]">
                       <Coins className="h-4 w-4" />
-                      {pkg.monAmount} MON
+                      {monadPriceLabel(pkg.monAmount)}
                     </span>
                   </div>
                   <Button
@@ -252,9 +262,9 @@ const BoostDialog: React.FC<BoostDialogProps> = ({
             })}
           </div>
 
-          {!walletAddress && (
+          {!canUseMonadPayment && (
             <p className="text-center text-xs font-semibold text-[#f8e8bf]/58">
-              Connect wallet to pay with MON.
+              {MONAD_SHOP_TEST_MODE_ENABLED ? 'Starting test profile...' : 'Connect wallet to pay with MON.'}
             </p>
           )}
         </div>

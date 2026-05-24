@@ -8,12 +8,14 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { BookOpen, ChefHat, Backpack, CheckCircle2, Lock, ShipWheel, X } from 'lucide-react';
-import { ALBUM_FIRST_CATCH_BONUSES } from '@/lib/baitEconomy';
+import { Button } from '@/components/ui/button';
+import { ALBUM_FIRST_CATCH_BONUSES, FISHING_NET_DAILY_FISH_COUNT } from '@/lib/baitEconomy';
 import { COLLECTION_BOOK_PAGES, ensureCollectionBook } from '@/lib/collectionBook';
-import { CaughtFish, FISH_DATA, GRILL_RECIPES, ROD_DATA, type CollectionBookState, type CookedDishStack } from '@/types/game';
+import { CaughtFish, FISH_DATA, GRILL_RECIPES, ROD_DATA, type CollectionBookState, type CookedDishStack, type FishingNetState } from '@/types/game';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import FishIcon from './FishIcon';
+import FishingNetIcon from './FishingNetIcon';
 import InventoryDialogTrigger from '@/components/InventoryDialogTrigger';
 import InventoryFishItem from '@/components/InventoryFishItem';
 import InventoryRodCard from '@/components/InventoryRodCard';
@@ -27,9 +29,11 @@ interface InventoryDialogProps {
   rodLevel: number;
   equippedRod: number;
   nftRods: number[];
+  fishingNet?: FishingNetState | null;
   onEquipRod: (level: number) => void;
   onSellFish: (fishId: string) => void;
   onSellCookedDish: (recipeId: string) => void;
+  onClaimFishingNet?: () => void;
   triggerVariant?: 'panel' | 'shortcut';
   collectionBookEnabled?: boolean;
 }
@@ -41,15 +45,24 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({
   rodLevel,
   equippedRod,
   nftRods,
+  fishingNet,
   onEquipRod,
   onSellFish,
   onSellCookedDish,
+  onClaimFishingNet,
   triggerVariant = 'panel',
   collectionBookEnabled = true,
 }) => {
   const totalFish = inventory.reduce((sum, f) => sum + f.quantity, 0);
   const totalDishes = cookedDishes.reduce((sum, item) => sum + item.quantity, 0);
-  const totalItems = totalFish + totalDishes;
+  const fishingNetOwned = Boolean(fishingNet?.owned);
+  const fishingNetPendingCount = fishingNet?.pendingCatch.reduce((sum, entry) => sum + entry.quantity, 0) ?? 0;
+  const fishingNetDailyFishCount = Math.max(fishingNet?.dailyFishCount || 0, FISHING_NET_DAILY_FISH_COUNT);
+  const fishingNetItems = fishingNet?.pendingCatch.map((entry) => ({
+    ...entry,
+    fish: FISH_DATA.find((fish) => fish.id === entry.fishId),
+  })).filter((entry) => entry.fish) ?? [];
+  const totalItems = totalFish + totalDishes + (fishingNetOwned ? 1 : 0);
   const normalizedCollectionBook = ensureCollectionBook(collectionBook);
   const collectionSpecies = FISH_DATA.map((fish) => ({
     fish,
@@ -58,7 +71,13 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({
   }));
   const completedPages = normalizedCollectionBook.pages.filter((page) => page.completed).length;
   const showCollectionTab = collectionBookEnabled;
-  const tabsColumnClass = showCollectionTab ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3';
+  const showGearTab = fishingNetOwned;
+  const tabCount = 3 + (showCollectionTab ? 1 : 0) + (showGearTab ? 1 : 0);
+  const tabsColumnClass = tabCount >= 5
+    ? 'grid-cols-2 sm:grid-cols-5'
+    : tabCount === 4
+      ? 'grid-cols-2 sm:grid-cols-4'
+      : 'grid-cols-2 sm:grid-cols-3';
 
   const inventoryItems = inventory.map(item => {
     const fishData = FISH_DATA.find(f => f.id === item.fishId);
@@ -116,6 +135,9 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({
           <TabsList className={`!grid !h-auto w-full ${tabsColumnClass} gap-1 rounded-[1.1rem] border border-[#8f6a38]/70 bg-[rgba(16,11,8,0.86)] p-1 shadow-[0_18px_40px_rgba(0,0,0,0.35)] backdrop-blur-md sm:gap-1.5 sm:rounded-[1.35rem] sm:p-1.5`}>
             <TabsTrigger value="fish" className="h-10 gap-1 rounded-[0.8rem] px-1.5 text-center text-[0.62rem] font-black uppercase leading-tight tracking-[0.02em] text-[#ead4aa] !whitespace-normal data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab] sm:h-10 sm:rounded-[0.95rem] sm:px-2 sm:text-[0.78rem]"><FishIcon fishId="carp" size="badge" /> Fish ({totalFish})</TabsTrigger>
             <TabsTrigger value="dishes" className="h-10 gap-1 rounded-[0.8rem] px-1.5 text-center text-[0.62rem] font-black uppercase leading-tight tracking-[0.02em] text-[#ead4aa] !whitespace-normal data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab] sm:h-10 sm:rounded-[0.95rem] sm:px-2 sm:text-[0.78rem]"><ChefHat className="h-4 w-4" /> Grill Stuff ({totalDishes})</TabsTrigger>
+            {showGearTab && (
+              <TabsTrigger value="gear" className="h-10 gap-1 rounded-[0.8rem] px-1.5 text-center text-[0.62rem] font-black uppercase leading-tight tracking-[0.02em] text-[#ead4aa] !whitespace-normal data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab] sm:h-10 sm:rounded-[0.95rem] sm:px-2 sm:text-[0.78rem]"><FishingNetIcon className="h-4 w-4" /> Gear (1)</TabsTrigger>
+            )}
             {showCollectionTab && (
               <TabsTrigger value="album" className="h-10 gap-1 rounded-[0.8rem] px-1.5 text-center text-[0.62rem] font-black uppercase leading-tight tracking-[0.02em] text-[#ead4aa] !whitespace-normal data-[state=active]:border data-[state=active]:border-[#b6884b] data-[state=active]:bg-[rgba(48,31,14,0.92)] data-[state=active]:text-[#f8dfab] sm:h-10 sm:rounded-[0.95rem] sm:px-2 sm:text-[0.78rem]"><BookOpen className="h-4 w-4" /> Achievements</TabsTrigger>
             )}
@@ -175,6 +197,84 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({
               )}
             </ScrollArea>
           </TabsContent>
+
+          {showGearTab && (
+            <TabsContent value="gear" className="mt-3 min-h-0 min-w-0 flex-1 overflow-hidden">
+              <ScrollArea className="h-full pr-2">
+                <div className="space-y-3 pr-2">
+                  <article className="overflow-hidden rounded-xl border border-cyan-300/20 bg-black shadow-sm">
+                    <div className="grid gap-3 p-3 sm:grid-cols-[4.25rem_minmax(0,1fr)]">
+                      <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-100 shadow-inner">
+                        <FishingNetIcon className="h-10 w-10" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <p className="text-base font-black text-white">Auto Fishing Net</p>
+                            <p className="mt-1 text-xs text-zinc-400">
+                              Refills once per day and stores the catch here until you collect it.
+                            </p>
+                          </div>
+                          <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-cyan-100">
+                            {fishingNetDailyFishCount} fish/day
+                          </span>
+                        </div>
+
+                        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                          <div className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2">
+                            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Waiting</p>
+                            <p className="mt-1 text-lg font-black text-cyan-100">{fishingNetPendingCount}</p>
+                          </div>
+                          <div className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2">
+                            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Last collect</p>
+                            <p className="mt-1 truncate text-sm font-bold text-zinc-100">{fishingNet?.lastCollectedDate ?? 'Never'}</p>
+                          </div>
+                          <div className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2">
+                            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Ready date</p>
+                            <p className="mt-1 truncate text-sm font-bold text-zinc-100">{fishingNet?.readyDate ?? 'Tomorrow'}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-zinc-800/80 p-3">
+                      {fishingNetItems.length > 0 ? (
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {fishingNetItems.map((entry) => (
+                            <div key={entry.fishId} className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2">
+                              <FishIcon fish={entry.fish!} size="md" />
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-black text-zinc-100">{entry.fish!.name}</p>
+                                <p className="text-xs text-zinc-500">Waiting in net</p>
+                              </div>
+                              <span className="rounded-md border border-cyan-300/20 bg-cyan-300/10 px-2 py-0.5 text-sm font-black text-cyan-100">
+                                x{entry.quantity}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-4 text-center">
+                          <p className="text-sm font-bold text-zinc-300">No fish waiting right now</p>
+                          <p className="mt-1 text-xs text-zinc-500">The net refills once per day after the next daily reset.</p>
+                        </div>
+                      )}
+
+                      <Button
+                        type="button"
+                        disabled={fishingNetPendingCount <= 0 || !onClaimFishingNet}
+                        onClick={onClaimFishingNet}
+                        aria-label="Забрать рыбу из сети"
+                        className="mt-3 min-h-11 w-full rounded-lg border border-cyan-300/25 bg-zinc-950 font-black text-cyan-100 shadow hover:bg-black disabled:border-zinc-800 disabled:text-zinc-500"
+                      >
+                        Забрать
+                      </Button>
+                    </div>
+                  </article>
+                </div>
+              </ScrollArea>
+            </TabsContent>
+          )}
 
           {showCollectionTab && (
             <TabsContent value="album" className="mt-3 min-h-0 min-w-0 flex-1 overflow-hidden">

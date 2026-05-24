@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ShipWheel, Sparkles } from 'lucide-react';
 import { useSendTransaction } from 'wagmi';
-import { parseEther } from 'viem';
 import { toast } from 'sonner';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import WheelActionIconButton from '@/components/WheelActionIconButton';
@@ -37,6 +36,12 @@ import {
 } from '@/lib/baitEconomy';
 import { isUserRejectedError } from '@/lib/errorUtils';
 import { formatMonAmount } from '@/lib/monRewards';
+import {
+  canUseMonadPaymentIdentity,
+  monadPriceLabel,
+  MONAD_SHOP_TEST_MODE_ENABLED,
+  sendMonadPayment,
+} from '@/lib/monadTestMode';
 
 interface WheelScreenProps {
   coins: number;
@@ -397,6 +402,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
   const pendingTargetRef = useRef<PendingTarget | null>(null);
   const settleStartedRef = useRef(false);
   const { sendTransactionAsync } = useSendTransaction();
+  const canUseMonadPayment = canUseMonadPaymentIdentity(walletAddress);
 
   const clearTimers = () => {
     timersRef.current.forEach((timer) => window.clearTimeout(timer));
@@ -612,18 +618,20 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
       return;
     }
 
-    if (!walletAddress) {
+    if (!canUseMonadPayment) {
       setPromptType('wallet');
       return;
     }
 
     setIsBuyingSpin(true);
     try {
-      const txHash = await sendTransactionAsync({
-        to: MON_MARKET_RECEIVER_ADDRESS,
-        value: parseEther(PAID_SPIN_COST_MON),
+      const txHash = await sendMonadPayment({
+        sendTransactionAsync,
+        receiverAddress: MON_MARKET_RECEIVER_ADDRESS,
+        monAmount: PAID_SPIN_COST_MON,
+        purpose: 'wheel-paid-roll',
       });
-      toast.loading('Transaction sent. Adding paid cube roll...', {
+      toast.loading(MONAD_SHOP_TEST_MODE_ENABLED ? 'Test payment created. Adding paid cube roll...' : 'Transaction sent. Adding paid cube roll...', {
         id: BUY_SPIN_TOAST_ID,
         duration: 5600,
       });
@@ -812,7 +820,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
                   <WheelActionIconButton
                     src={BUY_ROLL_ICON_SRC}
                     alt="Buy roll"
-                    label={`Buy roll for ${PAID_SPIN_COST_MON} MON`}
+                    label={`Buy roll for ${monadPriceLabel(PAID_SPIN_COST_MON)}`}
                     onClick={handleBuySpin}
                     disabled={isBuyingSpin}
                     badge={hasPaidRolls ? `${paidWheelRolls}` : null}

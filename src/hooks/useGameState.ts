@@ -393,6 +393,7 @@ export function useGameState(options?: UseGameStateOptions) {
   }, [collectionBookEnabled, getNftBonus, onFishCaught, queueAuditEvent]);
 
   const grantFishReward = useCallback((fishId: string, quantity = 1) => {
+    if (!localClientStateEnabled) return null;
     const rewardedFish = FISH_DATA.find((fish) => fish.id === fishId);
     if (!rewardedFish || quantity <= 0) return null;
 
@@ -413,7 +414,7 @@ export function useGameState(options?: UseGameStateOptions) {
     });
 
     return rewardedFish;
-  }, []);
+  }, [localClientStateEnabled]);
 
   const applyMissXp = useCallback(() => {
     setPlayer(prev => {
@@ -771,6 +772,7 @@ export function useGameState(options?: UseGameStateOptions) {
   }, [startCastSequence]);
 
   const sellFish = useCallback((fishId: string) => {
+    if (!localClientStateEnabled) return 0;
     const fish = FISH_DATA.find(f => f.id === fishId);
     const inventoryItem = player.inventory.find(f => f.fishId === fishId);
     
@@ -805,9 +807,10 @@ export function useGameState(options?: UseGameStateOptions) {
       return nextPlayer;
     });
     return sellPrice;
-  }, [player.inventory, player.equippedRod, player.rodLevel, player.nftRods, getNftBonus, queueAuditEvent]);
+  }, [localClientStateEnabled, player.inventory, player.equippedRod, player.rodLevel, player.nftRods, getNftBonus, queueAuditEvent]);
 
   const consumeFish = useCallback((ingredients: Record<string, number>) => {
+    if (!localClientStateEnabled) return false;
     const canCook = Object.entries(ingredients).every(([fishId, quantity]) => {
       const inventoryItem = player.inventory.find(f => f.fishId === fishId);
       return inventoryItem && inventoryItem.quantity >= quantity;
@@ -824,9 +827,10 @@ export function useGameState(options?: UseGameStateOptions) {
     }));
 
     return true;
-  }, [player.inventory]);
+  }, [localClientStateEnabled, player.inventory]);
 
   const cookRecipe = useCallback((recipe: GrillRecipe) => {
+    if (!localClientStateEnabled) return false;
     const canCook = Object.entries(recipe.ingredients).every(([fishId, quantity]) => {
       const inventoryItem = player.inventory.find(f => f.fishId === fishId);
       return inventoryItem && inventoryItem.quantity >= quantity;
@@ -855,9 +859,10 @@ export function useGameState(options?: UseGameStateOptions) {
     }));
 
     return true;
-  }, [player.inventory]);
+  }, [localClientStateEnabled, player.inventory]);
 
   const sellCookedDish = useCallback((recipeId: string) => {
+    if (!localClientStateEnabled) return 0;
     const recipe = GRILL_RECIPES.find((item) => item.id === recipeId);
     const ownedDish = player.cookedDishes.find((item) => item.recipeId === recipeId);
 
@@ -874,9 +879,10 @@ export function useGameState(options?: UseGameStateOptions) {
     }));
 
     return recipe.score;
-  }, [player.cookedDishes]);
+  }, [localClientStateEnabled, player.cookedDishes]);
 
   const buyBait = useCallback((amount: number, cost: number) => {
+    if (!localClientStateEnabled) return false;
     if (player.coins < cost) return false;
     
     setPlayer(prev => {
@@ -899,9 +905,10 @@ export function useGameState(options?: UseGameStateOptions) {
       return nextPlayer;
     });
     return true;
-  }, [player.coins, queueAuditEvent]);
+  }, [localClientStateEnabled, player.coins, queueAuditEvent]);
 
   const buyRod = useCallback((level: number, cost: number) => {
+    if (!localClientStateEnabled) return false;
     if (player.coins < cost) return false;
     if (player.rodLevel >= level) return false;
     
@@ -927,9 +934,10 @@ export function useGameState(options?: UseGameStateOptions) {
       return nextPlayer;
     });
     return true;
-  }, [player.coins, player.rodLevel, queueAuditEvent]);
+  }, [localClientStateEnabled, player.coins, player.rodLevel, queueAuditEvent]);
 
   const buyFishingNet = useCallback((cost: number) => {
+    if (!localClientStateEnabled) return false;
     if (player.coins < cost) return false;
 
     setPlayer(prev => {
@@ -951,9 +959,10 @@ export function useGameState(options?: UseGameStateOptions) {
     });
 
     return true;
-  }, [player.coins, queueAuditEvent]);
+  }, [localClientStateEnabled, player.coins, queueAuditEvent]);
 
   const unlockRodWithMon = useCallback((level: number, monAmount: string) => {
+    if (!localClientStateEnabled) return false;
     const rod = ROD_DATA.find((entry) => entry.level === level && entry.monUnlockCost);
     if (!rod || level <= 0) return false;
     if (player.rodLevel >= level) return false;
@@ -982,9 +991,10 @@ export function useGameState(options?: UseGameStateOptions) {
     });
 
     return true;
-  }, [player.rodLevel, queueAuditEvent]);
+  }, [localClientStateEnabled, player.rodLevel, queueAuditEvent]);
 
   const grantRodReward = useCallback((level: number, source = 'cube_reward') => {
+    if (!localClientStateEnabled) return false;
     const rod = ROD_DATA.find((entry) => entry.level === level);
     if (!rod || level <= 0 || player.rodLevel >= level) return false;
 
@@ -1012,7 +1022,7 @@ export function useGameState(options?: UseGameStateOptions) {
     });
 
     return true;
-  }, [player.rodLevel, queueAuditEvent]);
+  }, [localClientStateEnabled, player.rodLevel, queueAuditEvent]);
 
   const equipRod = useCallback((level: number) => {
     setPlayer(prev => {
@@ -1023,6 +1033,7 @@ export function useGameState(options?: UseGameStateOptions) {
   }, []);
 
   const claimDailyBonus = useCallback(() => {
+    if (!localClientStateEnabled) return;
     if (LEGACY_DAILY_BONUS_DISABLED) return;
     if (player.dailyBonusClaimed) return;
 
@@ -1035,23 +1046,25 @@ export function useGameState(options?: UseGameStateOptions) {
       coins: prev.coins + bonusCoins,
       dailyBonusClaimed: true
     }));
-  }, [player.dailyBonusClaimed, player.loginStreak]);
+  }, [localClientStateEnabled, player.dailyBonusClaimed, player.loginStreak]);
 
   const addCoins = useCallback((amount: number) => {
+    if (!localClientStateEnabled) return;
     setPlayer(prev => ({
       ...prev,
       coins: prev.coins + amount,
     }));
-  }, []);
+  }, [localClientStateEnabled]);
 
   const addBait = useCallback((amount: number) => {
+    if (!localClientStateEnabled) return;
     if (amount <= 0) return;
 
     setPlayer(prev => ({
       ...prev,
       bait: prev.bait + amount,
     }));
-  }, []);
+  }, [localClientStateEnabled]);
 
   const dismissLevelUp = useCallback(() => {
     setLevelUpInfo(null);
@@ -1062,11 +1075,12 @@ export function useGameState(options?: UseGameStateOptions) {
   }, []);
 
   const mintNftRod = useCallback((rodLevel: number) => {
+    if (!localClientStateEnabled) return;
     setPlayer(prev => {
       if (prev.nftRods.includes(rodLevel)) return prev;
       return { ...prev, nftRods: [...prev.nftRods, rodLevel] };
     });
-  }, []);
+  }, [localClientStateEnabled]);
 
   const persistIdentitySnapshot = useCallback((nextPlayer: PlayerState) => {
     if (localClientStateEnabled) storePlayerLocally(nextPlayer);
