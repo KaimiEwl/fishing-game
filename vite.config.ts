@@ -16,6 +16,9 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
+  build: {
+    reportCompressedSize: false,
+  },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
     alias: {

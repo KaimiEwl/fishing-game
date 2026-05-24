@@ -3,6 +3,7 @@
 ## 2026-05-24 cube spin fanfare
 - Cube rolls now play a brighter celebratory spin fanfare layered over the existing cube launch sample, with drum-like hits and an ascending chord finish during the spin.
 - The fanfare remains part of the existing sound-effects system, so the current sound mute setting still disables it.
+- Production builds no longer compute compressed-size reports, which keeps the VPS deploy from getting killed during Vite's gzip-size analysis step.
 
 ## 2026-05-24 shop balance and cube MON icon polish
 - The shop board header now shows `Gold Balance` and `Monad Balance` side by side, with the MON card using the active wallet balance when available and the temporary test-mode state when fake MON purchases are enabled.
