@@ -1,4 +1,4 @@
-export const GAME_ECONOMY_VERSION = '2026-05-26-tightened-rewards-v1';
+export const GAME_ECONOMY_VERSION = '2026-05-26-rod-mon-fixed-reward-v1';
 
 export const STARTING_COINS = 100;
 export const DAILY_FREE_BAIT = 15;
@@ -123,8 +123,8 @@ export const ROD_ECONOMY = {
     bonus: 8,
     coinCost: 1500,
     monadDropChance: 25,
-    monadMinReward: 0.0015,
-    monadMaxReward: 0.004,
+    monadMinReward: 0.1,
+    monadMaxReward: 0.1,
     cubeDropWeight: 82,
   },
   epic_rod: {
@@ -135,8 +135,8 @@ export const ROD_ECONOMY = {
     bonus: 16,
     coinCost: 6000,
     monadDropChance: 30,
-    monadMinReward: 0.0025,
-    monadMaxReward: 0.006,
+    monadMinReward: 0.1,
+    monadMaxReward: 0.1,
     cubeDropWeight: 16,
   },
   legendary_rod: {
@@ -147,8 +147,8 @@ export const ROD_ECONOMY = {
     bonus: 28,
     monUnlockCost: '25',
     monadDropChance: 35,
-    monadMinReward: 0.004,
-    monadMaxReward: 0.009,
+    monadMinReward: 0.1,
+    monadMaxReward: 0.1,
     cubeDropWeight: 2,
   },
   legacy_gold_rod: {

@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
 import { ROD_DATA, ROD_RARITY_COLORS, ROD_RARITY_NAMES } from '@/types/game';
 import Wrapper from '@/components/Wrapper';
-import { formatMonAmount } from '@/lib/monRewards';
+import { formatMonRewardRange } from '@/lib/monRewards';
 
 interface InventoryRodCardProps {
   level: number;
@@ -55,7 +55,7 @@ const InventoryRodCard = ({
           {rod.bonus > 0 ? `+${rod.bonus}% legendary chance` : 'Standard rod'}
         </div>
         <div className="text-xs font-medium text-cyan-100/80">
-          No-fish MON {rodDefinition.monadDropChance}% / {formatMonAmount(rodDefinition.monadMinReward)}-{formatMonAmount(rodDefinition.monadMaxReward)} MON
+          No-fish MON {rodDefinition.monadDropChance}% / {formatMonRewardRange(rodDefinition.monadMinReward, rodDefinition.monadMaxReward)}
         </div>
         <div className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: ROD_RARITY_COLORS[rodDefinition.rarity] }}>
           {ROD_RARITY_NAMES[rodDefinition.rarity]}

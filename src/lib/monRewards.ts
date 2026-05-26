@@ -14,3 +14,14 @@ export const formatMonAmount = (value: number) => {
     maximumFractionDigits: 4,
   });
 };
+
+export const formatMonRewardRange = (minValue: number, maxValue: number) => {
+  const min = normalizeMonAmount(minValue);
+  const max = normalizeMonAmount(maxValue);
+
+  if (min === max) {
+    return `${formatMonAmount(min)} MON`;
+  }
+
+  return `${formatMonAmount(min)}-${formatMonAmount(max)} MON`;
+};

@@ -24,7 +24,7 @@ import {
 } from '@/lib/baitEconomy';
 import { publicAsset } from '@/lib/assets';
 import { getErrorMessage, isUserRejectedError } from '@/lib/errorUtils';
-import { formatMonAmount } from '@/lib/monRewards';
+import { formatMonAmount, formatMonRewardRange } from '@/lib/monRewards';
 import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
 import type { MonBalanceSummary } from '@/hooks/usePlayerMon';
 import CoinIcon from './CoinIcon';
@@ -485,7 +485,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                           <div className="text-xs font-medium text-[#f8e8bf]/72">{rodOffer.description}</div>
                           <div className="mt-2 grid gap-1 text-[0.68rem] font-semibold text-[#f8e8bf]/72 sm:grid-cols-2">
                             <span>No-fish MON: {rodOffer.monadDropChance}%</span>
-                            <span>{rodOffer.monadMinReward}-{rodOffer.monadMaxReward} MON</span>
+                            <span>{formatMonRewardRange(rodOffer.monadMinReward, rodOffer.monadMaxReward)}</span>
                             <span>Rare+ bonus: +{rodOffer.rareCatchBonus}%</span>
                             <span>{rodOffer.monAmount} MON</span>
                           </div>

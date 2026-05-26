@@ -4,7 +4,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { getRodPreviewFallback, ROD_DISPLAY_INFO } from '@/lib/rodAssets';
 import { NFT_ROD_DATA, ROD_DATA, ROD_RARITY_COLORS, ROD_RARITY_NAMES } from '@/types/game';
-import { formatMonAmount } from '@/lib/monRewards';
+import { formatMonRewardRange } from '@/lib/monRewards';
 import { getSafeEquippedRodLevel } from '@/lib/rodMonadRewards';
 import { HIGH_FETCH_PRIORITY_PROPS } from '@/lib/imagePriority';
 
@@ -148,7 +148,7 @@ const RodPreviewBadge = ({ rodLevel, ownedRodLevel, nftRods, totalBait = 0, onEq
         <p className="text-xs text-zinc-200">Standard catch chance</p>
       )}
       <p className="text-xs text-cyan-100">
-        No-fish MON {rodDefinition.monadDropChance}% / {formatMonAmount(rodDefinition.monadMinReward)}-{formatMonAmount(rodDefinition.monadMaxReward)} MON
+        No-fish MON {rodDefinition.monadDropChance}% / {formatMonRewardRange(rodDefinition.monadMinReward, rodDefinition.monadMaxReward)}
       </p>
       {hasNft && nftData && (
         <div className="mt-1 border-t border-cyan-300/15 pt-1 text-xs text-cyan-100">

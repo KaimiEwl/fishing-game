@@ -85,7 +85,7 @@ const GameControls: React.FC<GameControlsProps> = ({
         +{formatMonAmount(lastResult.monReward.amount)} MON
       </p>
       <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-300/85">
-        No-fish pull by {lastResult.monReward.rodName}
+        Thanks to {lastResult.monReward.rodName}
       </p>
       {lastResult.monReward.credited === false ? (
         <p className="mt-1 text-xs font-semibold text-amber-200">
@@ -93,7 +93,7 @@ const GameControls: React.FC<GameControlsProps> = ({
         </p>
       ) : (
         <p className="mt-1 text-xs font-semibold text-cyan-100/80">
-          Added to MON rewards
+          No fish caught, rod pulled MON
         </p>
       )}
     </div>

@@ -1,5 +1,9 @@
 # STATUS
 
+## 2026-05-26 fixed 0.1 MON rod miss rewards
+- Rare, Epic, and Legendary MON-capable rods now roll their existing no-fish MON chance only after a missed catch, and any successful roll credits exactly `0.1 MON`.
+- The catch result card now says the MON came thanks to the equipped rod and shows `+0.1 MON`; rod cards/shop copy show a single fixed reward amount instead of a min-max range.
+
 ## 2026-05-26 cube spin single fanfare layer
 - Cube spin audio now plays only `public/assets/audio/cube_spin_fanfare.mp3` during the spin.
 - Removed the old cube launch sample and synthetic tone/drum fanfare from the spin-start path so rolls have one celebratory music layer instead of stacked sounds.
