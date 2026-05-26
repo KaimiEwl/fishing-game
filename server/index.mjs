@@ -2480,17 +2480,37 @@ function applyFishingMiss(player, castId) {
   const xpGain = Math.floor(MISS_XP_REWARD * (1 + nftBonus.xpBonus / 100));
   const xpPatch = advanceXp(player, xpGain);
   const updated = updatePlayer(player.wallet_address, xpPatch);
-  const monReward = rollRodMonRewardForServer(player, `fishing-miss:${castId}`);
   const result = {
     success: false,
     fishId: null,
     xpGain,
     levelUp: xpPatch.levelUp,
-    monReward,
+    monReward: null,
     occurredAt: nowIso(),
   };
   addAudit(player.wallet_address, 'fish_escaped', { castId, xpGain }, player, updated);
   return { player: updated, result };
+}
+
+function applyFishingRodMonReward(player, castId) {
+  const monReward = rollRodMonRewardForServer(player, `fishing-rod:${castId}`);
+  if (!monReward) return null;
+
+  const result = {
+    success: false,
+    fishId: null,
+    xpGain: 0,
+    levelUp: null,
+    monReward,
+    occurredAt: nowIso(),
+  };
+  addAudit(player.wallet_address, 'fishing_rod_mon_reward', {
+    castId,
+    amountMon: monReward.amountMon,
+    rodId: monReward.rodId,
+    rodLevel: monReward.rodLevel,
+  }, player, player);
+  return { player, result };
 }
 
 function applyFishingCatch(player, castId, fishId) {
@@ -2618,13 +2638,14 @@ function resolveFishingCast(player, body) {
     }
 
     const latestPlayer = getPlayerByWallet(player.wallet_address) || player;
-    const shouldCatch = !isTimedOut
-      && Boolean(row.fish_id)
-      && nowMs <= biteEndMs + REEL_LATE_GRACE_MS;
-    const resolved = shouldCatch
-      ? applyFishingCatch(latestPlayer, castId, row.fish_id)
-      : applyFishingMiss(latestPlayer, castId);
-    const status = shouldCatch ? 'caught' : isTimedOut || nowMs > biteEndMs + REEL_LATE_GRACE_MS ? 'escaped' : 'missed';
+    const canPullOutcome = !isTimedOut && nowMs <= biteEndMs + REEL_LATE_GRACE_MS;
+    const rodReward = canPullOutcome ? applyFishingRodMonReward(latestPlayer, castId) : null;
+    const shouldCatch = !rodReward && canPullOutcome && Boolean(row.fish_id);
+    const resolved = rodReward
+      || (shouldCatch ? applyFishingCatch(latestPlayer, castId, row.fish_id) : applyFishingMiss(latestPlayer, castId));
+    const status = rodReward
+      ? 'rod_reward'
+      : shouldCatch ? 'caught' : isTimedOut || nowMs > biteEndMs + REEL_LATE_GRACE_MS ? 'escaped' : 'missed';
     const updatedCast = db.prepare("UPDATE player_fishing_casts SET status = ?, resolved_at = ?, result_json = ? WHERE id = ? AND wallet_address = ? AND status = 'pending'")
       .run(status, nowIso(), toJson(resolved.result, {}), castId, player.wallet_address);
     if (updatedCast.changes !== 1) {

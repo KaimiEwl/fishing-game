@@ -546,9 +546,21 @@ export function useGameState(options?: UseGameStateOptions) {
       return;
     }
 
-    if (fish) {
+    const equippedRodLevel = getSafeEquippedRodLevel(player.equippedRod, player.rodLevel);
+    const monReward = onFishingMonReward ? rollRodMonadReward(equippedRodLevel) : null;
+
+    if (monReward) {
+      let credited = false;
+      try {
+        const rewardResult = await onFishingMonReward(monReward, { player });
+        credited = rewardResult !== false;
+      } catch (error) {
+        console.error('Fishing rod MON reward failed:', error);
+      }
+
+      setLastResult({ success: false, monReward: { ...monReward, credited } });
+    } else if (fish) {
       applyFishReward(fish);
-      const equippedRodLevel = getSafeEquippedRodLevel(player.equippedRod, player.rodLevel);
       const specialReward = buildLeviathanCommonRodBonus(fish, equippedRodLevel, player.rodLevel);
       let resolvedSpecialReward: FishingSpecialReward | undefined;
 
@@ -577,22 +589,7 @@ export function useGameState(options?: UseGameStateOptions) {
       setLastResult({ success: true, fish, specialReward: resolvedSpecialReward });
     } else {
       applyMissXp();
-      const equippedRodLevel = getSafeEquippedRodLevel(player.equippedRod, player.rodLevel);
-      const monReward = onFishingMonReward ? rollRodMonadReward(equippedRodLevel) : null;
-
-      if (monReward) {
-        let credited = false;
-        try {
-          const rewardResult = await onFishingMonReward(monReward, { player });
-          credited = rewardResult !== false;
-        } catch (error) {
-          console.error('Fishing rod MON reward failed:', error);
-        }
-
-        setLastResult({ success: false, monReward: { ...monReward, credited } });
-      } else {
-        setLastResult({ success: false });
-      }
+      setLastResult({ success: false });
     }
 
     setGameState('result');

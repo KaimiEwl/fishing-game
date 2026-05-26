@@ -484,7 +484,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                           <div className="font-black text-[#f8e8bf]">{rodOffer.label}</div>
                           <div className="text-xs font-medium text-[#f8e8bf]/72">{rodOffer.description}</div>
                           <div className="mt-2 grid gap-1 text-[0.68rem] font-semibold text-[#f8e8bf]/72 sm:grid-cols-2">
-                            <span>No-fish MON: {rodOffer.monadDropChance}%</span>
+                            <span>Rod MON: {rodOffer.monadDropChance}%</span>
                             <span>{formatMonRewardRange(rodOffer.monadMinReward, rodOffer.monadMaxReward)}</span>
                             <span>Rare+ bonus: +{rodOffer.rareCatchBonus}%</span>
                             <span>{rodOffer.monAmount} MON</span>

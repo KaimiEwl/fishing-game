@@ -1,8 +1,13 @@
 # STATUS
 
+## 2026-05-26 rod MON as a third fishing outcome
+- MON-capable rods now treat the rod MON pull as a separate fishing result: each valid reel can resolve as fish, empty, or `+0.1 MON`, not empty-plus-reward.
+- Server cast resolution rolls the rod MON outcome before fish catch resolution, and plain empty casts no longer roll or carry a MON reward.
+- Local fallback fishing and rod/shop copy now use `Rod MON`/`Rod reward outcome` language instead of `No-fish MON`.
+
 ## 2026-05-26 fixed 0.1 MON rod miss rewards
-- Rare, Epic, and Legendary MON-capable rods now roll their existing no-fish MON chance only after a missed catch, and any successful roll credits exactly `0.1 MON`.
-- The catch result card now says the MON came thanks to the equipped rod and shows `+0.1 MON`; rod cards/shop copy show a single fixed reward amount instead of a min-max range.
+- Rare, Epic, and Legendary MON-capable rods were retuned so any successful rod MON payout credits exactly `0.1 MON`.
+- This fixed-amount tuning is now used by the separate three-outcome rod MON model above; rod cards/shop copy show a single fixed reward amount instead of a min-max range.
 
 ## 2026-05-26 cube spin single fanfare layer
 - Cube spin audio now plays only `public/assets/audio/cube_spin_fanfare.mp3` during the spin.

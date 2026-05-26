@@ -93,7 +93,7 @@ const GameControls: React.FC<GameControlsProps> = ({
         </p>
       ) : (
         <p className="mt-1 text-xs font-semibold text-cyan-100/80">
-          No fish caught, rod pulled MON
+          Rod reward outcome
         </p>
       )}
     </div>

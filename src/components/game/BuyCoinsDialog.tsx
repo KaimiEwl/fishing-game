@@ -323,7 +323,7 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
                         <div className="font-semibold text-sm text-zinc-100">{getRodName(rodOffer.level)}</div>
                         <div className="text-xs text-zinc-500">{rodOffer.description}</div>
                         <div className="mt-1 text-[10px] text-zinc-500">
-                          No-fish MON {rodOffer.monadDropChance}% / {formatMonRewardRange(rodOffer.monadMinReward, rodOffer.monadMaxReward)} / +{rodOffer.rareCatchBonus}% rare+
+                          Rod MON {rodOffer.monadDropChance}% / {formatMonRewardRange(rodOffer.monadMinReward, rodOffer.monadMaxReward)} / +{rodOffer.rareCatchBonus}% rare+
                         </div>
                         {rod && (
                           <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: ROD_RARITY_COLORS[rod.rarity] }}>
