@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "server": "node ./server/index.mjs",
-    "build": "vite build",
+    "build": "vite build --minify=false",
     "build:dev": "vite build --mode development",
     "build:pages": "node ./scripts/build-pages.mjs",
     "lint": "eslint .",
