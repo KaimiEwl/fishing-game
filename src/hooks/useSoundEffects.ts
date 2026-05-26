@@ -20,7 +20,6 @@ const CAST_SAMPLE_URLS = [
   publicAsset('/assets/audio/cast_07.mp3'),
 ];
 const FISH_CATCH_SAMPLE_URL = publicAsset('/assets/audio/fish_catch_boat.mp3');
-const CUBE_SPIN_SAMPLE_URL = publicAsset('/assets/audio/cube_spin_launch.mp3');
 // CC0 source: OpenGameArt "Victory Fanfare", trimmed/time-compressed for cube spins.
 const CUBE_SPIN_FANFARE_URL = publicAsset('/assets/audio/cube_spin_fanfare.mp3');
 const GRILL_COOK_SAMPLE_URL = publicAsset('/assets/audio/grill_cook.mp3');
@@ -82,7 +81,6 @@ const warmSoundSamples = () =>
   Promise.all([
     ...CAST_SAMPLE_URLS,
     FISH_CATCH_SAMPLE_URL,
-    CUBE_SPIN_SAMPLE_URL,
     CUBE_SPIN_FANFARE_URL,
     GRILL_COOK_SAMPLE_URL,
     COIN_GAIN_SAMPLE_URL,
@@ -257,64 +255,6 @@ function playNoise(dur: number, vol: number = 0.08, delay: number = 0) {
   }
 }
 
-const playChord = (
-  freqs: readonly number[],
-  dur: number,
-  type: OscillatorType,
-  vol: number,
-  delay: number,
-) => {
-  freqs.forEach((freq, index) => {
-    playTone(freq, dur, type, vol * (index === 0 ? 1 : 0.78), undefined, delay + index * 0.012);
-  });
-};
-
-const playCubeSpinFanfare = () => {
-  if (globalMuted) return;
-
-  const drumHits = [0, 0.32, 0.64, 0.96, 1.28, 1.6, 1.92, 2.16];
-  drumHits.forEach((delay, index) => {
-    playTone(index % 2 === 0 ? 82 : 110, 0.16, 'sine', 0.055, index % 2 === 0 ? 52 : 70, delay);
-    playNoise(0.04, 0.008, delay + 0.018);
-  });
-
-  [
-    { notes: [196, 247, 294, 392], delay: 0, dur: 0.58 },
-    { notes: [220, 277, 330, 440], delay: 0.55, dur: 0.58 },
-    { notes: [262, 330, 392, 523], delay: 1.1, dur: 0.66 },
-    { notes: [294, 370, 440, 587], delay: 1.68, dur: 0.74 },
-  ].forEach(({ notes, delay, dur }, chordIndex) => {
-    notes.forEach((freq, noteIndex) => {
-      playTone(
-        freq,
-        dur,
-        noteIndex === 0 ? 'triangle' : 'sine',
-        chordIndex === 3 ? 0.021 : 0.017,
-        undefined,
-        delay + noteIndex * 0.018
-      );
-    });
-  });
-
-  [
-    392, 494, 587, 784,
-    440, 554, 659, 880,
-    523, 659, 784, 1047,
-    587, 740, 880, 1175,
-    659, 784, 988, 1319,
-  ].forEach((freq, index) => {
-    const delay = 0.08 + index * 0.105;
-    playTone(freq, 0.14, 'triangle', 0.026, undefined, delay);
-    if (index % 3 === 0) {
-      playTone(freq * 2, 0.1, 'sine', 0.007, undefined, delay + 0.018);
-    }
-  });
-
-  playChord([392, 494, 587, 784], 0.4, 'triangle', 0.022, 2.08);
-  playChord([523, 659, 784, 1047, 1319], 0.48, 'sine', 0.018, 2.22);
-  playNoise(0.32, 0.008, 2.14);
-};
-
 export function useSoundEffects() {
   useEffect(() => {
     const warmOnce = () => requestSampleWarmup();
@@ -411,20 +351,14 @@ export function useSoundEffects() {
   }, []);
 
   const playCubeSpinSound = useCallback(() => {
-    if (!playSampleBuffer(CUBE_SPIN_SAMPLE_URL, 0.16)) {
-      void ensureSampleLoaded(CUBE_SPIN_SAMPLE_URL);
-    }
-
     const spinStartedAt = Date.now();
-    if (!playSampleBuffer(CUBE_SPIN_FANFARE_URL, 0.24)) {
+    if (!playSampleBuffer(CUBE_SPIN_FANFARE_URL, 0.3)) {
       void ensureSampleLoaded(CUBE_SPIN_FANFARE_URL).then((buffer) => {
         if (buffer && Date.now() - spinStartedAt < 900) {
-          playSampleBuffer(CUBE_SPIN_FANFARE_URL, 0.24);
+          playSampleBuffer(CUBE_SPIN_FANFARE_URL, 0.3);
         }
       });
     }
-
-    playCubeSpinFanfare();
   }, []);
 
   const playGrillCookSound = useCallback(() => {

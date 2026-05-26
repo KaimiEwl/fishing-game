@@ -1,5 +1,9 @@
 # STATUS
 
+## 2026-05-26 cube spin single fanfare layer
+- Cube spin audio now plays only `public/assets/audio/cube_spin_fanfare.mp3` during the spin.
+- Removed the old cube launch sample and synthetic tone/drum fanfare from the spin-start path so rolls have one celebratory music layer instead of stacked sounds.
+
 ## 2026-05-26 shared economy config and tighter rewards
 - Added `shared/economy-config.mjs` as the shared source for tunable economy math used by both the React app and `server/index.mjs`, with a frontend re-export at `src/lib/economyConfig.ts`.
 - Reduced the starting/daily free bait from `30` to `15`, and cut future economy rewards roughly in half: fish sale values, fish XP, miss/catch XP bonuses, task payouts, album first-catch bonuses, grill recipe scores, cube coin/bait/MON prizes, level-up coin rewards, rod MON pull ranges, rod duplicate compensation, premium-session bonuses, premium MON drop amounts, rescue MON amounts, and weekly grill MON payouts.
