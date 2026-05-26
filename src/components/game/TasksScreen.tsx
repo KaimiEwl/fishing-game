@@ -3,10 +3,17 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Box, Check, Clock3, Coins, Copy, ExternalLink, Heart, Lock, MessageCircle, Repeat2, Send, Trophy, Worm } from 'lucide-react';
 import { useSendTransaction } from 'wagmi';
 import { toast } from 'sonner';
+import { parseEther } from 'viem';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { ReferralSummary } from '@/hooks/useWalletAuth';
+import {
+  LEVIATHAN_COMMON_ROD_BONUS_CONFIG,
+  ROD_DATA,
+  ROD_RARITY_COLORS,
+  ROD_RARITY_NAMES,
+} from '@/types/game';
 import type {
   DailyTaskProgress,
   SocialTaskId,
@@ -26,18 +33,19 @@ import { REFERRAL_BAIT_ENABLED } from '@/lib/baitEconomy';
 import {
   formatStreakDays,
   WALLET_CHECK_IN_AMOUNT_MON,
+  WALLET_CHECK_IN_REPEAT_TEST_MODE,
   WALLET_CHECK_IN_RECEIVER_ADDRESS,
 } from '@/lib/walletCheckIn';
 import {
-  canUseMonadPaymentIdentity,
-  monadPriceLabel,
-  MONAD_SHOP_TEST_MODE_ENABLED,
+  isRealWalletAddress,
   sendMonadPayment,
 } from '@/lib/monadTestMode';
 
 interface TasksScreenProps {
   coins: number;
   walletAddress?: string;
+  rodLevel: number;
+  equippedRod: number;
   dailyTasks: DailyTaskProgress[];
   specialTasks: SpecialTaskProgress[];
   weeklyMissions: WeeklyMissionProgress[];
@@ -47,13 +55,18 @@ interface TasksScreenProps {
   dailyTaskClaimsMet: boolean;
   availableWheelRolls: number;
   socialTasksLoading?: boolean;
+  isWalletConnected: boolean;
   isWalletVerified: boolean;
+  isWalletVerifying?: boolean;
   referralSummary?: ReferralSummary | null;
   onClaimTask: (id: TaskId) => void;
   onClaimWeeklyMission: (id: WeeklyMissionId) => void;
   claimingTaskId?: TaskId | null;
   claimingWeeklyMissionId?: WeeklyMissionId | null;
   onWalletCheckIn: (txHash: string) => Promise<void>;
+  onVerifyWallet?: () => Promise<void> | void;
+  onEquipRod: (level: number) => void;
+  onOpenFish: () => void;
   onSubmitSocialTask: (id: SocialTaskId, proofUrl?: string) => void;
   onClaimSocialTask: (id: SocialTaskId) => void;
   onRefreshSocialTasks: () => void;
@@ -63,9 +76,27 @@ interface TasksScreenProps {
 
 type QuestTab = 'daily' | 'blockchain' | 'weekly' | 'social';
 const WALLET_CHECK_IN_TOAST_ID = 'wallet-check-in-flow';
+const getRodById = (id: string) => ROD_DATA.find((rod) => rod.id === id) ?? null;
+const leviathanRequiredRod = getRodById(LEVIATHAN_COMMON_ROD_BONUS_CONFIG.requiredRodId) ?? ROD_DATA[0];
+const leviathanBonusRod = getRodById(LEVIATHAN_COMMON_ROD_BONUS_CONFIG.bonusRodId);
+type BrowserEthereumProvider = {
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+};
+
+const getBrowserEthereumProvider = (): BrowserEthereumProvider | null => {
+  if (typeof window === 'undefined') return null;
+  const maybeWindow = window as typeof window & { ethereum?: BrowserEthereumProvider };
+  return maybeWindow.ethereum && typeof maybeWindow.ethereum.request === 'function'
+    ? maybeWindow.ethereum
+    : null;
+};
+
+const toHexQuantity = (value: bigint) => `0x${value.toString(16)}`;
 
 const TasksScreen: React.FC<TasksScreenProps> = ({
   walletAddress,
+  rodLevel,
+  equippedRod,
   dailyTasks,
   specialTasks,
   weeklyMissions,
@@ -74,13 +105,18 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   walletCheckInLoading = false,
   dailyTaskClaimsMet,
   availableWheelRolls,
+  isWalletConnected,
   isWalletVerified,
+  isWalletVerifying = false,
   referralSummary,
   onClaimTask,
   onClaimWeeklyMission,
   claimingTaskId = null,
   claimingWeeklyMissionId = null,
   onWalletCheckIn,
+  onVerifyWallet,
+  onEquipRod,
+  onOpenFish,
   onOpenWheel,
   weeklyMissionsEnabled = false,
 }) => {
@@ -93,9 +129,18 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   const [walletCheckInSubmitting, setWalletCheckInSubmitting] = useState(false);
   const [copiedReferral, setCopiedReferral] = useState(false);
   const { sendTransactionAsync } = useSendTransaction();
-  const canUseMonadPayment = canUseMonadPaymentIdentity(walletAddress);
+  const canUseWalletCheckInPayment = isRealWalletAddress(walletAddress);
+  const ownsLeviathanBonusRod = Boolean(leviathanBonusRod && rodLevel >= leviathanBonusRod.level);
+  const hasLeviathanRodEquipped = equippedRod === leviathanRequiredRod.level;
+  const leviathanBountyStatus = ownsLeviathanBonusRod
+    ? 'Reward owned'
+    : hasLeviathanRodEquipped
+      ? 'Ready to hunt'
+      : 'Equip Common Rod';
   const walletCheckInAmountMon = walletCheckInSummary?.amountMon ?? WALLET_CHECK_IN_AMOUNT_MON;
+  const walletCheckInPriceLabel = `${walletCheckInAmountMon} MON`;
   const walletCheckInReceiverAddress = walletCheckInSummary?.receiverAddress ?? WALLET_CHECK_IN_RECEIVER_ADDRESS;
+  const walletCheckInRepeatTestMode = Boolean(walletCheckInSummary?.repeatTestMode || WALLET_CHECK_IN_REPEAT_TEST_MODE);
   const socialTaskCards = useMemo(() => socialTasks.map((task) => ({
     ...task,
     icon: task.id === 'twitter_follow'
@@ -180,18 +225,36 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   };
 
   const handleWalletCheckIn = async () => {
-    if (!walletAddress || !canUseMonadPayment || walletCheckInSubmitting) return;
+    if (!walletAddress || !canUseWalletCheckInPayment || walletCheckInSubmitting) return;
 
     setWalletCheckInSubmitting(true);
     try {
-      const txHash = await sendMonadPayment({
-        sendTransactionAsync,
-        receiverAddress: walletCheckInReceiverAddress as `0x${string}`,
-        monAmount: walletCheckInAmountMon,
-        purpose: 'wallet-check-in',
-      });
+      const provider = getBrowserEthereumProvider();
+      const paymentRequest = {
+        to: walletCheckInReceiverAddress as `0x${string}`,
+        value: parseEther(walletCheckInAmountMon),
+      };
+      const txHash = provider
+        ? await provider.request({
+            method: 'eth_sendTransaction',
+            params: [{
+              from: walletAddress,
+              to: paymentRequest.to,
+              value: toHexQuantity(paymentRequest.value),
+            }],
+          })
+        : await sendMonadPayment({
+            sendTransactionAsync,
+            receiverAddress: paymentRequest.to,
+            monAmount: walletCheckInAmountMon,
+            purpose: 'wallet-check-in',
+            allowTestMode: false,
+          });
+      if (typeof txHash !== 'string' || !/^0x[a-fA-F0-9]{64}$/.test(txHash)) {
+        throw new Error('Wallet did not return a transaction hash.');
+      }
 
-      toast.loading(MONAD_SHOP_TEST_MODE_ENABLED ? 'Test wallet check-in created. Verifying...' : 'Wallet check-in transaction sent. Verifying...', {
+      toast.loading('Wallet check-in transaction sent. Verifying...', {
         id: WALLET_CHECK_IN_TOAST_ID,
         duration: 5600,
       });
@@ -253,6 +316,87 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
     return 'Not started';
   };
 
+  const renderLeviathanBountyCard = () => {
+    if (!leviathanBonusRod) return null;
+
+    return (
+      <QuestBoardCard className="md:col-span-2">
+        <div className="flex h-full flex-col">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[0.64rem] font-black uppercase tracking-[0.16em] text-cyan-200/75 sm:text-xs">Trophy bounty</p>
+              <h2 className="mt-1 pr-2 text-[0.96rem] font-black uppercase tracking-[0.04em] text-[#f3c777] drop-shadow-[0_1px_0_rgba(0,0,0,0.6)] sm:text-[1.2rem]">
+                Catch Cosmic Leviathan
+              </h2>
+              <p className="mt-1.5 text-[0.8rem] leading-5 text-[#f8e8bf]/88 sm:mt-2 sm:text-[0.97rem] sm:leading-6">
+                Land it with the {leviathanRequiredRod.name}. The reward applies instantly on the catch result.
+              </p>
+            </div>
+            <div
+              className="inline-flex shrink-0 flex-col items-end rounded-2xl border bg-[linear-gradient(180deg,rgba(48,31,14,0.95)_0%,rgba(30,19,10,0.92)_100%)] px-2.5 py-1.5 text-right shadow-[0_8px_16px_rgba(0,0,0,0.28)] sm:px-3 sm:py-2"
+              style={{ borderColor: `${ROD_RARITY_COLORS[leviathanBonusRod.rarity]}80` }}
+            >
+              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#f8e8bf]/72">Reward</span>
+              <span className="text-[0.8rem] font-black sm:text-sm" style={{ color: ROD_RARITY_COLORS[leviathanBonusRod.rarity] }}>
+                {leviathanBonusRod.name}
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            <div className="rounded-xl border border-[#8f6a38]/70 bg-[rgba(15,10,7,0.62)] px-3 py-2">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#f3c777]/70">Required rod</p>
+              <p className="mt-1 text-sm font-black text-[#f8e8bf]">{leviathanRequiredRod.name}</p>
+            </div>
+            <div className="rounded-xl border border-[#8f6a38]/70 bg-[rgba(15,10,7,0.62)] px-3 py-2">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#f3c777]/70">Bounty</p>
+              <p className="mt-1 text-sm font-black" style={{ color: ROD_RARITY_COLORS[leviathanBonusRod.rarity] }}>
+                {ROD_RARITY_NAMES[leviathanBonusRod.rarity]}
+              </p>
+            </div>
+            <div className="rounded-xl border border-[#8f6a38]/70 bg-[rgba(15,10,7,0.62)] px-3 py-2">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#f3c777]/70">Status</p>
+              <p className="mt-1 text-sm font-black text-cyan-100">{leviathanBountyStatus}</p>
+            </div>
+          </div>
+
+          <div className="mt-auto pt-4">
+            <Button
+              type="button"
+              disabled={ownsLeviathanBonusRod}
+              onClick={() => {
+                if (ownsLeviathanBonusRod) return;
+                if (!hasLeviathanRodEquipped) {
+                  onEquipRod(leviathanRequiredRod.level);
+                  return;
+                }
+                onOpenFish();
+              }}
+              className="h-11 w-full rounded-[1rem] border border-[#7f5227] bg-[linear-gradient(180deg,#8c531f_0%,#6e4117_42%,#4f2f14_100%)] text-[0.86rem] font-black uppercase tracking-[0.04em] text-[#f8db9a] shadow-[inset_0_1px_0_rgba(255,220,160,0.22),0_10px_16px_rgba(0,0,0,0.28)] transition-all duration-200 hover:brightness-110 disabled:border-[#3a2817] disabled:bg-[linear-gradient(180deg,#2f241c_0%,#231b15_100%)] disabled:text-[#8c7b63] disabled:shadow-none sm:h-[3.25rem] sm:rounded-[1.2rem] sm:text-[1.02rem]"
+            >
+              {ownsLeviathanBonusRod ? (
+                <>
+                  <Check className="mr-2 h-4 w-4" />
+                  Reward owned
+                </>
+              ) : hasLeviathanRodEquipped ? (
+                <>
+                  <Trophy className="mr-2 h-4 w-4" />
+                  Go fish
+                </>
+              ) : (
+                <>
+                  <Trophy className="mr-2 h-4 w-4" />
+                  Equip {leviathanRequiredRod.name}
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </QuestBoardCard>
+    );
+  };
+
   const boardHeader = (
     <div className="space-y-2">
       <TabsList className={`grid h-auto w-full gap-1 rounded-[1.1rem] border border-[#8f6a38]/70 bg-[rgba(16,11,8,0.84)] p-1 shadow-[0_18px_40px_rgba(0,0,0,0.35)] backdrop-blur-md sm:gap-1.5 sm:rounded-[1.35rem] sm:p-1.5 ${isMobileLayout ? 'grid-cols-2' : weeklyMissionsEnabled ? 'grid-cols-4' : 'grid-cols-3'}`}>
@@ -271,6 +415,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
     onClaim: (id: TaskId | WeeklyMissionId) => void,
     footer: React.ReactNode,
     claimingId?: TaskId | WeeklyMissionId | null,
+    leadingCard?: React.ReactNode,
   ) => (
     <QuestBoard
       layout={boardLayout}
@@ -281,19 +426,25 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
       viewportInsets={boardViewportInsets}
     >
       <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 md:gap-3">
+        {leadingCard}
         {tasks.map((task) => {
-        const complete = task.progress >= task.target;
-        const progress = Math.min(100, (task.progress / task.target) * 100);
-        const statusLabel = getQuestStatusLabel(task);
+        const isWalletCheckInTask = task.id === 'wallet_check_in';
+        const taskProgress = isWalletCheckInTask && walletCheckInRepeatTestMode ? 0 : task.progress;
+        const taskClaimed = isWalletCheckInTask && walletCheckInRepeatTestMode ? false : task.claimed;
+        const complete = taskProgress >= task.target;
+        const progress = Math.min(100, (taskProgress / task.target) * 100);
+        const statusLabel = getQuestStatusLabel({ ...task, progress: taskProgress, claimed: taskClaimed });
         const cubeChargeReward = 'rewardCubeCharge' in task ? (task.rewardCubeCharge ?? 0) : 0;
         const isClaiming = claimingId === task.id;
-        const isWalletCheckInTask = task.id === 'wallet_check_in';
         const isInviteFriendTask = task.id === 'invite_friend';
-        const hasPaymentIdentity = Boolean(walletAddress) && canUseMonadPayment;
-        const walletCheckInReady = isWalletVerified || MONAD_SHOP_TEST_MODE_ENABLED;
-        const walletAlreadyCheckedInToday = Boolean(walletCheckInSummary?.todayCheckedIn);
+        const hasPaymentIdentity = Boolean(walletAddress) && canUseWalletCheckInPayment;
+        const walletCheckInReady = isWalletVerified && hasPaymentIdentity;
+        const walletAlreadyCheckedInToday = !walletCheckInRepeatTestMode && Boolean(walletCheckInSummary?.todayCheckedIn);
+        const walletCheckInNeedsVerification = isWalletConnected && !walletCheckInReady;
         const walletCheckInStatusText = !hasPaymentIdentity
-          ? `Connect your wallet first, then send today's ${monadPriceLabel(walletCheckInAmountMon)} transaction to start or continue your streak.`
+          ? walletCheckInNeedsVerification
+            ? `Verify your wallet first, then send today's ${walletCheckInPriceLabel} transaction to start or continue your streak.`
+            : `Connect your wallet first, then send today's ${walletCheckInPriceLabel} transaction to start or continue your streak.`
           : !walletCheckInReady
             ? 'Preparing your verified wallet session so you can send the on-chain check-in.'
           : walletCheckInLoading
@@ -301,8 +452,8 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
             : walletAlreadyCheckedInToday
               ? `Checked in today. Streak: ${formatStreakDays(walletCheckInSummary.streakDays)}.`
             : walletCheckInSummary?.lastCheckInDate
-                ? `Current streak: ${formatStreakDays(walletCheckInSummary.streakDays)}. Send today's ${monadPriceLabel(walletCheckInSummary.amountMon)} check-in to keep it going.`
-                : `Start your streak with a ${monadPriceLabel(walletCheckInAmountMon)} check-in today.`;
+                ? `Current streak: ${formatStreakDays(walletCheckInSummary.streakDays)}. Send today's ${walletCheckInPriceLabel} check-in to keep it going.`
+                : `Start your streak with a ${walletCheckInPriceLabel} check-in today.`;
 
         return (
           <QuestBoardCard key={task.id} className={isWalletCheckInTask || isInviteFriendTask ? 'md:col-span-2' : ''}>
@@ -321,7 +472,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
 
             <div className="mt-3">
               <div className="mb-1.5 flex items-center justify-between text-[0.78rem] text-[#f8e8bf]/82 sm:mb-2 sm:text-sm">
-                <span>{task.progress}/{task.target}</span>
+                <span>{taskProgress}/{task.target}</span>
                 <span>{statusLabel}</span>
               </div>
               <div className="h-3.5 rounded-full border border-[#684623] bg-[#120d09] px-1 py-[3px] shadow-[inset_0_2px_5px_rgba(0,0,0,0.55)] sm:h-4">
@@ -348,16 +499,22 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                       disabled={
                         walletCheckInSubmitting
                         || walletCheckInLoading
+                        || isWalletVerifying
                         || walletAlreadyCheckedInToday
                         || (hasPaymentIdentity && !walletCheckInReady)
                       }
                       onClick={() => {
                         if (!hasPaymentIdentity) {
+                          if (walletCheckInNeedsVerification && onVerifyWallet) {
+                            void onVerifyWallet();
+                            return;
+                          }
+
                           openConnectModal?.();
                           return;
                         }
 
-                          void handleWalletCheckIn();
+                        void handleWalletCheckIn();
                       }}
                       className="mt-3 h-10 w-full rounded-[1rem] border border-[#7f5227] bg-[linear-gradient(180deg,#8c531f_0%,#6e4117_42%,#4f2f14_100%)] text-[0.78rem] font-black uppercase tracking-[0.04em] text-[#f8db9a] shadow-[inset_0_1px_0_rgba(255,220,160,0.22),0_10px_16px_rgba(0,0,0,0.28)] transition-all duration-200 hover:brightness-110 disabled:border-[#3a2817] disabled:bg-[linear-gradient(180deg,#2f241c_0%,#231b15_100%)] disabled:text-[#8c7b63] disabled:shadow-none sm:h-11 sm:text-sm"
                     >
@@ -370,6 +527,16 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                         <>
                           <Check className="mr-2 h-4 w-4" />
                           Checked in today
+                        </>
+                      ) : isWalletVerifying ? (
+                        <>
+                          <Clock3 className="mr-2 h-4 w-4" />
+                          Verifying wallet
+                        </>
+                      ) : walletCheckInNeedsVerification ? (
+                        <>
+                          <ExternalLink className="mr-2 h-4 w-4" />
+                          Verify wallet to check in
                         </>
                       ) : !hasPaymentIdentity ? (
                         <>
@@ -384,7 +551,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                       ) : (
                         <>
                           <ExternalLink className="mr-2 h-4 w-4" />
-                          Send {monadPriceLabel(walletCheckInAmountMon)} check-in
+                          Send {walletCheckInPriceLabel} check-in
                         </>
                       )}
                     </Button>
@@ -447,16 +614,17 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
               </div>
             )}
 
+              {!(isWalletCheckInTask && walletCheckInRepeatTestMode) && (
               <div className="mt-auto pt-4">
                 <Button
                   type="button"
-                  disabled={!complete || task.claimed || isClaiming}
+                  disabled={!complete || taskClaimed || isClaiming}
                   onClick={() => {
                     void onClaim(task.id);
                   }}
                   className="h-11 w-full rounded-[1rem] border border-[#7f5227] bg-[linear-gradient(180deg,#8c531f_0%,#6e4117_42%,#4f2f14_100%)] text-[0.86rem] font-black uppercase tracking-[0.04em] text-[#f8db9a] shadow-[inset_0_1px_0_rgba(255,220,160,0.22),0_10px_16px_rgba(0,0,0,0.28)] transition-all duration-200 hover:brightness-110 disabled:border-[#3a2817] disabled:bg-[linear-gradient(180deg,#2f241c_0%,#231b15_100%)] disabled:text-[#8c7b63] disabled:shadow-none sm:h-[3.25rem] sm:rounded-[1.2rem] sm:text-[1.02rem]"
                 >
-                  {task.claimed ? (
+                  {taskClaimed ? (
                     <>
                       <Check className="mr-2 h-4 w-4" />
                       Claimed
@@ -474,6 +642,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                   )}
                 </Button>
               </div>
+              )}
             </div>
           </QuestBoardCard>
         );
@@ -593,6 +762,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
               }
             />,
             claimingTaskId,
+            renderLeviathanBountyCard(),
           )}
         </TabsContent>
         {weeklyMissionsEnabled && (

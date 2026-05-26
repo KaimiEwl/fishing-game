@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { invokeHooklootEdge } from '@/lib/serverApi';
 import { getStoredWalletSession } from '@/lib/walletSession';
 import type { Tables } from '@/types/serverDatabase';
+import type { MonBalanceSummary } from '@/hooks/usePlayerMon';
 import {
   type FishingSpecialReward,
   type PremiumCastResult,
@@ -33,6 +34,7 @@ interface PlayerActionResponse {
   wallet_check_in_summary?: WalletCheckInSummary;
   premium_session?: PremiumSessionState | null;
   cast_result?: PremiumCastResult;
+  mon_summary?: MonBalanceSummary;
   mon_reward?: {
     amountMon: number;
     sourceRef: string;
@@ -382,6 +384,11 @@ export function usePlayerActions(walletAddress: string | undefined, enabled: boo
     })
   ), [callPlayerActions]);
 
+  const getMonSummary = useCallback(async () => {
+    const data = await callPlayerActions<{ mon_summary: MonBalanceSummary }>('get_mon_summary');
+    return data.mon_summary;
+  }, [callPlayerActions]);
+
   const listSocialTasks = useCallback(async () => {
     const data = await callPlayerActions<{ verifications: PlayerSocialTaskVerificationRow[] }>('list_social_tasks');
     return mapSocialTasks(data.verifications);
@@ -427,6 +434,7 @@ export function usePlayerActions(walletAddress: string | undefined, enabled: boo
     cookRecipe,
     sellCookedDish,
     updateGrillLeaderboard,
+    getMonSummary,
     listSocialTasks,
     submitSocialTaskVerification,
     claimSocialTaskReward,

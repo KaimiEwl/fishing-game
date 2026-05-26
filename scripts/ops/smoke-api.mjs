@@ -151,7 +151,7 @@ async function main() {
     session_token: session,
     daily_fish_count: 2,
     tx_hash: fakeTxHash('invalid-net-package'),
-    expected_mon: '0.01',
+    expected_mon: '3',
   }, [400], 'invalid fishing net package');
   const invalidCubePackageFailure = await expectPostFailure('/api/edge/player-actions', {
     action: 'buy_cube_rolls',
@@ -159,7 +159,7 @@ async function main() {
     session_token: session,
     rolls: 999,
     tx_hash: fakeTxHash('invalid-cube-package'),
-    expected_mon: '0.01',
+    expected_mon: '1',
   }, [400], 'invalid cube roll package');
   const missingWalletCheckInTxFailure = await expectPostFailure('/api/edge/player-actions', {
     action: 'verify_wallet_check_in',
@@ -485,7 +485,7 @@ async function main() {
       session_token: session,
       daily_fish_count: 10,
       tx_hash: netTxHash,
-      expected_mon: '0.01',
+      expected_mon: '3',
     });
     const duplicateNetPurchase = await post('/api/edge/player-actions', {
       action: 'buy_fishing_net',
@@ -493,7 +493,7 @@ async function main() {
       session_token: session,
       daily_fish_count: 10,
       tx_hash: netTxHash,
-      expected_mon: '0.01',
+      expected_mon: '3',
     });
     const differentNetTxFailure = await expectPostFailure('/api/edge/player-actions', {
       action: 'buy_fishing_net',
@@ -501,7 +501,7 @@ async function main() {
       session_token: session,
       daily_fish_count: 10,
       tx_hash: fakeTxHash('fishing-net-duplicate-payment'),
-      expected_mon: '0.01',
+      expected_mon: '3',
     }, [409], 'already-owned fishing net with a different tx');
 
     const netClaimResults = await Promise.all([
@@ -528,7 +528,7 @@ async function main() {
       session_token: session,
       rolls: 1,
       tx_hash: cubeTxHash,
-      expected_mon: '0.01',
+      expected_mon: '1',
     });
     const duplicateCubeTopUp = await post('/api/edge/player-actions', {
       action: 'buy_cube_rolls',
@@ -536,30 +536,24 @@ async function main() {
       session_token: session,
       rolls: 1,
       tx_hash: cubeTxHash,
-      expected_mon: '0.01',
+      expected_mon: '1',
     });
     if (duplicateCubeTopUp.player?.game_progress?.paidWheelRolls !== cubeTopUp.player?.game_progress?.paidWheelRolls) {
       throw new Error(`cube-roll payment retry credited twice: first=${cubeTopUp.player?.game_progress?.paidWheelRolls} duplicate=${duplicateCubeTopUp.player?.game_progress?.paidWheelRolls}`);
     }
 
-    const walletCheckIn = await post('/api/edge/player-actions', {
+    const walletCheckInFakeResult = await postForStatus('/api/edge/player-actions', {
       action: 'verify_wallet_check_in',
       wallet_address: wallet,
       session_token: session,
       tx_hash: checkInTxHash,
     });
-    const duplicateWalletCheckIn = await post('/api/edge/player-actions', {
-      action: 'verify_wallet_check_in',
-      wallet_address: wallet,
-      session_token: session,
-      tx_hash: checkInTxHash,
-    });
-    const differentWalletCheckInFailure = await expectPostFailure('/api/edge/player-actions', {
-      action: 'verify_wallet_check_in',
-      wallet_address: wallet,
-      session_token: session,
-      tx_hash: fakeTxHash('wallet-check-in-duplicate-payment'),
-    }, [409], 'second wallet check-in with a different tx');
+    if (
+      ![202, 400, 403].includes(walletCheckInFakeResult.status)
+      || walletCheckInFakeResult.payload?.wallet_check_in_summary?.todayCheckedIn
+    ) {
+      throw new Error(`fake wallet check-in transaction was accepted: ${JSON.stringify(walletCheckInFakeResult)}`);
+    }
 
     const premiumSession = await post('/api/edge/player-actions', {
       action: 'start_premium_session',
@@ -603,9 +597,7 @@ async function main() {
       netClaimed: netClaim?.claimed_catch,
       paidWheelRolls: cubeTopUp.player?.game_progress?.paidWheelRolls,
       duplicateCubeTopUpIdempotent: duplicateCubeTopUp.already_applied === true,
-      walletCheckedIn: walletCheckIn.wallet_check_in_summary?.todayCheckedIn,
-      duplicateWalletCheckInIdempotent: duplicateWalletCheckIn.already_applied === true,
-      differentWalletCheckInRejected: differentWalletCheckInFailure.status,
+      fakeWalletCheckInRejected: walletCheckInFakeResult.status,
       premiumSessionStatus: premiumSession.premium_session?.status,
       duplicatePremiumSessionIdempotent: duplicatePremiumSession.already_applied === true,
       differentPremiumTxRejected: differentPremiumTxFailure.status,

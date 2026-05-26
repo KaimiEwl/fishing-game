@@ -55,7 +55,7 @@ const InventoryRodCard = ({
           {rod.bonus > 0 ? `+${rod.bonus}% legendary chance` : 'Standard rod'}
         </div>
         <div className="text-xs font-medium text-cyan-100/80">
-          MON pull {rodDefinition.monadDropChance}% / {formatMonAmount(rodDefinition.monadMinReward)}-{formatMonAmount(rodDefinition.monadMaxReward)} MON
+          No-fish MON {rodDefinition.monadDropChance}% / {formatMonAmount(rodDefinition.monadMinReward)}-{formatMonAmount(rodDefinition.monadMaxReward)} MON
         </div>
         <div className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: ROD_RARITY_COLORS[rodDefinition.rarity] }}>
           {ROD_RARITY_NAMES[rodDefinition.rarity]}

@@ -5,6 +5,46 @@ import { extname, join, normalize } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { hashMessage, recoverAddress } from 'viem';
 import { buildPlayerProgressProfile } from './player-progress-profile.mjs';
+import {
+  ALBUM_FIRST_CATCH_BONUSES,
+  BAIT_PACKAGES,
+  CATCH_CHANCE,
+  CATCH_XP_FLAT_BONUS,
+  COLLECTION_BOOK_PAGES,
+  DAILY_CLAIMS_FOR_CUBE,
+  DAILY_CUBE_ROLL_REWARD,
+  DAILY_FREE_BAIT,
+  DAILY_TASK_TARGETS,
+  FISH_DATA,
+  GRILL_RECIPES,
+  LEVIATHAN_COMMON_ROD_BONUS_CONFIG,
+  LEVEL_UP_COIN_REWARD_PER_LEVEL,
+  MAX_REWARDED_REFERRALS,
+  MIN_WITHDRAW_MON,
+  MISS_XP_REWARD,
+  MON_COIN_PACKAGES,
+  MON_CUBE_SPIN_PACKAGES as MON_CUBE_ROLL_PACKAGES,
+  MON_FISHING_NET_PACKAGES,
+  MON_HOLD_DAYS,
+  NFT_ROD_BONUSES,
+  NFT_ROD_DATA,
+  PREMIUM_FISH_IDS,
+  PREMIUM_SESSION_BONUS_COINS_PER_CAST,
+  PREMIUM_SESSION_BONUS_XP_PER_CAST,
+  PREMIUM_SESSION_CASTS,
+  PREMIUM_SESSION_COST_MON,
+  REFERRAL_BAIT_BONUS,
+  ROD_CUBE_DROP_CONFIG,
+  ROD_DATA,
+  SOCIAL_TASKS,
+  SPECIAL_TASK_TARGETS,
+  STARTING_COINS,
+  TASK_REWARDS,
+  WALLET_CHECK_IN_COST_MON,
+  WEEKLY_MISSION_TARGETS,
+  WHEEL_PRIZES,
+  XP_PER_LEVEL,
+} from '../shared/economy-config.mjs';
 
 const loadLocalEnvFiles = () => {
   const locallyLoadedKeys = new Set();
@@ -62,9 +102,26 @@ const readEnvFlag = (value, fallback) => {
 const TEST_ACTIVITY_LOGS_ENABLED = readEnvFlag(process.env.HOOKLOOT_TEST_ACTIVITY_LOGS_ENABLED, true);
 const MONAD_SHOP_TEST_MODE_ENABLED = readEnvFlag(
   process.env.HOOKLOOT_MONAD_SHOP_TEST_MODE_ENABLED ?? process.env.VITE_MONAD_SHOP_TEST_MODE_ENABLED,
-  true,
+  false,
 );
 const MONAD_TEST_DROPS_ALWAYS = readEnvFlag(process.env.HOOKLOOT_MONAD_TEST_DROPS_ALWAYS, MONAD_SHOP_TEST_MODE_ENABLED);
+const WALLET_CHECK_IN_REPEAT_TEST_MODE = readEnvFlag(
+  process.env.HOOKLOOT_WALLET_CHECK_IN_REPEAT_TEST_MODE ?? process.env.VITE_WALLET_CHECK_IN_REPEAT_TEST_MODE,
+  false,
+);
+const parseEnvList = (value) => String(value || '')
+  .split(',')
+  .map((item) => item.trim())
+  .filter(Boolean);
+const WALLET_CHECK_IN_REPEAT_TEST_WALLETS = new Set(
+  parseEnvList(process.env.HOOKLOOT_WALLET_CHECK_IN_REPEAT_TEST_WALLETS)
+    .map((wallet) => normalizeWallet(wallet))
+    .filter(Boolean),
+);
+const WALLET_CHECK_IN_REPEAT_TEST_NICKNAMES = new Set(
+  parseEnvList(process.env.HOOKLOOT_WALLET_CHECK_IN_REPEAT_TEST_NICKNAMES)
+    .map((nickname) => nickname.toLowerCase()),
+);
 const TEST_FISHING_NET_GRANT_REASON = 'monad-shop-test-default-net';
 const ADMIN_WALLETS = new Set(
   (process.env.HOOKLOOT_ADMIN_WALLETS || process.env.ADMIN_WALLET_ADDRESS || RECEIVER_ADDRESS)
@@ -74,147 +131,22 @@ const ADMIN_WALLETS = new Set(
 );
 const ALLOW_UNVERIFIED_PAYMENTS = readEnvFlag(process.env.HOOKLOOT_ALLOW_UNVERIFIED_PAYMENTS, MONAD_SHOP_TEST_MODE_ENABLED);
 const TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 30;
-const DAILY_FREE_BAIT = 30;
-const REFERRAL_BAIT_BONUS = 10;
-const MAX_REWARDED_REFERRALS = 10;
-const PREMIUM_SESSION_COST_MON = '3';
-const PREMIUM_SESSION_CASTS = 20;
-const WALLET_CHECK_IN_COST_MON = '0.0001';
-const BAIT_PACKAGES = [
-  { amount: 5, cost: 400, label: 'Small bait pack' },
-  { amount: 10, cost: 800, label: 'Double bait pack' },
-  { amount: 25, cost: 2000, label: 'Big bait pack' },
-  { amount: 50, cost: 4000, label: 'Bulk bait box' },
-];
 const BAIT_PACKAGES_BY_AMOUNT = new Map(BAIT_PACKAGES.map((item) => [item.amount, item]));
-const COIN_ROD_COSTS = new Map();
-const MON_FISHING_NET_PACKAGES = [
-  { dailyFishCount: 10, monAmount: '3', label: 'Scout Net' },
-  { dailyFishCount: 25, monAmount: '30', label: 'Harbor Net' },
-  { dailyFishCount: 50, monAmount: '60', label: 'Fleet Net' },
-];
-const MON_FISHING_NET_PACKAGES_BY_COUNT = new Map(MON_FISHING_NET_PACKAGES.map((item) => [item.dailyFishCount, item]));
-const MON_CUBE_ROLL_PACKAGES = [
-  { rolls: 1, monAmount: '1', label: '1 cube roll' },
-  { rolls: 3, monAmount: '3', label: '3 cube rolls' },
-  { rolls: 5, monAmount: '5', label: '5 cube rolls' },
-];
+const COIN_ROD_COSTS = new Map(ROD_DATA.filter((rod) => Number.isFinite(Number(rod.coinCost))).map((rod) => [rod.level, Number(rod.coinCost)]));
+const MON_COIN_PACKAGES_BY_COINS = new Map(MON_COIN_PACKAGES.map((item) => [item.coins, item]));
+const MON_FISHING_NET_PACKAGES_BY_COUNT = new Map(MON_FISHING_NET_PACKAGES.map((item) => [item.fishCount, item]));
 const MON_CUBE_ROLL_PACKAGES_BY_ROLLS = new Map(MON_CUBE_ROLL_PACKAGES.map((item) => [item.rolls, item]));
-const MON_HOLD_DAYS = 7;
-const MIN_WITHDRAW_MON = 1;
-const XP_PER_LEVEL = 100;
-const CATCH_CHANCE = 60;
+const NFT_ROD_MINT_COSTS = Object.fromEntries(NFT_ROD_DATA.map((rod) => [rod.rodLevel, rod.mintCost]));
+const MON_ROD_UNLOCK_COSTS = Object.fromEntries(ROD_DATA.filter((rod) => rod.monUnlockCost).map((rod) => [rod.level, rod.monUnlockCost]));
 const MIN_CAST_INTERVAL_MS = 4000;
 const BITE_WINDOW_MIN_MS = 1500;
 const BITE_WINDOW_MAX_MS = 2500;
 const REEL_EARLY_GRACE_MS = 450;
 const REEL_LATE_GRACE_MS = 1200;
 
-const FISH_DATA = [
-  { id: 'carp', name: 'Carp', rarity: 'common', chance: 45.14, price: 8, xp: 10 },
-  { id: 'perch', name: 'Perch', rarity: 'uncommon', chance: 28, price: 15, xp: 20 },
-  { id: 'bream', name: 'Bream', rarity: 'rare', chance: 15, price: 35, xp: 35 },
-  { id: 'catfish', name: 'Catfish', rarity: 'epic', chance: 8, price: 75, xp: 50 },
-  { id: 'goldfish', name: 'Goldfish', rarity: 'legendary', chance: 3, price: 200, xp: 100 },
-  { id: 'mutant', name: 'Mutant Fish', rarity: 'mythical', chance: 0.8, price: 800, xp: 200 },
-  { id: 'pike', name: 'Purple Fish', rarity: 'secret', chance: 0.05, price: 10000, xp: 1000 },
-  { id: 'leviathan', name: 'Cosmic Leviathan', rarity: 'mythical', chance: 0.01, price: 50000, xp: 10000 },
-];
 const FISH_BY_ID = new Map(FISH_DATA.map((fish) => [fish.id, fish]));
-const ROD_DATA = [
-  { id: 'common_rod', level: 0, name: 'Common Rod', rarity: 'common', bonus: 0, monadDropChance: 0, monadMinReward: 0, monadMaxReward: 0 },
-  { id: 'rare_rod', level: 1, name: 'Rare Rod', rarity: 'rare', bonus: 8, monadDropChance: 4, monadMinReward: 0.01, monadMaxReward: 0.03 },
-  { id: 'epic_rod', level: 2, name: 'Epic Rod', rarity: 'epic', bonus: 16, monadDropChance: 8, monadMinReward: 0.02, monadMaxReward: 0.07 },
-  { id: 'legendary_rod', level: 3, name: 'Legendary Rod', rarity: 'legendary', bonus: 28, monadDropChance: 14, monadMinReward: 0.04, monadMaxReward: 0.12 },
-  { id: 'legacy_gold_rod', level: 4, name: 'Legacy Gold Rod', rarity: 'legendary', bonus: 25, monadDropChance: 0, monadMinReward: 0, monadMaxReward: 0 },
-];
-const NFT_ROD_BONUSES = {
-  0: { rarityBonus: 6, xpBonus: 15, sellBonus: 5 },
-  1: { rarityBonus: 12, xpBonus: 30, sellBonus: 15 },
-  2: { rarityBonus: 18, xpBonus: 45, sellBonus: 25 },
-  3: { rarityBonus: 24, xpBonus: 60, sellBonus: 35 },
-  4: { rarityBonus: 32, xpBonus: 80, sellBonus: 50 },
-};
-const ALBUM_FIRST_CATCH_BONUSES = {
-  carp: 25,
-  perch: 50,
-  bream: 100,
-  catfish: 200,
-  goldfish: 500,
-  mutant: 1500,
-  pike: 5000,
-  leviathan: 10000,
-};
-const COLLECTION_BOOK_PAGES = [
-  { id: 'lake_basics', fishIds: ['carp', 'perch', 'bream'] },
-  { id: 'deepwater_odds', fishIds: ['catfish', 'goldfish', 'mutant'] },
-  { id: 'trophy_legends', fishIds: ['pike', 'leviathan'] },
-];
-
-const WHEEL_PRIZES = [
-  { id: 'coin_60', type: 'coins', label: '60 coins', coins: 60 },
-  { id: 'coin_120', type: 'coins', label: '120 coins', coins: 120 },
-  { id: 'coin_200', type: 'coins', label: '200 coins', coins: 200 },
-  { id: 'coin_350', type: 'coins', label: '350 coins', coins: 350 },
-  { id: 'coin_550', type: 'coins', label: '550 coins', coins: 550 },
-  { id: 'coin_900', type: 'coins', label: '900 coins', coins: 900 },
-  { id: 'coin_1500', type: 'coins', label: '1,500 coins', coins: 1500 },
-  { id: 'coin_2200', type: 'coins', label: '2,200 coins', coins: 2200 },
-  { id: 'bait_3', type: 'bait', label: '3 bait', bait: 3 },
-  { id: 'bait_5', type: 'bait', label: '5 bait', bait: 5 },
-  { id: 'bait_8', type: 'bait', label: '8 bait', bait: 8 },
-  { id: 'bait_12', type: 'bait', label: '12 bait', bait: 12 },
-  { id: 'bait_18', type: 'bait', label: '18 bait', bait: 18 },
-  { id: 'secret_mon_1', type: 'mon', label: '1 MON', mon: 1, secret: true },
-];
-
-const TASK_REWARDS = {
-  check_in: { coins: 100 },
-  catch_10: { coins: 100 },
-  rare_1: { coins: 100 },
-  grill_1: { coins: 100 },
-  spend_1000: { bait: 10 },
-  wallet_check_in: { bait: 10 },
-  invite_friend: { bait: 10 },
-  catch_60_fish: { coins: 600 },
-  catch_6_rare: { coins: 700 },
-  cook_5_dishes: { coins: 500 },
-  sell_3_dishes: { coins: 350 },
-  cube_3_days: { cubeCharge: 3 },
-  complete_1_premium_session: { bait: 20 },
-};
-const DAILY_TASK_TARGETS = {
-  check_in: 1,
-  catch_10: 10,
-  rare_1: 1,
-  grill_1: 1,
-  spend_1000: 1000,
-};
-const SPECIAL_TASK_TARGETS = {
-  wallet_check_in: 1,
-  invite_friend: 1,
-};
-const WEEKLY_MISSION_TARGETS = {
-  catch_60_fish: 60,
-  catch_6_rare: 6,
-  cook_5_dishes: 5,
-  sell_3_dishes: 3,
-  cube_3_days: 3,
-  complete_1_premium_session: 1,
-};
+const ROD_BY_ID = new Map(ROD_DATA.map((rod) => [rod.id, rod]));
 const RARE_TASK_RARITIES = new Set(['rare', 'epic', 'legendary', 'mythical', 'secret']);
-const DAILY_CLAIMS_FOR_CUBE = 3;
-const DAILY_CUBE_ROLL_REWARD = 3;
-
-const SOCIAL_TASKS = ['twitter_follow', 'twitter_repost', 'twitter_like', 'discord_join', 'telegram_join'];
-const GRILL_RECIPES = {
-  lake_skewer: { ingredients: { carp: 2 }, score: 25 },
-  crispy_perch_plate: { ingredients: { perch: 2, carp: 1 }, score: 65 },
-  rare_bream_steak: { ingredients: { bream: 1, perch: 1 }, score: 150 },
-  deepwater_platter: { ingredients: { catfish: 2, bream: 1 }, score: 420 },
-  cosmic_grill: { ingredients: { goldfish: 1, mutant: 1 }, score: 1200 },
-};
-const PREMIUM_FISH_IDS = ['carp', 'perch', 'bream', 'catfish', 'goldfish', 'mutant'];
 
 mkdirSync(DATA_DIR, { recursive: true });
 mkdirSync(join(UPLOAD_DIR, 'avatars'), { recursive: true });
@@ -227,14 +159,14 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS players (
     id TEXT PRIMARY KEY,
     wallet_address TEXT NOT NULL UNIQUE,
-    coins INTEGER NOT NULL DEFAULT 100,
+    coins INTEGER NOT NULL DEFAULT ${STARTING_COINS},
     bait INTEGER NOT NULL DEFAULT 0,
-    daily_free_bait INTEGER NOT NULL DEFAULT 30,
+    daily_free_bait INTEGER NOT NULL DEFAULT ${DAILY_FREE_BAIT},
     daily_free_bait_reset_at TEXT,
     bonus_bait_granted_total INTEGER NOT NULL DEFAULT 0,
     level INTEGER NOT NULL DEFAULT 1,
     xp INTEGER NOT NULL DEFAULT 0,
-    xp_to_next INTEGER NOT NULL DEFAULT 100,
+    xp_to_next INTEGER NOT NULL DEFAULT ${XP_PER_LEVEL},
     rod_level INTEGER NOT NULL DEFAULT 0,
     equipped_rod INTEGER NOT NULL DEFAULT 0,
     inventory TEXT NOT NULL DEFAULT '[]',
@@ -582,6 +514,24 @@ function getPlayerByWallet(walletAddress) {
   return playerFromRow(db.prepare('SELECT * FROM players WHERE wallet_address = ?').get(walletAddress));
 }
 
+function isWalletCheckInRepeatTestPlayer(playerOrWallet) {
+  if (WALLET_CHECK_IN_REPEAT_TEST_MODE) return true;
+  if (!WALLET_CHECK_IN_REPEAT_TEST_WALLETS.size && !WALLET_CHECK_IN_REPEAT_TEST_NICKNAMES.size) return false;
+
+  const providedPlayer = playerOrWallet && typeof playerOrWallet === 'object' ? playerOrWallet : null;
+  const providedWallet = typeof playerOrWallet === 'string'
+    ? normalizeWallet(playerOrWallet)
+    : normalizeWallet(playerOrWallet?.wallet_address);
+  const player = providedPlayer || (providedWallet ? getPlayerByWallet(providedWallet) : null);
+  const wallet = normalizeWallet(player?.wallet_address) || providedWallet;
+  const nickname = typeof player?.nickname === 'string' ? player.nickname.trim().toLowerCase() : '';
+
+  return Boolean(
+    (wallet && WALLET_CHECK_IN_REPEAT_TEST_WALLETS.has(wallet))
+    || (nickname && WALLET_CHECK_IN_REPEAT_TEST_NICKNAMES.has(nickname)),
+  );
+}
+
 function getPlayerById(playerId) {
   return playerFromRow(db.prepare('SELECT * FROM players WHERE id = ?').get(playerId));
 }
@@ -599,8 +549,8 @@ function ensurePlayer(walletAddress) {
         id, wallet_address, coins, bait, daily_free_bait, daily_free_bait_reset_at,
         level, xp, xp_to_next, rod_level, equipped_rod, inventory, cooked_dishes,
         game_progress, total_catches, login_streak, nft_rods, nickname, created_at, updated_at, last_login
-      ) VALUES (?, ?, 100, 0, ?, ?, 1, 0, 100, 0, 0, '[]', '[]', '{}', 0, 1, '[]', ?, ?, ?, ?)
-    `).run(randomUUID(), wallet, DAILY_FREE_BAIT, todayKey(), nickname, now, now, now);
+      ) VALUES (?, ?, ?, 0, ?, ?, 1, 0, ?, 0, 0, '[]', '[]', '{}', 0, 1, '[]', ?, ?, ?, ?)
+    `).run(randomUUID(), wallet, STARTING_COINS, DAILY_FREE_BAIT, todayKey(), XP_PER_LEVEL, nickname, now, now, now);
     player = getPlayerByWallet(wallet);
   }
 
@@ -1261,7 +1211,7 @@ function markPaymentTxApplied(txHash) {
   `).run(nowIso(), normalizedTxHash);
 }
 
-async function verifyPaymentWithLedger(walletAddress, txHash, expectedMon, purpose, metadata = {}) {
+async function verifyPaymentWithLedger(walletAddress, txHash, expectedMon, purpose, metadata = {}, options = {}) {
   const reservation = reservePaymentTx(walletAddress, txHash, purpose, expectedMon, metadata);
   const normalizedTxHash = reservation.txHash;
   if (reservation.status === 'applied') {
@@ -1284,7 +1234,7 @@ async function verifyPaymentWithLedger(walletAddress, txHash, expectedMon, purpo
   }
 
   try {
-    const payment = await verifyPaymentTx(walletAddress, normalizedTxHash, expectedMon);
+    const payment = await verifyPaymentTx(walletAddress, normalizedTxHash, expectedMon, options);
     markPaymentTxVerified(normalizedTxHash, payment.paidMon);
     return payment;
   } catch (error) {
@@ -1352,14 +1302,18 @@ function ensureGameProgress(progressValue) {
   const sameDay = current.date === currentDate;
   const sameWeek = current.weekKey === currentWeek;
   const tasks = createProgressEntries(DAILY_TASK_TARGETS, sameDay ? current.tasks : {});
+  const specialTasks = createProgressEntries(SPECIAL_TASK_TARGETS, sameDay ? current.specialTasks : {});
   tasks.check_in.progress = Math.max(tasks.check_in.progress, 1);
+  if (WALLET_CHECK_IN_REPEAT_TEST_MODE) {
+    specialTasks.wallet_check_in = { progress: 0, claimed: false };
+  }
 
   return {
     ...current,
     date: currentDate,
     weekKey: currentWeek,
     tasks,
-    specialTasks: createProgressEntries(SPECIAL_TASK_TARGETS, sameDay ? current.specialTasks : {}),
+    specialTasks,
     weeklyMissions: createProgressEntries(WEEKLY_MISSION_TARGETS, sameWeek ? current.weeklyMissions : {}),
     lastWeeklyCubeUnlockDate: sameWeek ? current.lastWeeklyCubeUnlockDate ?? null : null,
     wheelSpun: sameDay ? Boolean(current.wheelSpun) : false,
@@ -1373,7 +1327,7 @@ function ensureGameProgress(progressValue) {
     fishingNet: ensureFishingNetState(current.fishingNet, currentDate),
     collectionBook: current.collectionBook ?? null,
     rodMastery: current.rodMastery ?? null,
-    lastWalletCheckInTxHash: current.lastWalletCheckInTxHash ?? null,
+    lastWalletCheckInTxHash: WALLET_CHECK_IN_REPEAT_TEST_MODE ? null : current.lastWalletCheckInTxHash ?? null,
   };
 }
 
@@ -1462,8 +1416,8 @@ function withTestFishingNetGrant(progressValue) {
     };
   }
 
-  const netPackage = MON_FISHING_NET_PACKAGES[0] || { dailyFishCount: 10, label: 'Scout Net' };
-  const dailyFishCount = Math.max(1, Math.floor(Number(netPackage.dailyFishCount || 10)));
+  const netPackage = MON_FISHING_NET_PACKAGES[0] || { fishCount: 10, label: 'Scout Net' };
+  const dailyFishCount = Math.max(1, Math.floor(Number(netPackage.fishCount || 10)));
   return {
     progress: {
       ...progress,
@@ -1550,6 +1504,11 @@ function progressPremiumSessionCompleted(player) {
 
 function progressSpecialTask(player, taskId, metadata = {}) {
   return updateGameProgress(player, (progress) => {
+    if (taskId === 'wallet_check_in' && isWalletCheckInRepeatTestPlayer(player)) {
+      progress.specialTasks.wallet_check_in = { progress: 0, claimed: false };
+      progress.lastWalletCheckInTxHash = metadata.txHash || progress.lastWalletCheckInTxHash;
+      return progress;
+    }
     incrementProgressEntry(progress.specialTasks, SPECIAL_TASK_TARGETS, taskId, 1);
     if (taskId === 'wallet_check_in') {
       progress.lastWalletCheckInTxHash = metadata.txHash || progress.lastWalletCheckInTxHash;
@@ -1741,6 +1700,9 @@ function edgeResponse(payload) {
 async function verifyWallet(body) {
   const wallet = normalizeWallet(body.wallet_address);
   if (!wallet) throw httpError(400, 'Invalid wallet address');
+  if (TEST_ACTIVITY_LOGS_ENABLED) {
+    console.info(`[hookloot-wallet] ${new Date().toISOString()} verify-wallet requested wallet=${wallet} session=${Boolean(body.session_token)} signature=${Boolean(body.signature)}`);
+  }
   consumeRateLimit('verify_wallet', wallet, 60, 24);
 
   if (body.session_token) {
@@ -1794,6 +1756,10 @@ async function verifyWallet(body) {
 
   if (!beforePlayer) addAudit(wallet, 'wallet_created', {}, {}, player);
 
+  if (TEST_ACTIVITY_LOGS_ENABLED) {
+    console.info(`[hookloot-wallet] ${new Date().toISOString()} verify-wallet ok wallet=${wallet} nickname=${player.nickname || ''} linkedGuest=${linkedGuestId || ''}`);
+  }
+
   return edgeResponse({
     player,
     isNew: !beforePlayer,
@@ -1836,23 +1802,6 @@ function savePlayerProgress(body) {
       patch[key] = value;
     }
   }
-  if (data.rod_mastery) {
-    const currentProgress = ensureGameProgress(player.game_progress);
-    patch.game_progress = {
-      ...currentProgress,
-      rodMastery: data.rod_mastery ?? currentProgress.rodMastery,
-    };
-  }
-  if (body.game_progress && typeof body.game_progress === 'object') {
-    const currentProgress = ensureGameProgress(player.game_progress);
-    const incomingProgress = body.game_progress;
-    patch.game_progress = {
-      ...currentProgress,
-      rodMastery: patch.game_progress?.rodMastery ?? incomingProgress.rodMastery ?? currentProgress.rodMastery,
-      fishingNet: currentProgress.fishingNet ?? incomingProgress.fishingNet ?? null,
-      ...(patch.game_progress || {}),
-    };
-  }
   const updated = updatePlayer(player.wallet_address, patch);
   return edgeResponse({ player: updated });
 }
@@ -1879,9 +1828,12 @@ async function rpcCall(method, params) {
   return payload.result;
 }
 
-async function verifyPaymentTx(walletAddress, txHash, expectedMon) {
+async function verifyPaymentTx(walletAddress, txHash, expectedMon, options = {}) {
   const normalizedTxHash = requireTxHash(txHash);
-  if (ALLOW_UNVERIFIED_PAYMENTS) return { paidMon: Number(expectedMon) || 0, txHash: normalizedTxHash };
+  const allowUnverified = Object.prototype.hasOwnProperty.call(options, 'allowUnverified')
+    ? Boolean(options.allowUnverified)
+    : ALLOW_UNVERIFIED_PAYMENTS;
+  if (allowUnverified) return { paidMon: Number(expectedMon) || 0, txHash: normalizedTxHash };
   const receipt = await rpcCall('eth_getTransactionReceipt', [normalizedTxHash]);
   if (!receipt) throw httpError(202, 'Transaction pending, try again later');
   if (receipt.status !== '0x1') throw httpError(400, 'Transaction failed on-chain');
@@ -1902,15 +1854,21 @@ async function verifyPurchase(body) {
   const txHash = requireTxHash(body.tx_hash);
   const rodLevel = Number.isInteger(body.rod_level) ? Number(body.rod_level) : null;
   const rodPurchaseLevel = Number.isInteger(body.rod_purchase_level) ? Number(body.rod_purchase_level) : null;
-  const nftCosts = { 0: '1', 1: '3', 2: '5', 3: '10', 4: '25' };
-  const rodCosts = { 1: '3', 2: '10', 3: '25' };
-  const expectedMon = rodLevel !== null ? nftCosts[rodLevel] : rodPurchaseLevel !== null ? rodCosts[rodPurchaseLevel] : String(body.expected_mon || '0');
+  const requestedCoins = Number(body.expected_coins);
+  const coinPackage = rodLevel === null && rodPurchaseLevel === null && Number.isInteger(requestedCoins)
+    ? MON_COIN_PACKAGES_BY_COINS.get(requestedCoins)
+    : null;
+  const expectedMon = rodLevel !== null
+    ? NFT_ROD_MINT_COSTS[rodLevel]
+    : rodPurchaseLevel !== null
+      ? MON_ROD_UNLOCK_COSTS[rodPurchaseLevel]
+      : coinPackage?.monAmount;
   if (!expectedMon) throw httpError(400, 'Missing required fields');
   const purchasePurpose = rodLevel !== null
     ? 'nft_rod_mint'
     : rodPurchaseLevel !== null
       ? 'mon_rod_purchase'
-      : 'coin_purchase';
+      : `coin_purchase_${coinPackage.coins}`;
   const alreadyAppliedPurchaseResponse = (paidMon = 0) => {
     const currentPlayer = getPlayerByWallet(wallet) || player;
     if (rodLevel !== null) {
@@ -1922,13 +1880,14 @@ async function verifyPurchase(body) {
     return edgeResponse({
       success: true,
       player: currentPlayer,
-      coins_credited: Math.floor(Number(paidMon || 0) * 1000),
+      coins_credited: coinPackage?.coins ?? Math.floor(Number(paidMon || 0) * 1000),
       already_applied: true,
     });
   };
   const payment = await verifyPaymentWithLedger(wallet, txHash, expectedMon, purchasePurpose, {
     rodLevel,
     rodPurchaseLevel,
+    expectedCoins: coinPackage?.coins,
   });
 
   if (payment.alreadyApplied) {
@@ -1954,7 +1913,7 @@ async function verifyPurchase(body) {
       return edgeResponse({ success: true, player: updated, rod_level: nextRod, equipped_rod: nextEquipped });
     }
 
-    const coinsCredited = Math.floor(payment.paidMon * 1000);
+    const coinsCredited = coinPackage?.coins ?? Math.floor(payment.paidMon * 1000);
     const updated = updatePlayer(wallet, { coins: Number(currentPlayer.coins || 0) + coinsCredited });
     addAudit(wallet, 'coin_purchase_verified', { txHash: payment.txHash, coinsCredited, paidMon: payment.paidMon }, currentPlayer, updated);
     return edgeResponse({ success: true, player: updated, coins_credited: coinsCredited });
@@ -1962,11 +1921,13 @@ async function verifyPurchase(body) {
 }
 
 function getWalletCheckInSummary(walletAddress) {
+  const wallet = normalizeWallet(walletAddress) || walletAddress;
+  const repeatTestMode = isWalletCheckInRepeatTestPlayer(wallet);
   const logs = db.prepare(`
     SELECT metadata, created_at FROM player_audit_logs
     WHERE wallet_address = ? AND event_type = 'wallet_check_in'
     ORDER BY created_at DESC LIMIT 14
-  `).all(walletAddress);
+  `).all(wallet);
   const today = todayKey();
   const latest = logs[0];
   const latestMeta = latest ? safeJsonParse(latest.metadata, {}) : {};
@@ -1981,7 +1942,8 @@ function getWalletCheckInSummary(walletAddress) {
     cursor = todayKey(prev);
   }
   return {
-    todayCheckedIn: latestDate === today,
+    todayCheckedIn: !repeatTestMode && latestDate === today,
+    repeatTestMode,
     streakDays: streak,
     lastCheckInAt: latest?.created_at ?? null,
     lastCheckInDate: latestDate,
@@ -2085,13 +2047,144 @@ function getWheelPrizesForPlayer(player) {
   return WHEEL_PRIZES.filter((prize) => prize.type !== 'mon');
 }
 
+const CUBE_FACE_COUNT = 6;
+const CUBE_FACE_TILE_COUNT = 25;
+
+const clampChance = (chance) => Math.max(0, Math.min(1, Number(chance) || 0));
+
+function pickWeighted(items, getWeight) {
+  const weightedItems = items.filter((item) => Number(getWeight(item)) > 0);
+  const totalWeight = weightedItems.reduce((sum, item) => sum + Number(getWeight(item) || 0), 0);
+  if (totalWeight <= 0) return weightedItems[0] || null;
+
+  let roll = Math.random() * totalWeight;
+  for (const item of weightedItems) {
+    roll -= Number(getWeight(item) || 0);
+    if (roll <= 0) return item;
+  }
+
+  return weightedItems[weightedItems.length - 1] || null;
+}
+
+function indexToCubeFaceAndTile(globalIndex) {
+  return {
+    faceIndex: Math.floor(globalIndex / CUBE_FACE_TILE_COUNT),
+    tileIndex: globalIndex % CUBE_FACE_TILE_COUNT,
+  };
+}
+
+function randomUniqueIndexes(count, maxExclusive, blocked = new Set()) {
+  const chosen = new Set();
+  const targetCount = Math.max(0, Math.min(count, maxExclusive - blocked.size));
+  while (chosen.size < targetCount) {
+    const index = Math.floor(Math.random() * maxExclusive);
+    if (!blocked.has(index)) chosen.add(index);
+  }
+  return Array.from(chosen.values());
+}
+
+function setCubePrizeAtGlobalIndex(faces, globalIndex, prize) {
+  const { faceIndex, tileIndex } = indexToCubeFaceAndTile(globalIndex);
+  faces[faceIndex][tileIndex] = prize;
+}
+
+function getRodTileGlobalIndexes(faces) {
+  const indexes = [];
+  faces.forEach((face, faceIndex) => {
+    face.forEach((prize, tileIndex) => {
+      if (prize?.type === 'rod') indexes.push(faceIndex * CUBE_FACE_TILE_COUNT + tileIndex);
+    });
+  });
+  return indexes;
+}
+
+function getEligibleCubeRodDrops(player) {
+  const currentRodLevel = Math.max(0, Math.floor(Number(player.rod_level || 0)));
+  return ROD_CUBE_DROP_CONFIG.cubeRodRewards.flatMap((reward) => {
+    const rod = ROD_BY_ID.get(reward.rodId);
+    if (
+      !rod
+      || rod.level <= currentRodLevel
+      || rod.level < ROD_CUBE_DROP_CONFIG.minLevel
+      || rod.level > ROD_CUBE_DROP_CONFIG.maxLevel
+      || Number(reward.dropWeight || 0) <= 0
+    ) {
+      return [];
+    }
+
+    return [{ ...rod, cubeDropWeight: reward.dropWeight, duplicateCompensationMonads: reward.duplicateCompensationMonads }];
+  });
+}
+
+function createCubeRodPrize(player) {
+  const rod = pickWeighted(getEligibleCubeRodDrops(player), (item) => item.cubeDropWeight);
+  if (!rod) return null;
+
+  return {
+    id: rod.id,
+    type: 'rod',
+    rodId: rod.id,
+    rodLevel: rod.level,
+    rarity: rod.rarity,
+    duplicateCompensationMonads: rod.duplicateCompensationMonads,
+    label: rod.name,
+  };
+}
+
+function pickCubeTarget(faces, player) {
+  const totalTiles = CUBE_FACE_COUNT * CUBE_FACE_TILE_COUNT;
+  let rodIndexes = getRodTileGlobalIndexes(faces);
+  const shouldHitRodJackpot = (
+    ROD_CUBE_DROP_CONFIG.cubeRodDropEnabled
+    && Math.random() < clampChance(ROD_CUBE_DROP_CONFIG.targetWinChance)
+  );
+
+  if (shouldHitRodJackpot && rodIndexes.length === 0) {
+    const rodPrize = createCubeRodPrize(player);
+    const [rodIndex] = rodPrize ? randomUniqueIndexes(1, totalTiles) : [];
+    if (rodPrize && Number.isInteger(rodIndex)) {
+      setCubePrizeAtGlobalIndex(faces, rodIndex, rodPrize);
+      rodIndexes = [rodIndex];
+    }
+  }
+
+  const targetGlobalIndex = shouldHitRodJackpot && rodIndexes.length > 0
+    ? rodIndexes[Math.floor(Math.random() * rodIndexes.length)]
+    : randomUniqueIndexes(1, totalTiles, new Set(rodIndexes))[0] ?? 0;
+  const { faceIndex, tileIndex } = indexToCubeFaceAndTile(targetGlobalIndex);
+  return { targetFace: faceIndex, targetTile: tileIndex, prize: faces[faceIndex][tileIndex] };
+}
+
 function generateCubeRoll(player) {
   const wheelPrizes = getWheelPrizesForPlayer(player);
-  const faces = Array.from({ length: 6 }, () => (
-    Array.from({ length: 25 }, () => ({ ...wheelPrizes[Math.floor(Math.random() * wheelPrizes.length)] }))
+  const faces = Array.from({ length: CUBE_FACE_COUNT }, () => (
+    Array.from({ length: CUBE_FACE_TILE_COUNT }, () => ({ ...wheelPrizes[Math.floor(Math.random() * wheelPrizes.length)] }))
   ));
-  let targetFace = Math.floor(Math.random() * 6);
-  let targetTile = Math.floor(Math.random() * 25);
+  const totalTiles = CUBE_FACE_COUNT * CUBE_FACE_TILE_COUNT;
+  const eligibleRodDrops = getEligibleCubeRodDrops(player);
+  if (
+    ROD_CUBE_DROP_CONFIG.cubeRodDropEnabled
+    && eligibleRodDrops.length > 0
+    && Math.random() < clampChance(ROD_CUBE_DROP_CONFIG.tileInjectionChance)
+  ) {
+    for (const globalIndex of randomUniqueIndexes(ROD_CUBE_DROP_CONFIG.tileCount, totalTiles)) {
+      const rod = pickWeighted(eligibleRodDrops, (item) => item.cubeDropWeight);
+      if (!rod) continue;
+      setCubePrizeAtGlobalIndex(faces, globalIndex, {
+        id: rod.id,
+        type: 'rod',
+        rodId: rod.id,
+        rodLevel: rod.level,
+        rarity: rod.rarity,
+        duplicateCompensationMonads: rod.duplicateCompensationMonads,
+        label: rod.name,
+      });
+    }
+  }
+  const target = pickCubeTarget(faces, player);
+  let targetFace = target.targetFace;
+  let targetTile = target.targetTile;
+  let prize = target.prize;
   const testMonPrize = MONAD_TEST_DROPS_ALWAYS
     ? wheelPrizes.find((prize) => prize.type === 'mon' && Number(prize.mon || 0) > 0)
     : null;
@@ -2099,8 +2192,8 @@ function generateCubeRoll(player) {
     targetFace = 0;
     targetTile = 0;
     faces[targetFace][targetTile] = { ...testMonPrize };
+    prize = faces[targetFace][targetTile];
   }
-  const prize = faces[targetFace][targetTile];
   return { faces, targetFace, targetTile, prize };
 }
 
@@ -2116,8 +2209,17 @@ function applyPrize(player, prize, options = {}) {
     patch.inventory = inventory;
   }
   if (prize.type === 'rod' && Number.isInteger(prize.rodLevel)) {
-    patch.rod_level = Math.max(player.rod_level, prize.rodLevel);
-    patch.equipped_rod = Math.max(player.equipped_rod, prize.rodLevel);
+    const prizeRodLevel = Math.max(0, Number(prize.rodLevel || 0));
+    if (Number(player.rod_level || 0) < prizeRodLevel) {
+      patch.rod_level = prizeRodLevel;
+      patch.equipped_rod = Math.max(player.equipped_rod, prizeRodLevel);
+    } else {
+      const duplicateCompensationMonads = Number(prize.duplicateCompensationMonads || 0);
+      if (duplicateCompensationMonads > 0 && (!isGuestPlayer(player) || MONAD_SHOP_TEST_MODE_ENABLED)) {
+        insertMonReward(player, duplicateCompensationMonads, 'cube_rod_duplicate', options.monSourceRef || prize.id);
+        prize.duplicateCompensationApplied = true;
+      }
+    }
   }
   const updated = Object.keys(patch).length ? updatePlayer(player.wallet_address, patch) : player;
   if (prize.type === 'mon' && Number(prize.mon || 0) > 0 && (!isGuestPlayer(player) || MONAD_SHOP_TEST_MODE_ENABLED)) {
@@ -2278,7 +2380,7 @@ function advanceXp(player, xpGain, extraCoins = 0) {
     remainingXp -= xpToNext;
     newLevel += 1;
     xpToNext = newLevel * XP_PER_LEVEL;
-    levelBonusCoins += 100 * newLevel;
+    levelBonusCoins += LEVEL_UP_COIN_REWARD_PER_LEVEL * newLevel;
   }
 
   return {
@@ -2375,14 +2477,16 @@ function startFishingCast(player) {
 function applyFishingMiss(player, castId) {
   const rodLevel = getSafeRodLevel(player);
   const nftBonus = getNftBonus(player, rodLevel);
-  const xpGain = Math.floor(5 * (1 + nftBonus.xpBonus / 100));
+  const xpGain = Math.floor(MISS_XP_REWARD * (1 + nftBonus.xpBonus / 100));
   const xpPatch = advanceXp(player, xpGain);
   const updated = updatePlayer(player.wallet_address, xpPatch);
+  const monReward = rollRodMonRewardForServer(player, `fishing-miss:${castId}`);
   const result = {
     success: false,
     fishId: null,
     xpGain,
     levelUp: xpPatch.levelUp,
+    monReward,
     occurredAt: nowIso(),
   };
   addAudit(player.wallet_address, 'fish_escaped', { castId, xpGain }, player, updated);
@@ -2396,7 +2500,7 @@ function applyFishingCatch(player, castId, fishId) {
   const caughtAt = nowIso();
   const rodLevel = getSafeRodLevel(player);
   const nftBonus = getNftBonus(player, rodLevel);
-  const xpGain = Math.floor((fish.xp + 5) * (1 + nftBonus.xpBonus / 100));
+  const xpGain = Math.floor((fish.xp + CATCH_XP_FLAT_BONUS) * (1 + nftBonus.xpBonus / 100));
   const progressUpdate = progressFishingCatch(player, fish);
   const currentProgress = progressUpdate.progress;
   const collectionUpdate = recordCollectionCatchServer(currentProgress.collectionBook, fish.id, caughtAt);
@@ -2413,28 +2517,41 @@ function applyFishingCatch(player, castId, fishId) {
       collectionBook: collectionUpdate.nextBook,
     },
   };
-  const monReward = rollRodMonRewardForServer(player, `fishing:${castId}`);
   let leviathanBonus = null;
 
-  if (fish.id === 'leviathan' && getSafeRodLevel(player) === 0) {
-    if (Number(player.rod_level || 0) < 2) {
-      patch.rod_level = 2;
-      patch.equipped_rod = 2;
+  const leviathanRequiredRod = ROD_BY_ID.get(LEVIATHAN_COMMON_ROD_BONUS_CONFIG.requiredRodId);
+  const leviathanBonusRod = ROD_BY_ID.get(LEVIATHAN_COMMON_ROD_BONUS_CONFIG.bonusRodId);
+  const leviathanBonusSourceRef = `leviathan:${castId}`;
+
+  if (
+    fish.id === LEVIATHAN_COMMON_ROD_BONUS_CONFIG.fishId
+    && leviathanRequiredRod
+    && leviathanBonusRod
+    && getSafeRodLevel(player) === leviathanRequiredRod.level
+  ) {
+    if (Number(player.rod_level || 0) < leviathanBonusRod.level) {
+      patch.rod_level = leviathanBonusRod.level;
+      patch.equipped_rod = leviathanBonusRod.level;
       leviathanBonus = {
         type: 'rod',
-        sourceRef: `leviathan:${castId}`,
-        bonusRodId: 'epic_rod',
-        bonusRodLevel: 2,
+        sourceRef: leviathanBonusSourceRef,
+        bonusRodId: leviathanBonusRod.id,
+        bonusRodLevel: leviathanBonusRod.level,
         credited: true,
       };
-    } else if (!isGuestPlayer(player)) {
-      insertMonReward(player, 2, 'leviathan_common_rod_bonus', `leviathan:${castId}`);
+    } else if (!isGuestPlayer(player) && LEVIATHAN_COMMON_ROD_BONUS_CONFIG.duplicateCompensationMon > 0) {
+      insertMonReward(
+        player,
+        LEVIATHAN_COMMON_ROD_BONUS_CONFIG.duplicateCompensationMon,
+        'leviathan_common_rod_bonus',
+        leviathanBonusSourceRef,
+      );
       leviathanBonus = {
         type: 'mon_compensation',
-        sourceRef: `leviathan:${castId}`,
-        bonusRodId: 'epic_rod',
-        bonusRodLevel: 2,
-        compensationMon: 2,
+        sourceRef: leviathanBonusSourceRef,
+        bonusRodId: leviathanBonusRod.id,
+        bonusRodLevel: leviathanBonusRod.level,
+        compensationMon: LEVIATHAN_COMMON_ROD_BONUS_CONFIG.duplicateCompensationMon,
         credited: true,
       };
     }
@@ -2457,7 +2574,7 @@ function applyFishingCatch(player, castId, fishId) {
     firstCatchBonus,
     levelUp: xpPatch.levelUp,
     albumReward,
-    monReward,
+    monReward: null,
     specialReward: leviathanBonus,
     occurredAt: caughtAt,
   };
@@ -2799,7 +2916,7 @@ async function playerActions(body) {
       return edgeResponse({ wallet_check_in_summary: getWalletCheckInSummary(player.wallet_address) });
 
     case 'verify_wallet_check_in': {
-      requireRealWalletOrMonadTestPlayer(player, 'Connect a verified wallet to use wallet check-in.');
+      requireRealWalletPlayer(player, 'Connect a verified wallet to use wallet check-in.');
       const txHash = requireTxHash(body.tx_hash, 'Missing wallet check-in transaction hash');
       const currentSummary = getWalletCheckInSummary(player.wallet_address);
       if (currentSummary.todayCheckedIn) {
@@ -2816,6 +2933,7 @@ async function playerActions(body) {
         WALLET_CHECK_IN_COST_MON,
         'wallet_check_in',
         { checkInDate },
+        { allowUnverified: false },
       );
       if (payment.alreadyApplied) {
         return edgeResponse({
@@ -2931,8 +3049,8 @@ async function playerActions(body) {
           ? 0.05 * qualityMultiplier
           : Math.random() < (reactionQuality === 'perfect' ? 0.12 : 0.05) ? 0.05 * qualityMultiplier : 0;
         const tier = monAmount > 0 ? 'small' : 'zero';
-        const bonusCoins = 30 * qualityMultiplier;
-        const bonusXp = 10 * qualityMultiplier;
+        const bonusCoins = PREMIUM_SESSION_BONUS_COINS_PER_CAST * qualityMultiplier;
+        const bonusXp = PREMIUM_SESSION_BONUS_XP_PER_CAST * qualityMultiplier;
         const now = nowIso();
         const nextZeroDropStreak = monAmount > 0 ? 0 : Number(session.zero_drop_streak || 0) + 1;
         const sessionUpdate = db.prepare(`
@@ -3121,6 +3239,9 @@ async function playerActions(body) {
       });
       return edgeResponse({ leaderboard_entry: leaderboard });
     }
+
+    case 'get_mon_summary':
+      return edgeResponse({ mon_summary: monSummary(player) });
 
     case 'list_social_tasks':
       return edgeResponse({ verifications: SOCIAL_TASKS.map((taskId) => getSocialVerification(player, taskId)) });

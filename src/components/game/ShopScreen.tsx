@@ -26,6 +26,7 @@ import { publicAsset } from '@/lib/assets';
 import { getErrorMessage, isUserRejectedError } from '@/lib/errorUtils';
 import { formatMonAmount } from '@/lib/monRewards';
 import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
+import type { MonBalanceSummary } from '@/hooks/usePlayerMon';
 import CoinIcon from './CoinIcon';
 import MonadIcon from './MonadIcon';
 import BuyCoinsDialog from './BuyCoinsDialog';
@@ -44,6 +45,7 @@ interface ShopScreenProps {
   bait: number;
   dailyFreeBait?: number;
   walletAddress?: string;
+  monSummary?: MonBalanceSummary;
   rodLevel: number;
   fishingNet: FishingNetState;
   nftRods?: number[];
@@ -83,6 +85,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
   bait,
   dailyFreeBait = 0,
   walletAddress,
+  monSummary,
   rodLevel,
   fishingNet,
   nftRods = [],
@@ -103,16 +106,21 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
   const walletBalanceAddress = walletAddress?.startsWith('0x') ? walletAddress as `0x${string}` : undefined;
   const { data: monWalletBalance } = useBalance({ address: walletBalanceAddress });
   const parsedMonWalletBalance = monWalletBalance ? Number(monWalletBalance.formatted) : null;
-  const monadBalanceLabel = parsedMonWalletBalance !== null && Number.isFinite(parsedMonWalletBalance)
-    ? `${formatMonAmount(parsedMonWalletBalance)} ${monWalletBalance?.symbol ?? 'MON'}`
-    : MONAD_SHOP_TEST_MODE_ENABLED
-      ? 'TEST'
-      : '-- MON';
-  const monadBalanceNote = monWalletBalance
-    ? (MONAD_SHOP_TEST_MODE_ENABLED ? 'Test buys unlocked' : 'Wallet funds')
-    : MONAD_SHOP_TEST_MODE_ENABLED
-      ? 'Test buys unlocked'
-      : 'Connect wallet';
+  const earnedMonBalance = monSummary ? Math.max(0, monSummary.totalEarnedMon) : null;
+  const monadBalanceLabel = earnedMonBalance !== null
+    ? `${formatMonAmount(earnedMonBalance)} MON`
+    : parsedMonWalletBalance !== null && Number.isFinite(parsedMonWalletBalance)
+      ? `${formatMonAmount(parsedMonWalletBalance)} ${monWalletBalance?.symbol ?? 'MON'}`
+      : MONAD_SHOP_TEST_MODE_ENABLED
+        ? '0 MON'
+        : '-- MON';
+  const monadBalanceNote = earnedMonBalance !== null
+    ? (earnedMonBalance > 0 ? 'Won in game' : 'No rewards yet')
+    : monWalletBalance
+      ? (MONAD_SHOP_TEST_MODE_ENABLED ? 'Test buys unlocked' : 'Wallet funds')
+      : MONAD_SHOP_TEST_MODE_ENABLED
+        ? 'Game rewards'
+        : 'Connect wallet';
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(max-width: 767px)');
@@ -390,7 +398,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
               />
               <QuestBoardPlaque
                 eyebrow="All rods"
-                description="Common, MON unlock rods, and bonus MON rods are grouped here. Monad Shop no longer sells rods in a second place."
+                description="Common, gold upgrades, and bonus MON rods are grouped here. Rare and Epic are gold sinks again for progression testing."
               />
               {ROD_UPGRADES.length === 0 ? (
                 <QuestBoardCard>
@@ -456,7 +464,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
 
               <QuestBoardPlaque
                 eyebrow="Monad rods"
-                description="Rare, Epic, and Legendary rods cost MON. The Common Rod is already owned by every player and is not sold separately."
+                description="Top-tier Monad rods stay in the wallet flow. Gold-upgrade rods appear above and are bought with coins."
               />
               <div className="grid gap-2.5 sm:gap-3 lg:grid-cols-2">
                 {MON_ROD_PURCHASES.map((rodOffer) => {
@@ -476,7 +484,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                           <div className="font-black text-[#f8e8bf]">{rodOffer.label}</div>
                           <div className="text-xs font-medium text-[#f8e8bf]/72">{rodOffer.description}</div>
                           <div className="mt-2 grid gap-1 text-[0.68rem] font-semibold text-[#f8e8bf]/72 sm:grid-cols-2">
-                            <span>MON pull: {rodOffer.monadDropChance}%</span>
+                            <span>No-fish MON: {rodOffer.monadDropChance}%</span>
                             <span>{rodOffer.monadMinReward}-{rodOffer.monadMaxReward} MON</span>
                             <span>Rare+ bonus: +{rodOffer.rareCatchBonus}%</span>
                             <span>{rodOffer.monAmount} MON</span>

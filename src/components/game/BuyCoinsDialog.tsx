@@ -17,7 +17,7 @@ import CoinIcon from './CoinIcon';
 import { Check, Coins, ShipWheel } from 'lucide-react';
 import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
 import { getErrorMessage, isUserRejectedError } from '@/lib/errorUtils';
-import { MON_MARKET_RECEIVER_ADDRESS, MON_ROD_PURCHASES } from '@/lib/baitEconomy';
+import { MON_COIN_PACKAGES, MON_MARKET_RECEIVER_ADDRESS, MON_ROD_PURCHASES } from '@/lib/baitEconomy';
 import { invokeHooklootEdge } from '@/lib/serverApi';
 import {
   canUseMonadPaymentIdentity,
@@ -26,13 +26,7 @@ import {
   sendMonadPayment,
 } from '@/lib/monadTestMode';
 
-const COIN_PACKAGES = [
-  { monAmount: '0.01', coins: 10, premium: false },
-  { monAmount: '0.05', coins: 50, premium: false },
-  { monAmount: '0.1', coins: 100, premium: false },
-  { monAmount: '0.5', coins: 500, premium: false },
-  { monAmount: '1', coins: 1000, premium: true },
-];
+const COIN_PACKAGES = MON_COIN_PACKAGES;
 
 const ROD_IMAGES = ROD_DISPLAY_INFO.map((rod) => rod.image);
 
@@ -94,7 +88,7 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
         sendTransactionAsync,
         receiverAddress: MON_MARKET_RECEIVER_ADDRESS,
         monAmount: pkg.monAmount,
-        purpose: `coin-pack-${pkg.monAmount}`,
+        purpose: `coin-pack-${pkg.coins}`,
       });
 
       toast.info(MONAD_SHOP_TEST_MODE_ENABLED ? 'Test payment created, applying coins...' : 'Transaction sent, awaiting confirmation...');
@@ -237,10 +231,10 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
       </p>
       <div className="grid gap-3">
         {COIN_PACKAGES.map((pkg) => {
-          const isLoading = isPurchasing && selectedPackage?.monAmount === pkg.monAmount;
+          const isLoading = isPurchasing && selectedPackage?.id === pkg.id;
           return (
             <Button
-              key={pkg.monAmount}
+              key={pkg.id}
               variant="outline"
               className="h-auto flex-row justify-between border-zinc-800 bg-zinc-950 px-5 py-4 text-zinc-100 hover:border-cyan-300/30 hover:bg-black"
               disabled={isPurchasing}
@@ -328,7 +322,7 @@ const BuyCoinsDialog: React.FC<BuyCoinsDialogProps> = ({
                         <div className="font-semibold text-sm text-zinc-100">{getRodName(rodOffer.level)}</div>
                         <div className="text-xs text-zinc-500">{rodOffer.description}</div>
                         <div className="mt-1 text-[10px] text-zinc-500">
-                          MON pull {rodOffer.monadDropChance}% / {rodOffer.monadMinReward}-{rodOffer.monadMaxReward} MON / +{rodOffer.rareCatchBonus}% rare+
+                          No-fish MON {rodOffer.monadDropChance}% / {rodOffer.monadMinReward}-{rodOffer.monadMaxReward} MON / +{rodOffer.rareCatchBonus}% rare+
                         </div>
                         {rod && (
                           <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: ROD_RARITY_COLORS[rod.rarity] }}>

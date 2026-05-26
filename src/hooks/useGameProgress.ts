@@ -24,6 +24,7 @@ import {
   type WeeklyMissionProgress,
   type WheelPrize,
 } from '@/types/game';
+import { WALLET_CHECK_IN_REPEAT_TEST_MODE } from '@/lib/walletCheckIn';
 
 type GameProgressState = GameProgressSnapshot;
 type DailyTaskMap = GameProgressState['tasks'];
@@ -251,6 +252,19 @@ const createInitialState = (): GameProgressState => ({
   grillScore: 0,
   dishesToday: 0,
 });
+
+const resetWalletCheckInForRepeatTest = (state: GameProgressState): GameProgressState => {
+  if (!WALLET_CHECK_IN_REPEAT_TEST_MODE) return state;
+
+  return {
+    ...state,
+    lastWalletCheckInTxHash: null,
+    specialTasks: {
+      ...state.specialTasks,
+      wallet_check_in: { progress: 0, claimed: false },
+    },
+  };
+};
 
 interface UseGameProgressOptions {
   savedProgress?: GameProgressState | null;
@@ -511,7 +525,7 @@ const normalizeState = (parsed?: Partial<GameProgressState> | null): GameProgres
     : null;
 
   if (parsed.date !== todayKey()) {
-    return {
+    return resetWalletCheckInForRepeatTest({
       ...baseState,
       weekKey: baseState.weekKey,
       weeklyMissions,
@@ -521,7 +535,7 @@ const normalizeState = (parsed?: Partial<GameProgressState> | null): GameProgres
       paidWheelRolls: Math.max(0, Number(parsed.paidWheelRolls || 0)),
       premiumSession: parsed.premiumSession ?? null,
       fishingNet: sanitizeFishingNet(parsed.fishingNet),
-    };
+    });
   }
 
   const tasks = normalizeDailyTasks(parsed.tasks ?? null);
@@ -542,7 +556,7 @@ const normalizeState = (parsed?: Partial<GameProgressState> | null): GameProgres
     dailyRollRewardGranted: Boolean(parsed.dailyRollRewardGranted),
   }, tasks);
 
-  return {
+  return resetWalletCheckInForRepeatTest({
     ...baseState,
     ...parsed,
     weekKey: baseState.weekKey,
@@ -559,7 +573,7 @@ const normalizeState = (parsed?: Partial<GameProgressState> | null): GameProgres
     paidWheelRolls: Math.max(0, Number(parsed.paidWheelRolls || 0)),
     grillScore: Math.max(0, Number(parsed.grillScore || 0)),
     dishesToday: Math.max(0, Number(parsed.dishesToday || 0)),
-  };
+  });
 };
 
 const mergeWeeklyState = (serverState: GameProgressState, localState: GameProgressState) => {
@@ -673,6 +687,14 @@ const loadState = (localClientStateEnabled = true): GameProgressState => {
   }
 };
 
+const clearStoredGameProgress = () => {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Server progress is authoritative; storage cleanup is best-effort only.
+  }
+};
+
 export const pickWheelPrize = (cubeRebalanceEnabled = CUBE_REBALANCE_ENABLED) => {
   const secretPrizes = WHEEL_PRIZES.filter((item) => item.secret);
   const standardPrizes = WHEEL_PRIZES.filter((item) => !item.secret);
@@ -698,6 +720,11 @@ export function useGameProgress(options?: UseGameProgressOptions) {
   const syncDailyState = useCallback(() => {
     if (!localClientStateEnabled) return;
     setState((prev) => ensureFishingNetReady(normalizeState(prev)));
+  }, [localClientStateEnabled]);
+
+  useEffect(() => {
+    if (localClientStateEnabled) return;
+    clearStoredGameProgress();
   }, [localClientStateEnabled]);
 
   useEffect(() => {
@@ -737,6 +764,11 @@ export function useGameProgress(options?: UseGameProgressOptions) {
   useEffect(() => {
     initializedRef.current = true;
   }, [weeklyMissionsEnabled]);
+
+  useEffect(() => {
+    if (!WALLET_CHECK_IN_REPEAT_TEST_MODE) return;
+    setState((prev) => resetWalletCheckInForRepeatTest(prev));
+  }, []);
 
   useEffect(() => {
     if (!initializedRef.current || !onSave) return;
@@ -960,21 +992,23 @@ export function useGameProgress(options?: UseGameProgressOptions) {
   const syncWalletCheckInTask = useCallback((checkedInToday: boolean, txHash?: string | null) => {
     setState((prev) => {
       const current = prev.specialTasks.wallet_check_in;
-      const nextProgress = checkedInToday ? 1 : 0;
+      const effectiveCheckedInToday = WALLET_CHECK_IN_REPEAT_TEST_MODE ? false : checkedInToday;
+      const nextProgress = effectiveCheckedInToday ? 1 : 0;
+      const nextClaimed = nextProgress === 0 ? false : current.claimed;
       const nextTxHash = txHash ?? null;
-      const txChanged = checkedInToday && Boolean(nextTxHash) && nextTxHash !== prev.lastWalletCheckInTxHash;
+      const txChanged = effectiveCheckedInToday && Boolean(nextTxHash) && nextTxHash !== prev.lastWalletCheckInTxHash;
 
       if (!current) {
         return prev;
       }
 
-      if (current.progress === nextProgress && !txChanged) {
+      if (current.progress === nextProgress && current.claimed === nextClaimed && !txChanged) {
         return prev;
       }
 
       return {
         ...prev,
-        lastWalletCheckInTxHash: checkedInToday
+        lastWalletCheckInTxHash: effectiveCheckedInToday
           ? (nextTxHash ?? prev.lastWalletCheckInTxHash)
           : null,
         specialTasks: {
@@ -982,7 +1016,7 @@ export function useGameProgress(options?: UseGameProgressOptions) {
           wallet_check_in: {
             ...current,
             progress: nextProgress,
-            claimed: nextProgress === 0 ? false : current.claimed,
+            claimed: nextClaimed,
           },
         },
       };

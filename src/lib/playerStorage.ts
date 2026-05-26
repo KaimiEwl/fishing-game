@@ -441,3 +441,11 @@ export const storePlayerLocally = (player: PlayerState) => {
 
   localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(serialized));
 };
+
+export const clearStoredPlayer = () => {
+  try {
+    localStorage.removeItem(PLAYER_STORAGE_KEY);
+  } catch {
+    // Server state is authoritative; storage cleanup is best-effort only.
+  }
+};

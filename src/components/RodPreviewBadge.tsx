@@ -148,7 +148,7 @@ const RodPreviewBadge = ({ rodLevel, ownedRodLevel, nftRods, totalBait = 0, onEq
         <p className="text-xs text-zinc-200">Standard catch chance</p>
       )}
       <p className="text-xs text-cyan-100">
-        MON pull {rodDefinition.monadDropChance}% / {formatMonAmount(rodDefinition.monadMinReward)}-{formatMonAmount(rodDefinition.monadMaxReward)} MON
+        No-fish MON {rodDefinition.monadDropChance}% / {formatMonAmount(rodDefinition.monadMinReward)}-{formatMonAmount(rodDefinition.monadMaxReward)} MON
       </p>
       {hasNft && nftData && (
         <div className="mt-1 border-t border-cyan-300/15 pt-1 text-xs text-cyan-100">

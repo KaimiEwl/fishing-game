@@ -18,6 +18,9 @@ import { isUserRejectedError } from '@/lib/errorUtils';
 import { wagmiConfig } from '@/lib/wagmi';
 import { publicAsset } from '@/lib/assets';
 import {
+  MON_MARKET_RECEIVER_ADDRESS,
+  PREMIUM_SESSION_BONUS_COINS_PER_CAST,
+  PREMIUM_SESSION_BONUS_XP_PER_CAST,
   PREMIUM_SESSION_CASTS,
   PREMIUM_SESSION_COST_MON,
 } from '@/lib/baitEconomy';
@@ -28,8 +31,6 @@ import {
   sendMonadPayment,
 } from '@/lib/monadTestMode';
 import type { PremiumSessionState } from '@/types/game';
-
-const RECEIVER_ADDRESS = '0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D' as const;
 
 const BOOST_PACKAGES = [
   {
@@ -66,7 +67,7 @@ const BoostDialog: React.FC<BoostDialogProps> = ({
     ...(canOfferPremiumSession ? [{
       id: 'premium_session',
       title: 'MON Expedition',
-      description: `20 premium casts. Fish always, bonus coins + XP always, chance to recover MON.`,
+      description: `${PREMIUM_SESSION_CASTS} premium casts. Fish always, bonus coins + XP always, chance to recover MON.`,
       monAmount: PREMIUM_SESSION_COST_MON,
       isPremiumSession: true,
     }] : []),
@@ -91,7 +92,7 @@ const BoostDialog: React.FC<BoostDialogProps> = ({
     try {
       const txHash = await sendMonadPayment({
         sendTransactionAsync,
-        receiverAddress: RECEIVER_ADDRESS,
+        receiverAddress: MON_MARKET_RECEIVER_ADDRESS,
         monAmount,
         purpose: `boost-${boostId}`,
       });
@@ -230,7 +231,7 @@ const BoostDialog: React.FC<BoostDialogProps> = ({
                             Fish always
                           </span>
                           <span className="rounded-lg border border-[#6f4928] bg-[rgba(15,10,7,0.72)] px-2 py-1">
-                            +12 coins / +18 XP
+                            +{PREMIUM_SESSION_BONUS_COINS_PER_CAST} coins / +{PREMIUM_SESSION_BONUS_XP_PER_CAST} XP
                           </span>
                           <span className="rounded-lg border border-[#6f4928] bg-[rgba(15,10,7,0.72)] px-2 py-1">
                             Luck Meter active

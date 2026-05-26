@@ -1,5 +1,70 @@
 # STATUS
 
+## 2026-05-26 shared economy config and tighter rewards
+- Added `shared/economy-config.mjs` as the shared source for tunable economy math used by both the React app and `server/index.mjs`, with a frontend re-export at `src/lib/economyConfig.ts`.
+- Reduced the starting/daily free bait from `30` to `15`, and cut future economy rewards roughly in half: fish sale values, fish XP, miss/catch XP bonuses, task payouts, album first-catch bonuses, grill recipe scores, cube coin/bait/MON prizes, level-up coin rewards, rod MON pull ranges, rod duplicate compensation, premium-session bonuses, premium MON drop amounts, rescue MON amounts, and weekly grill MON payouts.
+- Restored mid-game gold rod sinks: Rare Rod costs `1,500` gold and Epic Rod costs `6,000` gold again, while Legendary Rod remains a MON wallet purchase.
+- The shop and guide copy now describe the split clearly: gold upgrades live in the Rods tab, top-tier MON rods keep the wallet flow, and shared constants should be changed in one place during tester balance passes.
+
+## 2026-05-26 cube spin ceremonial music
+- Cube rolls now load a short CC0 fanfare sample from `public/assets/audio/cube_spin_fanfare.mp3`, sourced from OpenGameArt "Victory Fanfare" and time-compressed to roughly match the cube's 2.4s spin.
+- The existing cube launch sound remains, but the synthetic spin layer was retuned into a softer drum/chord/arpeggio bed so the spin reads as celebratory music instead of isolated beeps.
+- The new fanfare is warmed with the existing sound samples and still respects the regular sound mute setting.
+
+## 2026-05-25 server-authoritative progress cleanup
+- The main game now treats the owned API snapshot as the only gameplay source of truth for wallet and guest sessions. The frontend no longer merges verified wallet snapshots with legacy `hook_loot_player_v1` local player storage.
+- Legacy client progress caches are cleared in the server-backed runtime: `hook_loot_player_v1`, `monadfish_progress_v1`, and old pending wallet-save bundles no longer feed back into visible coins, bait, inventory, tasks, nets, or cube state.
+- Wallet snapshot autosaves from the React hooks were removed from the main game surface. Gameplay changes now come back from server actions such as cast, claim, shop, grill, cube, and net operations.
+- The owned API `save-player-progress` route now ignores client-authored `game_progress` and economy fields, keeping it limited to non-economy profile fields still needed by old callers.
+- A focused local tamper check confirmed that sending fake `coins`, `bait`, `daily_free_bait`, `level`, `dailyWheelRolls`, `paidWheelRolls`, and task progress to `save-player-progress` leaves the server player unchanged.
+- Wallet auth now detects when the connected browser wallet address differs from the already verified server wallet address, clears the stale session, and forces a fresh server verification/signature for the new address. The API also prints explicit `verify-wallet requested/ok wallet=...` lines so wallet attach attempts can be traced by exact address.
+
+## 2026-05-25 scoped wallet check-in repeat test
+- Added server-only wallet check-in repeat allowlists by nickname or wallet address, so a named tester can repeat the Blockchain check-in without enabling global fake payments.
+- Local `.env.local` now temporarily enables wallet-check-in repeat mode globally for verified wallets, because the live test browser account was still holding stale/alternate profile state instead of matching the nickname allowlist.
+- The repeat mode only reopens the Blockchain wallet check-in. It still sends `0.0001 MON` from the wallet and `verify_wallet_check_in` still uses `allowUnverified: false`, so this does not make shop purchases or wallet check-ins free.
+- The Tasks screen now refreshes wallet check-in status every 15 seconds while it is open, so a cooldown/allowlist change is picked up without forcing the tester to fully reload the game.
+- The frontend repeat flag now overrides any stale in-memory summary that still says `repeatTestMode: false`, so old completed `1/1` state cannot keep the wallet check-in stuck on the reward-claim path during this local test.
+- Saved and incoming `game_progress.specialTasks.wallet_check_in` is also scrubbed to `{ progress: 0, claimed: false }` while repeat mode is on, and the generic task reward claim button is hidden for this check-in during repeat testing. This prevents stale local/server progress from re-locking the UI as `Claimed`.
+- Activity logging now records `connectedWalletAddress` separately from the active server identity and emits `connected_wallet_unverified_guest_mode` when a connected wallet is still playing through a guest session, so missing wallet rows can be counted from audit logs instead of screenshots.
+
+## 2026-05-24 strict wallet check-in test repeat
+- Blockchain wallet check-in now always uses a real wallet transaction path on the frontend; it passes `allowTestMode: false` so the shared MON shop fake-payment mode cannot auto-create a fake tx hash for this task.
+- The server now requires a real verified wallet for `verify_wallet_check_in` and forces on-chain payment verification for this action even if local fake payments are enabled for other purchase smoke tests.
+- Added temporary local repeat-test flags `VITE_WALLET_CHECK_IN_REPEAT_TEST_MODE=1` and `HOOKLOOT_WALLET_CHECK_IN_REPEAT_TEST_MODE=1`, so testers can send multiple `0.0001 MON` wallet check-ins in the same day while this flow is being verified; in repeat mode the summary and client task sync ignore the same-day cooldown and each successful test check-in reopens only the wallet-check-in task reward for another pass.
+- Wallet check-in now prefers the browser wallet's direct `eth_sendTransaction` request before falling back to wagmi, so the check-in button should open the wallet confirmation instead of silently returning through any shared helper path.
+
+## 2026-05-24 wallet payments restored and miss-only rod MON pulls
+- Restored the pre-test live MON prices: gold packs `0.01/0.05/0.1/0.5/1 MON`, Auto Fishing Nets `3/30/60 MON`, cube rolls `1/3/5 MON`, base rods `3/10/25 MON`, NFT rods `1/3/5/10/25 MON`, MON Expedition `3 MON`, and wallet check-in `0.0001 MON`.
+- MON shop/fake-payment test flags remain disabled locally and by default, so wallet transactions are required again for purchases and wallet check-in.
+- Paid rod MON pulls now resolve only on no-fish/miss outcomes, not successful catches. Rare/Epic/Legendary pull chances are `25/30/35%` of no-fish casts with ranges `0.003-0.008`, `0.005-0.012`, and `0.008-0.018 MON`.
+- At the current `60%` base catch chance, that means about `10/12/14%` of all casts can pay; at `100` casts/day, Legendary Rod expected value is about `5.46 MON/month`.
+- Daily wallet check-in now offers a verify-wallet CTA when a wallet is connected but not yet server-verified, instead of opening a connect prompt that cannot start the payment.
+
+## 2026-05-24 MON test purchases disabled and temporary 0.1 MON pricing
+- Disabled the temporary free/fake MON shop mode by default on both frontend and server; local `.env.local` now sets `VITE_MONAD_SHOP_TEST_MODE_ENABLED=0`, `HOOKLOOT_MONAD_SHOP_TEST_MODE_ENABLED=0`, `HOOKLOOT_MONAD_TEST_DROPS_ALWAYS=0`, and `HOOKLOOT_ALLOW_UNVERIFIED_PAYMENTS=0`.
+- Live wallet payment is required again for Monad Shop, paid rods, NFT rod mints, cube-roll top-ups, premium sessions, wallet check-in, and fishing-net purchases.
+- Temporarily set every active MON payment price to `0.1 MON` while preserving package rewards/counts: gold packs, Scout/Harbor/Fleet nets, 1/3/5 cube rolls, Rare/Epic/Legendary rod unlocks, all NFT rod mints, MON Expedition, and wallet check-in.
+- Rollback prices to restore later: gold packs `0.01/0.05/0.1/0.5/1 MON`; nets `3/30/60 MON`; cube rolls `1/3/5 MON`; base rods `3/10/25 MON`; NFT rods `1/3/5/10/25 MON`; MON Expedition `3 MON`; wallet check-in `0.0001 MON`.
+
+## 2026-05-24 shop MON reward balance
+- The shop `Monad Balance` card now shows the current in-game MON reward total for the active profile instead of the temporary `TEST` placeholder.
+- The balance is fetched through the server-backed player session, so it works for guest test profiles as well as verified wallet profiles and refreshes after cube MON wins or rod duplicate MON compensation.
+
+## 2026-05-24 player guide catch-up
+- Updated the in-game `/guide` instructions so they cover the current mechanics added during the test pass: split shop balances/tabs, temporary MON test payments, Auto Fishing Net flow, Leviathan Common Rod bounty, cube paid-rod jackpot, notification behavior, and guest-to-wallet save expectations.
+- The guide now explains that fishing nets live in Inventory -> Gear, preview pending fish before collection, refill once per daily reset, and should not spam duplicate full-net toasts for the same catch batch.
+
+## 2026-05-24 cube paid rod jackpot
+- The server-backed cube roll now supports paid rod prizes, not just the old client preview path.
+- Paid rod tiles can appear as a rare visible cube-face teaser, but the actual target win chance is separated and tuned to `0.0001` per roll, about 1 in 10,000.
+- Cube rod prizes only target upgrades above the player's current owned rod tier, use the existing Rare/Epic/Legendary weighting, and show a real rod icon on the cube tile.
+
+## 2026-05-24 Leviathan Common Rod bounty
+- Catching the Cosmic Leviathan while the Common Rod is equipped now grants the first paid rod tier, `rare_rod`, instead of the higher Epic Rod tier; verified players who already own it receive the configured 0.5 MON duplicate compensation.
+- The fish info popover now marks Cosmic Leviathan with a Rare Rod bounty chip and hover details that name the required Common Rod and the reward rod.
+- The Tasks/Blockchain board now shows a dedicated Leviathan bounty card with the Rare Rod reward, required rod, status, and a shortcut to equip Common Rod or return to fishing.
+
 ## 2026-05-24 cube spin fanfare
 - Cube rolls now play a brighter celebratory spin fanfare layered over the existing cube launch sample, with drum-like hits and an ascending chord finish during the spin.
 - The fanfare remains part of the existing sound-effects system, so the current sound mute setting still disables it.
@@ -1343,3 +1408,6 @@ These should not be staged unless they become part of an intentional task.
 - 2026-05-24: Auto Fishing Net collection is now moved out of the shop and into `Inventory -> Gear`. Owned nets render as an inventory gear card with the pending fish list and a `Забрать` action, while `Shop -> Monad Shop` only sells/upgrades net tiers and points collection back to inventory.
 - 2026-05-24: Temporary MON test purchases are now global for local QA sessions. The owned API accepts `VITE_MONAD_SHOP_TEST_MODE_ENABLED=1` as a fallback for `HOOKLOOT_MONAD_SHOP_TEST_MODE_ENABLED=1`, so guest profiles and wallet profiles hit the same fake-payment server path after the API process restarts; disable later by setting both flags to `0`.
 - 2026-05-24: Temporary MON shop test mode is now default-on for the deployed QA build so every account can buy/test paid rods, nets, cube rolls, and related drops without a real MON transfer. This is intentionally temporary and can be disabled by setting `VITE_MONAD_SHOP_TEST_MODE_ENABLED=0` and `HOOKLOOT_MONAD_SHOP_TEST_MODE_ENABLED=0`, or by reverting the default fallback.
+- 2026-05-25: Temporary wallet check-in repeat QA mode is enabled locally with real wallet transactions only: `VITE_WALLET_CHECK_IN_REPEAT_TEST_MODE=1` and `HOOKLOOT_WALLET_CHECK_IN_REPEAT_TEST_MODE=1` keep the Blockchain wallet check-in reusable, the client sends a direct `eth_sendTransaction` for `0.0001 MON` without the MON shop fake-payment bypass, and the owned API verifies the tx with `allowUnverified: false`.
+- 2026-05-25: The repeat wallet check-in card now ignores stale saved `wallet_check_in` task progress while the repeat flag is on. Even if an account like `piska` previously has `1/1` in saved progress, the card displays as `0/1`, disables the reward claim button, and keeps the check-in action available for another wallet transaction.
+- 2026-05-25: Normal blockchain payment mode is restored locally for purchases. `.env.local` keeps MON shop fake payments, deterministic MON drops, and unverified payment acceptance at `0`; only the wallet check-in repeat QA flag is temporarily `1`, and that path still requires a real `0.0001 MON` wallet transaction.

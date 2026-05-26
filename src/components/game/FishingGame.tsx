@@ -18,11 +18,13 @@ import { usePlayerActions } from '@/hooks/usePlayerActions';
 import { useBackgroundMusic } from '@/hooks/useBackgroundMusic';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useIsMobile } from '@/hooks/use-mobile';
+import type { MonBalanceSummary } from '@/hooks/usePlayerMon';
 import {
   getEconomyFeatureAvailability,
   getVisibleBaitTotal,
   PREMIUM_SESSION_COST_MON,
 } from '@/lib/baitEconomy';
+import { MIN_WITHDRAW_MON, MON_HOLD_DAYS, normalizeMonAmount } from '@/lib/monRewards';
 import {
   logPlayerAuditEvent,
   type PlayerAuditEventPayload,
@@ -34,6 +36,7 @@ import {
   serializeError,
 } from '@/lib/testActivityLog';
 import { MONAD_SHOP_TEST_MODE_ENABLED } from '@/lib/monadTestMode';
+import { MISS_XP_REWARD } from '@/lib/economyConfig';
 import { cn } from '@/lib/utils';
 import { publicAsset } from '@/lib/assets';
 import {
@@ -49,6 +52,7 @@ import { getSafeEquippedRodLevel } from '@/lib/rodMonadRewards';
 import {
   getDefaultWalletCheckInSummary,
   normalizeWalletCheckInSummary,
+  WALLET_CHECK_IN_REPEAT_TEST_MODE,
 } from '@/lib/walletCheckIn';
 import travelIconSrc from '@/assets/map_travel_icon_cutout.webp';
 import {
@@ -73,12 +77,10 @@ import {
   type Fish,
   type FishingMonadReward,
   type FishingSpecialReward,
-  type GameProgressSnapshot,
   type GameTab,
   type GrillLeaderboardEntry,
   type GrillRecipe,
   type PremiumSessionState,
-  type PlayerState,
   type ReactionQuality,
   type SocialTaskId,
   type SocialTaskProgress,
@@ -98,6 +100,23 @@ const WheelScreen = lazy(() => import('./WheelScreen'));
 const LeaderboardScreen = lazy(() => import('./LeaderboardScreen'));
 const MapScreen = lazy(() => import('./MapScreen'));
 const PREMIUM_SESSION_STATUS_REFRESH_COOLDOWN_MS = 60_000;
+const EMPTY_MON_SUMMARY: MonBalanceSummary = {
+  totalEarnedMon: 0,
+  pendingHoldMon: 0,
+  withdrawableMon: 0,
+  pendingRequestMon: 0,
+  minWithdrawMon: MIN_WITHDRAW_MON,
+  holdDays: MON_HOLD_DAYS,
+};
+
+const normalizeMonSummary = (summary: Partial<MonBalanceSummary> | null | undefined): MonBalanceSummary => ({
+  totalEarnedMon: normalizeMonAmount(summary?.totalEarnedMon ?? 0),
+  pendingHoldMon: normalizeMonAmount(summary?.pendingHoldMon ?? 0),
+  withdrawableMon: normalizeMonAmount(summary?.withdrawableMon ?? 0),
+  pendingRequestMon: normalizeMonAmount(summary?.pendingRequestMon ?? 0),
+  minWithdrawMon: normalizeMonAmount(summary?.minWithdrawMon ?? MIN_WITHDRAW_MON),
+  holdDays: summary?.holdDays ?? MON_HOLD_DAYS,
+});
 
 const setBootLoaderState = (progress: number, label?: string) => {
   const bootWindow = window as Window & {
@@ -264,9 +283,6 @@ const FishingGame: React.FC = () => {
     walletSessionResolving,
     address,
     referralSummary,
-    saveWalletSnapshot,
-    flushPlayerSave,
-    flushWalletSnapshot,
     saveVerifiedNickname,
     syncServerPlayerRecord,
     retryVerifyWallet,
@@ -299,27 +315,11 @@ const FishingGame: React.FC = () => {
   const [claimingTaskId, setClaimingTaskId] = useState<TaskId | null>(null);
   const [claimingWeeklyMissionId, setClaimingWeeklyMissionId] = useState<WeeklyMissionId | null>(null);
   const economyFeatures = useMemo(() => getEconomyFeatureAvailability(address), [address]);
-  const walletMirrorPlayerRef = useRef<PlayerState | null>(null);
-  const walletMirrorGameProgressRef = useRef<GameProgressSnapshot | null>(null);
-  const saveMirroredGameProgress = useCallback((nextGameProgress: GameProgressSnapshot) => {
-    walletMirrorGameProgressRef.current = nextGameProgress;
-    return saveWalletSnapshot({
-      player: walletMirrorPlayerRef.current ?? undefined,
-      gameProgress: nextGameProgress,
-    });
-  }, [saveWalletSnapshot]);
-  const saveMirroredPlayer = useCallback((nextPlayer: PlayerState) => {
-    walletMirrorPlayerRef.current = nextPlayer;
-    return saveWalletSnapshot({
-      player: nextPlayer,
-      gameProgress: walletMirrorGameProgressRef.current ?? undefined,
-    });
-  }, [saveWalletSnapshot]);
   const gameProgress = useGameProgress({
     savedProgress: serverEconomyReady ? activeSavedGameProgress : undefined,
     savedProgressMode: serverEconomyReady && activeSavedPlayerSyncMode !== 'link' ? 'replace' : 'merge',
     localClientStateEnabled: false,
-    onSave: walletServerReady ? saveMirroredGameProgress : undefined,
+    onSave: undefined,
     weeklyMissionsEnabled: economyFeatures.weeklyMissions,
     cubeRebalanceEnabled: economyFeatures.cubeRebalance,
   });
@@ -345,6 +345,7 @@ const FishingGame: React.FC = () => {
     cookRecipe: requestCookRecipe,
     sellCookedDish: requestSellCookedDish,
     updateGrillLeaderboard,
+    getMonSummary,
     submitSocialTaskVerification,
     claimSocialTaskReward,
   } = usePlayerActions(activeServerAddress, serverEconomyReady, activeServerSessionToken);
@@ -353,22 +354,26 @@ const FishingGame: React.FC = () => {
   const [socialTasksLoading, setSocialTasksLoading] = useState(false);
   const [walletCheckInSummary, setWalletCheckInSummary] = useState<WalletCheckInSummary | null>(null);
   const [walletCheckInLoading, setWalletCheckInLoading] = useState(false);
+  const [monSummary, setMonSummary] = useState<MonBalanceSummary>(EMPTY_MON_SUMMARY);
   const [premiumSession, setPremiumSession] = useState<PremiumSessionState | null>(null);
   const [premiumSessionLoading, setPremiumSessionLoading] = useState(false);
   const premiumBiteTimeoutHandlerRef = useRef<(() => void) | null>(null);
   const premiumCastResolveInFlightRef = useRef(false);
   const premiumSessionRefreshInFlightRef = useRef(false);
+  const monSummaryRefreshInFlightRef = useRef(false);
+  const monSummaryRefreshQueuedRef = useRef(false);
   const premiumSessionRefreshKeyRef = useRef<string | null>(null);
   const premiumSessionLastRefreshAtRef = useRef(0);
   const backgroundErrorToastRef = useRef<Record<string, number>>({});
   const fishingNetNotificationKeyRef = useRef<string | null>(null);
-  const linkedGameProgressFlushedForWalletRef = useRef<string | null>(null);
   const activityContextRef = useRef<Record<string, unknown>>({});
   const activitySessionKeyRef = useRef<string | null>(null);
   const lastLoggedTabKeyRef = useRef<string | null>(null);
+  const unverifiedWalletLoggedRef = useRef<string | null>(null);
   activityContextRef.current = {
     activeTab,
-    walletAddress: activeServerAddress ?? null,
+    activeServerAddress: activeServerAddress ?? null,
+    connectedWalletAddress: address?.toLowerCase() ?? null,
     sessionType: walletServerReady ? 'wallet' : guestServerReady ? 'guest' : 'none',
     isConnected,
     isVerified,
@@ -393,6 +398,8 @@ const FishingGame: React.FC = () => {
       sessionToken: activeServerSessionToken,
       metadata: {
         sessionType,
+        activeServerAddress,
+        connectedWalletAddress: address?.toLowerCase() ?? null,
         isConnected,
         isVerified,
         nickname: activeSavedPlayer?.nickname ?? null,
@@ -405,9 +412,46 @@ const FishingGame: React.FC = () => {
     activeSavedPlayer,
     activeServerAddress,
     activeServerSessionToken,
+    address,
     isConnected,
     isVerified,
     serverEconomyReady,
+    walletServerReady,
+  ]);
+
+  useEffect(() => {
+    const connectedWalletAddress = address?.toLowerCase() ?? null;
+    if (!connectedWalletAddress || !isConnected || walletServerReady) {
+      unverifiedWalletLoggedRef.current = null;
+      return;
+    }
+
+    if (!guestServerReady || !guestSession.guestId || !guestSession.sessionToken) return;
+
+    const logKey = `${guestSession.guestId}:${connectedWalletAddress}`;
+    if (unverifiedWalletLoggedRef.current === logKey) return;
+    unverifiedWalletLoggedRef.current = logKey;
+
+    void logTestActivityEvent({
+      eventType: 'connected_wallet_unverified_guest_mode',
+      walletAddress: guestSession.guestId,
+      sessionToken: guestSession.sessionToken,
+      metadata: {
+        connectedWalletAddress,
+        guestId: guestSession.guestId,
+        isConnected,
+        isVerified,
+        verificationError: verificationError ?? null,
+      },
+    });
+  }, [
+    address,
+    guestServerReady,
+    guestSession.guestId,
+    guestSession.sessionToken,
+    isConnected,
+    isVerified,
+    verificationError,
     walletServerReady,
   ]);
 
@@ -424,6 +468,8 @@ const FishingGame: React.FC = () => {
       metadata: {
         screen: activeTab,
         sessionType,
+        activeServerAddress,
+        connectedWalletAddress: address?.toLowerCase() ?? null,
         serverEconomyReady,
       },
     });
@@ -431,6 +477,7 @@ const FishingGame: React.FC = () => {
     activeServerAddress,
     activeServerSessionToken,
     activeTab,
+    address,
     guestServerReady,
     serverEconomyReady,
     walletServerReady,
@@ -445,6 +492,60 @@ const FishingGame: React.FC = () => {
     backgroundErrorToastRef.current[key] = now;
     toast.error(message);
   }, []);
+  const refreshMonSummary = useCallback(async ({ silent = true }: { silent?: boolean } = {}) => {
+    if (!serverEconomyReady || !activeServerAddress) {
+      setMonSummary(EMPTY_MON_SUMMARY);
+      return false;
+    }
+
+    if (monSummaryRefreshInFlightRef.current) {
+      monSummaryRefreshQueuedRef.current = true;
+      return false;
+    }
+
+    monSummaryRefreshInFlightRef.current = true;
+    try {
+      const summary = await getMonSummary();
+      setMonSummary(normalizeMonSummary(summary));
+      return true;
+    } catch (error) {
+      console.error('MON summary refresh failed:', error);
+      if (!silent) {
+        showBackgroundActionError(
+          'mon-summary-refresh',
+          error instanceof Error ? error.message : 'Could not refresh MON balance.',
+        );
+      }
+      return false;
+    } finally {
+      monSummaryRefreshInFlightRef.current = false;
+      if (monSummaryRefreshQueuedRef.current) {
+        monSummaryRefreshQueuedRef.current = false;
+        void refreshMonSummary({ silent: true });
+      }
+    }
+  }, [activeServerAddress, getMonSummary, serverEconomyReady, showBackgroundActionError]);
+
+  useEffect(() => {
+    if (!serverEconomyReady || !activeServerAddress) {
+      setMonSummary(EMPTY_MON_SUMMARY);
+      return;
+    }
+
+    void refreshMonSummary({ silent: true });
+  }, [activeServerAddress, refreshMonSummary, serverEconomyReady]);
+
+  useEffect(() => {
+    const handleMonReward = () => {
+      void refreshMonSummary({ silent: true });
+    };
+
+    window.addEventListener('hookloot:mon-reward', handleMonReward);
+    return () => {
+      window.removeEventListener('hookloot:mon-reward', handleMonReward);
+    };
+  }, [refreshMonSummary]);
+
   const requireServerEconomy = useCallback(() => {
     if (serverEconomyReady) return true;
 
@@ -630,7 +731,7 @@ const FishingGame: React.FC = () => {
     savedPlayer: serverEconomyReady ? activeSavedPlayer : undefined,
     savedPlayerSyncMode: serverEconomyReady ? activeSavedPlayerSyncMode : undefined,
     localClientStateEnabled: false,
-    onSave: walletServerReady ? saveMirroredPlayer : undefined,
+    onSave: undefined,
     onFishCaught: undefined,
     onFishingMonReward: undefined,
     onLeviathanCommonRodBonus: undefined,
@@ -643,42 +744,6 @@ const FishingGame: React.FC = () => {
       premiumBiteTimeoutHandlerRef.current?.();
     },
   });
-
-  useEffect(() => {
-    walletMirrorPlayerRef.current = player;
-  }, [player]);
-
-  useEffect(() => {
-    walletMirrorGameProgressRef.current = gameProgress.snapshot;
-  }, [gameProgress.snapshot]);
-
-  useEffect(() => {
-    if (!walletServerReady) return;
-
-    const saveLatestWalletMirror = () => {
-      const latestPlayer = walletMirrorPlayerRef.current;
-      const latestGameProgress = walletMirrorGameProgressRef.current;
-      if (!latestPlayer && !latestGameProgress) return;
-
-      void saveWalletSnapshot({
-        player: latestPlayer ?? undefined,
-        gameProgress: latestGameProgress ?? undefined,
-      });
-    };
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        saveLatestWalletMirror();
-      }
-    };
-
-    window.addEventListener('pagehide', saveLatestWalletMirror);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      window.removeEventListener('pagehide', saveLatestWalletMirror);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [saveWalletSnapshot, walletServerReady]);
 
   const sounds = useSoundEffects();
   useBackgroundMusic();
@@ -699,7 +764,7 @@ const FishingGame: React.FC = () => {
       ? NFT_ROD_DATA.find((rod) => rod.rodLevel === activeRodLevel)?.xpBonus ?? 0
       : 0;
 
-    return Math.floor(5 * (1 + nftBonus / 100));
+    return Math.floor(MISS_XP_REWARD * (1 + nftBonus / 100));
   }, [activeRodLevel, player.nftRods]);
   const verifiedWalletNickname = useMemo(() => (
     walletServerReady ? normalizeWalletNickname(savedPlayer?.nickname) : ''
@@ -780,29 +845,6 @@ const FishingGame: React.FC = () => {
       setWalletCheckInLoading(false);
     }
   }, [getWalletCheckInSummary, walletServerReady]);
-
-  useEffect(() => {
-    const verifiedAddress = address?.toLowerCase() ?? null;
-
-    if (!walletServerReady || !verifiedAddress) {
-      linkedGameProgressFlushedForWalletRef.current = null;
-      return;
-    }
-
-    if (savedPlayerSyncMode !== 'link') return;
-    if (linkedGameProgressFlushedForWalletRef.current === verifiedAddress) return;
-
-    linkedGameProgressFlushedForWalletRef.current = verifiedAddress;
-    void flushWalletSnapshot({
-      player,
-      gameProgress: gameProgress.snapshot,
-    }, 15000).then((synced) => {
-      if (synced) return;
-
-      console.error('Initial linked wallet full progress sync did not complete in time.');
-      linkedGameProgressFlushedForWalletRef.current = null;
-    });
-  }, [address, flushWalletSnapshot, gameProgress.snapshot, player, savedPlayerSyncMode, walletServerReady]);
 
   const syncServerLeaderboardEntry = useCallback((entry: {
     id: string;
@@ -1098,11 +1140,20 @@ const FishingGame: React.FC = () => {
   }, [syncReferralTask, referralSummary?.todayReferralAttachCount]);
 
   useEffect(() => {
+    const walletCheckInRepeatActive = WALLET_CHECK_IN_REPEAT_TEST_MODE
+      || Boolean(walletCheckInSummary?.repeatTestMode);
+    const walletCheckInCooldownActive = Boolean(walletCheckInSummary?.todayCheckedIn)
+      && !walletCheckInRepeatActive;
     syncWalletCheckInTask(
-      walletCheckInSummary?.todayCheckedIn ?? false,
+      walletCheckInCooldownActive,
       walletCheckInSummary?.lastCheckInTxHash ?? null,
     );
-  }, [syncWalletCheckInTask, walletCheckInSummary?.todayCheckedIn, walletCheckInSummary?.lastCheckInTxHash]);
+  }, [
+    syncWalletCheckInTask,
+    walletCheckInSummary?.todayCheckedIn,
+    walletCheckInSummary?.repeatTestMode,
+    walletCheckInSummary?.lastCheckInTxHash,
+  ]);
 
   useEffect(() => {
     if (!isVerified) {
@@ -1121,6 +1172,16 @@ const FishingGame: React.FC = () => {
       void refreshWalletCheckInSummary();
     }
   }, [activeTab, refreshSocialTasks, refreshWalletCheckInSummary, walletServerReady]);
+
+  useEffect(() => {
+    if (activeTab !== 'tasks' || !walletServerReady) return undefined;
+
+    const intervalId = window.setInterval(() => {
+      void refreshWalletCheckInSummary();
+    }, 15000);
+
+    return () => window.clearInterval(intervalId);
+  }, [activeTab, refreshWalletCheckInSummary, walletServerReady]);
 
   useEffect(() => {
     if (activeTab === 'fish' && economyFeatures.premiumSessions && walletServerReady) {
@@ -1365,7 +1426,7 @@ const FishingGame: React.FC = () => {
 
     const result = await applyCubeReward(rollId);
     applyServerPlayerSnapshot(result.player);
-    if (result.prize.duplicateCompensationApplied) {
+    if (result.prize.type === 'mon' || result.prize.duplicateCompensationApplied) {
       window.dispatchEvent(new CustomEvent('hookloot:mon-reward'));
     }
     sounds.playLevelUpSound();
@@ -1376,12 +1437,8 @@ const FishingGame: React.FC = () => {
     if (!serverEconomyReady) return false;
     const syncedPlayer = savedPlayerSnapshotRef.current;
     if (!syncedPlayer) return false;
-    if (!walletServerReady) return hasRequiredFishForRecipe(syncedPlayer.inventory, recipe);
-    const flushed = await flushPlayerSave(syncedPlayer);
-    if (!flushed) return false;
-    const latestSyncedPlayer = savedPlayerSnapshotRef.current ?? syncedPlayer;
-    return hasRequiredFishForRecipe(latestSyncedPlayer.inventory, recipe);
-  }, [flushPlayerSave, serverEconomyReady, walletServerReady]);
+    return hasRequiredFishForRecipe(syncedPlayer.inventory, recipe);
+  }, [serverEconomyReady]);
   const handleCookRecipe = async (recipe: GrillRecipe) => {
     if (!requireServerEconomy()) return false;
 
@@ -1616,6 +1673,8 @@ const FishingGame: React.FC = () => {
                   <TasksScreen
                     coins={player.coins}
                     walletAddress={monadPaymentAddress}
+                    rodLevel={player.rodLevel}
+                    equippedRod={activeRodLevel}
                     dailyTasks={gameProgress.dailyTasks}
                     specialTasks={gameProgress.specialTasks}
                     weeklyMissions={gameProgress.weeklyMissions}
@@ -1626,13 +1685,18 @@ const FishingGame: React.FC = () => {
                     dailyTaskClaimsMet={gameProgress.dailyTaskClaimsMet}
                     availableWheelRolls={gameProgress.availableWheelRolls}
                     socialTasksLoading={socialTasksLoading}
+                    isWalletConnected={isConnected}
                     isWalletVerified={walletServerReady}
+                    isWalletVerifying={isVerifying || walletSessionResolving}
                     referralSummary={referralSummary}
                     onClaimTask={handleClaimTask}
                     onClaimWeeklyMission={handleClaimWeeklyMission}
                     claimingTaskId={claimingTaskId}
                     claimingWeeklyMissionId={claimingWeeklyMissionId}
                     onWalletCheckIn={handleWalletCheckIn}
+                    onVerifyWallet={retryVerifyWallet}
+                    onEquipRod={handleEquipRod}
+                    onOpenFish={() => handleTabChange('fish')}
                     onSubmitSocialTask={handleSubmitSocialTask}
                     onClaimSocialTask={handleClaimSocialTask}
                     onRefreshSocialTasks={() => void refreshSocialTasks()}
@@ -1644,6 +1708,7 @@ const FishingGame: React.FC = () => {
                     bait={totalBait}
                     dailyFreeBait={player.dailyFreeBait}
                     walletAddress={monadPaymentAddress}
+                    monSummary={monSummary}
                     rodLevel={player.rodLevel}
                     fishingNet={fishingNet}
                     nftRods={player.nftRods}

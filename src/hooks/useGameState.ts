@@ -36,13 +36,19 @@ import {
   toPlayerAuditSnapshot,
 } from '@/lib/playerAudit';
 import {
+  CATCH_XP_FLAT_BONUS,
+  LEVEL_UP_COIN_REWARD_PER_LEVEL,
+  MISS_XP_REWARD,
+  STARTING_COINS,
+} from '@/lib/economyConfig';
+import {
   getSafeEquippedRodLevel,
   rollRodMonadReward,
 } from '@/lib/rodMonadRewards';
 import { buildLeviathanCommonRodBonus } from '@/lib/rodAchievementRewards';
 
 const INITIAL_PLAYER_STATE: PlayerState = {
-  coins: 100,
+  coins: STARTING_COINS,
   bait: 0,
   dailyFreeBait: BAIT_BUCKETS_V2_ENABLED ? DAILY_FREE_BAIT : 0,
   dailyFreeBaitResetAt: BAIT_BUCKETS_V2_ENABLED ? new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate())).toISOString() : null,
@@ -105,7 +111,7 @@ interface UseGameStateOptions {
   localClientStateEnabled?: boolean;
   onSave?: (player: PlayerState) => void;
   onFishCaught?: (fish: Fish) => void;
-  onFishingMonReward?: (reward: FishingMonadReward, context: { fish: Fish; player: PlayerState }) => Promise<boolean | void> | boolean | void;
+  onFishingMonReward?: (reward: FishingMonadReward, context: { fish?: Fish; player: PlayerState }) => Promise<boolean | void> | boolean | void;
   onLeviathanCommonRodBonus?: (reward: FishingSpecialReward, context: { fish: Fish; player: PlayerState }) => Promise<boolean | void> | boolean | void;
   onAuditEvent?: (event: PlayerAuditEventPayload) => void;
   onPremiumBiteTimeout?: () => void;
@@ -313,7 +319,7 @@ export function useGameState(options?: UseGameStateOptions) {
       const beforeSnapshot = toPlayerAuditSnapshot(prev);
       const equippedRodLevel = getSafeEquippedRodLevel(prev.equippedRod, prev.rodLevel);
       const nftB = getNftBonus(equippedRodLevel, prev.nftRods);
-      const xpGain = Math.floor((caughtFish.xp + 5) * (1 + nftB.xpBonus / 100));
+      const xpGain = Math.floor((caughtFish.xp + CATCH_XP_FLAT_BONUS) * (1 + nftB.xpBonus / 100));
       const newXp = prev.xp + xpGain;
       let newLevel = prev.level;
       let remainingXp = newXp;
@@ -324,7 +330,7 @@ export function useGameState(options?: UseGameStateOptions) {
         remainingXp -= xpToNext;
         newLevel++;
         xpToNext = newLevel * XP_PER_LEVEL;
-        bonusCoins += 100 * newLevel;
+        bonusCoins += LEVEL_UP_COIN_REWARD_PER_LEVEL * newLevel;
       }
 
       if (newLevel > prev.level) {
@@ -421,7 +427,7 @@ export function useGameState(options?: UseGameStateOptions) {
       const beforeSnapshot = toPlayerAuditSnapshot(prev);
       const equippedRodLevel = getSafeEquippedRodLevel(prev.equippedRod, prev.rodLevel);
       const nftB = getNftBonus(equippedRodLevel, prev.nftRods);
-      const xpGain = Math.floor(5 * (1 + nftB.xpBonus / 100));
+      const xpGain = Math.floor(MISS_XP_REWARD * (1 + nftB.xpBonus / 100));
       const newXp = prev.xp + xpGain;
       let newLevel = prev.level;
       let remainingXp = newXp;
@@ -432,7 +438,7 @@ export function useGameState(options?: UseGameStateOptions) {
         remainingXp -= xpToNext;
         newLevel++;
         xpToNext = newLevel * XP_PER_LEVEL;
-        bonusCoins += 100 * newLevel;
+        bonusCoins += LEVEL_UP_COIN_REWARD_PER_LEVEL * newLevel;
       }
 
       if (newLevel > prev.level) {
@@ -525,7 +531,7 @@ export function useGameState(options?: UseGameStateOptions) {
             specialReward: result.specialReward,
           });
         } else {
-          setLastResult({ success: false });
+          setLastResult({ success: false, monReward: result.monReward });
         }
       } catch (error) {
         console.error('Server fishing resolution failed:', error);
@@ -543,7 +549,6 @@ export function useGameState(options?: UseGameStateOptions) {
     if (fish) {
       applyFishReward(fish);
       const equippedRodLevel = getSafeEquippedRodLevel(player.equippedRod, player.rodLevel);
-      const monReward = onFishingMonReward ? rollRodMonadReward(equippedRodLevel) : null;
       const specialReward = buildLeviathanCommonRodBonus(fish, equippedRodLevel, player.rodLevel);
       let resolvedSpecialReward: FishingSpecialReward | undefined;
 
@@ -569,27 +574,25 @@ export function useGameState(options?: UseGameStateOptions) {
         }
       }
 
+      setLastResult({ success: true, fish, specialReward: resolvedSpecialReward });
+    } else {
+      applyMissXp();
+      const equippedRodLevel = getSafeEquippedRodLevel(player.equippedRod, player.rodLevel);
+      const monReward = onFishingMonReward ? rollRodMonadReward(equippedRodLevel) : null;
+
       if (monReward) {
         let credited = false;
         try {
-          const rewardResult = await onFishingMonReward(monReward, { fish, player });
+          const rewardResult = await onFishingMonReward(monReward, { player });
           credited = rewardResult !== false;
         } catch (error) {
           console.error('Fishing rod MON reward failed:', error);
         }
 
-        setLastResult({
-          success: true,
-          fish,
-          monReward: { ...monReward, credited },
-          specialReward: resolvedSpecialReward,
-        });
+        setLastResult({ success: false, monReward: { ...monReward, credited } });
       } else {
-        setLastResult({ success: true, fish, specialReward: resolvedSpecialReward });
+        setLastResult({ success: false });
       }
-    } else {
-      applyMissXp();
-      setLastResult({ success: false });
     }
 
     setGameState('result');
@@ -614,11 +617,13 @@ export function useGameState(options?: UseGameStateOptions) {
     clearBiteTimers();
     premiumCastActiveRef.current = false;
     const serverCast = pendingServerCastRef.current;
+    let timeoutMonReward: FishingMonadReward | undefined;
     pendingServerCastRef.current = null;
     pendingFishRef.current = null;
     if (serverCast && onResolveServerFishingCast) {
       try {
         const result = await onResolveServerFishingCast(serverCast.castId, 'timeout', serverCast.resolveToken);
+        timeoutMonReward = result.monReward;
         if (result.levelUpInfo) {
           setLevelUpInfo(result.levelUpInfo);
         }
@@ -629,7 +634,7 @@ export function useGameState(options?: UseGameStateOptions) {
     } else {
       applyMissXp();
     }
-    setLastResult({ success: false });
+    setLastResult({ success: false, monReward: timeoutMonReward });
     setGameState('result');
     await new Promise(resolve => setTimeout(resolve, 2500));
     setGameState('idle');

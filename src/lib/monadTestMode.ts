@@ -11,7 +11,7 @@ const readFlag = (value: string | undefined, fallback: boolean) => {
 
 export const MONAD_SHOP_TEST_MODE_ENABLED = readFlag(
   import.meta.env.VITE_MONAD_SHOP_TEST_MODE_ENABLED,
-  true,
+  false,
 );
 
 export const isRealWalletAddress = (value?: string | null): value is `0x${string}` => (
@@ -43,13 +43,15 @@ export const sendMonadPayment = async ({
   receiverAddress,
   monAmount,
   purpose,
+  allowTestMode = true,
 }: {
   sendTransactionAsync: (request: { to: `0x${string}`; value: bigint }) => Promise<`0x${string}` | string>;
   receiverAddress: `0x${string}`;
   monAmount: string;
   purpose: string;
+  allowTestMode?: boolean;
 }) => {
-  if (MONAD_SHOP_TEST_MODE_ENABLED) {
+  if (allowTestMode && MONAD_SHOP_TEST_MODE_ENABLED) {
     return createMonadTestTxHash(purpose);
   }
 

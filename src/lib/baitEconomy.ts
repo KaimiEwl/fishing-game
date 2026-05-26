@@ -1,4 +1,36 @@
 import { ROD_DATA, type FishRarity, type PlayerState, type PremiumDropTierId } from '@/types/game';
+import {
+  ALBUM_FIRST_CATCH_BONUSES as ECONOMY_ALBUM_FIRST_CATCH_BONUSES,
+  BAIT_PACKAGES as ECONOMY_BAIT_PACKAGES,
+  CUBE_REBALANCE_CONFIG as ECONOMY_CUBE_REBALANCE_CONFIG,
+  DAILY_FREE_BAIT as ECONOMY_DAILY_FREE_BAIT,
+  FISHING_NET_DAILY_FISH_COUNT as ECONOMY_FISHING_NET_DAILY_FISH_COUNT,
+  FISHING_NET_PAYBACK_DAYS_ESTIMATE as ECONOMY_FISHING_NET_PAYBACK_DAYS_ESTIMATE,
+  FISHING_NET_PRICE_COINS as ECONOMY_FISHING_NET_PRICE_COINS,
+  MAX_EXTRA_BAIT_FROM_DAILIES_PER_DAY as ECONOMY_MAX_EXTRA_BAIT_FROM_DAILIES_PER_DAY,
+  MAX_REWARDED_REFERRALS as ECONOMY_MAX_REWARDED_REFERRALS,
+  MON_CUBE_SPIN_PACKAGES as ECONOMY_MON_CUBE_SPIN_PACKAGES,
+  MON_COIN_PACKAGES as ECONOMY_MON_COIN_PACKAGES,
+  MON_FISHING_NET_PACKAGES as ECONOMY_MON_FISHING_NET_PACKAGES,
+  MON_MARKET_RECEIVER_ADDRESS as ECONOMY_MON_MARKET_RECEIVER_ADDRESS,
+  PREMIUM_FISH_WEIGHT_MODIFIERS as ECONOMY_PREMIUM_FISH_WEIGHT_MODIFIERS,
+  PREMIUM_LUCK_METER_CONFIG as ECONOMY_PREMIUM_LUCK_METER_CONFIG,
+  PREMIUM_MON_DROP_TABLE as ECONOMY_PREMIUM_MON_DROP_TABLE,
+  PREMIUM_PITY_CONFIG as ECONOMY_PREMIUM_PITY_CONFIG,
+  PREMIUM_RESCUE_CONFIG as ECONOMY_PREMIUM_RESCUE_CONFIG,
+  PREMIUM_SESSION_ALBUM_POINTS_PER_CAST as ECONOMY_PREMIUM_SESSION_ALBUM_POINTS_PER_CAST,
+  PREMIUM_SESSION_BONUS_COINS_PER_CAST as ECONOMY_PREMIUM_SESSION_BONUS_COINS_PER_CAST,
+  PREMIUM_SESSION_BONUS_XP_PER_CAST as ECONOMY_PREMIUM_SESSION_BONUS_XP_PER_CAST,
+  PREMIUM_SESSION_CASTS as ECONOMY_PREMIUM_SESSION_CASTS,
+  PREMIUM_SESSION_CONSUMES_BAIT as ECONOMY_PREMIUM_SESSION_CONSUMES_BAIT,
+  PREMIUM_SESSION_COST_MON as ECONOMY_PREMIUM_SESSION_COST_MON,
+  PREMIUM_SESSION_ROD_MASTERY_POINTS_PER_CAST as ECONOMY_PREMIUM_SESSION_ROD_MASTERY_POINTS_PER_CAST,
+  REFERRAL_BAIT_BONUS as ECONOMY_REFERRAL_BAIT_BONUS,
+  TARGET_PAID_BAIT_RTP as ECONOMY_TARGET_PAID_BAIT_RTP,
+  WALLET_CONNECT_BAIT_BONUS as ECONOMY_WALLET_CONNECT_BAIT_BONUS,
+  WEEKLY_GRILL_PAYOUT_CONFIG as ECONOMY_WEEKLY_GRILL_PAYOUT_CONFIG,
+  WEEKLY_MISSION_CONFIG as ECONOMY_WEEKLY_MISSION_CONFIG,
+} from '@/lib/economyConfig';
 
 const readFlag = (value: string | undefined, fallback: boolean) => {
   if (value == null || value.trim() === '') return fallback;
@@ -24,12 +56,12 @@ const readAllowlist = (value: string | undefined) => (
     .filter(Boolean)
 );
 
-export const DAILY_FREE_BAIT = 30;
-export const WALLET_CONNECT_BAIT_BONUS = 0;
-export const REFERRAL_BAIT_BONUS = 10;
-export const MAX_REWARDED_REFERRALS_PER_INVITER = 10;
-export const MAX_EXTRA_BAIT_FROM_DAILIES_PER_DAY = 0;
-export const TARGET_PAID_BAIT_RTP = 0.32;
+export const DAILY_FREE_BAIT = ECONOMY_DAILY_FREE_BAIT;
+export const WALLET_CONNECT_BAIT_BONUS = ECONOMY_WALLET_CONNECT_BAIT_BONUS;
+export const REFERRAL_BAIT_BONUS = ECONOMY_REFERRAL_BAIT_BONUS;
+export const MAX_REWARDED_REFERRALS_PER_INVITER = ECONOMY_MAX_REWARDED_REFERRALS;
+export const MAX_EXTRA_BAIT_FROM_DAILIES_PER_DAY = ECONOMY_MAX_EXTRA_BAIT_FROM_DAILIES_PER_DAY;
+export const TARGET_PAID_BAIT_RTP = ECONOMY_TARGET_PAID_BAIT_RTP;
 
 export const BAIT_BUCKETS_V2_ENABLED = readFlag(import.meta.env.VITE_BAIT_BUCKETS_V2_ENABLED, true);
 export const WALLET_BAIT_BONUS_ENABLED = readFlag(import.meta.env.VITE_WALLET_BAIT_BONUS_ENABLED, true);
@@ -45,57 +77,15 @@ export const COLLECTION_BOOK_ROLLOUT_PERCENT = readRolloutPercent(import.meta.en
 export const WEEKLY_MISSIONS_ROLLOUT_PERCENT = readRolloutPercent(import.meta.env.VITE_WEEKLY_MISSIONS_ROLLOUT_PERCENT, 100);
 export const CUBE_REBALANCE_ROLLOUT_PERCENT = readRolloutPercent(import.meta.env.VITE_CUBE_REBALANCE_ROLLOUT_PERCENT, 100);
 
-export const BAIT_PACKAGES = [
-  { amount: 5, cost: 400, label: 'Small bait pack' },
-  { amount: 10, cost: 800, label: 'Double bait pack' },
-  { amount: 25, cost: 2000, label: 'Big bait pack' },
-  { amount: 50, cost: 4000, label: 'Bulk bait box' },
-] as const;
+export const BAIT_PACKAGES = ECONOMY_BAIT_PACKAGES as typeof ECONOMY_BAIT_PACKAGES;
 
-export const FISHING_NET_PRICE_COINS = 6000;
-export const FISHING_NET_DAILY_FISH_COUNT = 10;
-export const FISHING_NET_PAYBACK_DAYS_ESTIMATE = 14;
-export const MON_MARKET_RECEIVER_ADDRESS = '0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D' as const;
-export const MON_FISHING_NET_PACKAGES = [
-  {
-    fishCount: 10,
-    monAmount: '3',
-    label: 'Scout Net',
-    positioning: 'Starter passive net for a light daily catch drip.',
-  },
-  {
-    fishCount: 25,
-    monAmount: '30',
-    label: 'Harbor Net',
-    positioning: 'Mid-tier upgrade for players who want a real passive stack each day.',
-  },
-  {
-    fishCount: 50,
-    monAmount: '60',
-    label: 'Fleet Net',
-    positioning: 'Heavy passive collector tuned for large daily inventory pulls.',
-  },
-] as const;
-export const MON_CUBE_SPIN_PACKAGES = [
-  {
-    rolls: 1,
-    monAmount: '1',
-    label: '1 cube roll',
-    positioning: 'Single premium roll when you only want one extra shot.',
-  },
-  {
-    rolls: 3,
-    monAmount: '3',
-    label: '3 cube rolls',
-    positioning: 'Short premium bundle for a focused cube session.',
-  },
-  {
-    rolls: 5,
-    monAmount: '5',
-    label: '5 cube rolls',
-    positioning: 'Heavy top-up when you want a bigger cube push right now.',
-  },
-] as const;
+export const FISHING_NET_PRICE_COINS = ECONOMY_FISHING_NET_PRICE_COINS;
+export const FISHING_NET_DAILY_FISH_COUNT = ECONOMY_FISHING_NET_DAILY_FISH_COUNT;
+export const FISHING_NET_PAYBACK_DAYS_ESTIMATE = ECONOMY_FISHING_NET_PAYBACK_DAYS_ESTIMATE;
+export const MON_MARKET_RECEIVER_ADDRESS = ECONOMY_MON_MARKET_RECEIVER_ADDRESS as `0x${string}`;
+export const MON_COIN_PACKAGES = ECONOMY_MON_COIN_PACKAGES as typeof ECONOMY_MON_COIN_PACKAGES;
+export const MON_FISHING_NET_PACKAGES = ECONOMY_MON_FISHING_NET_PACKAGES as typeof ECONOMY_MON_FISHING_NET_PACKAGES;
+export const MON_CUBE_SPIN_PACKAGES = ECONOMY_MON_CUBE_SPIN_PACKAGES as typeof ECONOMY_MON_CUBE_SPIN_PACKAGES;
 
 export const MON_ROD_PURCHASES = ROD_DATA
   .filter((rod) => rod.level > 0 && rod.monUnlockCost)
@@ -165,22 +155,15 @@ export interface EconomyFeatureAvailability {
   cubeRebalance: boolean;
 }
 
-export const PREMIUM_SESSION_COST_MON = '3';
-export const PREMIUM_SESSION_CASTS = 20;
-export const PREMIUM_SESSION_CONSUMES_BAIT = false;
-export const PREMIUM_SESSION_BONUS_COINS_PER_CAST = 12;
-export const PREMIUM_SESSION_BONUS_XP_PER_CAST = 18;
-export const PREMIUM_SESSION_ALBUM_POINTS_PER_CAST = 1;
-export const PREMIUM_SESSION_ROD_MASTERY_POINTS_PER_CAST = 1;
+export const PREMIUM_SESSION_COST_MON = ECONOMY_PREMIUM_SESSION_COST_MON;
+export const PREMIUM_SESSION_CASTS = ECONOMY_PREMIUM_SESSION_CASTS;
+export const PREMIUM_SESSION_CONSUMES_BAIT = ECONOMY_PREMIUM_SESSION_CONSUMES_BAIT;
+export const PREMIUM_SESSION_BONUS_COINS_PER_CAST = ECONOMY_PREMIUM_SESSION_BONUS_COINS_PER_CAST;
+export const PREMIUM_SESSION_BONUS_XP_PER_CAST = ECONOMY_PREMIUM_SESSION_BONUS_XP_PER_CAST;
+export const PREMIUM_SESSION_ALBUM_POINTS_PER_CAST = ECONOMY_PREMIUM_SESSION_ALBUM_POINTS_PER_CAST;
+export const PREMIUM_SESSION_ROD_MASTERY_POINTS_PER_CAST = ECONOMY_PREMIUM_SESSION_ROD_MASTERY_POINTS_PER_CAST;
 
-export const PREMIUM_MON_DROP_TABLE: ReadonlyArray<PremiumMonDropTierConfig> = [
-  { id: 'zero', chance: 0.758, monAmount: 0 },
-  { id: 'small', chance: 0.15, monAmount: 0.07 },
-  { id: 'medium', chance: 0.065, monAmount: 0.2 },
-  { id: 'big', chance: 0.02, monAmount: 0.65 },
-  { id: 'spike', chance: 0.006, monAmount: 2.25 },
-  { id: 'jackpot', chance: 0.001, monAmount: 6 },
-] as const;
+export const PREMIUM_MON_DROP_TABLE: ReadonlyArray<PremiumMonDropTierConfig> = ECONOMY_PREMIUM_MON_DROP_TABLE as ReadonlyArray<PremiumMonDropTierConfig>;
 
 export const PREMIUM_MON_DROP_EV_PER_CAST = PREMIUM_MON_DROP_TABLE.reduce(
   (sum, tier) => sum + tier.chance * tier.monAmount,
@@ -188,84 +171,23 @@ export const PREMIUM_MON_DROP_EV_PER_CAST = PREMIUM_MON_DROP_TABLE.reduce(
 );
 export const PREMIUM_MON_DROP_EV_PER_SESSION = PREMIUM_MON_DROP_EV_PER_CAST * PREMIUM_SESSION_CASTS;
 
-export const PREMIUM_FISH_WEIGHT_MODIFIERS: Readonly<Record<FishRarity, number>> = {
-  common: 0.78,
-  uncommon: 1.05,
-  rare: 1.18,
-  epic: 1.28,
-  legendary: 1.42,
-  mythical: 1.58,
-  secret: 1.9,
-} as const;
+export const PREMIUM_FISH_WEIGHT_MODIFIERS: Readonly<Record<FishRarity, number>> = ECONOMY_PREMIUM_FISH_WEIGHT_MODIFIERS as Readonly<Record<FishRarity, number>>;
 
-export const PREMIUM_LUCK_METER_CONFIG: Readonly<PremiumLuckMeterConfig> = {
-  maxStacks: 12,
-  perZeroStackBonus: {
-    small: 0.002,
-    medium: 0.0012,
-    big: 0.0005,
-    spike: 0.00015,
-    jackpot: 0.00002,
-  },
-} as const;
+export const PREMIUM_LUCK_METER_CONFIG: Readonly<PremiumLuckMeterConfig> = ECONOMY_PREMIUM_LUCK_METER_CONFIG as Readonly<PremiumLuckMeterConfig>;
 
-export const PREMIUM_PITY_CONFIG: Readonly<PremiumPityConfig> = {
-  guaranteedMediumAtZeroStreak: 34,
-  guaranteedBigAtZeroStreak: 48,
-} as const;
+export const PREMIUM_PITY_CONFIG: Readonly<PremiumPityConfig> = ECONOMY_PREMIUM_PITY_CONFIG as Readonly<PremiumPityConfig>;
 
-export const PREMIUM_RESCUE_CONFIG: Readonly<PremiumRescueConfig> = {
-  enabled: true,
-  triggerAfterLowRecoverySessions: 2,
-  lowRecoveryThresholdMon: 0.8,
-  maxExpectedWeeklyMon: 1.2,
-  maxRescueTriggersPerWeek: 2,
-  eligibleRewards: [0.18, 0.35, 0.65],
-} as const;
+export const PREMIUM_RESCUE_CONFIG: Readonly<PremiumRescueConfig> = ECONOMY_PREMIUM_RESCUE_CONFIG as Readonly<PremiumRescueConfig>;
 
-export const ALBUM_FIRST_CATCH_BONUSES = {
-  carp: 25,
-  perch: 50,
-  bream: 100,
-  catfish: 200,
-  goldfish: 500,
-  mutant: 1500,
-  pike: 5000,
-  leviathan: 10000,
-} as const;
+export const ALBUM_FIRST_CATCH_BONUSES = ECONOMY_ALBUM_FIRST_CATCH_BONUSES as typeof ECONOMY_ALBUM_FIRST_CATCH_BONUSES;
 
-export const WEEKLY_MISSION_CONFIG: ReadonlyArray<WeeklyMissionConfig> = [
-  { id: 'catch_60_fish', title: 'Catch 60 fish', description: 'Keep returning through the week and land 60 fish total.', target: 60, rewardCoins: 300 },
-  { id: 'catch_6_rare', title: 'Catch 6 rare+ fish', description: 'Catch 6 rare, epic, legendary, mythical, or secret fish this week.', target: 6, rewardCoins: 250 },
-  { id: 'cook_5_dishes', title: 'Cook 5 dishes', description: 'Turn your catches into 5 grill dishes this week.', target: 5, rewardBait: 10 },
-  { id: 'sell_3_dishes', title: 'Sell 3 dishes', description: 'Sell 3 cooked dishes from your inventory this week.', target: 3, rewardBait: 10 },
-  { id: 'cube_3_days', title: 'Unlock cube on 3 days', description: 'Unlock the daily cube on 3 different days this week.', target: 3, rewardCubeCharge: 1 },
-  { id: 'complete_1_premium_session', title: 'Complete 1 premium session', description: 'Finish one MON Expedition from start to finish.', target: 1, rewardCoins: 250 },
-] as const;
+export const WEEKLY_MISSION_CONFIG: ReadonlyArray<WeeklyMissionConfig> = ECONOMY_WEEKLY_MISSION_CONFIG as ReadonlyArray<WeeklyMissionConfig>;
 
-export const WEEKLY_GRILL_PAYOUT_CONFIG = {
-  totalMonBudget: 10,
-  payouts: [
-    { rank: 1, monAmount: 2.5 },
-    { rank: 2, monAmount: 1.75 },
-    { rank: 3, monAmount: 1.25 },
-    { rank: 4, monAmount: 1 },
-    { rank: 5, monAmount: 0.75 },
-    { rank: 6, monAmount: 0.5 },
-    { rank: 7, monAmount: 0.5 },
-    { rank: 8, monAmount: 0.5 },
-    { rank: 9, monAmount: 0.5 },
-    { rank: 10, monAmount: 0.5 },
-  ],
-} as const;
+export const WEEKLY_GRILL_PAYOUT_CONFIG = ECONOMY_WEEKLY_GRILL_PAYOUT_CONFIG as typeof ECONOMY_WEEKLY_GRILL_PAYOUT_CONFIG;
 
 export const CUBE_REBALANCE_CONFIG: Readonly<CubeRebalanceConfig> = {
+  ...ECONOMY_CUBE_REBALANCE_CONFIG,
   enabled: CUBE_REBALANCE_ENABLED,
-  targetCoinEvPerRoll: 260,
-  fishTileRatio: 0.46,
-  monTileCount: 1,
-  monPrizeAmount: 1,
-  preferredRewardMix: ['fish', 'coins', 'bait', 'rod', 'mon', 'album'],
 } as const;
 
 const normalizeRolloutSubject = (subject?: string | null) => {

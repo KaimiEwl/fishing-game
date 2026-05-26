@@ -115,28 +115,28 @@ const BAIT_TILE_RATIO = CUBE_REBALANCE_CONFIG.enabled ? 0.28 : 0;
 const COIN_PRIZES = WHEEL_PRIZES.filter((item) => item.type === 'coins');
 const BAIT_PRIZES = WHEEL_PRIZES.filter((item) => item.type === 'bait');
 const SECRET_MON_PRIZE = WHEEL_PRIZES.find((item) => item.type === 'mon' && item.secret) ?? {
-  id: 'secret_mon_1',
+  id: 'secret_mon_0_5',
   type: 'mon' as const,
   label: `${CUBE_REBALANCE_CONFIG.monPrizeAmount} MON`,
   mon: CUBE_REBALANCE_CONFIG.monPrizeAmount,
   secret: true,
 };
 const COIN_PRIZE_WEIGHTS: Readonly<Record<string, number>> = {
+  coin_30: 28,
   coin_60: 28,
-  coin_120: 24,
-  coin_200: 18,
-  coin_350: 12,
-  coin_550: 8,
-  coin_900: 5,
-  coin_1500: 3,
-  coin_2200: 2,
+  coin_100: 18,
+  coin_175: 12,
+  coin_275: 8,
+  coin_450: 5,
+  coin_750: 3,
+  coin_1100: 2,
 };
 const BAIT_PRIZE_WEIGHTS: Readonly<Record<string, number>> = {
+  bait_2: 30,
   bait_3: 30,
-  bait_5: 26,
-  bait_8: 20,
-  bait_12: 15,
-  bait_18: 9,
+  bait_4: 20,
+  bait_6: 15,
+  bait_9: 9,
 };
 const PAID_SPIN_COST_MON = MON_CUBE_SPIN_PACKAGES[0]?.monAmount ?? '0.04';
 const BUY_ROLL_ICON_SRC = publicAsset('assets/wheel_buy_roll_icon_v2.webp');
@@ -167,6 +167,10 @@ const indexToFaceAndTile = (index: number) => ({
   tileIndex: index % FACE_TILE_COUNT,
 });
 
+const faceAndTileToIndex = (faceIndex: number, tileIndex: number) => (
+  faceIndex * FACE_TILE_COUNT + tileIndex
+);
+
 const randomUniqueIndexes = (count: number, maxExclusive: number, blocked = new Set<number>()) => {
   const chosen = new Set<number>();
   const targetCount = Math.max(0, Math.min(count, maxExclusive - blocked.size));
@@ -180,6 +184,8 @@ const randomUniqueIndexes = (count: number, maxExclusive: number, blocked = new 
 
   return Array.from(chosen.values());
 };
+
+const clampChance = (chance: number) => Math.max(0, Math.min(1, Number(chance) || 0));
 
 const pickWeighted = <T,>(items: readonly T[], getWeight: (item: T) => number) => {
   const totalWeight = items.reduce((sum, item) => sum + getWeight(item), 0);
@@ -280,7 +286,7 @@ const createRodPrize = (currentRodLevel: number): WheelPrize | null => {
 
 const shouldInjectRodTile = () => (
   ROD_CUBE_DROP_CONFIG.cubeRodDropEnabled
-  && Math.random() < Math.max(0, Math.min(1, ROD_CUBE_DROP_CONFIG.tileInjectionChance))
+  && Math.random() < clampChance(ROD_CUBE_DROP_CONFIG.tileInjectionChance)
 );
 
 const createCubeFaces = (currentRodLevel = 0): CubeFaces => {
@@ -312,6 +318,48 @@ const createCubeFaces = (currentRodLevel = 0): CubeFaces => {
   return CUBE_SIDES.map((_, sideIndex) => (
     globalPrizes.slice(sideIndex * FACE_TILE_COUNT, (sideIndex + 1) * FACE_TILE_COUNT)
   ));
+};
+
+const getRodTileGlobalIndexes = (faces: CubeFaces) => (
+  faces.flatMap((face, faceIndex) => (
+    face.flatMap((item, tileIndex) => (
+      item.type === 'rod' ? [faceAndTileToIndex(faceIndex, tileIndex)] : []
+    ))
+  ))
+);
+
+const setPrizeAtGlobalIndex = (faces: CubeFaces, globalIndex: number, prize: WheelPrize) => {
+  const { faceIndex, tileIndex } = indexToFaceAndTile(globalIndex);
+  faces[faceIndex][tileIndex] = prize;
+};
+
+const pickCubeTarget = (faces: CubeFaces, currentRodLevel: number): PendingTarget => {
+  const totalTiles = CUBE_SIDES.length * FACE_TILE_COUNT;
+  let rodIndexes = getRodTileGlobalIndexes(faces);
+  const shouldHitRodJackpot = (
+    ROD_CUBE_DROP_CONFIG.cubeRodDropEnabled
+    && Math.random() < clampChance(ROD_CUBE_DROP_CONFIG.targetWinChance)
+  );
+
+  if (shouldHitRodJackpot && rodIndexes.length === 0) {
+    const rodPrize = createRodPrize(currentRodLevel);
+    const [rodIndex] = rodPrize ? randomUniqueIndexes(1, totalTiles) : [];
+    if (rodPrize && typeof rodIndex === 'number') {
+      setPrizeAtGlobalIndex(faces, rodIndex, rodPrize);
+      rodIndexes = [rodIndex];
+    }
+  }
+
+  const targetGlobalIndex = shouldHitRodJackpot && rodIndexes.length > 0
+    ? rodIndexes[Math.floor(Math.random() * rodIndexes.length)]
+    : randomUniqueIndexes(1, totalTiles, new Set(rodIndexes))[0] ?? 0;
+  const { faceIndex, tileIndex } = indexToFaceAndTile(targetGlobalIndex);
+
+  return {
+    faceIndex,
+    tileIndex,
+    prize: faces[faceIndex][tileIndex],
+  };
 };
 
 const getRewardToastLabel = (reward: WheelPrize) => {
@@ -513,17 +561,19 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
             </span>
           </div>
         ) : item.type === 'rod' && rod ? (
-          <div className="relative flex h-full w-full flex-col items-center justify-center gap-0.5 px-0.5 text-center">
+          <div className="relative flex h-full w-full flex-col items-center justify-center gap-0.5 overflow-hidden px-0.5 text-center">
+            <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_28%,rgba(255,255,255,0.4),rgba(255,255,255,0)_48%)]" />
+            <span className="pointer-events-none absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-white/85 shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
             {ROD_DISPLAY_INFO[rod.level]?.image ? (
               <img
                 src={ROD_DISPLAY_INFO[rod.level].image}
-                alt=""
-                className="h-4 w-4 object-contain drop-shadow-[0_1px_3px_rgba(0,0,0,0.65)] sm:h-5 sm:w-5"
+                alt={`${rod.name} prize`}
+                className="relative z-10 h-5 w-5 object-contain drop-shadow-[0_2px_5px_rgba(0,0,0,0.82)] sm:h-7 sm:w-7"
               />
             ) : (
-              <ShipWheel className="h-3.5 w-3.5 text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.65)] sm:h-4 sm:w-4" />
+              <ShipWheel className="relative z-10 h-4 w-4 text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.65)] sm:h-5 sm:w-5" />
             )}
-            <span className="text-[6px] font-black tracking-[0.12em] text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)] sm:text-[7px]">
+            <span className="relative z-10 rounded-full bg-black/38 px-1 text-[6px] font-black tracking-[0.12em] text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)] sm:text-[7px]">
               ROD
             </span>
           </div>
@@ -682,9 +732,10 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     spinLockRef.current = true;
 
     let nextFaces = createCubeFaces(rodLevel);
-    let faceIndex = Math.floor(Math.random() * CUBE_SIDES.length);
-    let tileIndex = Math.floor(Math.random() * FACE_TILE_COUNT);
-    let targetPrize = nextFaces[faceIndex][tileIndex];
+    const localTarget = pickCubeTarget(nextFaces, rodLevel);
+    let faceIndex = localTarget.faceIndex;
+    let tileIndex = localTarget.tileIndex;
+    let targetPrize = localTarget.prize;
     let rollId: string | undefined;
 
     try {

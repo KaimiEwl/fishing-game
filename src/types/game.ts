@@ -1,3 +1,18 @@
+import {
+  BAIT_COST as ECONOMY_BAIT_COST,
+  CATCH_CHANCE as ECONOMY_CATCH_CHANCE,
+  DAILY_TASK_REWARDS,
+  FISH_ECONOMY,
+  GRILL_RECIPES as ECONOMY_GRILL_RECIPES,
+  LEVIATHAN_COMMON_ROD_BONUS_CONFIG as ECONOMY_LEVIATHAN_COMMON_ROD_BONUS_CONFIG,
+  NFT_ROD_DATA as ECONOMY_NFT_ROD_DATA,
+  ROD_CUBE_DROP_CONFIG as ECONOMY_ROD_CUBE_DROP_CONFIG,
+  ROD_ECONOMY,
+  SPECIAL_TASK_REWARDS,
+  WHEEL_PRIZES as ECONOMY_WHEEL_PRIZES,
+  XP_PER_LEVEL as ECONOMY_XP_PER_LEVEL,
+} from '@/lib/economyConfig';
+
 export type FishRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythical' | 'secret';
 export type RodRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
@@ -122,6 +137,7 @@ export type PremiumSessionStatus = 'idle' | 'active' | 'completed' | 'expired';
 
 export interface WalletCheckInSummary {
   todayCheckedIn: boolean;
+  repeatTestMode?: boolean;
   streakDays: number;
   lastCheckInAt: string | null;
   lastCheckInDate: string | null;
@@ -342,9 +358,7 @@ export const FISH_DATA: Fish[] = [
     name: 'Carp',
     emoji: '✨',
     rarity: 'common',
-    chance: 45.14,
-    price: 8,
-    xp: 10,
+    ...FISH_ECONOMY.carp,
     description: 'A common fish, but great for a stew!'
   },
   {
@@ -352,9 +366,7 @@ export const FISH_DATA: Fish[] = [
     name: 'Perch',
     emoji: '🐠',
     rarity: 'uncommon',
-    chance: 28,
-    price: 15,
-    xp: 20,
+    ...FISH_ECONOMY.perch,
     description: 'A striped predator with vivid colors'
   },
   {
@@ -362,9 +374,7 @@ export const FISH_DATA: Fish[] = [
     name: 'Bream',
     emoji: '🐡',
     rarity: 'rare',
-    chance: 15,
-    price: 35,
-    xp: 35,
+    ...FISH_ECONOMY.bream,
     description: 'A large fish with golden sides'
   },
   {
@@ -372,9 +382,7 @@ export const FISH_DATA: Fish[] = [
     name: 'Catfish',
     emoji: '🐙',
     rarity: 'epic',
-    chance: 8,
-    price: 75,
-    xp: 50,
+    ...FISH_ECONOMY.catfish,
     description: 'A giant of the deep with whiskers'
   },
   {
@@ -382,9 +390,7 @@ export const FISH_DATA: Fish[] = [
     name: 'Goldfish',
     emoji: '✨',
     rarity: 'legendary',
-    chance: 3,
-    price: 200,
-    xp: 100,
+    ...FISH_ECONOMY.goldfish,
     description: 'Grants wishes... well, almost!'
   },
   {
@@ -392,9 +398,7 @@ export const FISH_DATA: Fish[] = [
     name: 'Mutant Fish',
     emoji: '👾',
     rarity: 'mythical',
-    chance: 0.8,
-    price: 800,
-    xp: 200,
+    ...FISH_ECONOMY.mutant,
     description: 'Something strange from the depths... NFT-ready!'
   },
   {
@@ -402,9 +406,7 @@ export const FISH_DATA: Fish[] = [
     name: 'Purple Fish',
     emoji: '🦈',
     rarity: 'secret',
-    chance: 0.05,
-    price: 10000,
-    xp: 1000,
+    ...FISH_ECONOMY.pike,
     description: 'A majestic purple predator! extremely rare!'
   },
   {
@@ -412,9 +414,7 @@ export const FISH_DATA: Fish[] = [
     name: 'Cosmic Leviathan',
     emoji: '🌌',
     rarity: 'mythical',
-    chance: 0.01,
-    price: 50000,
-    xp: 10000,
+    ...FISH_ECONOMY.leviathan,
     description: 'Legend of the ocean! 1 in 10,000 fishers have seen it...'
   }
 ];
@@ -441,77 +441,34 @@ export const RARITY_NAMES: Record<FishRarity, string> = {
 
 export const ROD_DATA: readonly RodDefinition[] = [
   {
-    id: 'common_rod',
-    level: 0,
-    name: 'Common Rod',
+    ...ROD_ECONOMY.common_rod,
     description: 'The default starter rod. Every player owns it for free from the first cast.',
-    rarity: 'common',
-    bonus: 0,
     bobber: 'Standard tackle',
     bobberColor: '#aaa',
-    monadDropChance: 0,
-    monadMinReward: 0,
-    monadMaxReward: 0,
-    cubeDropWeight: 0,
   },
   {
-    id: 'rare_rod',
-    level: 1,
-    name: 'Rare Rod',
-    description: 'A tuned Monad rod with a modest rare-catch boost and a small MON pull range.',
-    rarity: 'rare',
-    bonus: 8,
+    ...ROD_ECONOMY.rare_rod,
+    description: 'A gold-upgrade rod with a modest rare-catch boost and a small no-fish MON range.',
     bobber: 'Blue bobber',
     bobberColor: '#60a5fa',
-    monUnlockCost: '3',
-    monadDropChance: 4,
-    monadMinReward: 0.01,
-    monadMaxReward: 0.03,
-    cubeDropWeight: 82,
   },
   {
-    id: 'epic_rod',
-    level: 2,
-    name: 'Epic Rod',
-    description: 'A stronger Monad rod for deeper runs, with higher rare-catch pressure and MON upside.',
-    rarity: 'epic',
-    bonus: 16,
+    ...ROD_ECONOMY.epic_rod,
+    description: 'A stronger gold-upgrade rod for deeper runs, with higher rare-catch pressure and no-fish MON upside.',
     bobber: 'Purple bobber',
     bobberColor: '#c084fc',
-    monUnlockCost: '10',
-    monadDropChance: 8,
-    monadMinReward: 0.02,
-    monadMaxReward: 0.07,
-    cubeDropWeight: 16,
   },
   {
-    id: 'legendary_rod',
-    level: 3,
-    name: 'Legendary Rod',
-    description: 'The top Monad shop rod, built for rare trophy hunts and the strongest MON pulls.',
-    rarity: 'legendary',
-    bonus: 28,
+    ...ROD_ECONOMY.legendary_rod,
+    description: 'The top Monad shop rod, built for rare trophy hunts and the strongest no-fish MON pulls.',
     bobber: 'Golden glowing bobber',
     bobberColor: '#ffcc00',
-    monUnlockCost: '25',
-    monadDropChance: 14,
-    monadMinReward: 0.04,
-    monadMaxReward: 0.12,
-    cubeDropWeight: 2,
   },
   {
-    id: 'legacy_gold_rod',
-    level: 4,
-    name: 'Legacy Gold Rod',
+    ...ROD_ECONOMY.legacy_gold_rod,
     description: 'A legacy tier preserved for existing saves that already reached the old level 4 rod.',
-    rarity: 'legendary',
-    bonus: 25,
     bobber: 'Golden glowing bobber',
     bobberColor: '#ffcc00',
-    monadDropChance: 0,
-    monadMinReward: 0,
-    monadMaxReward: 0,
-    cubeDropWeight: 0,
   },
 ] as const;
 
@@ -531,25 +488,9 @@ export const ROD_RARITY_NAMES: Record<RodRarity, string> = {
   legendary: 'Legendary',
 };
 
-export const ROD_CUBE_DROP_CONFIG = {
-  cubeRodDropEnabled: true,
-  tileCount: 1,
-  tileInjectionChance: 0.3,
-  minLevel: 1,
-  maxLevel: 3,
-  cubeRodRewards: [
-    { rodId: 'rare_rod', dropWeight: 82, duplicateCompensationMonads: 0.5 },
-    { rodId: 'epic_rod', dropWeight: 16, duplicateCompensationMonads: 2 },
-    { rodId: 'legendary_rod', dropWeight: 2, duplicateCompensationMonads: 5 },
-  ],
-} as const;
+export const ROD_CUBE_DROP_CONFIG = ECONOMY_ROD_CUBE_DROP_CONFIG as typeof ECONOMY_ROD_CUBE_DROP_CONFIG;
 
-export const LEVIATHAN_COMMON_ROD_BONUS_CONFIG = {
-  fishId: 'leviathan',
-  requiredRodId: 'common_rod',
-  bonusRodId: 'epic_rod',
-  duplicateCompensationMon: 2,
-} as const;
+export const LEVIATHAN_COMMON_ROD_BONUS_CONFIG = ECONOMY_LEVIATHAN_COMMON_ROD_BONUS_CONFIG as typeof ECONOMY_LEVIATHAN_COMMON_ROD_BONUS_CONFIG;
 
 export const DAILY_TASKS: DailyTask[] = [
   {
@@ -557,35 +498,35 @@ export const DAILY_TASKS: DailyTask[] = [
     title: 'Daily check-in',
     description: 'Open the game and claim your daily check-in reward.',
     target: 1,
-    rewardCoins: 100,
+    rewardCoins: DAILY_TASK_REWARDS.check_in.coins,
   },
   {
     id: 'catch_10',
     title: 'Catch 10 fish',
     description: 'Land 10 fish today.',
     target: 10,
-    rewardCoins: 100,
+    rewardCoins: DAILY_TASK_REWARDS.catch_10.coins,
   },
   {
     id: 'rare_1',
     title: 'Catch 1 rare fish',
     description: 'Catch any rare, epic, legendary, mythical, or secret fish today.',
     target: 1,
-    rewardCoins: 100,
+    rewardCoins: DAILY_TASK_REWARDS.rare_1.coins,
   },
   {
     id: 'grill_1',
     title: 'Cook 1 dish',
     description: 'Make any grilled dish today.',
     target: 1,
-    rewardCoins: 100,
+    rewardCoins: DAILY_TASK_REWARDS.grill_1.coins,
   },
   {
     id: 'spend_1000',
     title: 'Spend 1000 gold',
     description: 'Spend 1000 gold in the shop today.',
     target: 1000,
-    rewardBait: 10,
+    rewardBait: DAILY_TASK_REWARDS.spend_1000.bait,
   },
 ];
 
@@ -595,14 +536,14 @@ export const SPECIAL_TASKS: SpecialTask[] = [
     title: 'Wallet streak check-in',
     description: 'Send a small MON check-in today to keep your streak alive and unlock this daily special reward.',
     target: 1,
-    rewardBait: 10,
+    rewardBait: SPECIAL_TASK_REWARDS.wallet_check_in.bait,
   },
   {
     id: 'invite_friend',
     title: 'Invite a friend',
     description: 'Invite 1 friend today after they connect a wallet.',
     target: 1,
-    rewardBait: 10,
+    rewardBait: SPECIAL_TASK_REWARDS.invite_friend.bait,
   },
 ];
 
@@ -639,65 +580,50 @@ export const SOCIAL_TASKS: SocialTask[] = [
   },
 ];
 
-export const WHEEL_PRIZES: WheelPrize[] = [
-  { id: 'coin_60', type: 'coins', label: '60 coins', coins: 60 },
-  { id: 'coin_120', type: 'coins', label: '120 coins', coins: 120 },
-  { id: 'coin_200', type: 'coins', label: '200 coins', coins: 200 },
-  { id: 'coin_350', type: 'coins', label: '350 coins', coins: 350 },
-  { id: 'coin_550', type: 'coins', label: '550 coins', coins: 550 },
-  { id: 'coin_900', type: 'coins', label: '900 coins', coins: 900 },
-  { id: 'coin_1500', type: 'coins', label: '1,500 coins', coins: 1500 },
-  { id: 'coin_2200', type: 'coins', label: '2,200 coins', coins: 2200 },
-  { id: 'bait_3', type: 'bait', label: '3 bait', bait: 3 },
-  { id: 'bait_5', type: 'bait', label: '5 bait', bait: 5 },
-  { id: 'bait_8', type: 'bait', label: '8 bait', bait: 8 },
-  { id: 'bait_12', type: 'bait', label: '12 bait', bait: 12 },
-  { id: 'bait_18', type: 'bait', label: '18 bait', bait: 18 },
-  { id: 'secret_mon_1', type: 'mon', label: '1 MON', mon: 1, secret: true },
-];
+export const WHEEL_PRIZES: WheelPrize[] = ECONOMY_WHEEL_PRIZES as WheelPrize[];
 
 export const GRILL_RECIPES: GrillRecipe[] = [
   {
     id: 'lake_skewer',
     name: 'Lake Skewer',
     description: 'Simple grilled fish for steady points.',
-    ingredients: { carp: 2 },
-    score: 25,
+    ingredients: ECONOMY_GRILL_RECIPES.lake_skewer.ingredients,
+    score: ECONOMY_GRILL_RECIPES.lake_skewer.score,
   },
   {
     id: 'crispy_perch_plate',
     name: 'Crispy Perch Plate',
     description: 'A clean uncommon plate with better grill value.',
-    ingredients: { perch: 2, carp: 1 },
-    score: 65,
+    ingredients: ECONOMY_GRILL_RECIPES.crispy_perch_plate.ingredients,
+    score: ECONOMY_GRILL_RECIPES.crispy_perch_plate.score,
   },
   {
     id: 'rare_bream_steak',
     name: 'Rare Bream Steak',
     description: 'A richer dish that starts to matter on the board.',
-    ingredients: { bream: 1, perch: 1 },
-    score: 150,
+    ingredients: ECONOMY_GRILL_RECIPES.rare_bream_steak.ingredients,
+    score: ECONOMY_GRILL_RECIPES.rare_bream_steak.score,
   },
   {
     id: 'deepwater_platter',
     name: 'Deepwater Platter',
     description: 'High score dish made from a strong deepwater haul.',
-    ingredients: { catfish: 2, bream: 1 },
-    score: 420,
+    ingredients: ECONOMY_GRILL_RECIPES.deepwater_platter.ingredients,
+    score: ECONOMY_GRILL_RECIPES.deepwater_platter.score,
   },
   {
     id: 'cosmic_grill',
     name: 'Cosmic Grill',
     description: 'A signature dish for serious grillers.',
-    ingredients: { goldfish: 1, mutant: 1 },
-    score: 1200,
+    ingredients: ECONOMY_GRILL_RECIPES.cosmic_grill.ingredients,
+    score: ECONOMY_GRILL_RECIPES.cosmic_grill.score,
   },
 ];
 
 export const ROD_BONUSES = ROD_DATA.map((rod) => rod.bonus); // % bonus to rare fish chance per rod level
-export const XP_PER_LEVEL = 100;
-export const CATCH_CHANCE = 60; // Base 60% chance to catch something
-export const BAIT_COST = 80; // Cost per 1 bait
+export const XP_PER_LEVEL = ECONOMY_XP_PER_LEVEL;
+export const CATCH_CHANCE = ECONOMY_CATCH_CHANCE; // Base 60% chance to catch something
+export const BAIT_COST = ECONOMY_BAIT_COST; // Cost per 1 bait
 
 export interface NftRod {
   rodLevel: number;
@@ -708,10 +634,4 @@ export interface NftRod {
   mintCost: string; // Cost in MON
 }
 
-export const NFT_ROD_DATA: NftRod[] = [
-  { rodLevel: 0, name: 'Driftline MON Rod', rarityBonus: 6, xpBonus: 15, sellBonus: 5, mintCost: '1' },
-  { rodLevel: 1, name: 'Tidebloom MON Rod', rarityBonus: 12, xpBonus: 30, sellBonus: 15, mintCost: '3' },
-  { rodLevel: 2, name: 'Deepcurrent MON Rod', rarityBonus: 18, xpBonus: 45, sellBonus: 25, mintCost: '5' },
-  { rodLevel: 3, name: 'Stormforge MON Rod', rarityBonus: 24, xpBonus: 60, sellBonus: 35, mintCost: '10' },
-  { rodLevel: 4, name: 'Leviathan Crown MON Rod', rarityBonus: 32, xpBonus: 80, sellBonus: 50, mintCost: '25' },
-];
+export const NFT_ROD_DATA: NftRod[] = ECONOMY_NFT_ROD_DATA as NftRod[];
