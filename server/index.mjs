@@ -92,6 +92,8 @@ const DB_PATH = process.env.HOOKLOOT_DB_PATH || join(DATA_DIR, 'hookloot.sqlite'
 const UPLOAD_DIR = process.env.HOOKLOOT_UPLOAD_DIR || join(DATA_DIR, 'uploads');
 const SESSION_SECRET = process.env.SESSION_TOKEN_SECRET || process.env.HOOKLOOT_SESSION_SECRET || 'hookloot-local-dev-secret';
 const MONAD_RPC_URL = process.env.MONAD_RPC_URL || 'https://rpc.monad.xyz';
+const PAYMENT_RECEIPT_POLL_ATTEMPTS = 40;
+const PAYMENT_RECEIPT_POLL_INTERVAL_MS = 1500;
 const RECEIVER_ADDRESS = (process.env.HOOKLOOT_RECEIVER_ADDRESS || '0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D').toLowerCase();
 const readEnvFlag = (value, fallback) => {
   if (value == null || String(value).trim() === '') return fallback;
@@ -1828,13 +1830,37 @@ async function rpcCall(method, params) {
   return payload.result;
 }
 
+const delay = (ms) => new Promise((resolve) => {
+  setTimeout(resolve, ms);
+});
+
+async function waitForPaymentReceipt(txHash) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= PAYMENT_RECEIPT_POLL_ATTEMPTS; attempt += 1) {
+    try {
+      const receipt = await rpcCall('eth_getTransactionReceipt', [txHash]);
+      if (receipt) return receipt;
+      lastError = null;
+    } catch (error) {
+      lastError = error;
+    }
+
+    if (attempt < PAYMENT_RECEIPT_POLL_ATTEMPTS) {
+      await delay(PAYMENT_RECEIPT_POLL_INTERVAL_MS);
+    }
+  }
+
+  if (lastError) throw lastError;
+  return null;
+}
+
 async function verifyPaymentTx(walletAddress, txHash, expectedMon, options = {}) {
   const normalizedTxHash = requireTxHash(txHash);
   const allowUnverified = Object.prototype.hasOwnProperty.call(options, 'allowUnverified')
     ? Boolean(options.allowUnverified)
     : ALLOW_UNVERIFIED_PAYMENTS;
   if (allowUnverified) return { paidMon: Number(expectedMon) || 0, txHash: normalizedTxHash };
-  const receipt = await rpcCall('eth_getTransactionReceipt', [normalizedTxHash]);
+  const receipt = await waitForPaymentReceipt(normalizedTxHash);
   if (!receipt) throw httpError(202, 'Transaction pending, try again later');
   if (receipt.status !== '0x1') throw httpError(400, 'Transaction failed on-chain');
   const tx = await rpcCall('eth_getTransactionByHash', [normalizedTxHash]);

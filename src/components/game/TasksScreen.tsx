@@ -76,6 +76,21 @@ interface TasksScreenProps {
 
 type QuestTab = 'daily' | 'blockchain' | 'weekly' | 'social';
 const WALLET_CHECK_IN_TOAST_ID = 'wallet-check-in-flow';
+const WALLET_CHECK_IN_VERIFY_ATTEMPTS = 12;
+const WALLET_CHECK_IN_VERIFY_RETRY_MS = 5000;
+const WALLET_CHECK_IN_PENDING_STORAGE_KEY = 'hook_loot_pending_wallet_check_in_tx_v1';
+const MONAD_MAINNET_CHAIN_ID = '0x8f';
+const MONAD_MAINNET_PARAMS = {
+  chainId: MONAD_MAINNET_CHAIN_ID,
+  chainName: 'Monad Mainnet',
+  nativeCurrency: {
+    name: 'MON',
+    symbol: 'MON',
+    decimals: 18,
+  },
+  rpcUrls: ['https://rpc.monad.xyz'],
+  blockExplorerUrls: ['https://monadscan.com'],
+};
 const getRodById = (id: string) => ROD_DATA.find((rod) => rod.id === id) ?? null;
 const leviathanRequiredRod = getRodById(LEVIATHAN_COMMON_ROD_BONUS_CONFIG.requiredRodId) ?? ROD_DATA[0];
 const leviathanBonusRod = getRodById(LEVIATHAN_COMMON_ROD_BONUS_CONFIG.bonusRodId);
@@ -92,6 +107,92 @@ const getBrowserEthereumProvider = (): BrowserEthereumProvider | null => {
 };
 
 const toHexQuantity = (value: bigint) => `0x${value.toString(16)}`;
+const isWalletTransactionHash = (value: string) => /^0x[a-fA-F0-9]{64}$/.test(value.trim());
+const normalizeWalletTransactionHash = (value: string) => (
+  isWalletTransactionHash(value) ? value.trim() : null
+);
+
+const pendingWalletCheckInStorageKey = (walletAddress: string) => (
+  `${WALLET_CHECK_IN_PENDING_STORAGE_KEY}:${walletAddress.toLowerCase()}`
+);
+
+const readPendingWalletCheckInTx = (walletAddress?: string | null) => {
+  if (!walletAddress || typeof window === 'undefined') return null;
+  try {
+    const txHash = window.localStorage.getItem(pendingWalletCheckInStorageKey(walletAddress));
+    return txHash ? normalizeWalletTransactionHash(txHash) : null;
+  } catch {
+    return null;
+  }
+};
+
+const writePendingWalletCheckInTx = (walletAddress: string, txHash: string) => {
+  try {
+    window.localStorage.setItem(pendingWalletCheckInStorageKey(walletAddress), txHash);
+  } catch {
+    // Best effort only; verification still continues in the current session.
+  }
+};
+
+const clearPendingWalletCheckInTx = (walletAddress?: string | null) => {
+  if (!walletAddress || typeof window === 'undefined') return;
+  try {
+    window.localStorage.removeItem(pendingWalletCheckInStorageKey(walletAddress));
+  } catch {
+    // Ignore storage cleanup failures.
+  }
+};
+
+const wait = (ms: number) => new Promise<void>((resolve) => {
+  window.setTimeout(resolve, ms);
+});
+
+const isRetryableWalletCheckInError = (error: unknown) => {
+  const message = getErrorMessage(error).toLowerCase();
+  return message.includes('transaction pending')
+    || message.includes('fetch failed')
+    || message.includes('failed to fetch')
+    || message.includes('rpc request failed')
+    || message.includes('rpc error')
+    || message.includes('cannot fetch transaction details')
+    || message.includes('timeout')
+    || message.includes('network');
+};
+
+const getProviderChainId = async (provider: BrowserEthereumProvider) => {
+  const chainId = await provider.request({ method: 'eth_chainId' });
+  return typeof chainId === 'string' ? chainId.toLowerCase() : null;
+};
+
+const getProviderErrorCode = (error: unknown) => (
+  error && typeof error === 'object' && 'code' in error
+    ? Number((error as { code?: unknown }).code)
+    : null
+);
+
+const ensureMonadMainnet = async (provider: BrowserEthereumProvider) => {
+  if (await getProviderChainId(provider) === MONAD_MAINNET_CHAIN_ID) return;
+
+  try {
+    await provider.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: MONAD_MAINNET_CHAIN_ID }],
+    });
+  } catch (error) {
+    if (getProviderErrorCode(error) !== 4902) {
+      throw error;
+    }
+
+    await provider.request({
+      method: 'wallet_addEthereumChain',
+      params: [MONAD_MAINNET_PARAMS],
+    });
+  }
+
+  if (await getProviderChainId(provider) !== MONAD_MAINNET_CHAIN_ID) {
+    throw new Error('Switch MetaMask to Monad Mainnet before sending the check-in.');
+  }
+};
 
 const TasksScreen: React.FC<TasksScreenProps> = ({
   walletAddress,
@@ -127,6 +228,8 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
     typeof window !== 'undefined' ? window.innerWidth < 768 : false
   ));
   const [walletCheckInSubmitting, setWalletCheckInSubmitting] = useState(false);
+  const [pendingWalletCheckInTx, setPendingWalletCheckInTx] = useState<string | null>(() => readPendingWalletCheckInTx(walletAddress));
+  const [manualWalletCheckInTxHash, setManualWalletCheckInTxHash] = useState('');
   const [copiedReferral, setCopiedReferral] = useState(false);
   const { sendTransactionAsync } = useSendTransaction();
   const canUseWalletCheckInPayment = isRealWalletAddress(walletAddress);
@@ -198,6 +301,10 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
 
+  useEffect(() => {
+    setPendingWalletCheckInTx(readPendingWalletCheckInTx(walletAddress));
+  }, [walletAddress]);
+
   const handleCopyReferralLink = async () => {
     if (!referralSummary?.referralLink) return;
 
@@ -224,12 +331,84 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
     }
   };
 
+  const showWalletCheckInError = (error: unknown) => {
+    if (isUserRejectedError(error)) {
+      toast.error('Transaction cancelled', {
+        id: WALLET_CHECK_IN_TOAST_ID,
+        duration: 5600,
+      });
+      return;
+    }
+
+    const retryable = isRetryableWalletCheckInError(error);
+    if (retryable) {
+      toast.info('Check-in transaction is still confirming. No new MON was sent; press the button again to re-check the same transaction.', {
+        id: WALLET_CHECK_IN_TOAST_ID,
+        duration: 9000,
+      });
+      return;
+    }
+
+    clearPendingWalletCheckInTx(walletAddress);
+    setPendingWalletCheckInTx(null);
+    toast.error(`Wallet check-in failed: ${getErrorMessage(error)}`, {
+      id: WALLET_CHECK_IN_TOAST_ID,
+      duration: 5600,
+    });
+  };
+
+  const verifyWalletCheckInTxHash = async (txHash: string, pendingMessage: string) => {
+    if (!walletAddress) throw new Error('Wallet is not connected.');
+
+    writePendingWalletCheckInTx(walletAddress, txHash);
+    setPendingWalletCheckInTx(txHash);
+
+    toast.loading(pendingMessage, {
+      id: WALLET_CHECK_IN_TOAST_ID,
+      duration: 90_000,
+    });
+
+    for (let attempt = 1; attempt <= WALLET_CHECK_IN_VERIFY_ATTEMPTS; attempt += 1) {
+      try {
+        await onWalletCheckIn(txHash);
+        break;
+      } catch (error) {
+        if (attempt >= WALLET_CHECK_IN_VERIFY_ATTEMPTS || !isRetryableWalletCheckInError(error)) {
+          throw error;
+        }
+
+        toast.loading(`Transaction sent. Waiting for Monad confirmation (${attempt}/${WALLET_CHECK_IN_VERIFY_ATTEMPTS})...`, {
+          id: WALLET_CHECK_IN_TOAST_ID,
+          duration: 90_000,
+        });
+        await wait(WALLET_CHECK_IN_VERIFY_RETRY_MS);
+      }
+    }
+
+    clearPendingWalletCheckInTx(walletAddress);
+    setPendingWalletCheckInTx(null);
+    setManualWalletCheckInTxHash('');
+    toast.success('Daily wallet streak updated.', {
+      id: WALLET_CHECK_IN_TOAST_ID,
+      duration: 5600,
+    });
+  };
+
   const handleWalletCheckIn = async () => {
     if (!walletAddress || !canUseWalletCheckInPayment || walletCheckInSubmitting) return;
 
     setWalletCheckInSubmitting(true);
     try {
+      const pendingTxHash = pendingWalletCheckInTx ?? readPendingWalletCheckInTx(walletAddress);
+      if (pendingTxHash) {
+        await verifyWalletCheckInTxHash(pendingTxHash, 'Verifying your already sent wallet check-in...');
+        return;
+      }
+
       const provider = getBrowserEthereumProvider();
+      if (provider) {
+        await ensureMonadMainnet(provider);
+      }
       const paymentRequest = {
         to: walletCheckInReceiverAddress as `0x${string}`,
         value: parseEther(walletCheckInAmountMon),
@@ -250,31 +429,34 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
             purpose: 'wallet-check-in',
             allowTestMode: false,
           });
-      if (typeof txHash !== 'string' || !/^0x[a-fA-F0-9]{64}$/.test(txHash)) {
+      if (typeof txHash !== 'string' || !isWalletTransactionHash(txHash)) {
         throw new Error('Wallet did not return a transaction hash.');
       }
 
-      toast.loading('Wallet check-in transaction sent. Verifying...', {
-        id: WALLET_CHECK_IN_TOAST_ID,
-        duration: 5600,
-      });
-      await onWalletCheckIn(txHash);
-      toast.success('Daily wallet streak updated.', {
-        id: WALLET_CHECK_IN_TOAST_ID,
-        duration: 5600,
-      });
+      await verifyWalletCheckInTxHash(txHash, 'Wallet check-in transaction sent. Verifying on-chain...');
     } catch (error) {
-      if (isUserRejectedError(error)) {
-        toast.error('Transaction cancelled', {
-          id: WALLET_CHECK_IN_TOAST_ID,
-          duration: 5600,
-        });
-      } else {
-        toast.error(`Wallet check-in failed: ${getErrorMessage(error)}`, {
-          id: WALLET_CHECK_IN_TOAST_ID,
-          duration: 5600,
-        });
-      }
+      showWalletCheckInError(error);
+    } finally {
+      setWalletCheckInSubmitting(false);
+    }
+  };
+
+  const handleVerifyExistingWalletCheckIn = async () => {
+    if (!walletAddress || walletCheckInSubmitting) return;
+    const txHash = normalizeWalletTransactionHash(manualWalletCheckInTxHash);
+    if (!txHash) {
+      toast.error('Paste a valid transaction hash first.', {
+        id: WALLET_CHECK_IN_TOAST_ID,
+        duration: 5600,
+      });
+      return;
+    }
+
+    setWalletCheckInSubmitting(true);
+    try {
+      await verifyWalletCheckInTxHash(txHash, 'Verifying pasted wallet check-in transaction...');
+    } catch (error) {
+      showWalletCheckInError(error);
     } finally {
       setWalletCheckInSubmitting(false);
     }
@@ -449,6 +631,8 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
             ? 'Preparing your verified wallet session so you can send the on-chain check-in.'
           : walletCheckInLoading
             ? 'Refreshing streak status...'
+          : pendingWalletCheckInTx
+            ? 'A check-in transaction was already sent. Press the button to verify the same transaction; no new MON will be sent.'
             : walletAlreadyCheckedInToday
               ? `Checked in today. Streak: ${formatStreakDays(walletCheckInSummary.streakDays)}.`
             : walletCheckInSummary?.lastCheckInDate
@@ -548,6 +732,11 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                           <Clock3 className="mr-2 h-4 w-4" />
                           Preparing wallet
                         </>
+                      ) : pendingWalletCheckInTx ? (
+                        <>
+                          <Clock3 className="mr-2 h-4 w-4" />
+                          Verify sent check-in
+                        </>
                       ) : (
                         <>
                           <ExternalLink className="mr-2 h-4 w-4" />
@@ -557,6 +746,26 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                     </Button>
                   )}
                 </ConnectButton.Custom>
+                {walletCheckInReady && !walletAlreadyCheckedInToday && (
+                  <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                    <Input
+                      value={manualWalletCheckInTxHash}
+                      onChange={(event) => setManualWalletCheckInTxHash(event.target.value)}
+                      placeholder="Paste existing tx hash"
+                      disabled={walletCheckInSubmitting}
+                      className="h-10 rounded-[0.9rem] border-[#7f5227] bg-[rgba(12,8,5,0.74)] text-[0.76rem] font-bold text-[#f8db9a] placeholder:text-[#9b815b] focus-visible:ring-[#c89745] sm:text-xs"
+                    />
+                    <Button
+                      type="button"
+                      disabled={walletCheckInSubmitting || !normalizeWalletTransactionHash(manualWalletCheckInTxHash)}
+                      onClick={() => void handleVerifyExistingWalletCheckIn()}
+                      className="h-10 rounded-[0.9rem] border border-[#6b7f27] bg-[linear-gradient(180deg,#5f8122_0%,#456519_100%)] px-3 text-[0.74rem] font-black uppercase tracking-[0.04em] text-[#efffc8] shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_8px_14px_rgba(0,0,0,0.24)] hover:brightness-110 disabled:border-[#30351d] disabled:bg-[linear-gradient(180deg,#2f3324_0%,#25271d_100%)] disabled:text-[#7b826b] sm:text-xs"
+                    >
+                      <Check className="mr-2 h-4 w-4" />
+                      Verify tx
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 
