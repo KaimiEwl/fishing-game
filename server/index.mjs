@@ -36,6 +36,7 @@ import {
   REFERRAL_BAIT_BONUS,
   ROD_CUBE_DROP_CONFIG,
   ROD_DATA,
+  SOCIAL_TASK_REWARDS,
   SOCIAL_TASKS,
   SPECIAL_TASK_TARGETS,
   STARTING_COINS,
@@ -1558,6 +1559,43 @@ function claimProgressReward(player, taskId) {
     patch.game_progress = progress;
     const updated = updatePlayer(currentPlayer.wallet_address, patch);
     addAudit(currentPlayer.wallet_address, isWeekly ? 'weekly_mission_claimed' : 'task_claimed', { taskId, reward }, currentPlayer, updated);
+    return updated;
+  });
+}
+
+function claimSocialTaskReward(player, taskId) {
+  return withTransaction(() => {
+    if (!SOCIAL_TASKS.includes(taskId)) throw httpError(400, 'Unknown social task');
+
+    const reward = SOCIAL_TASK_REWARDS[taskId] || {};
+    const rewardCoins = Math.max(0, Math.floor(Number(reward.coins || 0)));
+    const rewardBait = Math.max(0, Math.floor(Number(reward.bait || 0)));
+    const rewardCubeCharge = Math.max(0, Math.floor(Number(reward.cubeCharge || 0)));
+    if (rewardCoins + rewardBait + rewardCubeCharge <= 0) {
+      throw httpError(400, 'This social task does not have a claimable reward yet');
+    }
+
+    const currentPlayer = getPlayerByWallet(player.wallet_address) || player;
+    const row = db.prepare('SELECT * FROM social_task_verifications WHERE player_id = ? AND task_id = ?')
+      .get(currentPlayer.id, taskId);
+    if (!row || row.status !== 'verified') throw httpError(400, 'Social task is not verified yet');
+
+    const claimed = db.prepare("UPDATE social_task_verifications SET status = 'claimed', updated_at = ? WHERE player_id = ? AND task_id = ? AND status = 'verified'")
+      .run(nowIso(), currentPlayer.id, taskId);
+    if (claimed.changes !== 1) throw httpError(409, 'Social task reward already claimed');
+
+    const progress = ensureGameProgress(currentPlayer.game_progress);
+    progress.paidWheelRolls = Number(progress.paidWheelRolls || 0) + rewardCubeCharge;
+    const updated = updatePlayer(currentPlayer.wallet_address, {
+      coins: Number(currentPlayer.coins || 0) + rewardCoins,
+      bait: Number(currentPlayer.bait || 0) + rewardBait,
+      game_progress: progress,
+    });
+    addAudit(currentPlayer.wallet_address, 'social_task_claimed', {
+      taskId,
+      reward,
+      proofUrl: row.proof_url || null,
+    }, currentPlayer, updated);
     return updated;
   });
 }
@@ -3212,11 +3250,8 @@ async function playerActions(body) {
 
     case 'claim_social_task_reward': {
       const taskId = String(body.task_id || '');
-      const verification = getSocialVerification(player, taskId);
-      if (verification.status !== 'verified') throw httpError(400, 'Social task is not verified yet');
-      db.prepare("UPDATE social_task_verifications SET status = 'claimed', updated_at = ? WHERE player_id = ? AND task_id = ?")
-        .run(nowIso(), player.id, taskId);
-      return edgeResponse({ player, verification: getSocialVerification(player, taskId) });
+      const updated = claimSocialTaskReward(player, taskId);
+      return edgeResponse({ player: updated, verification: getSocialVerification(updated, taskId) });
     }
 
     case 'cook_recipe': {
@@ -3296,7 +3331,39 @@ async function playerActions(body) {
     case 'submit_social_task_verification': {
       const taskId = String(body.task_id || '');
       if (!SOCIAL_TASKS.includes(taskId)) throw httpError(400, 'Unknown social task');
+      const existing = getSocialVerification(player, taskId);
+      if (existing.status === 'claimed') return edgeResponse({ verification: existing });
       const now = nowIso();
+
+      if (taskId === 'twitter_follow') {
+        const proofUrl = String(body.proof_url || 'visited:x-profile').slice(0, 240);
+        db.prepare(`
+          INSERT INTO social_task_verifications
+            (id, player_id, wallet_address, task_id, status, proof_url, verified_by_wallet, created_at, updated_at)
+          VALUES (?, ?, ?, ?, 'verified', ?, ?, ?, ?)
+          ON CONFLICT(player_id, task_id) DO UPDATE SET
+            status = 'verified',
+            proof_url = excluded.proof_url,
+            verified_by_wallet = excluded.verified_by_wallet,
+            updated_at = excluded.updated_at
+        `).run(
+          randomUUID(),
+          player.id,
+          player.wallet_address,
+          taskId,
+          proofUrl,
+          'visit_timer',
+          now,
+          now,
+        );
+        addAudit(player.wallet_address, 'social_task_verified', {
+          taskId,
+          verificationMode: 'visit_timer',
+          proofUrl,
+        }, player, player);
+        return edgeResponse({ verification: getSocialVerification(player, taskId) });
+      }
+
       db.prepare(`
         INSERT INTO social_task_verifications
           (id, player_id, wallet_address, task_id, status, proof_url, created_at, updated_at)

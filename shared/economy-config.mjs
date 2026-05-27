@@ -296,6 +296,9 @@ export const DAILY_CLAIMS_FOR_CUBE = 3;
 export const DAILY_CUBE_ROLL_REWARD = 2;
 
 export const SOCIAL_TASKS = ['twitter_follow', 'twitter_repost', 'twitter_like', 'discord_join', 'telegram_join'];
+export const SOCIAL_TASK_REWARDS = {
+  twitter_follow: { cubeCharge: 3 },
+};
 
 export const GRILL_RECIPES = {
   lake_skewer: { ingredients: { carp: 2 }, score: 13 },

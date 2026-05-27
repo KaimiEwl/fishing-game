@@ -60,6 +60,7 @@ export const TASK_REWARDS = config.TASK_REWARDS;
 export const DAILY_CLAIMS_FOR_CUBE = config.DAILY_CLAIMS_FOR_CUBE;
 export const DAILY_CUBE_ROLL_REWARD = config.DAILY_CUBE_ROLL_REWARD;
 export const SOCIAL_TASKS = config.SOCIAL_TASKS;
+export const SOCIAL_TASK_REWARDS = config.SOCIAL_TASK_REWARDS;
 
 export const GRILL_RECIPES = config.GRILL_RECIPES;
 

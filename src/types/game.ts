@@ -9,6 +9,7 @@ import {
   ROD_CUBE_DROP_CONFIG as ECONOMY_ROD_CUBE_DROP_CONFIG,
   ROD_ECONOMY,
   SPECIAL_TASK_REWARDS,
+  SOCIAL_TASK_REWARDS,
   WHEEL_PRIZES as ECONOMY_WHEEL_PRIZES,
   XP_PER_LEVEL as ECONOMY_XP_PER_LEVEL,
 } from '@/lib/economyConfig';
@@ -172,6 +173,7 @@ export interface SocialTask {
   verificationMode: 'manual' | 'automatic';
   rewardCoins?: number;
   rewardBait?: number;
+  rewardCubeCharge?: number;
 }
 
 export interface WeeklyMission {
@@ -551,8 +553,9 @@ export const SOCIAL_TASKS: SocialTask[] = [
   {
     id: 'twitter_follow',
     title: 'Follow on X',
-    description: 'Social task scaffold for future X follow verification.',
-    verificationMode: 'manual',
+    description: 'Open the Hook & Loot X profile and keep it open for a few seconds to complete this quest.',
+    verificationMode: 'automatic',
+    rewardCubeCharge: SOCIAL_TASK_REWARDS.twitter_follow.cubeCharge,
   },
   {
     id: 'twitter_repost',

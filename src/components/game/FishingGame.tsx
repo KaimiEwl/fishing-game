@@ -346,6 +346,7 @@ const FishingGame: React.FC = () => {
     sellCookedDish: requestSellCookedDish,
     updateGrillLeaderboard,
     getMonSummary,
+    listSocialTasks,
     submitSocialTaskVerification,
     claimSocialTaskReward,
   } = usePlayerActions(activeServerAddress, serverEconomyReady, activeServerSessionToken);
@@ -824,9 +825,21 @@ const FishingGame: React.FC = () => {
     )).length
   ), [grillInventory]);
   const refreshSocialTasks = useCallback(async () => {
-    setSocialTasks(createDefaultSocialTasks());
-    setSocialTasksLoading(false);
-  }, []);
+    if (!walletServerReady) {
+      setSocialTasks(createDefaultSocialTasks());
+      setSocialTasksLoading(false);
+      return;
+    }
+
+    setSocialTasksLoading(true);
+    try {
+      setSocialTasks(await listSocialTasks());
+    } catch {
+      setSocialTasks(createDefaultSocialTasks());
+    } finally {
+      setSocialTasksLoading(false);
+    }
+  }, [listSocialTasks, walletServerReady]);
 
   const refreshWalletCheckInSummary = useCallback(async () => {
     if (!walletServerReady) {
@@ -1170,6 +1183,7 @@ const FishingGame: React.FC = () => {
   useEffect(() => {
     if (activeTab === 'tasks' && walletServerReady) {
       void refreshWalletCheckInSummary();
+      void refreshSocialTasks();
     }
   }, [activeTab, refreshSocialTasks, refreshWalletCheckInSummary, walletServerReady]);
 
@@ -1521,7 +1535,7 @@ const FishingGame: React.FC = () => {
       await submitSocialTaskVerification(taskId, proofUrl);
       await refreshSocialTasks();
       sounds.playBuySound();
-      toast.success('Social task sent for review.');
+      toast.success(taskId === 'twitter_follow' ? 'X visit recorded. Claim your cube rolls.' : 'Social task sent for review.');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not submit social task.');
     }
@@ -1538,7 +1552,7 @@ const FishingGame: React.FC = () => {
       applyServerPlayerSnapshot(result.player);
       await refreshSocialTasks();
       sounds.playBuySound();
-      toast.success('Social task claimed.');
+      toast.success('Social reward claimed.');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not claim social task.');
     }

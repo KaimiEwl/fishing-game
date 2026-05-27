@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Box, Check, Clock3, Coins, Copy, ExternalLink, Heart, Lock, MessageCircle, Repeat2, Send, Trophy, Worm } from 'lucide-react';
 import { useSendTransaction } from 'wagmi';
@@ -67,9 +67,9 @@ interface TasksScreenProps {
   onVerifyWallet?: () => Promise<void> | void;
   onEquipRod: (level: number) => void;
   onOpenFish: () => void;
-  onSubmitSocialTask: (id: SocialTaskId, proofUrl?: string) => void;
-  onClaimSocialTask: (id: SocialTaskId) => void;
-  onRefreshSocialTasks: () => void;
+  onSubmitSocialTask: (id: SocialTaskId, proofUrl?: string) => Promise<void> | void;
+  onClaimSocialTask: (id: SocialTaskId) => Promise<void> | void;
+  onRefreshSocialTasks: () => Promise<void> | void;
   onOpenWheel: () => void;
   weeklyMissionsEnabled?: boolean;
 }
@@ -91,6 +91,19 @@ const MONAD_MAINNET_PARAMS = {
   rpcUrls: ['https://rpc.monad.xyz'],
   blockExplorerUrls: ['https://monadscan.com'],
 };
+const DEFAULT_X_TARGET_USERNAME = 'HookLootgame';
+const normalizeXHandle = (value?: string | null) => {
+  const trimmed = String(value || '')
+    .trim()
+    .replace(/^https?:\/\/(www\.)?(twitter|x)\.com\//i, '')
+    .replace(/^@+/, '')
+    .split(/[/?#]/)[0]
+    .trim();
+  return /^[A-Za-z0-9_]{1,15}$/.test(trimmed) ? trimmed : '';
+};
+const SOCIAL_X_TARGET_USERNAME = normalizeXHandle(import.meta.env.VITE_SOCIAL_X_TARGET_USERNAME) || DEFAULT_X_TARGET_USERNAME;
+const SOCIAL_X_PROFILE_URL = String(import.meta.env.VITE_SOCIAL_X_PROFILE_URL || `https://x.com/${SOCIAL_X_TARGET_USERNAME}`);
+const SOCIAL_X_VISIT_DELAY_MS = 12_000;
 const getRodById = (id: string) => ROD_DATA.find((rod) => rod.id === id) ?? null;
 const leviathanRequiredRod = getRodById(LEVIATHAN_COMMON_ROD_BONUS_CONFIG.requiredRodId) ?? ROD_DATA[0];
 const leviathanBonusRod = getRodById(LEVIATHAN_COMMON_ROD_BONUS_CONFIG.bonusRodId);
@@ -204,6 +217,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   socialTasks,
   walletCheckInSummary,
   walletCheckInLoading = false,
+  socialTasksLoading = false,
   dailyTaskClaimsMet,
   availableWheelRolls,
   isWalletConnected,
@@ -218,6 +232,8 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   onVerifyWallet,
   onEquipRod,
   onOpenFish,
+  onSubmitSocialTask,
+  onClaimSocialTask,
   onOpenWheel,
   weeklyMissionsEnabled = false,
 }) => {
@@ -231,6 +247,9 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   const [pendingWalletCheckInTx, setPendingWalletCheckInTx] = useState<string | null>(() => readPendingWalletCheckInTx(walletAddress));
   const [manualWalletCheckInTxHash, setManualWalletCheckInTxHash] = useState('');
   const [copiedReferral, setCopiedReferral] = useState(false);
+  const [submittingSocialTaskId, setSubmittingSocialTaskId] = useState<SocialTaskId | null>(null);
+  const [claimingSocialTaskId, setClaimingSocialTaskId] = useState<SocialTaskId | null>(null);
+  const socialVisitTimerRef = useRef<number | null>(null);
   const { sendTransactionAsync } = useSendTransaction();
   const canUseWalletCheckInPayment = isRealWalletAddress(walletAddress);
   const ownsLeviathanBonusRod = Boolean(leviathanBonusRod && rodLevel >= leviathanBonusRod.level);
@@ -305,6 +324,12 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
     setPendingWalletCheckInTx(readPendingWalletCheckInTx(walletAddress));
   }, [walletAddress]);
 
+  useEffect(() => () => {
+    if (socialVisitTimerRef.current != null) {
+      window.clearTimeout(socialVisitTimerRef.current);
+    }
+  }, []);
+
   const handleCopyReferralLink = async () => {
     if (!referralSummary?.referralLink) return;
 
@@ -328,6 +353,45 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
     } catch (error) {
       console.error('Referral link copy failed:', error);
       toast.error('Copy failed. Please copy the link manually.');
+    }
+  };
+
+  const handleOpenXProfile = (task?: SocialTaskProgress) => {
+    window.open(SOCIAL_X_PROFILE_URL, '_blank', 'noopener,noreferrer');
+
+    if (!task || task.status === 'claimed' || task.canClaim || submittingSocialTaskId === task.id) return;
+    if (!isWalletVerified) {
+      toast.error('Connect a verified wallet first.');
+      return;
+    }
+
+    setSubmittingSocialTaskId(task.id);
+    if (socialVisitTimerRef.current != null) {
+      window.clearTimeout(socialVisitTimerRef.current);
+    }
+    socialVisitTimerRef.current = window.setTimeout(() => {
+      socialVisitTimerRef.current = null;
+      void (async () => {
+        try {
+          await onSubmitSocialTask(task.id, `visited:${SOCIAL_X_PROFILE_URL}`);
+        } finally {
+          setSubmittingSocialTaskId(null);
+        }
+      })();
+    }, SOCIAL_X_VISIT_DELAY_MS);
+  };
+
+  const handleClaimSocialReward = async (taskId: SocialTaskId) => {
+    if (!isWalletVerified) {
+      toast.error('Connect a verified wallet first.');
+      return;
+    }
+
+    setClaimingSocialTaskId(taskId);
+    try {
+      await onClaimSocialTask(taskId);
+    } finally {
+      setClaimingSocialTaskId(null);
     }
   };
 
@@ -489,6 +553,44 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
         <span className="text-amber-300">{task.rewardCoins}</span>
       </>
     );
+  };
+
+  const renderSocialRewardBadge = (task: SocialTaskProgress) => {
+    if (task.rewardCubeCharge) {
+      return (
+        <>
+          <Box className="h-4 w-4 text-cyan-200" />
+          <span className="text-cyan-100">+{task.rewardCubeCharge} cube rolls</span>
+        </>
+      );
+    }
+
+    if (task.rewardBait) {
+      return (
+        <>
+          <Worm className="h-4 w-4 text-lime-300" />
+          <span className="text-lime-200">{task.rewardBait} bait</span>
+        </>
+      );
+    }
+
+    if (task.rewardCoins) {
+      return (
+        <>
+          <CoinIcon size="md" />
+          <span className="text-amber-300">{task.rewardCoins}</span>
+        </>
+      );
+    }
+
+    return <span className="text-[#f3d47e]">Preview</span>;
+  };
+
+  const getSocialStatusLabel = (task: SocialTaskProgress) => {
+    if (task.status === 'claimed') return 'Claimed';
+    if (task.canClaim || task.status === 'verified') return 'Ready';
+    if (task.status === 'pending_verification') return 'Pending';
+    return task.verificationMode === 'automatic' ? 'Available' : 'Preview';
   };
 
   const getQuestStatusLabel = (task: DailyTaskProgress | SpecialTaskProgress | WeeklyMissionProgress) => {
@@ -872,24 +974,92 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
       <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 md:gap-3">
       {socialTaskCards.map((task) => {
         const Icon = task.icon;
+        const isXFollowTask = task.id === 'twitter_follow';
+        const isSubmitting = submittingSocialTaskId === task.id || socialTasksLoading;
+        const isClaiming = claimingSocialTaskId === task.id;
+        const isClaimed = task.status === 'claimed';
+        const canClaim = task.canClaim && !isClaimed;
 
         return (
-          <QuestBoardCard key={task.id} className="min-h-[11rem] text-left md:min-h-[12.75rem]">
+          <QuestBoardCard key={task.id} className={`min-h-[11rem] text-left md:min-h-[12.75rem] ${isXFollowTask ? 'md:col-span-2' : ''}`}>
             <div className="flex h-full flex-col">
             <div className="flex items-start justify-between gap-3">
               <div className="inline-flex h-12 w-12 items-center justify-center rounded-[1rem] border border-[#8f6a38] bg-[rgba(15,10,7,0.72)] text-[#f3c777] shadow-[0_8px_16px_rgba(0,0,0,0.28)]">
                 <Icon className="h-5 w-5" />
               </div>
-              <span className="rounded-full border border-[#9a7a33] bg-[rgba(92,70,21,0.42)] px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-[#f3d47e]">
-                Preview
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#9a7a33] bg-[rgba(92,70,21,0.42)] px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-[#f3d47e]">
+                {getSocialStatusLabel(task)}
               </span>
             </div>
             <h2 className="mt-3 pr-2 text-[0.96rem] font-black uppercase tracking-[0.04em] text-[#f3c777] drop-shadow-[0_1px_0_rgba(0,0,0,0.6)] sm:mt-4 sm:text-[1.2rem]">
               {task.title}
             </h2>
             <p className="mt-1.5 text-[0.8rem] leading-5 text-[#f8e8bf]/88 sm:mt-2 sm:text-[0.97rem] sm:leading-6">
-              Social quests are still in preview. Rewards and verification will unlock in a later update.
+              {isXFollowTask ? task.description : 'Social quests are still in preview. Rewards and verification will unlock in a later update.'}
             </p>
+            <div className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-2xl border border-[#c89745] bg-[rgba(18,13,9,0.68)] px-2.5 py-1.5 text-[0.8rem] font-black shadow-[0_8px_16px_rgba(0,0,0,0.22)] sm:px-3 sm:text-sm">
+              {renderSocialRewardBadge(task)}
+            </div>
+
+            {isXFollowTask ? (
+              <div className="mt-auto pt-4">
+                <Button
+                  type="button"
+                  disabled={
+                    isSubmitting
+                    || isClaiming
+                    || isClaimed
+                  }
+                  onClick={() => {
+                    if (canClaim) void handleClaimSocialReward(task.id);
+                    else handleOpenXProfile(task);
+                  }}
+                  className="h-11 w-full rounded-[1rem] border border-[#7f5227] bg-[linear-gradient(180deg,#8c531f_0%,#6e4117_42%,#4f2f14_100%)] text-[0.86rem] font-black uppercase tracking-[0.04em] text-[#f8db9a] shadow-[inset_0_1px_0_rgba(255,220,160,0.22),0_10px_16px_rgba(0,0,0,0.28)] transition-all duration-200 hover:brightness-110 disabled:border-[#3a2817] disabled:bg-[linear-gradient(180deg,#2f241c_0%,#231b15_100%)] disabled:text-[#8c7b63] disabled:shadow-none sm:h-[3.25rem] sm:rounded-[1.2rem] sm:text-[1.02rem]"
+                >
+                  {isClaimed ? (
+                    <>
+                      <Check className="mr-2 h-4 w-4" />
+                      Claimed
+                    </>
+                  ) : isClaiming ? (
+                    <>
+                      <Clock3 className="mr-2 h-4 w-4" />
+                      Claiming...
+                    </>
+                  ) : canClaim ? (
+                    <>
+                      <Box className="mr-2 h-4 w-4" />
+                      Claim 3 cube rolls
+                    </>
+                  ) : isSubmitting ? (
+                    <>
+                      <Clock3 className="mr-2 h-4 w-4" />
+                      Checking visit...
+                    </>
+                  ) : isWalletVerified ? (
+                    <>
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      Open X and start check
+                    </>
+                  ) : (
+                    <>
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      Open X profile
+                    </>
+                  )}
+                </Button>
+                {task.proofUrl && (
+                  <p className="mt-2 text-[0.72rem] font-bold text-[#f8e8bf]/72 sm:text-xs">
+                    Visit recorded: @{SOCIAL_X_TARGET_USERNAME}
+                  </p>
+                )}
+                {isSubmitting && (
+                  <p className="mt-2 text-[0.72rem] font-bold text-[#f8e8bf]/72 sm:text-xs">
+                    Keep the X profile open for a few seconds. The quest will become ready automatically.
+                  </p>
+                )}
+              </div>
+            ) : (
               <div className="mt-auto pt-4">
                 <Button
                   type="button"
@@ -899,6 +1069,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                   Preview only
                 </Button>
               </div>
+            )}
             </div>
           </QuestBoardCard>
         );
@@ -993,8 +1164,8 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
               eyebrow="Community loop"
               description={
                 isWalletVerified
-                  ? 'Social quests are still in preview. These cards only show the upcoming community task lineup.'
-                  : 'Connect your wallet first. Social quests and future verified rewards only work on wallet-linked accounts.'
+                  ? `Open @${SOCIAL_X_TARGET_USERNAME}, wait a few seconds, and claim 3 cube rolls.`
+                  : 'Connect your wallet first. Social quests and verified rewards only work on wallet-linked accounts.'
               }
             />,
           )}

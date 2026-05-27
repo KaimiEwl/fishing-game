@@ -1,5 +1,11 @@
 # STATUS
 
+## 2026-05-27 Social X follow quest
+- Enabled the Social `Follow on X` quest instead of leaving every Social card as preview-only.
+- Players can open `@HookLootgame`; after a short visit timer the quest is marked ready without calling the paid X API.
+- Verified follow claims now grant `+3` cube rolls into the persistent paid-roll bucket, so the reward remains available after the daily reset.
+- Added env documentation for the X target profile link used by the Social card.
+
 ## 2026-05-26 rod MON as a third fishing outcome
 - MON-capable rods now treat the rod MON pull as a separate fishing result: each valid reel can resolve as fish, empty, or `+0.1 MON`, not empty-plus-reward.
 - Server cast resolution rolls the rod MON outcome before fish catch resolution, and plain empty casts no longer roll or carry a MON reward.
