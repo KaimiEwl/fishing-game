@@ -1,4 +1,5 @@
 import type { WalletCheckInSummary } from '@/types/game';
+import { WALLET_CHECK_IN_COST_MON } from '@/lib/economyConfig';
 
 const readFlag = (value: string | undefined, fallback: boolean) => {
   if (value == null || value.trim() === '') return fallback;
@@ -10,7 +11,7 @@ const readFlag = (value: string | undefined, fallback: boolean) => {
 };
 
 export const WALLET_CHECK_IN_RECEIVER_ADDRESS = '0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D' as const;
-export const WALLET_CHECK_IN_AMOUNT_MON = '0.0001' as const;
+export const WALLET_CHECK_IN_AMOUNT_MON = WALLET_CHECK_IN_COST_MON as string;
 export const WALLET_CHECK_IN_REPEAT_TEST_MODE = readFlag(
   import.meta.env.VITE_WALLET_CHECK_IN_REPEAT_TEST_MODE,
   false,

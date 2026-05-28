@@ -10,6 +10,7 @@ import {
   ROD_ECONOMY,
   SPECIAL_TASK_REWARDS,
   SOCIAL_TASK_REWARDS,
+  WALLET_CHECK_IN_COST_MON,
   WHEEL_PRIZES as ECONOMY_WHEEL_PRIZES,
   XP_PER_LEVEL as ECONOMY_XP_PER_LEVEL,
 } from '@/lib/economyConfig';
@@ -536,7 +537,7 @@ export const SPECIAL_TASKS: SpecialTask[] = [
   {
     id: 'wallet_check_in',
     title: 'Wallet streak check-in',
-    description: 'Send a small MON check-in today to keep your streak alive and unlock this daily special reward.',
+    description: `Send ${WALLET_CHECK_IN_COST_MON} MON check-in today to keep your streak alive and unlock this daily special reward.`,
     target: 1,
     rewardBait: SPECIAL_TASK_REWARDS.wallet_check_in.bait,
   },

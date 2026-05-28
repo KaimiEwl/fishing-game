@@ -1,5 +1,9 @@
 # STATUS
 
+## 2026-05-28 wallet check-in 0.5 MON
+- Wallet streak check-in now uses `0.5 MON` as the shared required transaction amount instead of `0.0001 MON`.
+- The frontend fallback amount now reads the same shared economy constant as the server, so wallet send requests, task copy, summary fallback, and server verification stay aligned.
+
 ## 2026-05-28 VPS build cap adjustment
 - Lowered the Vite build old-space cap from 1536 MB to 1280 MB after the VPS killed the 1536 MB build during Rollup chunk rendering.
 - Local production build still passes at the 1280 MB cap.

@@ -1,4 +1,4 @@
-export const GAME_ECONOMY_VERSION = '2026-05-28-cube-mon-prize-table-v1';
+export const GAME_ECONOMY_VERSION = '2026-05-28-wallet-check-in-0-5-v1';
 
 export const STARTING_COINS = 100;
 export const DAILY_FREE_BAIT = 15;
@@ -23,7 +23,7 @@ export const BAIT_PACKAGES = [
 ];
 
 export const MON_MARKET_RECEIVER_ADDRESS = '0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D';
-export const WALLET_CHECK_IN_COST_MON = '0.0001';
+export const WALLET_CHECK_IN_COST_MON = '0.5';
 export const MON_HOLD_DAYS = 7;
 export const MIN_WITHDRAW_MON = 1;
 
