@@ -7,6 +7,7 @@ const MONAD_SIZES = {
   md: 20,
   lg: 24,
   xl: 32,
+  hero: 96,
 } as const;
 
 interface MonadIconProps {

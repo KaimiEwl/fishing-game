@@ -1,5 +1,10 @@
 # STATUS
 
+## 2026-05-28 rod MON reward celebration
+- Rod MON reward results now show a large Monad logo instead of the fish-got-away panel.
+- Added a short fireworks visual around the Monad logo and a dedicated MON reward sound cue.
+- The result sound path now treats rod MON rewards and MON compensation as celebratory wins instead of miss/fail outcomes.
+
 ## 2026-05-27 Social X follow quest
 - Enabled the Social `Follow on X` quest instead of leaving every Social card as preview-only.
 - Players can open `@HookLootgame`; after a short visit timer the quest is marked ready without calling the paid X API.

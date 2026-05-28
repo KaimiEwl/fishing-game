@@ -345,6 +345,31 @@
     50% { opacity: 1; transform: scale(1); }
   }
 
+  @keyframes monad-logo-pop {
+    0% { opacity: 0; transform: scale(0.55) rotate(-14deg); }
+    58% { opacity: 1; transform: scale(1.12) rotate(5deg); }
+    100% { opacity: 1; transform: scale(1) rotate(0deg); }
+  }
+
+  @keyframes monad-firework-particle {
+    0% {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.3);
+    }
+    18% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(1.25);
+    }
+  }
+
+  @keyframes monad-firework-ring {
+    0% { opacity: 0.68; transform: translate(-50%, -50%) scale(0.35); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.75); }
+  }
+
   @keyframes happy-bounce {
     0%, 100% { transform: translateY(0) scale(1); }
     25% { transform: translateY(-15px) scale(1.05); }
@@ -486,6 +511,20 @@
 
   .animate-sparkle {
     animation: sparkle 1s ease-in-out infinite;
+  }
+
+  .animate-monad-logo-pop {
+    animation: monad-logo-pop 0.9s cubic-bezier(0.2, 1.25, 0.24, 1) both;
+  }
+
+  .animate-monad-firework-ring {
+    animation: monad-firework-ring 1.05s ease-out both;
+  }
+
+  .monad-firework-particle {
+    background: var(--color);
+    box-shadow: 0 0 12px var(--color), 0 0 24px var(--color);
+    animation: monad-firework-particle 1.05s ease-out var(--delay) both;
   }
 
   .animate-happy-bounce {

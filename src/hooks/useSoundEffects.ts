@@ -384,6 +384,19 @@ export function useSoundEffects() {
     playTone(1760, 0.24, 'triangle', 0.08, undefined, 0.28);
   }, []);
 
+  const playMonadRewardSound = useCallback(() => {
+    if (!playSampleBuffer(COIN_GAIN_SAMPLE_URL, 0.3, 1.08)) {
+      void ensureSampleLoaded(COIN_GAIN_SAMPLE_URL);
+    }
+
+    playTone(659, 0.1, 'triangle', 0.1);
+    playTone(880, 0.12, 'triangle', 0.12, undefined, 0.08);
+    playTone(1319, 0.18, 'sine', 0.13, undefined, 0.18);
+    playTone(1760, 0.24, 'triangle', 0.1, undefined, 0.32);
+    playNoise(0.16, 0.055, 0.08);
+    playNoise(0.18, 0.05, 0.28);
+  }, []);
+
   return {
     playCastSound,
     playSplashSound,
@@ -397,5 +410,6 @@ export function useSoundEffects() {
     playCubeSpinSound,
     playCubeRevealSound,
     playCubeRewardSound,
+    playMonadRewardSound,
   };
 }

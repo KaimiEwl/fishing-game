@@ -1024,7 +1024,14 @@ const FishingGame: React.FC = () => {
       } else if (gameState === 'biting') {
         sounds.playBiteSound();
       } else if (gameState === 'result') {
-        if (lastResult?.success) {
+        const hasMonReward = Boolean(
+          (lastResult?.monReward && lastResult.monReward.amount > 0)
+          || (lastResult?.specialReward?.type === 'mon_compensation' && (lastResult.specialReward.compensationMon ?? 0) > 0),
+        );
+
+        if (hasMonReward) {
+          sounds.playMonadRewardSound();
+        } else if (lastResult?.success) {
           sounds.playSuccessSound();
         } else {
           sounds.playFailSound();
