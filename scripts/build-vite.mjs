@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 
 const viteBin = fileURLToPath(new URL('../node_modules/vite/bin/vite.js', import.meta.url));
 const existingNodeOptions = process.env.NODE_OPTIONS || '';
-const memoryLimit = '--max-old-space-size=1536';
+const memoryLimit = '--max-old-space-size=1280';
 const nodeOptions = existingNodeOptions.includes('--max-old-space-size')
   ? existingNodeOptions
   : `${existingNodeOptions} ${memoryLimit}`.trim();

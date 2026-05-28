@@ -1,5 +1,9 @@
 # STATUS
 
+## 2026-05-28 VPS build cap adjustment
+- Lowered the Vite build old-space cap from 1536 MB to 1280 MB after the VPS killed the 1536 MB build during Rollup chunk rendering.
+- Local production build still passes at the 1280 MB cap.
+
 ## 2026-05-28 cube MON prize table
 - Cube MON tiles now choose from `0.5`, `1`, `25`, `50`, and `100 MON` instead of only `0.5 MON`.
 - Double-digit MON cube prizes are weighted as rare jackpot outcomes, while the cube still injects a limited MON tile count instead of filling random tiles with every MON variant.
