@@ -1,5 +1,10 @@
 # STATUS
 
+## 2026-05-28 cube MON prize table
+- Cube MON tiles now choose from `0.5`, `1`, `25`, `50`, and `100 MON` instead of only `0.5 MON`.
+- Double-digit MON cube prizes are weighted as rare jackpot outcomes, while the cube still injects a limited MON tile count instead of filling random tiles with every MON variant.
+- Server-side cube generation now excludes MON prizes from the base tile pool and injects MON tiles separately, keeping frontend visuals and server rewards aligned.
+
 ## 2026-05-28 VPS build memory wrapper
 - `npm run build` now launches Vite through `scripts/build-vite.mjs`, preserving the existing `vite build --minify=false` behavior while capping Node old-space at 1536 MB.
 - This is meant to keep the VPS Docker deploy build from being killed during Rollup chunk rendering without changing app runtime behavior.

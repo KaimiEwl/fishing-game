@@ -114,13 +114,15 @@ const MON_TILE_COUNT = CUBE_REBALANCE_CONFIG.enabled ? CUBE_REBALANCE_CONFIG.mon
 const BAIT_TILE_RATIO = CUBE_REBALANCE_CONFIG.enabled ? 0.28 : 0;
 const COIN_PRIZES = WHEEL_PRIZES.filter((item) => item.type === 'coins');
 const BAIT_PRIZES = WHEEL_PRIZES.filter((item) => item.type === 'bait');
-const SECRET_MON_PRIZE = WHEEL_PRIZES.find((item) => item.type === 'mon' && item.secret) ?? {
+const MON_PRIZES = WHEEL_PRIZES.filter((item) => item.type === 'mon' && Number(item.mon ?? 0) > 0);
+const FALLBACK_MON_PRIZE: WheelPrize = {
   id: 'secret_mon_0_5',
   type: 'mon' as const,
   label: `${CUBE_REBALANCE_CONFIG.monPrizeAmount} MON`,
   mon: CUBE_REBALANCE_CONFIG.monPrizeAmount,
   secret: true,
 };
+type WeightedWheelPrize = WheelPrize & { cubeWeight?: number };
 const COIN_PRIZE_WEIGHTS: Readonly<Record<string, number>> = {
   coin_30: 28,
   coin_60: 28,
@@ -260,6 +262,18 @@ const createBaitPrize = (): WheelPrize => (
   pickWeighted(BAIT_PRIZES, (item) => BAIT_PRIZE_WEIGHTS[item.id] ?? 1)
 );
 
+const createMonPrize = (): WheelPrize => {
+  const prize = MON_PRIZES.length > 0
+    ? pickWeighted(MON_PRIZES, (item) => Number((item as WeightedWheelPrize).cubeWeight ?? 1))
+    : FALLBACK_MON_PRIZE;
+  const amount = prize.mon ?? CUBE_REBALANCE_CONFIG.monPrizeAmount;
+
+  return {
+    ...prize,
+    label: `${formatMonAmount(amount)} MON`,
+  };
+};
+
 const createRewardPrize = (): WheelPrize => (
   BAIT_PRIZES.length > 0 && Math.random() < BAIT_TILE_RATIO ? createBaitPrize() : createCoinPrize()
 );
@@ -298,10 +312,7 @@ const createCubeFaces = (currentRodLevel = 0): CubeFaces => {
     ? randomUniqueIndexes(MON_TILE_COUNT, totalTiles, reservedIndexes)
     : [];
   for (const globalIndex of monIndexes) {
-    globalPrizes[globalIndex] = {
-      ...SECRET_MON_PRIZE,
-      label: `${SECRET_MON_PRIZE.mon ?? CUBE_REBALANCE_CONFIG.monPrizeAmount} MON`,
-    };
+    globalPrizes[globalIndex] = createMonPrize();
     reservedIndexes.add(globalIndex);
   }
 
@@ -483,6 +494,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     const isMonTile = item.type === 'mon';
     const isBaitTile = item.type === 'bait';
     const isRodTile = item.type === 'rod';
+    const monAmountLabel = isMonTile ? formatMonAmount(item.mon ?? CUBE_REBALANCE_CONFIG.monPrizeAmount) : '';
     const colorIndex = Math.max(WHEEL_PRIZES.findIndex((prizeItem) => prizeItem.id === item.id), 0);
     const accent = item.type === 'fish' && fish
       ? RARITY_COLORS[fish.rarity]
@@ -545,8 +557,10 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
             <span className="pointer-events-none absolute inset-x-[10%] top-[16%] h-[1px] bg-white/80" />
             <span className="pointer-events-none absolute inset-x-[12%] bottom-[18%] h-[1px] bg-emerald-950/20" />
             <div className="relative z-10 flex items-center justify-center gap-0.5">
-              <span className="text-[12px] font-black text-[#200052] drop-shadow-[0_1px_0_rgba(255,255,255,0.68)] sm:text-[14px]">
-                {formatMonAmount(item.mon ?? 1)}
+              <span className={`font-black text-[#200052] drop-shadow-[0_1px_0_rgba(255,255,255,0.68)] ${
+                monAmountLabel.length >= 3 ? 'text-[9px] sm:text-[11px]' : 'text-[12px] sm:text-[14px]'
+              }`}>
+                {monAmountLabel}
               </span>
               <MonadIcon size="xs" className="drop-shadow-[0_1px_0_rgba(255,255,255,0.45)] sm:[&>svg]:scale-110" />
             </div>

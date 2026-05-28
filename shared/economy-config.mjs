@@ -1,4 +1,4 @@
-export const GAME_ECONOMY_VERSION = '2026-05-26-rod-mon-fixed-reward-v1';
+export const GAME_ECONOMY_VERSION = '2026-05-28-cube-mon-prize-table-v1';
 
 export const STARTING_COINS = 100;
 export const DAILY_FREE_BAIT = 15;
@@ -233,7 +233,11 @@ export const WHEEL_PRIZES = [
   { id: 'bait_4', type: 'bait', label: '4 bait', bait: 4 },
   { id: 'bait_6', type: 'bait', label: '6 bait', bait: 6 },
   { id: 'bait_9', type: 'bait', label: '9 bait', bait: 9 },
-  { id: 'secret_mon_0_5', type: 'mon', label: '0.5 MON', mon: 0.5, secret: true },
+  { id: 'secret_mon_0_5', type: 'mon', label: '0.5 MON', mon: 0.5, secret: true, cubeWeight: 900 },
+  { id: 'secret_mon_1', type: 'mon', label: '1 MON', mon: 1, secret: true, cubeWeight: 90 },
+  { id: 'secret_mon_25', type: 'mon', label: '25 MON', mon: 25, secret: true, cubeWeight: 8 },
+  { id: 'secret_mon_50', type: 'mon', label: '50 MON', mon: 50, secret: true, cubeWeight: 1.5 },
+  { id: 'secret_mon_100', type: 'mon', label: '100 MON', mon: 100, secret: true, cubeWeight: 0.5 },
 ];
 
 export const DAILY_TASK_TARGETS = {

@@ -11,6 +11,7 @@ import {
   CATCH_CHANCE,
   CATCH_XP_FLAT_BONUS,
   COLLECTION_BOOK_PAGES,
+  CUBE_REBALANCE_CONFIG,
   DAILY_CLAIMS_FOR_CUBE,
   DAILY_CUBE_ROLL_REWARD,
   DAILY_FREE_BAIT,
@@ -2111,6 +2112,12 @@ function getWheelPrizesForPlayer(player) {
   return WHEEL_PRIZES.filter((prize) => prize.type !== 'mon');
 }
 
+function createCubeMonPrize(wheelPrizes) {
+  const monPrizes = wheelPrizes.filter((prize) => prize.type === 'mon' && Number(prize.mon || 0) > 0);
+  const prize = pickWeighted(monPrizes, (item) => Number(item.cubeWeight ?? 1));
+  return prize ? { ...prize, label: `${Number(prize.mon)} MON` } : null;
+}
+
 const CUBE_FACE_COUNT = 6;
 const CUBE_FACE_TILE_COUNT = 25;
 
@@ -2221,17 +2228,31 @@ function pickCubeTarget(faces, player) {
 
 function generateCubeRoll(player) {
   const wheelPrizes = getWheelPrizesForPlayer(player);
+  const basePrizes = wheelPrizes.filter((prize) => prize.type !== 'mon');
+  const tilePrizePool = basePrizes.length > 0 ? basePrizes : wheelPrizes;
   const faces = Array.from({ length: CUBE_FACE_COUNT }, () => (
-    Array.from({ length: CUBE_FACE_TILE_COUNT }, () => ({ ...wheelPrizes[Math.floor(Math.random() * wheelPrizes.length)] }))
+    Array.from({ length: CUBE_FACE_TILE_COUNT }, () => ({ ...tilePrizePool[Math.floor(Math.random() * tilePrizePool.length)] }))
   ));
   const totalTiles = CUBE_FACE_COUNT * CUBE_FACE_TILE_COUNT;
+  const reservedIndexes = new Set();
+  const monTileCount = Math.max(0, Math.floor(Number(CUBE_REBALANCE_CONFIG.monTileCount || 0)));
+  const monTileIndexes = monTileCount > 0
+    ? randomUniqueIndexes(monTileCount, totalTiles, reservedIndexes)
+    : [];
+  for (const globalIndex of monTileIndexes) {
+    const monPrize = createCubeMonPrize(wheelPrizes);
+    if (!monPrize) break;
+    setCubePrizeAtGlobalIndex(faces, globalIndex, monPrize);
+    reservedIndexes.add(globalIndex);
+  }
+
   const eligibleRodDrops = getEligibleCubeRodDrops(player);
   if (
     ROD_CUBE_DROP_CONFIG.cubeRodDropEnabled
     && eligibleRodDrops.length > 0
     && Math.random() < clampChance(ROD_CUBE_DROP_CONFIG.tileInjectionChance)
   ) {
-    for (const globalIndex of randomUniqueIndexes(ROD_CUBE_DROP_CONFIG.tileCount, totalTiles)) {
+    for (const globalIndex of randomUniqueIndexes(ROD_CUBE_DROP_CONFIG.tileCount, totalTiles, reservedIndexes)) {
       const rod = pickWeighted(eligibleRodDrops, (item) => item.cubeDropWeight);
       if (!rod) continue;
       setCubePrizeAtGlobalIndex(faces, globalIndex, {
@@ -2243,15 +2264,14 @@ function generateCubeRoll(player) {
         duplicateCompensationMonads: rod.duplicateCompensationMonads,
         label: rod.name,
       });
+      reservedIndexes.add(globalIndex);
     }
   }
   const target = pickCubeTarget(faces, player);
   let targetFace = target.targetFace;
   let targetTile = target.targetTile;
   let prize = target.prize;
-  const testMonPrize = MONAD_TEST_DROPS_ALWAYS
-    ? wheelPrizes.find((prize) => prize.type === 'mon' && Number(prize.mon || 0) > 0)
-    : null;
+  const testMonPrize = MONAD_TEST_DROPS_ALWAYS ? createCubeMonPrize(wheelPrizes) : null;
   if (testMonPrize) {
     targetFace = 0;
     targetTile = 0;
