@@ -10,6 +10,7 @@ import RodPreviewBadge from '@/components/RodPreviewBadge';
 import { formatMonAmount } from '@/lib/monRewards';
 import { HIGH_FETCH_PRIORITY_PROPS } from '@/lib/imagePriority';
 import MonadIcon from './MonadIcon';
+import MonadCelebrationFireworks from './MonadCelebrationFireworks';
 
 const BUTTON_ART_VERSION = 'fish-hud-20260425a';
 const versionedButtonAsset = (file: string) => `${publicAsset(`assets/${file}`)}?v=${BUTTON_ART_VERSION}`;
@@ -21,34 +22,6 @@ const CAST_BUTTON_GREEN_SOURCES = [
   versionedButtonAsset('cast_button_green.webp'),
   versionedButtonAsset('cast_button_green.png'),
 ] as const;
-
-const MONAD_FIREWORK_PARTICLES = [
-  { x: '-5.1rem', y: '-4.4rem', delay: '0ms', color: '#9B87F5' },
-  { x: '5.2rem', y: '-4.1rem', delay: '70ms', color: '#22d3ee' },
-  { x: '-6rem', y: '0.6rem', delay: '130ms', color: '#facc15' },
-  { x: '6.1rem', y: '0.4rem', delay: '190ms', color: '#c084fc' },
-  { x: '-3.6rem', y: '4.5rem', delay: '250ms', color: '#67e8f9' },
-  { x: '3.8rem', y: '4.7rem', delay: '310ms', color: '#f0abfc' },
-] as const;
-
-const MonadRewardFireworks: React.FC = () => (
-  <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl" aria-hidden="true">
-    <span className="absolute left-1/2 top-1/2 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#836EF9]/45 animate-monad-firework-ring" />
-    <span className="absolute left-1/2 top-1/2 h-36 w-36 -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-200/30 animate-monad-firework-ring [animation-delay:160ms]" />
-    {MONAD_FIREWORK_PARTICLES.map((particle, index) => (
-      <span
-        key={`${particle.x}:${particle.y}:${index}`}
-        className="monad-firework-particle absolute left-1/2 top-1/2 h-2.5 w-2.5 rounded-full"
-        style={{
-          '--tx': particle.x,
-          '--ty': particle.y,
-          '--delay': particle.delay,
-          '--color': particle.color,
-        } as React.CSSProperties}
-      />
-    ))}
-  </div>
-);
 
 interface GameControlsProps {
   gameState: GameState;
@@ -256,7 +229,7 @@ const GameControls: React.FC<GameControlsProps> = ({
                 <div className="flex flex-col items-center gap-3 text-center">
                   {hasRodMonReward ? (
                     <div className="relative flex h-40 w-full max-w-[22rem] items-center justify-center overflow-hidden rounded-2xl border border-[#836EF9]/40 bg-[radial-gradient(circle_at_50%_42%,rgba(131,110,249,0.34),rgba(8,8,18,0.94)_64%)] shadow-[0_18px_54px_rgba(0,0,0,0.5),0_0_46px_rgba(131,110,249,0.28)] sm:h-48">
-                      <MonadRewardFireworks />
+                      <MonadCelebrationFireworks clipClassName="rounded-2xl" />
                       <div className="relative z-10 flex flex-col items-center">
                         <MonadIcon size="hero" className="animate-monad-logo-pop drop-shadow-[0_0_28px_rgba(131,110,249,0.95)]" />
                         <p className="mt-2 text-lg font-black uppercase tracking-[0.16em] text-cyan-100">

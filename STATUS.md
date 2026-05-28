@@ -1,5 +1,9 @@
 # STATUS
 
+## 2026-05-28 stronger MON fireworks
+- MON celebrations now share one stronger fireworks layer across rod rewards and cube MON wins.
+- The salute adds multiple burst centers, larger rings, brighter particles, and comet streaks so the MON moment reads as a clear celebration instead of a small sparkle.
+
 ## 2026-05-28 cube music ducking and MON celebration
 - Cube rolls now duck the looping background music to a very low volume while the cube spin/fanfare and tile selection are active, then restore it after the result.
 - MON cube wins and MON duplicate-compensation outcomes now show a Monad logo celebration with fireworks, keeping the background music ducked until the celebration finishes.

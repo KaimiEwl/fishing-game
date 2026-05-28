@@ -370,6 +370,20 @@
     100% { opacity: 0; transform: translate(-50%, -50%) scale(1.75); }
   }
 
+  @keyframes monad-firework-comet {
+    0% {
+      opacity: 0;
+      transform: translate(-50%, -50%) rotate(var(--angle)) scaleX(0.18);
+    }
+    16% {
+      opacity: 0.95;
+    }
+    100% {
+      opacity: 0;
+      transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) rotate(var(--angle)) scaleX(1);
+    }
+  }
+
   @keyframes happy-bounce {
     0%, 100% { transform: translateY(0) scale(1); }
     25% { transform: translateY(-15px) scale(1.05); }
@@ -525,6 +539,13 @@
     background: var(--color);
     box-shadow: 0 0 12px var(--color), 0 0 24px var(--color);
     animation: monad-firework-particle 1.05s ease-out var(--delay) both;
+  }
+
+  .monad-firework-comet {
+    background: linear-gradient(90deg, transparent 0%, var(--color) 55%, rgba(255,255,255,0.95) 100%);
+    box-shadow: 0 0 14px var(--color), 0 0 30px var(--color);
+    transform-origin: left center;
+    animation: monad-firework-comet 1.15s ease-out var(--delay) both;
   }
 
   .animate-happy-bounce {

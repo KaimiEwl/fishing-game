@@ -28,6 +28,7 @@ import CoinIcon from './CoinIcon';
 import FishIcon from './FishIcon';
 import GameScreenShell from './GameScreenShell';
 import MonadIcon from './MonadIcon';
+import MonadCelebrationFireworks from './MonadCelebrationFireworks';
 import { publicAsset } from '@/lib/assets';
 import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
 import {
@@ -148,15 +149,6 @@ const BUY_SPIN_TOAST_ID = 'wheel-buy-spin';
 const CUBE_MUSIC_DUCK_MS = 16_000;
 const CUBE_MON_CELEBRATION_MS = 2600;
 
-const CUBE_MON_FIREWORK_PARTICLES = [
-  { x: '-5.4rem', y: '-4.6rem', delay: '0ms', color: '#9B87F5' },
-  { x: '5.7rem', y: '-4.1rem', delay: '70ms', color: '#22d3ee' },
-  { x: '-6.3rem', y: '0.8rem', delay: '130ms', color: '#facc15' },
-  { x: '6.2rem', y: '0.6rem', delay: '190ms', color: '#14f195' },
-  { x: '-3.8rem', y: '4.8rem', delay: '250ms', color: '#67e8f9' },
-  { x: '4rem', y: '4.9rem', delay: '310ms', color: '#f0abfc' },
-] as const;
-
 type RotationState = { x: number; y: number; z: number };
 type SpinPhase = 'idle' | 'spinning' | 'selecting';
 type CubeFaces = WheelPrize[][];
@@ -169,25 +161,6 @@ interface PendingTarget {
   prize: WheelPrize;
   rollId?: string;
 }
-
-const CubeMonadFireworks: React.FC = () => (
-  <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[1.4rem]" aria-hidden="true">
-    <span className="absolute left-1/2 top-1/2 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#836EF9]/50 animate-monad-firework-ring" />
-    <span className="absolute left-1/2 top-1/2 h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full border border-emerald-200/35 animate-monad-firework-ring [animation-delay:160ms]" />
-    {CUBE_MON_FIREWORK_PARTICLES.map((particle, index) => (
-      <span
-        key={`${particle.x}:${particle.y}:${index}`}
-        className="monad-firework-particle absolute left-1/2 top-1/2 h-2.5 w-2.5 rounded-full"
-        style={{
-          '--tx': particle.x,
-          '--ty': particle.y,
-          '--delay': particle.delay,
-          '--color': particle.color,
-        } as React.CSSProperties}
-      />
-    ))}
-  </div>
-);
 
 const CUBE_TILE_PATH = Array.from({ length: 5 }, (_, row) => {
   const rowIndices = Array.from({ length: 5 }, (_, col) => row * 5 + col);
@@ -950,7 +923,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
                       className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center"
                     >
                       <div className="relative flex h-44 w-44 items-center justify-center overflow-hidden rounded-[1.4rem] border border-[#836EF9]/50 bg-[radial-gradient(circle_at_50%_42%,rgba(131,110,249,0.34),rgba(5,16,26,0.94)_65%)] shadow-[0_18px_54px_rgba(0,0,0,0.55),0_0_56px_rgba(20,241,149,0.34)] sm:h-56 sm:w-56">
-                        <CubeMonadFireworks />
+                        <MonadCelebrationFireworks />
                         <div className="relative z-10 flex flex-col items-center">
                           <MonadIcon size="hero" className="animate-monad-logo-pop drop-shadow-[0_0_30px_rgba(20,241,149,0.88)]" />
                           <p className="mt-2 text-sm font-black uppercase text-emerald-100 sm:text-base">
