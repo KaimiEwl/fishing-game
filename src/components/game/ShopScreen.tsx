@@ -17,6 +17,7 @@ import {
   BAIT_PACKAGES,
   FISHING_NET_DAILY_FISH_COUNT,
   FISHING_NET_PAYBACK_DAYS_ESTIMATE,
+  MON_COIN_PACKAGES,
   MON_CUBE_SPIN_PACKAGES,
   MON_FISHING_NET_PACKAGES,
   MON_MARKET_RECEIVER_ADDRESS,
@@ -29,7 +30,6 @@ import { ROD_DISPLAY_INFO } from '@/lib/rodAssets';
 import type { MonBalanceSummary } from '@/hooks/usePlayerMon';
 import CoinIcon from './CoinIcon';
 import MonadIcon from './MonadIcon';
-import BuyCoinsDialog from './BuyCoinsDialog';
 import GameScreenShell from './GameScreenShell';
 import QuestBoard, { QuestBoardCard, QuestBoardPlaque } from './QuestBoard';
 import { invokeHooklootEdge } from '@/lib/serverApi';
@@ -612,22 +612,8 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
 
               {walletConnected ? (
                 <QuestBoardPlaque
-                  eyebrow="Quick gold"
-                  description="If you just want raw coins instead of gear, the old MON gold packs stay available here."
-                  action={(
-                    <BuyCoinsDialog
-                      walletAddress={walletAddress}
-                      onCoinsAdded={onCoinsAdded}
-                      rodLevel={rodLevel}
-                      nftRods={nftRods}
-                      onNftMinted={onNftMinted}
-                      onRodPurchased={onBuyRodWithMon}
-                      onServerPlayerUpdated={onServerPlayerUpdated}
-                      initialTab="coins"
-                      triggerLabel="Gold packs"
-                      coinsOnly
-                    />
-                  )}
+                  eyebrow="Buy gold with MON"
+                  description="Gold packs are direct purchases now. Pick a pack below and it will be added to your player balance after the server verifies the MON payment."
                 />
               ) : (
                 <QuestBoardPlaque
@@ -635,6 +621,73 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
                   description="Monad Shop is wallet-only. Connect from the HUD wallet button, then come back here for MON purchases."
                 />
               )}
+
+              <div className="grid gap-2.5 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
+                {MON_COIN_PACKAGES.map((pkg) => {
+                  const purchaseKey = `gold-pack-${pkg.id}`;
+                  const isProcessing = activeMonadPurchase === purchaseKey;
+                  const notEnoughMon = walletConnected && !hasEnoughMon(pkg.monAmount);
+                  const goldLabel = `${pkg.coins.toLocaleString()} gold`;
+
+                  return (
+                    <QuestBoardCard key={pkg.id}>
+                      <div className="flex h-full flex-col gap-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="inline-flex h-12 w-12 items-center justify-center rounded-[1rem] border border-[#8f6a38] bg-[rgba(15,10,7,0.72)] text-[#f3c777] shadow-[0_8px_16px_rgba(0,0,0,0.28)]">
+                            <CoinIcon size="lg" />
+                          </div>
+                          {pkg.premium ? (
+                            <span className="rounded-full border border-[#836EF9]/70 bg-[rgba(131,110,249,0.18)] px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-[#d8d0ff]">
+                              Best value
+                            </span>
+                          ) : null}
+                        </div>
+
+                        <div>
+                          <div className="text-base font-black text-[#f8e8bf]">{goldLabel}</div>
+                          <p className="mt-1 text-sm leading-5 text-[#f8e8bf]/78">
+                            Add gold for bait packs, rod upgrades, and everyday progression.
+                          </p>
+                        </div>
+
+                        <div className="mt-auto flex items-center gap-2 text-sm font-black text-[#f3c777]">
+                          <MonadIcon size="xs" className="drop-shadow-[0_0_8px_rgba(131,110,249,0.48)]" />
+                          {monadPriceLabel(pkg.monAmount)}
+                        </div>
+
+                        {notEnoughMon ? (
+                          <div className="text-xs font-semibold text-[#f28b82]">
+                            Not enough MON for this pack.
+                          </div>
+                        ) : null}
+
+                        <Button
+                          type="button"
+                          disabled={!walletConnected || activeMonadPurchase !== null || notEnoughMon}
+                          onClick={() => void runMonadPurchase({
+                            purchaseKey,
+                            monAmount: pkg.monAmount,
+                            pendingMessage: `Transaction sent. Adding ${goldLabel}...`,
+                            successMessage: `+${goldLabel} added.`,
+                            verifyBody: { expected_coins: pkg.coins },
+                            applyLocalUnlock: ({ data }) => {
+                              const response = data as { player?: unknown; coins_credited?: number } | undefined;
+                              if (!response?.player) {
+                                onCoinsAdded(Number(response?.coins_credited ?? pkg.coins));
+                              }
+                              return true;
+                            },
+                          })}
+                          className={SHOP_BUTTON_CLASS_NAME}
+                        >
+                          <Coins className="mr-2 h-4 w-4" />
+                          {isProcessing ? 'Processing...' : notEnoughMon ? 'Not enough MON' : `Buy ${pkg.coins.toLocaleString()}`}
+                        </Button>
+                      </div>
+                    </QuestBoardCard>
+                  );
+                })}
+              </div>
 
               <QuestBoardCard className="md:min-h-0">
                 <div className="flex h-full flex-col gap-3">

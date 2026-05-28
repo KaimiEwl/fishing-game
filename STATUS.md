@@ -1,5 +1,9 @@
 # STATUS
 
+## 2026-05-28 direct MON gold packs
+- Monad Shop now shows gold packs as direct purchase cards instead of hiding them behind the old Gold packs dialog.
+- Each pack uses the existing server-verified MON purchase flow, refreshes the server player snapshot when available, and only falls back to local coin crediting when the server response does not include a player update.
+
 ## 2026-05-28 wallet check-in 0.5 MON
 - Wallet streak check-in now uses `0.5 MON` as the shared required transaction amount instead of `0.0001 MON`.
 - The frontend fallback amount now reads the same shared economy constant as the server, so wallet send requests, task copy, summary fallback, and server verification stay aligned.
