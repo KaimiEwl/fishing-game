@@ -1,5 +1,9 @@
 # STATUS
 
+## 2026-05-28 VPS build memory wrapper
+- `npm run build` now launches Vite through `scripts/build-vite.mjs`, preserving the existing `vite build --minify=false` behavior while capping Node old-space at 1536 MB.
+- This is meant to keep the VPS Docker deploy build from being killed during Rollup chunk rendering without changing app runtime behavior.
+
 ## 2026-05-28 rod MON reward celebration
 - Rod MON reward results now show a large Monad logo instead of the fish-got-away panel.
 - Added a short fireworks visual around the Monad logo and a dedicated MON reward sound cue.
