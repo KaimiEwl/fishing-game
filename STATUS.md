@@ -1,5 +1,9 @@
 # STATUS
 
+## 2026-05-28 cube music ducking and MON celebration
+- Cube rolls now duck the looping background music to a very low volume while the cube spin/fanfare and tile selection are active, then restore it after the result.
+- MON cube wins and MON duplicate-compensation outcomes now show a Monad logo celebration with fireworks, keeping the background music ducked until the celebration finishes.
+
 ## 2026-05-28 direct MON gold packs
 - Monad Shop now shows gold packs as direct purchase cards instead of hiding them behind the old Gold packs dialog.
 - Each pack uses the existing server-verified MON purchase flow, refreshes the server player snapshot when available, and only falls back to local coin crediting when the server response does not include a player update.

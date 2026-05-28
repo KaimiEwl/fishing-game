@@ -43,6 +43,7 @@ import {
   MONAD_SHOP_TEST_MODE_ENABLED,
   sendMonadPayment,
 } from '@/lib/monadTestMode';
+import { duckBackgroundMusic, restoreBackgroundMusic } from '@/hooks/useBackgroundMusic';
 
 interface WheelScreenProps {
   coins: number;
@@ -144,11 +145,23 @@ const PAID_SPIN_COST_MON = MON_CUBE_SPIN_PACKAGES[0]?.monAmount ?? '0.04';
 const BUY_ROLL_ICON_SRC = publicAsset('assets/wheel_buy_roll_icon_v2.webp');
 const ROLL_CUBE_ICON_SRC = publicAsset('assets/wheel_roll_cube_icon_v2.webp');
 const BUY_SPIN_TOAST_ID = 'wheel-buy-spin';
+const CUBE_MUSIC_DUCK_MS = 16_000;
+const CUBE_MON_CELEBRATION_MS = 2600;
+
+const CUBE_MON_FIREWORK_PARTICLES = [
+  { x: '-5.4rem', y: '-4.6rem', delay: '0ms', color: '#9B87F5' },
+  { x: '5.7rem', y: '-4.1rem', delay: '70ms', color: '#22d3ee' },
+  { x: '-6.3rem', y: '0.8rem', delay: '130ms', color: '#facc15' },
+  { x: '6.2rem', y: '0.6rem', delay: '190ms', color: '#14f195' },
+  { x: '-3.8rem', y: '4.8rem', delay: '250ms', color: '#67e8f9' },
+  { x: '4rem', y: '4.9rem', delay: '310ms', color: '#f0abfc' },
+] as const;
 
 type RotationState = { x: number; y: number; z: number };
 type SpinPhase = 'idle' | 'spinning' | 'selecting';
 type CubeFaces = WheelPrize[][];
 type PromptType = 'tasks' | 'tomorrow' | 'wallet';
+type MonCelebration = { amountLabel: string; nonce: number };
 
 interface PendingTarget {
   faceIndex: number;
@@ -156,6 +169,25 @@ interface PendingTarget {
   prize: WheelPrize;
   rollId?: string;
 }
+
+const CubeMonadFireworks: React.FC = () => (
+  <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[1.4rem]" aria-hidden="true">
+    <span className="absolute left-1/2 top-1/2 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#836EF9]/50 animate-monad-firework-ring" />
+    <span className="absolute left-1/2 top-1/2 h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full border border-emerald-200/35 animate-monad-firework-ring [animation-delay:160ms]" />
+    {CUBE_MON_FIREWORK_PARTICLES.map((particle, index) => (
+      <span
+        key={`${particle.x}:${particle.y}:${index}`}
+        className="monad-firework-particle absolute left-1/2 top-1/2 h-2.5 w-2.5 rounded-full"
+        style={{
+          '--tx': particle.x,
+          '--ty': particle.y,
+          '--delay': particle.delay,
+          '--color': particle.color,
+        } as React.CSSProperties}
+      />
+    ))}
+  </div>
+);
 
 const CUBE_TILE_PATH = Array.from({ length: 5 }, (_, row) => {
   const rowIndices = Array.from({ length: 5 }, (_, col) => row * 5 + col);
@@ -386,6 +418,18 @@ const getRewardToastLabel = (reward: WheelPrize) => {
   return reward.label;
 };
 
+const getMonadRewardAmount = (reward: WheelPrize) => {
+  if (reward.type === 'mon') {
+    return Number(reward.mon ?? CUBE_REBALANCE_CONFIG.monPrizeAmount);
+  }
+
+  if (reward.duplicateCompensationApplied && reward.duplicateCompensationMonads) {
+    return Number(reward.duplicateCompensationMonads);
+  }
+
+  return 0;
+};
+
 const getFaceViewRotation = (faceIndex: number): RotationState => {
   const offset = FACE_ALIGNMENT_OFFSETS[faceIndex] ?? FACE_ALIGNMENT_OFFSETS[0];
   return {
@@ -457,6 +501,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
   const [highlightedTileIndex, setHighlightedTileIndex] = useState<number | null>(null);
   const [isBuyingSpin, setIsBuyingSpin] = useState(false);
   const [promptType, setPromptType] = useState<PromptType | null>(null);
+  const [monCelebration, setMonCelebration] = useState<MonCelebration | null>(null);
   const timersRef = useRef<number[]>([]);
   const spinLockRef = useRef(false);
   const pendingTargetRef = useRef<PendingTarget | null>(null);
@@ -471,6 +516,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
 
   useEffect(() => () => {
     clearTimers();
+    restoreBackgroundMusic();
   }, []);
 
   const spinning = phase === 'spinning';
@@ -482,6 +528,23 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     () => `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg) rotateZ(${rotation.z}deg)`,
     [rotation],
   );
+
+  const triggerMonadCelebration = (reward: WheelPrize) => {
+    const monAmount = getMonadRewardAmount(reward);
+    if (monAmount <= 0) return false;
+
+    setMonCelebration({
+      amountLabel: `+${formatMonAmount(monAmount)} MON`,
+      nonce: Date.now(),
+    });
+
+    const timer = window.setTimeout(() => {
+      setMonCelebration(null);
+      restoreBackgroundMusic();
+    }, CUBE_MON_CELEBRATION_MS);
+    timersRef.current.push(timer);
+    return true;
+  };
 
   const renderTile = (
     item: WheelPrize,
@@ -635,11 +698,13 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
 
       if (step >= totalSteps) {
         void (async () => {
+          let keepMusicDuckedForCelebration = false;
           try {
             const result = await onResolveReward(target.prize, target.rollId) ?? target.prize;
             setPhase('idle');
             setHighlightedFaceIndex(target.faceIndex);
             onRewardSound?.();
+            keepMusicDuckedForCelebration = triggerMonadCelebration(result);
             toast.success(`You won: ${getRewardToastLabel(result)}`);
           } catch (error) {
             console.error('Cube reward resolve failed:', error);
@@ -647,6 +712,9 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
             setPhase('idle');
             setHighlightedFaceIndex(target.faceIndex);
           } finally {
+            if (!keepMusicDuckedForCelebration) {
+              restoreBackgroundMusic();
+            }
             spinLockRef.current = false;
           }
         })();
@@ -743,6 +811,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     }
 
     clearTimers();
+    setMonCelebration(null);
     spinLockRef.current = true;
 
     let nextFaces = createCubeFaces(rodLevel);
@@ -773,6 +842,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     setHighlightedTileIndex(null);
     setPhase('spinning');
     setRotationTransitionEnabled(true);
+    duckBackgroundMusic(CUBE_MUSIC_DUCK_MS);
     onSpinStartSound?.();
     pendingTargetRef.current = { faceIndex, tileIndex, prize: targetPrize, rollId };
     settleStartedRef.current = false;
@@ -874,6 +944,25 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
                       ))}
                     </div>
                   </div>
+                  {monCelebration ? (
+                    <div
+                      key={monCelebration.nonce}
+                      className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center"
+                    >
+                      <div className="relative flex h-44 w-44 items-center justify-center overflow-hidden rounded-[1.4rem] border border-[#836EF9]/50 bg-[radial-gradient(circle_at_50%_42%,rgba(131,110,249,0.34),rgba(5,16,26,0.94)_65%)] shadow-[0_18px_54px_rgba(0,0,0,0.55),0_0_56px_rgba(20,241,149,0.34)] sm:h-56 sm:w-56">
+                        <CubeMonadFireworks />
+                        <div className="relative z-10 flex flex-col items-center">
+                          <MonadIcon size="hero" className="animate-monad-logo-pop drop-shadow-[0_0_30px_rgba(20,241,149,0.88)]" />
+                          <p className="mt-2 text-sm font-black uppercase text-emerald-100 sm:text-base">
+                            Monad won
+                          </p>
+                          <p className="mt-1 text-2xl font-black text-white drop-shadow-[0_2px_12px_rgba(20,241,149,0.5)] sm:text-3xl">
+                            {monCelebration.amountLabel}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="flex items-center justify-center gap-4 sm:gap-6">
