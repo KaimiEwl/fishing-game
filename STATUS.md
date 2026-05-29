@@ -1,5 +1,9 @@
 # STATUS
 
+## 2026-05-28 guide updated with latest MON and cube changes
+- Updated the `/guide` player information page with a new how-to-play section and a latest-updates summary covering rod MON rewards, cube MON jackpots, cube music ducking/fireworks, wallet check-in amount, payment receiver address, direct MON gold packs, and social/task changes.
+- Added the labeled feature screenshots as guide assets under `public/assets/guide/` and embedded them in the relevant guide sections.
+
 ## 2026-05-28 stronger MON fireworks
 - MON celebrations now share one stronger fireworks layer across rod rewards and cube MON wins.
 - The salute adds multiple burst centers, larger rings, brighter particles, and comet streaks so the MON moment reads as a clear celebration instead of a small sparkle.
