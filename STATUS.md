@@ -1,5 +1,9 @@
 # STATUS
 
+## 2026-05-29 admin Liquid Glass tuning pass
+- Rebalanced `/admin` Liquid Glass tones so each admin block keeps a subtle semantic color without painted gradients or loud color blobs.
+- Tightened glass texture, tab dock styling, numeric overflow guards, and API non-2xx errors so admin toasts include backend/status detail instead of the generic failure text.
+
 ## 2026-05-29 admin Liquid Glass restraint pass
 - Dialed `/admin` Liquid Glass colors back from per-section gradients to a mostly neutral glass palette with only faint cool/warm tinting.
 - Kept reflections and glass depth, but reduced accent opacity so blocks no longer read as individually repainted.

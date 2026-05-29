@@ -65,12 +65,12 @@ const AdminSuspiciousCenter: React.FC<AdminSuspiciousCenterProps> = ({
     <div className="grid gap-4 md:grid-cols-5">
       {summaryCards(summary).map((item) => (
         <Card key={item.label} className={`${item.toneClass} border-zinc-800 bg-zinc-950`}>
-          <CardContent className="flex items-center justify-between gap-3 p-4">
-            <div>
-              <p className="text-xs uppercase tracking-wide text-zinc-500">{item.label}</p>
-              <p className="mt-2 text-2xl font-bold text-zinc-100">{item.value}</p>
+          <CardContent className="flex min-w-0 items-center justify-between gap-3 p-4">
+            <div className="min-w-0">
+              <p className="truncate text-xs uppercase text-zinc-500" title={item.label}>{item.label}</p>
+              <p className="admin-metric-value mt-2 text-left font-bold text-zinc-100" title={String(item.value)}>{item.value}</p>
             </div>
-            <div className="rounded-full border border-zinc-800 bg-black/70 p-2">
+            <div className="shrink-0 rounded-full border border-zinc-800 bg-black/70 p-2">
               {item.icon}
             </div>
           </CardContent>

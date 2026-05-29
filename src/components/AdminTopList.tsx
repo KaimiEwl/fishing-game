@@ -20,14 +20,14 @@ const AdminTopList = ({ title, players, field, toneClass }: AdminTopListProps) =
       {players.slice(0, 5).map((player, index) => {
         const value = player[field];
         return (
-          <div key={player.id} className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">
+          <div key={player.id} className="flex min-w-0 items-center justify-between gap-3 text-sm">
+            <span className="min-w-0 truncate text-muted-foreground">
               {index + 1}.{' '}
               <span className="font-mono">
                 {player.wallet_address.slice(0, 6)}...{player.wallet_address.slice(-4)}
               </span>
             </span>
-            <span className="font-bold text-foreground">
+            <span className="shrink-0 font-bold text-foreground">
               {typeof value === 'number' ? value.toLocaleString() : '-'}
             </span>
           </div>

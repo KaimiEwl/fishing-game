@@ -11,10 +11,10 @@ interface AdminStatCardProps {
 
 const AdminStatCard = ({ icon, label, value, toneClass }: AdminStatCardProps) => (
   <Card className={cn(toneClass)}>
-    <CardContent className="flex flex-col items-center gap-1 p-4">
+    <CardContent className="flex min-w-0 flex-col items-center gap-1 p-4 text-center">
       <div className="text-primary">{icon}</div>
-      <p className="text-2xl font-bold text-foreground">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="admin-metric-value text-center font-bold text-foreground" title={String(value)}>{value}</p>
+      <p className="max-w-full truncate text-xs text-muted-foreground" title={label}>{label}</p>
     </CardContent>
   </Card>
 );

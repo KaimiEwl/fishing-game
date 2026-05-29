@@ -292,6 +292,41 @@ const parseResponsePayload = (response: Response, responseBody: string) => {
   return responseBody;
 };
 
+const getResponsePayloadMessage = (payload: unknown): string | null => {
+  if (typeof payload === 'string') {
+    const trimmed = payload.trim();
+    if (!trimmed || /^<!doctype html/i.test(trimmed) || /^<html/i.test(trimmed)) return null;
+    return trimmed.length > 220 ? `${trimmed.slice(0, 217)}...` : trimmed;
+  }
+
+  if (!payload || typeof payload !== 'object') return null;
+
+  const record = payload as Record<string, unknown>;
+  const messageKeys = ['error', 'message', 'details', 'detail'];
+  for (const key of messageKeys) {
+    const value = record[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+
+  return null;
+};
+
+const formatResponseStatus = (response: Response) => {
+  const statusText = response.statusText.trim();
+  return statusText ? `${response.status} ${statusText}` : String(response.status);
+};
+
+const buildNonOkErrorMessage = (response: Response, responseData: unknown, responseBody: string) => {
+  const statusLabel = formatResponseStatus(response);
+  const payloadMessage = getResponsePayloadMessage(responseData) ?? getResponsePayloadMessage(responseBody);
+
+  if (payloadMessage) {
+    return `${payloadMessage} (${statusLabel})`;
+  }
+
+  return `Hook & Loot API request failed (${statusLabel})`;
+};
+
 const buildErrorContext = (response: Response, responseBody: string): EdgeFunctionErrorContext => ({
   clone: () => new Response(responseBody, {
     status: response.status,
@@ -348,22 +383,17 @@ export const invokeEdgeFunctionHttp = async <T>(
   const responseData = parseResponsePayload(response, responseBody);
 
   if (!response.ok) {
-    const responseError = responseData && typeof responseData === 'object'
-      ? (responseData as { error?: unknown }).error
-      : null;
-    const message = typeof responseError === 'string' && responseError.trim()
-      ? responseError.trim()
-      : 'Hook & Loot API returned a non-2xx status code';
+    const message = buildNonOkErrorMessage(response, responseData, responseBody);
 
     finishEdgeCallTrace(trace, {
       ok: false,
       status: response.status,
-      error: 'non-2xx',
+      error: message,
     });
     logEdgeCallActivity(trace, requestBody, {
       ok: false,
       status: response.status,
-      error: 'non-2xx',
+      error: message,
     });
 
     const error = Object.assign(

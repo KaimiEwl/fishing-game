@@ -212,13 +212,16 @@
 @layer components {
   .admin-shell {
     --admin-accent-rgb: 96, 165, 250;
-    --admin-accent-deep-rgb: 51, 65, 85;
+    --admin-accent-deep-rgb: 37, 99, 235;
     --admin-accent-glow-rgb: 186, 230, 253;
-    --admin-accent-shadow: rgba(37, 99, 235, 0.06);
+    --admin-accent-shadow: rgba(37, 99, 235, 0.075);
+    --admin-panel-tint: 0.082;
+    --admin-panel-tint-strong: 0.125;
+    --admin-glass-texture-opacity: 0.74;
     color: #1d1d1f;
     background:
-      radial-gradient(circle at 12% 16%, rgba(125, 211, 252, 0.12), rgba(125, 211, 252, 0) 22rem),
-      radial-gradient(circle at 86% 82%, rgba(251, 207, 232, 0.1), rgba(251, 207, 232, 0) 25rem),
+      radial-gradient(circle at 12% 16%, rgba(125, 211, 252, 0.11), rgba(125, 211, 252, 0) 22rem),
+      radial-gradient(circle at 86% 82%, rgba(221, 214, 254, 0.1), rgba(221, 214, 254, 0) 25rem),
       linear-gradient(115deg, rgba(255, 255, 255, 0.84) 0%, rgba(239, 248, 255, 0.7) 42%, rgba(255, 250, 245, 0.78) 100%),
       linear-gradient(180deg, #f9fbff 0%, #eef6ff 46%, #fbf8ff 100%) !important;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -229,49 +232,61 @@
   .admin-shell :where(.admin-tone-blue),
   .admin-shell.admin-tone-blue {
     --admin-accent-rgb: 96, 165, 250;
-    --admin-accent-deep-rgb: 51, 65, 85;
+    --admin-accent-deep-rgb: 37, 99, 235;
     --admin-accent-glow-rgb: 186, 230, 253;
-    --admin-accent-shadow: rgba(37, 99, 235, 0.06);
+    --admin-accent-shadow: rgba(37, 99, 235, 0.075);
+    --admin-panel-tint: 0.082;
+    --admin-panel-tint-strong: 0.125;
   }
 
   .admin-shell :where(.admin-tone-green),
   .admin-shell.admin-tone-green {
-    --admin-accent-rgb: 94, 234, 212;
-    --admin-accent-deep-rgb: 51, 65, 85;
+    --admin-accent-rgb: 45, 212, 191;
+    --admin-accent-deep-rgb: 13, 148, 136;
     --admin-accent-glow-rgb: 204, 251, 241;
-    --admin-accent-shadow: rgba(20, 184, 166, 0.045);
+    --admin-accent-shadow: rgba(13, 148, 136, 0.068);
+    --admin-panel-tint: 0.078;
+    --admin-panel-tint-strong: 0.118;
   }
 
   .admin-shell :where(.admin-tone-amber),
   .admin-shell.admin-tone-amber {
-    --admin-accent-rgb: 252, 211, 77;
-    --admin-accent-deep-rgb: 51, 65, 85;
+    --admin-accent-rgb: 251, 191, 36;
+    --admin-accent-deep-rgb: 180, 83, 9;
     --admin-accent-glow-rgb: 254, 243, 199;
-    --admin-accent-shadow: rgba(245, 158, 11, 0.045);
+    --admin-accent-shadow: rgba(180, 83, 9, 0.06);
+    --admin-panel-tint: 0.072;
+    --admin-panel-tint-strong: 0.112;
   }
 
   .admin-shell :where(.admin-tone-rose),
   .admin-shell.admin-tone-rose {
     --admin-accent-rgb: 251, 113, 133;
-    --admin-accent-deep-rgb: 51, 65, 85;
+    --admin-accent-deep-rgb: 190, 18, 60;
     --admin-accent-glow-rgb: 255, 228, 230;
-    --admin-accent-shadow: rgba(244, 63, 94, 0.045);
+    --admin-accent-shadow: rgba(190, 18, 60, 0.055);
+    --admin-panel-tint: 0.068;
+    --admin-panel-tint-strong: 0.108;
   }
 
   .admin-shell :where(.admin-tone-violet),
   .admin-shell.admin-tone-violet {
-    --admin-accent-rgb: 196, 181, 253;
-    --admin-accent-deep-rgb: 51, 65, 85;
+    --admin-accent-rgb: 167, 139, 250;
+    --admin-accent-deep-rgb: 109, 40, 217;
     --admin-accent-glow-rgb: 237, 233, 254;
-    --admin-accent-shadow: rgba(139, 92, 246, 0.045);
+    --admin-accent-shadow: rgba(109, 40, 217, 0.06);
+    --admin-panel-tint: 0.07;
+    --admin-panel-tint-strong: 0.11;
   }
 
   .admin-shell :where(.admin-tone-slate),
   .admin-shell.admin-tone-slate {
     --admin-accent-rgb: 148, 163, 184;
-    --admin-accent-deep-rgb: 51, 65, 85;
+    --admin-accent-deep-rgb: 71, 85, 105;
     --admin-accent-glow-rgb: 226, 232, 240;
-    --admin-accent-shadow: rgba(100, 116, 139, 0.045);
+    --admin-accent-shadow: rgba(71, 85, 105, 0.05);
+    --admin-panel-tint: 0.06;
+    --admin-panel-tint-strong: 0.095;
   }
 
   .admin-shell::before {
@@ -310,6 +325,7 @@
   .admin-shell,
   .admin-shell * {
     letter-spacing: 0 !important;
+    box-sizing: border-box;
   }
 
   .admin-shell :where(button, [role='tab']) {
@@ -325,8 +341,20 @@
     min-width: 0;
   }
 
-  .admin-shell :where(.font-mono, pre, td, th) {
+  .admin-shell :where(.font-mono, pre, td, th, .font-black, .font-bold) {
     overflow-wrap: anywhere;
+  }
+
+  .admin-shell :where(.grid > *, .flex > *) {
+    min-width: 0;
+  }
+
+  .admin-shell :where(.admin-metric-value) {
+    display: block;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    line-height: 1.05;
+    font-size: clamp(1.05rem, 2.4vw, 1.5rem);
   }
 
   .admin-shell :where(.bg-background) {
@@ -348,10 +376,11 @@
     pointer-events: none;
     border-radius: inherit;
     background:
-      linear-gradient(136deg, rgba(255, 255, 255, 0.84) 0%, rgba(255, 255, 255, 0.26) 18%, rgba(255, 255, 255, 0) 42%),
-      linear-gradient(24deg, rgba(var(--admin-accent-glow-rgb), 0.12), rgba(255, 255, 255, 0) 42%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0) 34%);
-    opacity: 0.82;
+      repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0 1px, rgba(255, 255, 255, 0) 1px 8px),
+      linear-gradient(136deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.28) 18%, rgba(255, 255, 255, 0) 42%),
+      linear-gradient(24deg, rgba(var(--admin-accent-glow-rgb), 0.16), rgba(255, 255, 255, 0) 42%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 34%);
+    opacity: var(--admin-glass-texture-opacity);
   }
 
   .admin-shell :where(header, .rounded-lg.border, .rounded-xl.border, .rounded-2xl.border, .admin-dialog, .admin-panel-sheet)::after,
@@ -363,10 +392,9 @@
     pointer-events: none;
     border-radius: inherit;
     background:
-      linear-gradient(118deg, rgba(255, 255, 255, 0) 0 39%, rgba(255, 255, 255, 0.56) 46%, rgba(255, 255, 255, 0.16) 53%, rgba(255, 255, 255, 0) 64%),
-      radial-gradient(circle at 24% 18%, rgba(var(--admin-accent-rgb), 0.08), rgba(var(--admin-accent-rgb), 0) 36%),
-      radial-gradient(circle at 88% 76%, rgba(var(--admin-accent-glow-rgb), 0.08), rgba(var(--admin-accent-glow-rgb), 0) 34%);
-    opacity: 0.5;
+      linear-gradient(118deg, rgba(255, 255, 255, 0) 0 39%, rgba(255, 255, 255, 0.58) 46%, rgba(255, 255, 255, 0.18) 53%, rgba(255, 255, 255, 0) 64%),
+      linear-gradient(90deg, rgba(var(--admin-accent-rgb), 0.065), rgba(var(--admin-accent-rgb), 0) 64%);
+    opacity: 0.42;
     mix-blend-mode: screen;
   }
 
@@ -391,13 +419,15 @@
     .bg-black\/70
   ) {
     background:
-      linear-gradient(145deg, rgba(255, 255, 255, 0.82), rgba(var(--admin-accent-rgb), 0.045) 44%, rgba(255, 255, 255, 0.64)),
-      rgba(255, 255, 255, 0.48) !important;
-    -webkit-backdrop-filter: blur(24px) saturate(1.55);
-    backdrop-filter: blur(24px) saturate(1.55);
+      linear-gradient(145deg, rgba(255, 255, 255, 0.84), rgba(var(--admin-accent-rgb), var(--admin-panel-tint)) 52%, rgba(255, 255, 255, 0.66)),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.26)),
+      rgba(255, 255, 255, 0.5) !important;
+    -webkit-backdrop-filter: blur(26px) saturate(1.58);
+    backdrop-filter: blur(26px) saturate(1.58);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.82),
-      inset 0 -1px 0 rgba(255, 255, 255, 0.26),
+      inset 0 1px 0 rgba(255, 255, 255, 0.88),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.32),
+      inset 1px 0 0 rgba(255, 255, 255, 0.28),
       0 18px 50px var(--admin-accent-shadow),
       0 1px 2px rgba(15, 23, 42, 0.06) !important;
   }
@@ -523,23 +553,50 @@
       0 10px 26px rgba(15, 23, 42, 0.08);
   }
 
+  .admin-shell .admin-tab-dock {
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    border-radius: 1.1rem;
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.62), rgba(248, 250, 252, 0.36)),
+      rgba(255, 255, 255, 0.36) !important;
+    padding: 0.375rem;
+    -webkit-backdrop-filter: blur(28px) saturate(1.45);
+    backdrop-filter: blur(28px) saturate(1.45);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.82),
+      0 12px 34px rgba(15, 23, 42, 0.075);
+  }
+
   .admin-shell [role='tab'] {
     background:
-      linear-gradient(145deg, rgba(255, 255, 255, 0.76), rgba(239, 246, 255, 0.44) 64%, rgba(255, 255, 255, 0.46)),
+      linear-gradient(145deg, rgba(255, 255, 255, 0.74), rgba(var(--admin-accent-rgb), 0.055) 64%, rgba(255, 255, 255, 0.5)),
       rgba(255, 255, 255, 0.48) !important;
     border-color: rgba(255, 255, 255, 0.72) !important;
+    border-radius: 0.85rem;
     position: relative;
     overflow: hidden;
+    color: #64748b !important;
+    min-height: 3rem;
+    transition: transform 160ms ease, color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+  }
+
+  .admin-shell [role='tab']:hover {
+    transform: translateY(-1px);
+    color: rgb(var(--admin-accent-deep-rgb)) !important;
+    border-color: rgba(var(--admin-accent-rgb), 0.22) !important;
   }
 
   .admin-shell [role='tab'][data-state='active'] {
     background:
-      linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(219, 234, 254, 0.48) 58%, rgba(255, 255, 255, 0.62)),
+      linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(var(--admin-accent-rgb), var(--admin-panel-tint-strong)) 58%, rgba(255, 255, 255, 0.66)),
       rgba(255, 255, 255, 0.7) !important;
-    border-color: rgba(96, 165, 250, 0.22) !important;
-    color: #334155 !important;
+    border-color: rgba(var(--admin-accent-rgb), 0.32) !important;
+    color: rgb(var(--admin-accent-deep-rgb)) !important;
+    transform: translateY(-1px);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.92),
+      inset 0 -1px 0 rgba(var(--admin-accent-rgb), 0.1),
       0 12px 32px var(--admin-accent-shadow) !important;
   }
 
@@ -560,7 +617,7 @@
   .admin-dialog,
   .admin-panel-sheet {
     background:
-      linear-gradient(145deg, rgba(255, 255, 255, 0.86), rgba(239, 246, 255, 0.5) 48%, rgba(255, 255, 255, 0.6)),
+      linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(var(--admin-accent-rgb), 0.075) 48%, rgba(255, 255, 255, 0.62)),
       rgba(255, 255, 255, 0.62) !important;
     color: #1d1d1f !important;
     border-color: rgba(255, 255, 255, 0.74) !important;
@@ -577,7 +634,7 @@
     overflow: hidden;
     isolation: isolate;
     background:
-      linear-gradient(145deg, rgba(255, 255, 255, 0.84), rgba(239, 246, 255, 0.48) 50%, rgba(255, 255, 255, 0.58)),
+      linear-gradient(145deg, rgba(255, 255, 255, 0.86), rgba(var(--admin-accent-rgb), 0.065) 50%, rgba(255, 255, 255, 0.58)),
       rgba(255, 255, 255, 0.58) !important;
     border-color: rgba(255, 255, 255, 0.74) !important;
     -webkit-backdrop-filter: blur(26px) saturate(1.55);
@@ -590,7 +647,7 @@
 
   .admin-glass-icon-button {
     background:
-      linear-gradient(145deg, rgba(255, 255, 255, 0.84), rgba(239, 246, 255, 0.46)),
+      linear-gradient(145deg, rgba(255, 255, 255, 0.86), rgba(var(--admin-accent-rgb), 0.08)),
       rgba(255, 255, 255, 0.48) !important;
     border-color: rgba(255, 255, 255, 0.78) !important;
     -webkit-backdrop-filter: blur(18px) saturate(1.45);
@@ -598,12 +655,12 @@
   }
 
   .admin-shell :where(.admin-tone-blue, .admin-tone-green, .admin-tone-amber, .admin-tone-rose, .admin-tone-violet, .admin-tone-slate) :where(.text-primary) {
-    color: #334155 !important;
+    color: rgb(var(--admin-accent-deep-rgb)) !important;
   }
 
   .admin-shell :where(.admin-tone-blue, .admin-tone-green, .admin-tone-amber, .admin-tone-rose, .admin-tone-violet, .admin-tone-slate) :where(.bg-primary, .bg-accent-foreground) {
     background:
-      linear-gradient(90deg, #64748b, #60a5fa) !important;
+      linear-gradient(90deg, rgb(var(--admin-accent-deep-rgb)), rgb(var(--admin-accent-rgb))) !important;
   }
 }
 

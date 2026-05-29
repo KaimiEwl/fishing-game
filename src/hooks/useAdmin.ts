@@ -497,7 +497,7 @@ export function useAdmin(walletAddress: string | undefined) {
 
     const { data, error } = await Promise.race([invokePromise, timeoutPromise]);
     if (error) {
-      const errorWithContext = error as { context?: { clone?: () => Response } };
+      const errorWithContext = error as { context?: { clone?: () => Response }; status?: unknown; message?: unknown };
       let responseError: string | null = null;
       if (errorWithContext.context?.clone) {
         try {
@@ -509,7 +509,12 @@ export function useAdmin(walletAddress: string | undefined) {
           // Keep the original error when the response body is not readable JSON.
         }
       }
-      if (responseError) throw new Error(responseError);
+      if (responseError) {
+        const status = typeof errorWithContext.status === 'number' ? errorWithContext.status : null;
+        const originalMessage = typeof errorWithContext.message === 'string' ? errorWithContext.message : '';
+        if (originalMessage.includes(responseError)) throw new Error(originalMessage);
+        throw new Error(status ? `${responseError} (${status})` : responseError);
+      }
       throw error;
     }
     if (data?.error) throw new Error(data.error);

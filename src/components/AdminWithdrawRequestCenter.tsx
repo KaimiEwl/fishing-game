@@ -91,8 +91,10 @@ const AdminWithdrawRequestCenter: React.FC<AdminWithdrawRequestCenterProps> = ({
             <CardTitle className="text-sm text-zinc-300">Pending</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-black text-yellow-200">{summary?.pending_count ?? 0}</p>
-            <p className="mt-1 text-xs text-zinc-500">{formatMonAmount(summary?.pending_amount_mon ?? 0)} MON</p>
+            <p className="admin-metric-value text-left font-black text-yellow-200" title={String(summary?.pending_count ?? 0)}>{summary?.pending_count ?? 0}</p>
+            <p className="mt-1 truncate text-xs text-zinc-500" title={`${formatMonAmount(summary?.pending_amount_mon ?? 0)} MON`}>
+              {formatMonAmount(summary?.pending_amount_mon ?? 0)} MON
+            </p>
           </CardContent>
         </Card>
         <Card className="admin-tone-blue border-zinc-800 bg-zinc-950">
@@ -100,7 +102,7 @@ const AdminWithdrawRequestCenter: React.FC<AdminWithdrawRequestCenterProps> = ({
             <CardTitle className="text-sm text-zinc-300">Approved</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-black text-cyan-100">{summary?.approved_count ?? 0}</p>
+            <p className="admin-metric-value text-left font-black text-cyan-100" title={String(summary?.approved_count ?? 0)}>{summary?.approved_count ?? 0}</p>
           </CardContent>
         </Card>
         <Card className="admin-tone-rose border-zinc-800 bg-zinc-950">
@@ -108,7 +110,7 @@ const AdminWithdrawRequestCenter: React.FC<AdminWithdrawRequestCenterProps> = ({
             <CardTitle className="text-sm text-zinc-300">Rejected</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-black text-red-200">{summary?.rejected_count ?? 0}</p>
+            <p className="admin-metric-value text-left font-black text-red-200" title={String(summary?.rejected_count ?? 0)}>{summary?.rejected_count ?? 0}</p>
           </CardContent>
         </Card>
         <Card className="admin-tone-green border-zinc-800 bg-zinc-950">
@@ -116,7 +118,7 @@ const AdminWithdrawRequestCenter: React.FC<AdminWithdrawRequestCenterProps> = ({
             <CardTitle className="text-sm text-zinc-300">Paid</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-black text-emerald-200">{summary?.paid_count ?? 0}</p>
+            <p className="admin-metric-value text-left font-black text-emerald-200" title={String(summary?.paid_count ?? 0)}>{summary?.paid_count ?? 0}</p>
           </CardContent>
         </Card>
       </div>

@@ -844,7 +844,7 @@ export default function Admin() {
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as AdminTab)} className="space-y-5">
           <div className="sticky top-0 z-20 -mx-4 border-b border-black/10 bg-[#f5f5f7]/90 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-            <TabsList className="grid h-auto w-full grid-cols-2 gap-2 bg-transparent p-0 md:grid-cols-3 xl:grid-cols-6">
+            <TabsList className="admin-tab-dock grid h-auto w-full grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
               {(Object.keys(ADMIN_TAB_DETAILS) as AdminTab[]).map((tab) => {
                 const details = ADMIN_TAB_DETAILS[tab];
                 const Icon = details.icon;
@@ -852,10 +852,10 @@ export default function Admin() {
                   <TabsTrigger
                     key={tab}
                     value={tab}
-                  className={cn(
-                    'h-12 min-w-0 whitespace-normal rounded-lg border border-black/10 bg-white px-3 py-2 text-slate-500 shadow-sm shadow-black/5 data-[state=active]:border-blue-200 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:shadow-md',
-                    getAdminToneClass(details.tone),
-                  )}
+                    className={cn(
+                      'min-w-0 whitespace-normal rounded-lg border border-black/10 bg-white px-3 py-2 text-slate-500 shadow-sm shadow-black/5',
+                      getAdminToneClass(details.tone),
+                    )}
                   >
                     <span className="flex min-w-0 items-center justify-center gap-2 text-xs font-semibold sm:text-sm">
                       <Icon className="h-4 w-4 shrink-0" />
