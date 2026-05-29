@@ -1,5 +1,9 @@
 # STATUS
 
+## 2026-05-29 admin Liquid Glass pass
+- Applied a scoped Liquid Glass layer to `/admin`: translucent panels, backdrop blur/saturation, white edge reflections, soft inner highlights, and a subtle glass navigation dock.
+- Updated admin info popovers to use the same glass treatment so help stays compact while still feeling part of the interface.
+
 ## 2026-05-29 admin panel workflow declutter
 - Added a reusable admin `i` info popover and moved guide/help copy out of the main `/admin` surface so the page reads as working blocks first.
 - Grouped player lookup, user account actions, message composer, payout queues, weekly payout actions, social verification, and user-detail support sections more explicitly.

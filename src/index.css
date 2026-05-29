@@ -213,9 +213,42 @@
   .admin-shell {
     color: #1d1d1f;
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(245, 245, 247, 0.96)),
-      #f5f5f7;
+      linear-gradient(115deg, rgba(255, 255, 255, 0.78) 0%, rgba(236, 249, 255, 0.72) 28%, rgba(248, 246, 255, 0.76) 62%, rgba(255, 251, 242, 0.9) 100%),
+      linear-gradient(180deg, #f9fbff 0%, #eef6ff 46%, #fbf8ff 100%) !important;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    position: relative;
+    isolation: isolate;
+  }
+
+  .admin-shell::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(118deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0) 24%),
+      linear-gradient(64deg, rgba(56, 189, 248, 0.12) 0%, rgba(255, 255, 255, 0) 42%),
+      linear-gradient(156deg, rgba(167, 139, 250, 0.12) 0%, rgba(255, 255, 255, 0) 45%);
+  }
+
+  .admin-shell::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.28;
+    background-image:
+      linear-gradient(90deg, rgba(255, 255, 255, 0.58) 0 1px, transparent 1px),
+      linear-gradient(180deg, rgba(0, 113, 227, 0.1) 0 1px, transparent 1px);
+    background-size: 4.5rem 4.5rem;
+    mask-image: linear-gradient(180deg, transparent, #000 18%, #000 72%, transparent);
+  }
+
+  .admin-shell > * {
+    position: relative;
+    z-index: 1;
   }
 
   .admin-shell,
@@ -244,12 +277,64 @@
     background-color: transparent !important;
   }
 
-  .admin-shell :where(.bg-card, .bg-popover, .bg-zinc-950, .bg-zinc-900, .bg-black, .bg-black\/50, .bg-black\/60, .bg-black\/70) {
-    background-color: rgba(255, 255, 255, 0.92) !important;
+  .admin-shell :where(header, .rounded-lg.border, .rounded-xl.border, .rounded-2xl.border, .admin-dialog, .admin-panel-sheet) {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .admin-shell :where(header, .rounded-lg.border, .rounded-xl.border, .rounded-2xl.border, .admin-dialog, .admin-panel-sheet)::before,
+  .admin-glass-popover::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.74) 0%, rgba(255, 255, 255, 0.2) 19%, rgba(255, 255, 255, 0) 44%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.46), rgba(255, 255, 255, 0) 34%);
+    opacity: 0.78;
+  }
+
+  .admin-shell :where(header, .rounded-lg.border, .rounded-xl.border, .rounded-2xl.border, .admin-dialog, .admin-panel-sheet) > *,
+  .admin-glass-popover > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .admin-shell :where(
+    .bg-white,
+    .bg-white\/90,
+    .bg-white\/95,
+    .bg-slate-50,
+    .bg-card,
+    .bg-popover,
+    .bg-zinc-950,
+    .bg-zinc-900,
+    .bg-black,
+    .bg-black\/50,
+    .bg-black\/60,
+    .bg-black\/70
+  ) {
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.76), rgba(255, 255, 255, 0.46) 52%, rgba(248, 251, 255, 0.68)),
+      rgba(255, 255, 255, 0.48) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(1.55);
+    backdrop-filter: blur(24px) saturate(1.55);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.82),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.26),
+      0 18px 50px rgba(31, 41, 55, 0.12),
+      0 1px 2px rgba(15, 23, 42, 0.06) !important;
   }
 
   .admin-shell :where(.border-zinc-800, .border-zinc-700, .border-border) {
-    border-color: rgba(29, 29, 31, 0.1) !important;
+    border-color: rgba(255, 255, 255, 0.66) !important;
+  }
+
+  .admin-shell :where(.border-black\/10) {
+    border-color: rgba(255, 255, 255, 0.7) !important;
   }
 
   .admin-shell :where(.text-foreground, .text-zinc-100, .text-zinc-200) {
@@ -261,7 +346,11 @@
   }
 
   .admin-shell :where(.bg-muted) {
-    background-color: #edf0f5 !important;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(239, 246, 255, 0.5)),
+      rgba(226, 232, 240, 0.45) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(1.35);
+    backdrop-filter: blur(14px) saturate(1.35);
   }
 
   .admin-shell :where(.text-cyan-100, .text-cyan-200) {
@@ -319,7 +408,9 @@
   }
 
   .admin-shell thead tr {
-    background: #f8f9fb;
+    background: rgba(255, 255, 255, 0.46);
+    -webkit-backdrop-filter: blur(18px) saturate(1.4);
+    backdrop-filter: blur(18px) saturate(1.4);
   }
 
   .admin-shell th {
@@ -334,26 +425,100 @@
   }
 
   .admin-shell tbody tr:hover td {
-    background-color: rgba(0, 113, 227, 0.04);
+    background-color: rgba(255, 255, 255, 0.3);
   }
 
   .admin-shell input,
   .admin-shell textarea {
-    background: #fff !important;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.56)),
+      rgba(255, 255, 255, 0.52) !important;
     color: #1d1d1f !important;
-    border-color: rgba(29, 29, 31, 0.12) !important;
+    border-color: rgba(255, 255, 255, 0.72) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(1.35);
+    backdrop-filter: blur(18px) saturate(1.35);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.68),
+      0 1px 2px rgba(15, 23, 42, 0.04) !important;
+  }
+
+  .admin-shell :where(button, [role='tab']) {
+    -webkit-backdrop-filter: blur(18px) saturate(1.45);
+    backdrop-filter: blur(18px) saturate(1.45);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.72),
+      0 10px 26px rgba(15, 23, 42, 0.08);
+  }
+
+  .admin-shell [role='tab'] {
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.44)),
+      rgba(255, 255, 255, 0.48) !important;
+    border-color: rgba(255, 255, 255, 0.72) !important;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .admin-shell [role='tab'][data-state='active'] {
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(231, 245, 255, 0.58)),
+      rgba(255, 255, 255, 0.7) !important;
+    border-color: rgba(0, 113, 227, 0.24) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.92),
+      0 12px 32px rgba(0, 113, 227, 0.12) !important;
+  }
+
+  .admin-shell .sticky {
+    background:
+      linear-gradient(180deg, rgba(249, 251, 255, 0.82), rgba(249, 251, 255, 0.52)),
+      rgba(255, 255, 255, 0.36) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(1.55);
+    backdrop-filter: blur(28px) saturate(1.55);
+    border-color: rgba(255, 255, 255, 0.68) !important;
   }
 
   .admin-dialog::before,
   .admin-panel-sheet::before {
-    display: none !important;
+    display: block !important;
   }
 
   .admin-dialog,
   .admin-panel-sheet {
-    background: #fff !important;
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.84), rgba(255, 255, 255, 0.58)),
+      rgba(255, 255, 255, 0.62) !important;
     color: #1d1d1f !important;
-    border-color: rgba(29, 29, 31, 0.1) !important;
+    border-color: rgba(255, 255, 255, 0.74) !important;
+    -webkit-backdrop-filter: blur(30px) saturate(1.55);
+    backdrop-filter: blur(30px) saturate(1.55);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.86),
+      0 30px 80px rgba(15, 23, 42, 0.18) !important;
+  }
+
+  .admin-glass-popover {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.56)),
+      rgba(255, 255, 255, 0.58) !important;
+    border-color: rgba(255, 255, 255, 0.74) !important;
+    -webkit-backdrop-filter: blur(26px) saturate(1.55);
+    backdrop-filter: blur(26px) saturate(1.55);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.88),
+      0 24px 60px rgba(15, 23, 42, 0.16) !important;
+  }
+
+  .admin-glass-icon-button {
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.48)),
+      rgba(255, 255, 255, 0.48) !important;
+    border-color: rgba(255, 255, 255, 0.78) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(1.45);
+    backdrop-filter: blur(18px) saturate(1.45);
   }
 }
 

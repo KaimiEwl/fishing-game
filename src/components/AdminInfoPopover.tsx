@@ -25,7 +25,7 @@ const AdminInfoPopover = ({
         size="icon"
         aria-label={`Info: ${title}`}
         className={cn(
-          'h-8 w-8 shrink-0 rounded-full border-black/10 bg-white text-slate-500 shadow-sm shadow-black/5 hover:bg-slate-50 hover:text-blue-600',
+          'admin-glass-icon-button h-8 w-8 shrink-0 rounded-full border-black/10 bg-white text-slate-500 shadow-sm shadow-black/5 hover:bg-slate-50 hover:text-blue-600',
           className,
         )}
       >
@@ -35,7 +35,7 @@ const AdminInfoPopover = ({
     <PopoverContent
       align={align}
       sideOffset={8}
-      className="z-[80] w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-black/10 bg-white p-4 text-slate-600 shadow-xl shadow-black/10"
+      className="admin-glass-popover z-[80] w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-black/10 bg-white p-4 text-slate-600 shadow-xl shadow-black/10"
     >
       <p className="text-sm font-semibold text-slate-950">{title}</p>
       <div className="mt-2 space-y-2 text-sm leading-6">
