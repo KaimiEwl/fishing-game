@@ -119,6 +119,8 @@ const ADMIN_TONE_CLASSES: Record<AdminTone, { icon: string; visual: string; bar:
   },
 };
 
+const getAdminToneClass = (tone: AdminTone) => `admin-tone-${tone}`;
+
 const ADMIN_TAB_DETAILS: Record<AdminTab, {
   label: string;
   description: string;
@@ -203,7 +205,7 @@ const AdminGuidePopover = () => (
         const toneClasses = ADMIN_TONE_CLASSES[card.tone];
 
         return (
-          <div key={card.title} className="grid grid-cols-[3rem,1fr] gap-3 rounded-lg border border-black/10 bg-slate-50 p-2">
+          <div key={card.title} className={cn('grid grid-cols-[3rem,1fr] gap-3 rounded-lg border border-black/10 bg-slate-50 p-2', getAdminToneClass(card.tone))}>
             <div className={cn('flex h-10 w-10 items-center justify-center rounded-lg border bg-white', toneClasses.icon)}>
               <Icon className="h-4 w-4" />
             </div>
@@ -230,7 +232,7 @@ const AdminSectionIntro = ({
   const toneClasses = ADMIN_TONE_CLASSES[details.tone];
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-black/10 bg-white/90 p-3 shadow-sm shadow-black/5 md:flex-row md:items-center md:justify-between">
+    <div className={cn('flex flex-col gap-3 rounded-lg border border-black/10 bg-white/90 p-3 shadow-sm shadow-black/5 md:flex-row md:items-center md:justify-between', getAdminToneClass(details.tone))}>
       <div className="flex min-w-0 items-center gap-3">
         <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border', toneClasses.icon)}>
           <Icon className="h-4 w-4" />
@@ -775,7 +777,7 @@ export default function Admin() {
   if (loading) {
     return (
       <div className="admin-shell flex min-h-screen items-center justify-center bg-[#f5f5f7] px-4">
-        <div className="w-full max-w-md rounded-lg border border-black/10 bg-white p-6 text-center shadow-sm shadow-black/5">
+        <div className="admin-tone-blue w-full max-w-md rounded-lg border border-black/10 bg-white p-6 text-center shadow-sm shadow-black/5">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-blue-100 bg-blue-50 text-blue-600">
             <Shield className="h-5 w-5" />
           </div>
@@ -792,7 +794,7 @@ export default function Admin() {
   if (!isAdmin) {
     return (
       <div className="admin-shell flex min-h-screen items-center justify-center bg-[#f5f5f7] px-4">
-        <div className="w-full max-w-lg rounded-lg border border-black/10 bg-white p-6 text-center shadow-sm shadow-black/5">
+        <div className="admin-tone-rose w-full max-w-lg rounded-lg border border-black/10 bg-white p-6 text-center shadow-sm shadow-black/5">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-lg border border-rose-100 bg-rose-50 text-rose-600">
             <Shield className="h-6 w-6" />
           </div>
@@ -811,7 +813,7 @@ export default function Admin() {
   return (
     <div className="admin-shell h-screen overflow-y-auto bg-[#f5f5f7] text-slate-950">
       <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-5 px-4 py-4 sm:px-6 lg:px-8">
-        <header className="rounded-lg border border-black/10 bg-white/95 p-4 shadow-sm shadow-black/5 md:p-5">
+        <header className="admin-tone-blue rounded-lg border border-black/10 bg-white/95 p-4 shadow-sm shadow-black/5 md:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0">
               <div className="mb-3 flex items-center gap-3">
@@ -829,7 +831,7 @@ export default function Admin() {
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row lg:items-center">
-              <div className="rounded-lg border border-black/10 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+              <div className="admin-tone-slate rounded-lg border border-black/10 bg-slate-50 px-3 py-2 text-xs text-slate-500">
                 <span className="block font-semibold text-slate-950">Session wallet</span>
                 <span className="font-mono">{address ? formatWallet(address) : 'stored session'}</span>
               </div>
@@ -850,7 +852,10 @@ export default function Admin() {
                   <TabsTrigger
                     key={tab}
                     value={tab}
-                    className="h-12 min-w-0 whitespace-normal rounded-lg border border-black/10 bg-white px-3 py-2 text-slate-500 shadow-sm shadow-black/5 data-[state=active]:border-blue-200 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:shadow-md"
+                  className={cn(
+                    'h-12 min-w-0 whitespace-normal rounded-lg border border-black/10 bg-white px-3 py-2 text-slate-500 shadow-sm shadow-black/5 data-[state=active]:border-blue-200 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:shadow-md',
+                    getAdminToneClass(details.tone),
+                  )}
                   >
                     <span className="flex min-w-0 items-center justify-center gap-2 text-xs font-semibold sm:text-sm">
                       <Icon className="h-4 w-4 shrink-0" />
@@ -862,7 +867,7 @@ export default function Admin() {
             </TabsList>
           </div>
 
-          <TabsContent value="overview" className="space-y-6">
+          <TabsContent value="overview" className="admin-tone-blue space-y-6">
             <AdminSectionIntro
               tab="overview"
               action={(
@@ -878,16 +883,16 @@ export default function Admin() {
             {stats && (
               <>
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-                  <AdminStatCard icon={<Users className="h-5 w-5" />} label="Players" value={stats.totalPlayers} />
-                  <AdminStatCard icon={<Activity className="h-5 w-5" />} label="Active 24h" value={stats.activeToday} />
-                  <AdminStatCard icon={<TrendingUp className="h-5 w-5" />} label="Avg level" value={stats.avgLevel} />
-                  <AdminStatCard icon={<TrendingUp className="h-5 w-5" />} label="Max level" value={stats.maxLevel} />
-                  <AdminStatCard icon={<Coins className="h-5 w-5" />} label="Total coins" value={stats.totalCoins.toLocaleString()} />
-                  <AdminStatCard icon={<FishIcon fishId="carp" size="xs" />} label="Total catches" value={stats.totalCatches.toLocaleString()} />
+                  <AdminStatCard toneClass={getAdminToneClass('blue')} icon={<Users className="h-5 w-5" />} label="Players" value={stats.totalPlayers} />
+                  <AdminStatCard toneClass={getAdminToneClass('green')} icon={<Activity className="h-5 w-5" />} label="Active 24h" value={stats.activeToday} />
+                  <AdminStatCard toneClass={getAdminToneClass('violet')} icon={<TrendingUp className="h-5 w-5" />} label="Avg level" value={stats.avgLevel} />
+                  <AdminStatCard toneClass={getAdminToneClass('rose')} icon={<TrendingUp className="h-5 w-5" />} label="Max level" value={stats.maxLevel} />
+                  <AdminStatCard toneClass={getAdminToneClass('amber')} icon={<Coins className="h-5 w-5" />} label="Total coins" value={stats.totalCoins.toLocaleString()} />
+                  <AdminStatCard toneClass={getAdminToneClass('green')} icon={<FishIcon fishId="carp" size="xs" />} label="Total catches" value={stats.totalCatches.toLocaleString()} />
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
-                  <Card>
+                  <Card className={getAdminToneClass('blue')}>
                     <CardHeader>
                       <CardTitle className="text-base">Level distribution</CardTitle>
                     </CardHeader>
@@ -909,7 +914,7 @@ export default function Admin() {
                     </CardContent>
                   </Card>
 
-                  <Card>
+                  <Card className={getAdminToneClass('violet')}>
                     <CardHeader>
                       <CardTitle className="text-base">Rod distribution</CardTitle>
                     </CardHeader>
@@ -935,9 +940,9 @@ export default function Admin() {
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-3">
-                  <AdminTopList title="Top by level" players={stats.topByLevel} field="level" />
-                  <AdminTopList title="Top by coins" players={stats.topByCoins} field="coins" />
-                  <AdminTopList title="Top by catches" players={stats.topByCatches} field="total_catches" />
+                  <AdminTopList toneClass={getAdminToneClass('violet')} title="Top by level" players={stats.topByLevel} field="level" />
+                  <AdminTopList toneClass={getAdminToneClass('amber')} title="Top by coins" players={stats.topByCoins} field="coins" />
+                  <AdminTopList toneClass={getAdminToneClass('green')} title="Top by catches" players={stats.topByCatches} field="total_catches" />
                 </div>
 
                 <AdminSuspiciousCenter
@@ -951,10 +956,10 @@ export default function Admin() {
             )}
           </TabsContent>
 
-          <TabsContent value="players" className="space-y-4">
+          <TabsContent value="players" className="admin-tone-green space-y-4">
             <AdminSectionIntro tab="players" />
 
-            <div className="rounded-lg border border-black/10 bg-white/90 p-3 shadow-sm shadow-black/5">
+            <div className="admin-tone-green rounded-lg border border-black/10 bg-white/90 p-3 shadow-sm shadow-black/5">
               <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-center gap-2">
                   <h3 className="text-sm font-semibold text-slate-950">Find user</h3>
@@ -981,7 +986,7 @@ export default function Admin() {
               </div>
             </div>
 
-            <Card className="overflow-hidden border-black/10 bg-white/95 shadow-sm shadow-black/5">
+            <Card className="admin-tone-green overflow-hidden border-black/10 bg-white/95 shadow-sm shadow-black/5">
               <CardHeader className="flex flex-row items-center justify-between gap-3 border-b border-black/10">
                 <div className="min-w-0">
                   <CardTitle className="text-base text-slate-950">User accounts</CardTitle>
@@ -1109,11 +1114,11 @@ export default function Admin() {
             )}
           </TabsContent>
 
-          <TabsContent value="messages" className="space-y-4">
+          <TabsContent value="messages" className="admin-tone-violet space-y-4">
             <AdminSectionIntro tab="messages" />
 
             <div className="grid gap-4 lg:grid-cols-[18rem,1fr]">
-              <Card className="border-zinc-800 bg-zinc-950">
+              <Card className="admin-tone-violet border-zinc-800 bg-zinc-950">
                 <CardHeader>
                   <CardTitle className="text-base text-zinc-100">Select player</CardTitle>
                 </CardHeader>
@@ -1155,7 +1160,7 @@ export default function Admin() {
               </Card>
 
               <div className="space-y-3">
-                <div className="rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3">
+                <div className="admin-tone-violet rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3">
                   <p className="text-sm font-semibold text-zinc-100">{messageListTitle}</p>
                   <p className="mt-1 text-xs text-zinc-400">
                     Send a personal in-game inbox message. Messages are visible in Settings - Inbox.
@@ -1175,7 +1180,7 @@ export default function Admin() {
             </div>
           </TabsContent>
 
-          <TabsContent value="withdrawals" className="space-y-4">
+          <TabsContent value="withdrawals" className="admin-tone-amber space-y-4">
             <AdminSectionIntro tab="withdrawals" />
 
             <AdminWithdrawRequestCenter
@@ -1195,7 +1200,7 @@ export default function Admin() {
             />
           </TabsContent>
 
-          <TabsContent value="weekly" className="space-y-4">
+          <TabsContent value="weekly" className="admin-tone-rose space-y-4">
             <AdminSectionIntro tab="weekly" />
 
             <AdminWeeklyPayoutCenter
@@ -1214,7 +1219,7 @@ export default function Admin() {
             />
           </TabsContent>
 
-          <TabsContent value="social" className="space-y-4">
+          <TabsContent value="social" className="admin-tone-slate space-y-4">
             <AdminSectionIntro tab="social" />
 
             <AdminSocialTaskCenter
@@ -1255,12 +1260,12 @@ export default function Admin() {
             </DialogHeader>
             {editPlayer && editForm && (
               <div className="space-y-4">
-                <div className="rounded-lg border border-black/10 bg-slate-50 px-3 py-2">
+                <div className="admin-tone-slate rounded-lg border border-black/10 bg-slate-50 px-3 py-2">
                   <p className="text-xs font-semibold text-slate-500">Wallet</p>
                   <p className="font-mono text-sm text-slate-700">{editPlayer.wallet_address}</p>
                 </div>
 
-                <div className="rounded-lg border border-black/10 bg-white p-3">
+                <div className="admin-tone-green rounded-lg border border-black/10 bg-white p-3">
                   <div className="mb-3 flex items-center gap-2">
                     <h3 className="text-sm font-semibold text-slate-950">User basics</h3>
                     <AdminInfoPopover title="User basics">
@@ -1294,7 +1299,7 @@ export default function Admin() {
                   </div>
                 </div>
 
-                <Accordion type="single" collapsible className="rounded-lg border border-black/10 bg-white">
+                <Accordion type="single" collapsible className="admin-tone-violet rounded-lg border border-black/10 bg-white">
                   <AccordionItem value="advanced-json" className="border-0">
                     <AccordionTrigger className="px-3 py-3 text-sm font-semibold text-slate-950 hover:no-underline">
                       Advanced JSON fields

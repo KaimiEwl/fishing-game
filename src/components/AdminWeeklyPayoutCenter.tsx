@@ -34,7 +34,7 @@ const AdminWeeklyPayoutCenter: React.FC<AdminWeeklyPayoutCenterProps> = ({
 }) => (
   <div className="space-y-4">
     <div className="grid gap-4 md:grid-cols-[1.05fr,0.95fr]">
-      <Card className="border-zinc-800 bg-zinc-950">
+      <Card className="admin-tone-rose border-zinc-800 bg-zinc-950">
         <CardHeader className="flex flex-row items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
@@ -64,7 +64,7 @@ const AdminWeeklyPayoutCenter: React.FC<AdminWeeklyPayoutCenterProps> = ({
         </CardHeader>
         <CardContent className="space-y-3">
           {preview.length > 0 ? preview.map((entry) => (
-            <div key={`${entry.rank}-${entry.walletAddress}`} className="rounded-lg border border-zinc-800 bg-black/60 px-4 py-3">
+            <div key={`${entry.rank}-${entry.walletAddress}`} className="admin-tone-rose rounded-lg border border-zinc-800 bg-black/60 px-4 py-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold text-zinc-100">#{entry.rank} {entry.name}</p>
@@ -85,7 +85,7 @@ const AdminWeeklyPayoutCenter: React.FC<AdminWeeklyPayoutCenterProps> = ({
         </CardContent>
       </Card>
 
-      <Card className="border-zinc-800 bg-zinc-950">
+      <Card className="admin-tone-violet border-zinc-800 bg-zinc-950">
         <CardHeader>
           <div className="flex items-center justify-between gap-3">
             <CardTitle className="flex items-center gap-2 text-base text-zinc-100">
@@ -101,7 +101,7 @@ const AdminWeeklyPayoutCenter: React.FC<AdminWeeklyPayoutCenterProps> = ({
           <ScrollArea className="h-[25rem] pr-3">
             <div className="space-y-3">
               {batches.map((batch) => (
-                <div key={batch.id} className="rounded-lg border border-zinc-800 bg-black/60 px-4 py-3">
+                <div key={batch.id} className="admin-tone-violet rounded-lg border border-zinc-800 bg-black/60 px-4 py-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-sm font-semibold text-zinc-100">Week {batch.weekKey}</p>

@@ -49,6 +49,21 @@ const getStatusTone = (status: WithdrawRequestStatus) => {
   }
 };
 
+const getStatusGlassTone = (status: WithdrawRequestStatus) => {
+  switch (status) {
+    case 'pending':
+      return 'admin-tone-amber';
+    case 'approved':
+      return 'admin-tone-blue';
+    case 'rejected':
+      return 'admin-tone-rose';
+    case 'paid':
+      return 'admin-tone-green';
+    default:
+      return 'admin-tone-slate';
+  }
+};
+
 const AdminWithdrawRequestCenter: React.FC<AdminWithdrawRequestCenterProps> = ({
   requests,
   summary,
@@ -71,7 +86,7 @@ const AdminWithdrawRequestCenter: React.FC<AdminWithdrawRequestCenterProps> = ({
   return (
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-4">
-        <Card className="border-zinc-800 bg-zinc-950">
+        <Card className="admin-tone-amber border-zinc-800 bg-zinc-950">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-zinc-300">Pending</CardTitle>
           </CardHeader>
@@ -80,7 +95,7 @@ const AdminWithdrawRequestCenter: React.FC<AdminWithdrawRequestCenterProps> = ({
             <p className="mt-1 text-xs text-zinc-500">{formatMonAmount(summary?.pending_amount_mon ?? 0)} MON</p>
           </CardContent>
         </Card>
-        <Card className="border-zinc-800 bg-zinc-950">
+        <Card className="admin-tone-blue border-zinc-800 bg-zinc-950">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-zinc-300">Approved</CardTitle>
           </CardHeader>
@@ -88,7 +103,7 @@ const AdminWithdrawRequestCenter: React.FC<AdminWithdrawRequestCenterProps> = ({
             <p className="text-2xl font-black text-cyan-100">{summary?.approved_count ?? 0}</p>
           </CardContent>
         </Card>
-        <Card className="border-zinc-800 bg-zinc-950">
+        <Card className="admin-tone-rose border-zinc-800 bg-zinc-950">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-zinc-300">Rejected</CardTitle>
           </CardHeader>
@@ -96,7 +111,7 @@ const AdminWithdrawRequestCenter: React.FC<AdminWithdrawRequestCenterProps> = ({
             <p className="text-2xl font-black text-red-200">{summary?.rejected_count ?? 0}</p>
           </CardContent>
         </Card>
-        <Card className="border-zinc-800 bg-zinc-950">
+        <Card className="admin-tone-green border-zinc-800 bg-zinc-950">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-zinc-300">Paid</CardTitle>
           </CardHeader>
@@ -106,7 +121,7 @@ const AdminWithdrawRequestCenter: React.FC<AdminWithdrawRequestCenterProps> = ({
         </Card>
       </div>
 
-      <Card className="border-zinc-800 bg-zinc-950">
+      <Card className="admin-tone-amber border-zinc-800 bg-zinc-950">
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-2">
             <CardTitle className="text-base text-zinc-100">Withdraw queue</CardTitle>
@@ -144,7 +159,7 @@ const AdminWithdrawRequestCenter: React.FC<AdminWithdrawRequestCenterProps> = ({
                 const isProcessing = processingRequestId === request.id;
 
                 return (
-                  <div key={request.id} className="rounded-lg border border-zinc-800 bg-black/60 px-4 py-3">
+                  <div key={request.id} className={cn('rounded-lg border border-zinc-800 bg-black/60 px-4 py-3', getStatusGlassTone(request.status))}>
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                       <div className="min-w-0 space-y-1">
                         <div className="flex flex-wrap items-center gap-2">

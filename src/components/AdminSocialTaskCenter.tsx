@@ -38,6 +38,13 @@ const STATUS_TONES: Record<AdminSocialTaskVerification['status'], string> = {
   claimed: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200',
 };
 
+const STATUS_GLASS_TONES: Record<AdminSocialTaskVerification['status'], string> = {
+  available: 'admin-tone-slate',
+  pending_verification: 'admin-tone-amber',
+  verified: 'admin-tone-blue',
+  claimed: 'admin-tone-green',
+};
+
 const formatDateTime = (value: string) => new Date(value).toLocaleString();
 
 const STATUS_ACTIONS: AdminSocialTaskVerification['status'][] = [
@@ -60,7 +67,7 @@ const AdminSocialTaskCenter: React.FC<AdminSocialTaskCenterProps> = ({
   onSetStatus,
 }) => (
   <div className="space-y-4">
-    <Card className="border-zinc-800 bg-zinc-950">
+    <Card className="admin-tone-slate border-zinc-800 bg-zinc-950">
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-2">
           <CardTitle className="text-base text-zinc-100">Social task verification</CardTitle>
@@ -101,7 +108,7 @@ const AdminSocialTaskCenter: React.FC<AdminSocialTaskCenterProps> = ({
               const isProcessing = processingVerificationId === verification.id;
 
               return (
-                <div key={verification.id} className="rounded-lg border border-zinc-800 bg-black/60 px-4 py-3">
+                <div key={verification.id} className={cn('rounded-lg border border-zinc-800 bg-black/60 px-4 py-3', STATUS_GLASS_TONES[verification.status])}>
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="space-y-1">
                       <div className="flex flex-wrap items-center gap-2">

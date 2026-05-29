@@ -1,5 +1,9 @@
 # STATUS
 
+## 2026-05-29 admin Liquid Glass color pass
+- Strengthened `/admin` Liquid Glass reflections with brighter diagonal highlights, subtle background color lenses, and accent-colored glass shadows.
+- Added semantic tone classes across admin tabs and major blocks so overview, player support, messages, payouts, weekly rewards, social checks, risk signals, and player details each get a distinct but soft color treatment.
+
 ## 2026-05-29 admin Liquid Glass pass
 - Applied a scoped Liquid Glass layer to `/admin`: translucent panels, backdrop blur/saturation, white edge reflections, soft inner highlights, and a subtle glass navigation dock.
 - Updated admin info popovers to use the same glass treatment so help stays compact while still feeling part of the interface.

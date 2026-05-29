@@ -90,7 +90,7 @@ const AdminPlayerDetailSheet: React.FC<AdminPlayerDetailSheetProps> = ({
               ) : (
                 <>
                   <div className="grid gap-4 md:grid-cols-2">
-                    <Card className="border-zinc-800 bg-zinc-950">
+                    <Card className="admin-tone-blue border-zinc-800 bg-zinc-950">
                       <CardHeader>
                         <CardTitle className="flex items-center justify-between gap-3 text-base text-zinc-100">
                           <span>Profile</span>
@@ -119,7 +119,7 @@ const AdminPlayerDetailSheet: React.FC<AdminPlayerDetailSheetProps> = ({
                       </CardContent>
                     </Card>
 
-                    <Card className="border-zinc-800 bg-zinc-950">
+                    <Card className="admin-tone-amber border-zinc-800 bg-zinc-950">
                       <CardHeader>
                         <CardTitle className="flex items-center justify-between gap-3 text-base text-zinc-100">
                           <span>Economy</span>
@@ -162,7 +162,7 @@ const AdminPlayerDetailSheet: React.FC<AdminPlayerDetailSheetProps> = ({
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
-                    <Card className="border-zinc-800 bg-zinc-950">
+                    <Card className="admin-tone-green border-zinc-800 bg-zinc-950">
                       <CardHeader>
                         <CardTitle className="flex items-center justify-between gap-3 text-base text-zinc-100">
                           <span>Referral + grill</span>
@@ -202,7 +202,7 @@ const AdminPlayerDetailSheet: React.FC<AdminPlayerDetailSheetProps> = ({
                       </CardContent>
                     </Card>
 
-                    <Card className="border-zinc-800 bg-zinc-950">
+                    <Card className="admin-tone-green border-zinc-800 bg-zinc-950">
                       <CardHeader>
                         <CardTitle className="flex items-center justify-between gap-3 text-base text-zinc-100">
                           <span>Quick grants</span>
@@ -262,7 +262,7 @@ const AdminPlayerDetailSheet: React.FC<AdminPlayerDetailSheetProps> = ({
                   </div>
 
                   {progressProfile && (
-                    <Card className="border-zinc-800 bg-zinc-950">
+                    <Card className="admin-tone-violet border-zinc-800 bg-zinc-950">
                       <CardHeader>
                         <CardTitle className="flex items-center justify-between gap-3 text-base text-zinc-100">
                           <span className="flex items-center gap-2">
@@ -351,7 +351,7 @@ const AdminPlayerDetailSheet: React.FC<AdminPlayerDetailSheetProps> = ({
                     </Card>
                   )}
 
-                  <Card className="border-zinc-800 bg-zinc-950">
+                  <Card className="admin-tone-rose border-zinc-800 bg-zinc-950">
                     <CardHeader>
                       <CardTitle className="flex items-center justify-between gap-3 text-base text-zinc-100">
                         <span className="flex items-center gap-2">
@@ -377,7 +377,7 @@ const AdminPlayerDetailSheet: React.FC<AdminPlayerDetailSheetProps> = ({
                   </Card>
 
                   <div className="grid gap-4 md:grid-cols-[0.95fr,1.05fr]">
-                    <Card className="border-zinc-800 bg-zinc-950">
+                    <Card className="admin-tone-green border-zinc-800 bg-zinc-950">
                       <CardHeader>
                         <CardTitle className="flex items-center justify-between gap-3 text-base text-zinc-100">
                           <span>Inventory summary</span>
@@ -400,7 +400,7 @@ const AdminPlayerDetailSheet: React.FC<AdminPlayerDetailSheetProps> = ({
                       </CardContent>
                     </Card>
 
-                    <Card className="border-zinc-800 bg-zinc-950">
+                    <Card className="admin-tone-blue border-zinc-800 bg-zinc-950">
                       <CardHeader>
                         <CardTitle className="flex items-center justify-between gap-3 text-base text-zinc-100">
                           <span className="flex items-center gap-2">

@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { AdminPlayer } from '@/hooks/useAdmin';
+import { cn } from '@/lib/utils';
 
 type TopListField = 'level' | 'coins' | 'total_catches';
 
@@ -7,10 +8,11 @@ interface AdminTopListProps {
   title: string;
   players: AdminPlayer[];
   field: TopListField;
+  toneClass?: string;
 }
 
-const AdminTopList = ({ title, players, field }: AdminTopListProps) => (
-  <Card>
+const AdminTopList = ({ title, players, field, toneClass }: AdminTopListProps) => (
+  <Card className={cn(toneClass)}>
     <CardHeader>
       <CardTitle className="text-base">{title}</CardTitle>
     </CardHeader>

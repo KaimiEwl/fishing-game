@@ -93,7 +93,7 @@ const AdminPlayerMessageCenter: React.FC<AdminPlayerMessageCenterProps> = ({
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1.05fr,0.95fr]">
-      <Card className="border-zinc-800 bg-zinc-950">
+      <Card className="admin-tone-violet border-zinc-800 bg-zinc-950">
         <CardHeader>
           <CardTitle className="flex items-center justify-between gap-3 text-base text-zinc-100">
             <span>Message history</span>
@@ -113,7 +113,7 @@ const AdminPlayerMessageCenter: React.FC<AdminPlayerMessageCenterProps> = ({
               {player ? (
                 <>
                   {messages.map((message) => (
-                    <div key={message.id} className="rounded-lg border border-zinc-800 bg-black/60 px-3 py-3">
+                    <div key={message.id} className="admin-tone-violet rounded-lg border border-zinc-800 bg-black/60 px-3 py-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="truncate text-sm font-semibold text-zinc-100">{message.title}</p>
@@ -151,7 +151,7 @@ const AdminPlayerMessageCenter: React.FC<AdminPlayerMessageCenterProps> = ({
         </CardContent>
       </Card>
 
-      <Card className="border-zinc-800 bg-zinc-950">
+      <Card className="admin-tone-blue border-zinc-800 bg-zinc-950">
         <CardHeader>
           <CardTitle className="flex items-center justify-between gap-3 text-base text-zinc-100">
             <span>Send inbox message</span>
@@ -161,7 +161,7 @@ const AdminPlayerMessageCenter: React.FC<AdminPlayerMessageCenterProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="rounded-lg border border-zinc-800 bg-black/50 px-3 py-3 text-sm text-zinc-300">
+          <div className="admin-tone-green rounded-lg border border-zinc-800 bg-black/50 px-3 py-3 text-sm text-zinc-300">
             {player ? (
               <>
                 Personal target:{' '}
@@ -174,7 +174,7 @@ const AdminPlayerMessageCenter: React.FC<AdminPlayerMessageCenterProps> = ({
             )}
           </div>
 
-          <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-3 text-sm text-amber-50">
+          <div className="admin-tone-amber rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-3 text-sm text-amber-50">
             Broadcast audience: {totalPlayers.toLocaleString()} player{totalPlayers === 1 ? '' : 's'}
           </div>
 

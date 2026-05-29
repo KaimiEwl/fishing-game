@@ -26,26 +26,31 @@ const summaryCards = (summary: AdminSuspiciousSummary | null) => [
     label: 'Flagged players',
     value: summary?.flaggedPlayers ?? 0,
     icon: <AlertTriangle className="h-4 w-4 text-yellow-300" />,
+    toneClass: 'admin-tone-amber',
   },
   {
     label: 'High coin gain',
     value: summary?.highCoinGainPlayers ?? 0,
     icon: <Coins className="h-4 w-4 text-amber-300" />,
+    toneClass: 'admin-tone-amber',
   },
   {
     label: 'High bait gain',
     value: summary?.highBaitGainPlayers ?? 0,
     icon: <Shield className="h-4 w-4 text-cyan-100" />,
+    toneClass: 'admin-tone-blue',
   },
   {
     label: 'Withdraw spam',
     value: summary?.withdrawSpamPlayers ?? 0,
     icon: <ArrowUpRight className="h-4 w-4 text-emerald-300" />,
+    toneClass: 'admin-tone-green',
   },
   {
     label: 'Rate-limit pressure',
     value: summary?.rateLimitedSubjects ?? 0,
     icon: <Activity className="h-4 w-4 text-rose-300" />,
+    toneClass: 'admin-tone-rose',
   },
 ];
 
@@ -59,7 +64,7 @@ const AdminSuspiciousCenter: React.FC<AdminSuspiciousCenterProps> = ({
   <div className="space-y-4">
     <div className="grid gap-4 md:grid-cols-5">
       {summaryCards(summary).map((item) => (
-        <Card key={item.label} className="border-zinc-800 bg-zinc-950">
+        <Card key={item.label} className={`${item.toneClass} border-zinc-800 bg-zinc-950`}>
           <CardContent className="flex items-center justify-between gap-3 p-4">
             <div>
               <p className="text-xs uppercase tracking-wide text-zinc-500">{item.label}</p>
@@ -73,7 +78,7 @@ const AdminSuspiciousCenter: React.FC<AdminSuspiciousCenterProps> = ({
       ))}
     </div>
 
-    <Card className="border-zinc-800 bg-zinc-950">
+    <Card className="admin-tone-amber border-zinc-800 bg-zinc-950">
       <CardHeader className="flex flex-row items-center justify-between gap-3">
         <div>
           <CardTitle className="flex items-center gap-2 text-base text-zinc-100">
@@ -101,7 +106,7 @@ const AdminSuspiciousCenter: React.FC<AdminSuspiciousCenterProps> = ({
         <ScrollArea className="h-[22rem] pr-3">
           <div className="space-y-3">
             {players.length > 0 ? players.map((player) => (
-              <div key={player.walletAddress} className="rounded-lg border border-zinc-800 bg-black/60 px-4 py-3">
+              <div key={player.walletAddress} className="admin-tone-rose rounded-lg border border-zinc-800 bg-black/60 px-4 py-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
