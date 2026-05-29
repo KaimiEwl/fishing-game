@@ -1,5 +1,9 @@
 # STATUS
 
+## 2026-05-29 admin Liquid Glass restraint pass
+- Dialed `/admin` Liquid Glass colors back from per-section gradients to a mostly neutral glass palette with only faint cool/warm tinting.
+- Kept reflections and glass depth, but reduced accent opacity so blocks no longer read as individually repainted.
+
 ## 2026-05-29 admin Liquid Glass color pass
 - Strengthened `/admin` Liquid Glass reflections with brighter diagonal highlights, subtle background color lenses, and accent-colored glass shadows.
 - Added semantic tone classes across admin tabs and major blocks so overview, player support, messages, payouts, weekly rewards, social checks, risk signals, and player details each get a distinct but soft color treatment.

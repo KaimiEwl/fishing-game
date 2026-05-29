@@ -211,17 +211,15 @@
 
 @layer components {
   .admin-shell {
-    --admin-accent-rgb: 14, 165, 233;
-    --admin-accent-deep-rgb: 37, 99, 235;
-    --admin-accent-glow-rgb: 125, 211, 252;
-    --admin-accent-shadow: rgba(14, 165, 233, 0.14);
+    --admin-accent-rgb: 96, 165, 250;
+    --admin-accent-deep-rgb: 51, 65, 85;
+    --admin-accent-glow-rgb: 186, 230, 253;
+    --admin-accent-shadow: rgba(37, 99, 235, 0.06);
     color: #1d1d1f;
     background:
-      radial-gradient(circle at 8% 12%, rgba(45, 212, 191, 0.2), rgba(45, 212, 191, 0) 22rem),
-      radial-gradient(circle at 88% 8%, rgba(168, 85, 247, 0.2), rgba(168, 85, 247, 0) 24rem),
-      radial-gradient(circle at 76% 78%, rgba(251, 191, 36, 0.18), rgba(251, 191, 36, 0) 25rem),
-      radial-gradient(circle at 18% 84%, rgba(56, 189, 248, 0.18), rgba(56, 189, 248, 0) 24rem),
-      linear-gradient(115deg, rgba(255, 255, 255, 0.78) 0%, rgba(236, 249, 255, 0.72) 28%, rgba(248, 246, 255, 0.76) 62%, rgba(255, 251, 242, 0.9) 100%),
+      radial-gradient(circle at 12% 16%, rgba(125, 211, 252, 0.12), rgba(125, 211, 252, 0) 22rem),
+      radial-gradient(circle at 86% 82%, rgba(251, 207, 232, 0.1), rgba(251, 207, 232, 0) 25rem),
+      linear-gradient(115deg, rgba(255, 255, 255, 0.84) 0%, rgba(239, 248, 255, 0.7) 42%, rgba(255, 250, 245, 0.78) 100%),
       linear-gradient(180deg, #f9fbff 0%, #eef6ff 46%, #fbf8ff 100%) !important;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     position: relative;
@@ -230,50 +228,50 @@
 
   .admin-shell :where(.admin-tone-blue),
   .admin-shell.admin-tone-blue {
-    --admin-accent-rgb: 14, 165, 233;
-    --admin-accent-deep-rgb: 37, 99, 235;
-    --admin-accent-glow-rgb: 125, 211, 252;
-    --admin-accent-shadow: rgba(14, 165, 233, 0.15);
+    --admin-accent-rgb: 96, 165, 250;
+    --admin-accent-deep-rgb: 51, 65, 85;
+    --admin-accent-glow-rgb: 186, 230, 253;
+    --admin-accent-shadow: rgba(37, 99, 235, 0.06);
   }
 
   .admin-shell :where(.admin-tone-green),
   .admin-shell.admin-tone-green {
-    --admin-accent-rgb: 16, 185, 129;
-    --admin-accent-deep-rgb: 5, 150, 105;
-    --admin-accent-glow-rgb: 110, 231, 183;
-    --admin-accent-shadow: rgba(16, 185, 129, 0.15);
+    --admin-accent-rgb: 94, 234, 212;
+    --admin-accent-deep-rgb: 51, 65, 85;
+    --admin-accent-glow-rgb: 204, 251, 241;
+    --admin-accent-shadow: rgba(20, 184, 166, 0.045);
   }
 
   .admin-shell :where(.admin-tone-amber),
   .admin-shell.admin-tone-amber {
-    --admin-accent-rgb: 245, 158, 11;
-    --admin-accent-deep-rgb: 217, 119, 6;
-    --admin-accent-glow-rgb: 253, 224, 71;
-    --admin-accent-shadow: rgba(245, 158, 11, 0.16);
+    --admin-accent-rgb: 252, 211, 77;
+    --admin-accent-deep-rgb: 51, 65, 85;
+    --admin-accent-glow-rgb: 254, 243, 199;
+    --admin-accent-shadow: rgba(245, 158, 11, 0.045);
   }
 
   .admin-shell :where(.admin-tone-rose),
   .admin-shell.admin-tone-rose {
-    --admin-accent-rgb: 244, 63, 94;
-    --admin-accent-deep-rgb: 225, 29, 72;
-    --admin-accent-glow-rgb: 251, 113, 133;
-    --admin-accent-shadow: rgba(244, 63, 94, 0.14);
+    --admin-accent-rgb: 251, 113, 133;
+    --admin-accent-deep-rgb: 51, 65, 85;
+    --admin-accent-glow-rgb: 255, 228, 230;
+    --admin-accent-shadow: rgba(244, 63, 94, 0.045);
   }
 
   .admin-shell :where(.admin-tone-violet),
   .admin-shell.admin-tone-violet {
-    --admin-accent-rgb: 139, 92, 246;
-    --admin-accent-deep-rgb: 124, 58, 237;
-    --admin-accent-glow-rgb: 196, 181, 253;
-    --admin-accent-shadow: rgba(139, 92, 246, 0.15);
+    --admin-accent-rgb: 196, 181, 253;
+    --admin-accent-deep-rgb: 51, 65, 85;
+    --admin-accent-glow-rgb: 237, 233, 254;
+    --admin-accent-shadow: rgba(139, 92, 246, 0.045);
   }
 
   .admin-shell :where(.admin-tone-slate),
   .admin-shell.admin-tone-slate {
-    --admin-accent-rgb: 100, 116, 139;
-    --admin-accent-deep-rgb: 71, 85, 105;
-    --admin-accent-glow-rgb: 148, 163, 184;
-    --admin-accent-shadow: rgba(100, 116, 139, 0.14);
+    --admin-accent-rgb: 148, 163, 184;
+    --admin-accent-deep-rgb: 51, 65, 85;
+    --admin-accent-glow-rgb: 226, 232, 240;
+    --admin-accent-shadow: rgba(100, 116, 139, 0.045);
   }
 
   .admin-shell::before {
@@ -283,10 +281,9 @@
     z-index: 0;
     pointer-events: none;
     background:
-      linear-gradient(118deg, rgba(255, 255, 255, 0.76) 0%, rgba(255, 255, 255, 0.18) 12%, rgba(255, 255, 255, 0) 26%),
-      linear-gradient(62deg, rgba(56, 189, 248, 0.18) 0%, rgba(255, 255, 255, 0) 44%),
-      linear-gradient(156deg, rgba(167, 139, 250, 0.16) 0%, rgba(255, 255, 255, 0) 46%),
-      linear-gradient(24deg, rgba(255, 255, 255, 0) 36%, rgba(255, 255, 255, 0.42) 43%, rgba(255, 255, 255, 0.04) 50%, rgba(255, 255, 255, 0) 60%);
+      linear-gradient(118deg, rgba(255, 255, 255, 0.76) 0%, rgba(255, 255, 255, 0.16) 12%, rgba(255, 255, 255, 0) 26%),
+      linear-gradient(62deg, rgba(56, 189, 248, 0.08) 0%, rgba(255, 255, 255, 0) 44%),
+      linear-gradient(24deg, rgba(255, 255, 255, 0) 36%, rgba(255, 255, 255, 0.28) 43%, rgba(255, 255, 255, 0.03) 50%, rgba(255, 255, 255, 0) 60%);
     mix-blend-mode: screen;
   }
 
@@ -296,7 +293,7 @@
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    opacity: 0.5;
+    opacity: 0.36;
     background-image:
       linear-gradient(112deg, rgba(255, 255, 255, 0) 0 38%, rgba(255, 255, 255, 0.34) 44%, rgba(255, 255, 255, 0.06) 51%, rgba(255, 255, 255, 0) 60%),
       linear-gradient(90deg, rgba(255, 255, 255, 0.5) 0 1px, transparent 1px),
@@ -351,10 +348,10 @@
     pointer-events: none;
     border-radius: inherit;
     background:
-      linear-gradient(136deg, rgba(255, 255, 255, 0.88) 0%, rgba(255, 255, 255, 0.34) 18%, rgba(255, 255, 255, 0) 42%),
-      linear-gradient(24deg, rgba(var(--admin-accent-glow-rgb), 0.3), rgba(255, 255, 255, 0) 42%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 34%);
-    opacity: 0.96;
+      linear-gradient(136deg, rgba(255, 255, 255, 0.84) 0%, rgba(255, 255, 255, 0.26) 18%, rgba(255, 255, 255, 0) 42%),
+      linear-gradient(24deg, rgba(var(--admin-accent-glow-rgb), 0.12), rgba(255, 255, 255, 0) 42%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0) 34%);
+    opacity: 0.82;
   }
 
   .admin-shell :where(header, .rounded-lg.border, .rounded-xl.border, .rounded-2xl.border, .admin-dialog, .admin-panel-sheet)::after,
@@ -367,9 +364,9 @@
     border-radius: inherit;
     background:
       linear-gradient(118deg, rgba(255, 255, 255, 0) 0 39%, rgba(255, 255, 255, 0.56) 46%, rgba(255, 255, 255, 0.16) 53%, rgba(255, 255, 255, 0) 64%),
-      radial-gradient(circle at 24% 18%, rgba(var(--admin-accent-rgb), 0.26), rgba(var(--admin-accent-rgb), 0) 36%),
-      radial-gradient(circle at 88% 76%, rgba(var(--admin-accent-glow-rgb), 0.2), rgba(var(--admin-accent-glow-rgb), 0) 34%);
-    opacity: 0.82;
+      radial-gradient(circle at 24% 18%, rgba(var(--admin-accent-rgb), 0.08), rgba(var(--admin-accent-rgb), 0) 36%),
+      radial-gradient(circle at 88% 76%, rgba(var(--admin-accent-glow-rgb), 0.08), rgba(var(--admin-accent-glow-rgb), 0) 34%);
+    opacity: 0.5;
     mix-blend-mode: screen;
   }
 
@@ -394,7 +391,7 @@
     .bg-black\/70
   ) {
     background:
-      linear-gradient(145deg, rgba(255, 255, 255, 0.8), rgba(var(--admin-accent-rgb), 0.14) 40%, rgba(var(--admin-accent-glow-rgb), 0.1) 70%, rgba(255, 255, 255, 0.66)),
+      linear-gradient(145deg, rgba(255, 255, 255, 0.82), rgba(var(--admin-accent-rgb), 0.045) 44%, rgba(255, 255, 255, 0.64)),
       rgba(255, 255, 255, 0.48) !important;
     -webkit-backdrop-filter: blur(24px) saturate(1.55);
     backdrop-filter: blur(24px) saturate(1.55);
@@ -501,13 +498,13 @@
   }
 
   .admin-shell tbody tr:hover td {
-    background-color: rgba(var(--admin-accent-rgb), 0.08);
+    background-color: rgba(96, 165, 250, 0.045);
   }
 
   .admin-shell input,
   .admin-shell textarea {
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(var(--admin-accent-rgb), 0.08)),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(239, 246, 255, 0.5)),
       rgba(255, 255, 255, 0.52) !important;
     color: #1d1d1f !important;
     border-color: rgba(255, 255, 255, 0.72) !important;
@@ -528,7 +525,7 @@
 
   .admin-shell [role='tab'] {
     background:
-      linear-gradient(145deg, rgba(255, 255, 255, 0.76), rgba(var(--admin-accent-rgb), 0.08) 64%, rgba(255, 255, 255, 0.46)),
+      linear-gradient(145deg, rgba(255, 255, 255, 0.76), rgba(239, 246, 255, 0.44) 64%, rgba(255, 255, 255, 0.46)),
       rgba(255, 255, 255, 0.48) !important;
     border-color: rgba(255, 255, 255, 0.72) !important;
     position: relative;
@@ -537,10 +534,10 @@
 
   .admin-shell [role='tab'][data-state='active'] {
     background:
-      linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(var(--admin-accent-rgb), 0.18) 58%, rgba(var(--admin-accent-glow-rgb), 0.14)),
+      linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(219, 234, 254, 0.48) 58%, rgba(255, 255, 255, 0.62)),
       rgba(255, 255, 255, 0.7) !important;
-    border-color: rgba(var(--admin-accent-rgb), 0.32) !important;
-    color: rgb(var(--admin-accent-deep-rgb)) !important;
+    border-color: rgba(96, 165, 250, 0.22) !important;
+    color: #334155 !important;
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.92),
       0 12px 32px var(--admin-accent-shadow) !important;
@@ -563,7 +560,7 @@
   .admin-dialog,
   .admin-panel-sheet {
     background:
-      linear-gradient(145deg, rgba(255, 255, 255, 0.86), rgba(var(--admin-accent-rgb), 0.1) 48%, rgba(255, 255, 255, 0.6)),
+      linear-gradient(145deg, rgba(255, 255, 255, 0.86), rgba(239, 246, 255, 0.5) 48%, rgba(255, 255, 255, 0.6)),
       rgba(255, 255, 255, 0.62) !important;
     color: #1d1d1f !important;
     border-color: rgba(255, 255, 255, 0.74) !important;
@@ -580,7 +577,7 @@
     overflow: hidden;
     isolation: isolate;
     background:
-      linear-gradient(145deg, rgba(255, 255, 255, 0.84), rgba(var(--admin-accent-rgb), 0.1) 50%, rgba(255, 255, 255, 0.58)),
+      linear-gradient(145deg, rgba(255, 255, 255, 0.84), rgba(239, 246, 255, 0.48) 50%, rgba(255, 255, 255, 0.58)),
       rgba(255, 255, 255, 0.58) !important;
     border-color: rgba(255, 255, 255, 0.74) !important;
     -webkit-backdrop-filter: blur(26px) saturate(1.55);
@@ -593,7 +590,7 @@
 
   .admin-glass-icon-button {
     background:
-      linear-gradient(145deg, rgba(255, 255, 255, 0.84), rgba(var(--admin-accent-rgb), 0.1)),
+      linear-gradient(145deg, rgba(255, 255, 255, 0.84), rgba(239, 246, 255, 0.46)),
       rgba(255, 255, 255, 0.48) !important;
     border-color: rgba(255, 255, 255, 0.78) !important;
     -webkit-backdrop-filter: blur(18px) saturate(1.45);
@@ -601,12 +598,12 @@
   }
 
   .admin-shell :where(.admin-tone-blue, .admin-tone-green, .admin-tone-amber, .admin-tone-rose, .admin-tone-violet, .admin-tone-slate) :where(.text-primary) {
-    color: rgb(var(--admin-accent-deep-rgb)) !important;
+    color: #334155 !important;
   }
 
   .admin-shell :where(.admin-tone-blue, .admin-tone-green, .admin-tone-amber, .admin-tone-rose, .admin-tone-violet, .admin-tone-slate) :where(.bg-primary, .bg-accent-foreground) {
     background:
-      linear-gradient(90deg, rgb(var(--admin-accent-deep-rgb)), rgb(var(--admin-accent-rgb))) !important;
+      linear-gradient(90deg, #64748b, #60a5fa) !important;
   }
 }
 
