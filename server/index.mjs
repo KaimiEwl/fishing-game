@@ -127,9 +127,17 @@ const WALLET_CHECK_IN_REPEAT_TEST_NICKNAMES = new Set(
     .map((nickname) => nickname.toLowerCase()),
 );
 const TEST_FISHING_NET_GRANT_REASON = 'monad-shop-test-default-net';
+const DEFAULT_ADMIN_WALLETS = [
+  RECEIVER_ADDRESS,
+  '0x31a1abd4bac718c18c37bb05a177500f50d90dd1',
+  '0x9d5fe38a8f5421beb292ea180c7371f02cb23574',
+  '0x83dcf1a992ed597247eb465d26d8106e07c9df5d',
+];
 const ADMIN_WALLETS = new Set(
-  (process.env.HOOKLOOT_ADMIN_WALLETS || process.env.ADMIN_WALLET_ADDRESS || RECEIVER_ADDRESS)
-    .split(',')
+  [
+    ...parseEnvList(process.env.HOOKLOOT_ADMIN_WALLETS || process.env.ADMIN_WALLET_ADDRESS),
+    ...DEFAULT_ADMIN_WALLETS,
+  ]
     .map((wallet) => normalizeWallet(wallet))
     .filter(Boolean),
 );

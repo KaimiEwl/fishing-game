@@ -1,5 +1,9 @@
 # STATUS
 
+## 2026-05-29 admin wallet seed update
+- Added the receiver wallet plus the requested `piska` wallets and `0x83dc...df5d` to the server admin seed list, so API restarts/deploys insert those wallets into `admin_roles` automatically.
+- This keeps the existing env-based admin wallet support while ensuring the requested admin entries are applied on the VPS after deploy.
+
 ## 2026-05-29 guide visual coverage pass
 - Added visual guide cards for every `/guide` section so each block now has at least one embedded image.
 - New visuals cover the game overview, how-to-play flow, latest update summary, core fishing loop, Auto Fishing Net flow, grill leaderboard flow, notification examples, wallet/account flow, and fair-play rules.
