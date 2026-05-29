@@ -1,5 +1,9 @@
 # STATUS
 
+## 2026-05-29 admin glass exposure pass
+- Reduced `/admin` overbright white glass fills, reflections, borders, and active tab surfaces so panels feel less washed out.
+- Slightly strengthened the background grid and lowered panel opacity/blur intensity so the grid shows through the glass without hurting text contrast.
+
 ## 2026-05-29 admin visual hierarchy pass
 - Applied modern dashboard hierarchy patterns to `/admin`: guide cards now recede as contextual help, metric cards emphasize values first, and top lists scan with rank/value structure instead of flat rows.
 - Kept Liquid Glass as a light control/background layer so primary work surfaces and actions remain more prominent than decorative explanation.
