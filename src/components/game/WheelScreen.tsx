@@ -45,10 +45,12 @@ import {
   sendMonadPayment,
 } from '@/lib/monadTestMode';
 import { duckBackgroundMusic, restoreBackgroundMusic } from '@/hooks/useBackgroundMusic';
+import { getHighestOwnedRodLevel } from '@/lib/rodMonadRewards';
 
 interface WheelScreenProps {
   coins: number;
   rodLevel: number;
+  nftRods?: number[];
   availableRolls: number;
   dailyWheelRolls: number;
   paidWheelRolls: number;
@@ -453,6 +455,7 @@ const PROMPT_CONFIG: Record<PromptType, {
 const WheelScreen: React.FC<WheelScreenProps> = ({
   coins,
   rodLevel,
+  nftRods = [],
   availableRolls,
   dailyWheelRolls,
   paidWheelRolls,
@@ -466,8 +469,9 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
   onRevealSound,
   onRewardSound,
 }) => {
+  const highestOwnedRodLevel = getHighestOwnedRodLevel(rodLevel, nftRods);
   const [phase, setPhase] = useState<SpinPhase>('idle');
-  const [cubeFaces, setCubeFaces] = useState<CubeFaces>(() => createCubeFaces(rodLevel));
+  const [cubeFaces, setCubeFaces] = useState<CubeFaces>(() => createCubeFaces(highestOwnedRodLevel));
   const [rotation, setRotation] = useState<RotationState>(() => getFaceViewRotation(0));
   const [rotationTransitionEnabled, setRotationTransitionEnabled] = useState(true);
   const [highlightedFaceIndex, setHighlightedFaceIndex] = useState<number | null>(null);
@@ -787,8 +791,8 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     setMonCelebration(null);
     spinLockRef.current = true;
 
-    let nextFaces = createCubeFaces(rodLevel);
-    const localTarget = pickCubeTarget(nextFaces, rodLevel);
+    let nextFaces = createCubeFaces(highestOwnedRodLevel);
+    const localTarget = pickCubeTarget(nextFaces, highestOwnedRodLevel);
     let faceIndex = localTarget.faceIndex;
     let tileIndex = localTarget.tileIndex;
     let targetPrize = localTarget.prize;

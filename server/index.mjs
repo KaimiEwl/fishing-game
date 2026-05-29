@@ -152,6 +152,37 @@ const FISH_BY_ID = new Map(FISH_DATA.map((fish) => [fish.id, fish]));
 const ROD_BY_ID = new Map(ROD_DATA.map((rod) => [rod.id, rod]));
 const RARE_TASK_RARITIES = new Set(['rare', 'epic', 'legendary', 'mythical', 'secret']);
 
+function getOwnedRodLevels(player) {
+  const maxLevel = ROD_DATA.length - 1;
+  const maxBaseRodLevel = Math.max(0, Math.min(maxLevel, Math.floor(Number(player?.rod_level || 0))));
+  const levels = new Set();
+
+  for (let level = 0; level <= maxBaseRodLevel; level += 1) {
+    if (ROD_DATA[level]) levels.add(level);
+  }
+
+  const nftRods = Array.isArray(player?.nft_rods) ? player.nft_rods : [];
+  for (const value of nftRods) {
+    const level = Math.floor(Number(value));
+    if (Number.isFinite(level) && level >= 0 && level <= maxLevel && ROD_DATA[level]) {
+      levels.add(level);
+    }
+  }
+
+  if (levels.size === 0) levels.add(0);
+  return Array.from(levels).sort((a, b) => a - b);
+}
+
+function ownsRodLevel(player, level) {
+  const safeLevel = Math.floor(Number(level));
+  return Number.isFinite(safeLevel) && getOwnedRodLevels(player).includes(safeLevel);
+}
+
+function getHighestOwnedRodLevel(player) {
+  const levels = getOwnedRodLevels(player);
+  return levels[levels.length - 1] ?? 0;
+}
+
 mkdirSync(DATA_DIR, { recursive: true });
 mkdirSync(join(UPLOAD_DIR, 'avatars'), { recursive: true });
 
@@ -2170,7 +2201,7 @@ function getRodTileGlobalIndexes(faces) {
 }
 
 function getEligibleCubeRodDrops(player) {
-  const currentRodLevel = Math.max(0, Math.floor(Number(player.rod_level || 0)));
+  const currentRodLevel = getHighestOwnedRodLevel(player);
   return ROD_CUBE_DROP_CONFIG.cubeRodRewards.flatMap((reward) => {
     const rod = ROD_BY_ID.get(reward.rodId);
     if (
@@ -2294,7 +2325,7 @@ function applyPrize(player, prize, options = {}) {
   }
   if (prize.type === 'rod' && Number.isInteger(prize.rodLevel)) {
     const prizeRodLevel = Math.max(0, Number(prize.rodLevel || 0));
-    if (Number(player.rod_level || 0) < prizeRodLevel) {
+    if (!ownsRodLevel(player, prizeRodLevel)) {
       patch.rod_level = prizeRodLevel;
       patch.equipped_rod = Math.max(player.equipped_rod, prizeRodLevel);
     } else {
@@ -2313,9 +2344,8 @@ function applyPrize(player, prize, options = {}) {
 }
 
 function getSafeRodLevel(player) {
-  const maxRodLevel = Math.max(0, Math.min(ROD_DATA.length - 1, Number(player.rod_level || 0)));
-  const equipped = Math.max(0, Math.min(ROD_DATA.length - 1, Number(player.equipped_rod ?? maxRodLevel)));
-  return Math.min(equipped, maxRodLevel);
+  const equipped = Math.max(0, Math.min(ROD_DATA.length - 1, Number(player.equipped_rod ?? getHighestOwnedRodLevel(player))));
+  return ownsRodLevel(player, equipped) ? equipped : getHighestOwnedRodLevel(player);
 }
 
 function getNftBonus(player, rodLevel) {
@@ -2633,7 +2663,7 @@ function applyFishingCatch(player, castId, fishId) {
     && leviathanBonusRod
     && getSafeRodLevel(player) === leviathanRequiredRod.level
   ) {
-    if (Number(player.rod_level || 0) < leviathanBonusRod.level) {
+    if (!ownsRodLevel(player, leviathanBonusRod.level)) {
       patch.rod_level = leviathanBonusRod.level;
       patch.equipped_rod = leviathanBonusRod.level;
       leviathanBonus = {
@@ -2785,7 +2815,7 @@ function buyBaitAction(player, body) {
 function buyRodAction(player, body) {
   const level = Math.max(0, Math.floor(Number(body.level || 0)));
   if (!ROD_DATA[level] || level <= 0) throw httpError(400, 'Invalid rod level');
-  if (Number(player.rod_level || 0) >= level) return edgeResponse({ player });
+  if (ownsRodLevel(player, level)) return edgeResponse({ player });
   const cost = COIN_ROD_COSTS.get(level);
   if (!Number.isFinite(cost)) throw httpError(400, 'Coin rod purchase is not available for this rod');
   if (Number(player.coins || 0) < cost) throw httpError(400, 'Not enough coins');
@@ -2974,7 +3004,7 @@ async function buyCubeRollsAction(player, body) {
 
 function equipRodAction(player, body) {
   const level = Math.max(0, Math.floor(Number(body.level || 0)));
-  if (!ROD_DATA[level] || level > Number(player.rod_level || 0)) throw httpError(400, 'Rod is not owned');
+  if (!ROD_DATA[level] || !ownsRodLevel(player, level)) throw httpError(400, 'Rod is not owned');
   const updated = updatePlayer(player.wallet_address, { equipped_rod: level });
   return edgeResponse({ player: updated });
 }

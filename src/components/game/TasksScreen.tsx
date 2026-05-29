@@ -40,12 +40,14 @@ import {
   isRealWalletAddress,
   sendMonadPayment,
 } from '@/lib/monadTestMode';
+import { ownsRodLevel } from '@/lib/rodMonadRewards';
 
 interface TasksScreenProps {
   coins: number;
   walletAddress?: string;
   rodLevel: number;
   equippedRod: number;
+  nftRods?: number[];
   dailyTasks: DailyTaskProgress[];
   specialTasks: SpecialTaskProgress[];
   weeklyMissions: WeeklyMissionProgress[];
@@ -211,6 +213,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   walletAddress,
   rodLevel,
   equippedRod,
+  nftRods = [],
   dailyTasks,
   specialTasks,
   weeklyMissions,
@@ -252,7 +255,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
   const socialVisitTimerRef = useRef<number | null>(null);
   const { sendTransactionAsync } = useSendTransaction();
   const canUseWalletCheckInPayment = isRealWalletAddress(walletAddress);
-  const ownsLeviathanBonusRod = Boolean(leviathanBonusRod && rodLevel >= leviathanBonusRod.level);
+  const ownsLeviathanBonusRod = Boolean(leviathanBonusRod && ownsRodLevel(leviathanBonusRod.level, rodLevel, nftRods));
   const hasLeviathanRodEquipped = equippedRod === leviathanRequiredRod.level;
   const leviathanBountyStatus = ownsLeviathanBonusRod
     ? 'Reward owned'

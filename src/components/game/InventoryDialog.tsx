@@ -21,6 +21,7 @@ import InventoryFishItem from '@/components/InventoryFishItem';
 import InventoryRodCard from '@/components/InventoryRodCard';
 import InventoryDishItem from '@/components/InventoryDishItem';
 import { publicAsset } from '@/lib/assets';
+import { getOwnedRodLevels, getSafeEquippedRodLevel } from '@/lib/rodMonadRewards';
 
 interface InventoryDialogProps {
   inventory: CaughtFish[];
@@ -96,8 +97,8 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({
     return aIndex - bIndex;
   });
 
-  const maxOwnedRodLevel = Math.min(Math.max(0, rodLevel), ROD_DATA.length - 1);
-  const ownedRods = Array.from({ length: maxOwnedRodLevel + 1 }, (_, i) => i);
+  const ownedRods = getOwnedRodLevels(rodLevel, nftRods);
+  const safeEquippedRod = getSafeEquippedRodLevel(equippedRod, rodLevel, nftRods);
 
   return (
     <Dialog>
@@ -366,7 +367,7 @@ const InventoryDialog: React.FC<InventoryDialogProps> = ({
             <ScrollArea className="h-full pr-2">
               <div className="space-y-2">
                 {ownedRods.map((level) => {
-                  const isEquipped = equippedRod === level;
+                  const isEquipped = safeEquippedRod === level;
                   const hasNft = nftRods.includes(level);
 
                   return (

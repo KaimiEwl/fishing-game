@@ -6,6 +6,7 @@ import {
   type RodDefinition,
 } from '@/types/game';
 import { normalizeMonAmount } from '@/lib/monRewards';
+import { ownsRodLevel } from '@/lib/rodMonadRewards';
 
 const createAchievementSourceRef = () => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -23,6 +24,7 @@ export const buildLeviathanCommonRodBonus = (
   fish: Fish | null | undefined,
   activeRodLevel: number,
   ownedRodLevel: number,
+  nftRods: readonly unknown[] = [],
 ): FishingSpecialReward | null => {
   if (!fish || fish.id !== LEVIATHAN_COMMON_ROD_BONUS_CONFIG.fishId) return null;
 
@@ -31,11 +33,10 @@ export const buildLeviathanCommonRodBonus = (
   if (!requiredRod || !bonusRod || bonusRod.level <= requiredRod.level) return null;
   if (activeRodLevel !== requiredRod.level) return null;
 
-  const safeOwnedRodLevel = Number.isInteger(ownedRodLevel) ? Math.max(0, ownedRodLevel) : 0;
   const duplicateCompensationMon = normalizeMonAmount(
     LEVIATHAN_COMMON_ROD_BONUS_CONFIG.duplicateCompensationMon,
   );
-  const alreadyOwnsBonusRod = safeOwnedRodLevel >= bonusRod.level;
+  const alreadyOwnsBonusRod = ownsRodLevel(bonusRod.level, ownedRodLevel, nftRods);
 
   if (alreadyOwnsBonusRod && duplicateCompensationMon <= 0) return null;
 

@@ -757,8 +757,8 @@ const FishingGame: React.FC = () => {
     leaderboardEntries.find((entry) => entry.id === leaderboardPlayerId)
   ), [leaderboardEntries, leaderboardPlayerId]);
   const activeRodLevel = useMemo(
-    () => getSafeEquippedRodLevel(player.equippedRod, player.rodLevel),
-    [player.equippedRod, player.rodLevel],
+    () => getSafeEquippedRodLevel(player.equippedRod, player.rodLevel, player.nftRods),
+    [player.equippedRod, player.rodLevel, player.nftRods],
   );
   const missXpReward = useMemo(() => {
     const nftBonus = player.nftRods.includes(activeRodLevel)
@@ -1696,6 +1696,7 @@ const FishingGame: React.FC = () => {
                     walletAddress={monadPaymentAddress}
                     rodLevel={player.rodLevel}
                     equippedRod={activeRodLevel}
+                    nftRods={player.nftRods}
                     dailyTasks={gameProgress.dailyTasks}
                     specialTasks={gameProgress.specialTasks}
                     weeklyMissions={gameProgress.weeklyMissions}
@@ -1754,6 +1755,7 @@ const FishingGame: React.FC = () => {
                   <WheelScreen
                     coins={player.coins}
                     rodLevel={player.rodLevel}
+                    nftRods={player.nftRods}
                     availableRolls={gameProgress.availableWheelRolls}
                     dailyWheelRolls={gameProgress.dailyWheelRolls}
                     paidWheelRolls={gameProgress.paidWheelRolls}

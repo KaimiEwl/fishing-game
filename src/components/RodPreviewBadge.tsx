@@ -5,7 +5,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { getRodPreviewFallback, ROD_DISPLAY_INFO } from '@/lib/rodAssets';
 import { NFT_ROD_DATA, ROD_DATA, ROD_RARITY_COLORS, ROD_RARITY_NAMES } from '@/types/game';
 import { formatMonRewardRange } from '@/lib/monRewards';
-import { getSafeEquippedRodLevel } from '@/lib/rodMonadRewards';
+import { getOwnedRodLevels, getSafeEquippedRodLevel } from '@/lib/rodMonadRewards';
 import { HIGH_FETCH_PRIORITY_PROPS } from '@/lib/imagePriority';
 
 interface RodPreviewBadgeProps {
@@ -18,15 +18,14 @@ interface RodPreviewBadgeProps {
 
 const RodPreviewBadge = ({ rodLevel, ownedRodLevel, nftRods, totalBait = 0, onEquipRod }: RodPreviewBadgeProps) => {
   const safeOwnedRodLevel = Math.min(Math.max(0, ownedRodLevel), ROD_DATA.length - 1);
-  const displayRodLevel = getSafeEquippedRodLevel(rodLevel, safeOwnedRodLevel);
+  const ownedRods = getOwnedRodLevels(safeOwnedRodLevel, nftRods);
+  const displayRodLevel = getSafeEquippedRodLevel(rodLevel, safeOwnedRodLevel, nftRods);
   const rod = ROD_DISPLAY_INFO[displayRodLevel] || ROD_DISPLAY_INFO[0];
   const rodDefinition = ROD_DATA[displayRodLevel] ?? ROD_DATA[0];
   const hasNft = nftRods.includes(displayRodLevel);
   const nftData = NFT_ROD_DATA.find((entry) => entry.rodLevel === displayRodLevel) ?? null;
   const rodImageFallback = getRodPreviewFallback(displayRodLevel);
   const rodImageSources = useMemo(() => [rod.image, rodImageFallback], [rod.image, rodImageFallback]);
-  const ownedRods = Array.from({ length: safeOwnedRodLevel + 1 }, (_, index) => index)
-    .filter((level) => ROD_DATA[level]);
   const [rodImageSourceIndex, setRodImageSourceIndex] = useState(0);
   const rodRetryTimerRef = useRef<number | null>(null);
   const rodRetryCountRef = useRef(0);

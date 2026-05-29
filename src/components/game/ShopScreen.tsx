@@ -39,6 +39,7 @@ import {
   MONAD_SHOP_TEST_MODE_ENABLED,
   sendMonadPayment,
 } from '@/lib/monadTestMode';
+import { getHighestOwnedRodLevel, getOwnedRodLevels } from '@/lib/rodMonadRewards';
 
 interface ShopScreenProps {
   coins: number;
@@ -143,7 +144,9 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
     .join(', ');
   const walletConnected = canUseMonadPaymentIdentity(walletAddress);
   const currentNetOffer = MON_FISHING_NET_PACKAGES.find((offer) => offer.fishCount === currentNetDailyFishCount) ?? null;
-  const currentRod = ROD_DATA[rodLevel] ?? ROD_DATA[0];
+  const ownedRodLevels = getOwnedRodLevels(rodLevel, nftRods);
+  const currentRod = ROD_DATA[getHighestOwnedRodLevel(rodLevel, nftRods)] ?? ROD_DATA[0];
+  const ownsRod = (level: number) => ownedRodLevels.includes(level);
   const hasEnoughMon = (monAmount: string) => {
     if (MONAD_SHOP_TEST_MODE_ENABLED) return true;
     if (!monWalletBalance) return true;
@@ -422,7 +425,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
               ) : (
                 <div className="grid gap-2.5 sm:gap-3 lg:grid-cols-2">
                   {ROD_UPGRADES.map((rod) => {
-                    const isOwned = rodLevel >= rod.level;
+                    const isOwned = ownsRod(rod.level);
                     const canBuy = !isOwned && coins >= rod.cost;
 
                     return (
@@ -469,7 +472,7 @@ const ShopScreen: React.FC<ShopScreenProps> = ({
               <div className="grid gap-2.5 sm:gap-3 lg:grid-cols-2">
                 {MON_ROD_PURCHASES.map((rodOffer) => {
                   const purchaseKey = `mon-rod-${rodOffer.level}`;
-                  const isOwned = rodLevel >= rodOffer.level;
+                  const isOwned = ownsRod(rodOffer.level);
                   const notEnoughMon = walletConnected && !hasEnoughMon(rodOffer.monAmount);
                   const isProcessing = activeMonadPurchase === purchaseKey;
                   const monadRodImage = MONAD_ROD_IMAGES[rodOffer.level as keyof typeof MONAD_ROD_IMAGES] ?? ROD_DISPLAY_INFO[rodOffer.level]?.image;

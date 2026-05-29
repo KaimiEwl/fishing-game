@@ -275,7 +275,7 @@ export function useGameState(options?: UseGameStateOptions) {
       return null;
     }
 
-    const equippedRodLevel = getSafeEquippedRodLevel(player.equippedRod, player.rodLevel);
+    const equippedRodLevel = getSafeEquippedRodLevel(player.equippedRod, player.rodLevel, player.nftRods);
     const rodBonus = ROD_BONUSES[equippedRodLevel] || 0;
     const nftBonus = getNftBonus(equippedRodLevel, player.nftRods);
     const totalRodBonus = rodBonus + nftBonus.rarityBonus;
@@ -317,7 +317,7 @@ export function useGameState(options?: UseGameStateOptions) {
 
     setPlayer(prev => {
       const beforeSnapshot = toPlayerAuditSnapshot(prev);
-      const equippedRodLevel = getSafeEquippedRodLevel(prev.equippedRod, prev.rodLevel);
+      const equippedRodLevel = getSafeEquippedRodLevel(prev.equippedRod, prev.rodLevel, prev.nftRods);
       const nftB = getNftBonus(equippedRodLevel, prev.nftRods);
       const xpGain = Math.floor((caughtFish.xp + CATCH_XP_FLAT_BONUS) * (1 + nftB.xpBonus / 100));
       const newXp = prev.xp + xpGain;
@@ -425,7 +425,7 @@ export function useGameState(options?: UseGameStateOptions) {
   const applyMissXp = useCallback(() => {
     setPlayer(prev => {
       const beforeSnapshot = toPlayerAuditSnapshot(prev);
-      const equippedRodLevel = getSafeEquippedRodLevel(prev.equippedRod, prev.rodLevel);
+      const equippedRodLevel = getSafeEquippedRodLevel(prev.equippedRod, prev.rodLevel, prev.nftRods);
       const nftB = getNftBonus(equippedRodLevel, prev.nftRods);
       const xpGain = Math.floor(MISS_XP_REWARD * (1 + nftB.xpBonus / 100));
       const newXp = prev.xp + xpGain;
@@ -546,7 +546,7 @@ export function useGameState(options?: UseGameStateOptions) {
       return;
     }
 
-    const equippedRodLevel = getSafeEquippedRodLevel(player.equippedRod, player.rodLevel);
+    const equippedRodLevel = getSafeEquippedRodLevel(player.equippedRod, player.rodLevel, player.nftRods);
     const monReward = onFishingMonReward ? rollRodMonadReward(equippedRodLevel) : null;
 
     if (monReward) {
@@ -561,7 +561,7 @@ export function useGameState(options?: UseGameStateOptions) {
       setLastResult({ success: false, monReward: { ...monReward, credited } });
     } else if (fish) {
       applyFishReward(fish);
-      const specialReward = buildLeviathanCommonRodBonus(fish, equippedRodLevel, player.rodLevel);
+      const specialReward = buildLeviathanCommonRodBonus(fish, equippedRodLevel, player.rodLevel, player.nftRods);
       let resolvedSpecialReward: FishingSpecialReward | undefined;
 
       if (specialReward) {
@@ -780,7 +780,7 @@ export function useGameState(options?: UseGameStateOptions) {
     
     if (!fish || !inventoryItem || inventoryItem.quantity <= 0) return 0;
 
-    const equippedRodLevel = getSafeEquippedRodLevel(player.equippedRod, player.rodLevel);
+    const equippedRodLevel = getSafeEquippedRodLevel(player.equippedRod, player.rodLevel, player.nftRods);
     const nftB = getNftBonus(equippedRodLevel, player.nftRods);
     const sellPrice = Math.floor(fish.price * (1 + nftB.sellBonus / 100));
 

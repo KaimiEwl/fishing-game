@@ -20,19 +20,61 @@ export const getSafeRodDefinition = (level: number | null | undefined): RodDefin
   return ROD_DATA.find((rod) => rod.level === level) ?? ROD_DATA[0];
 };
 
+export const getOwnedRodLevels = (
+  ownedRodLevel: number | null | undefined,
+  nftRods: readonly unknown[] = [],
+) => {
+  const maxLevel = ROD_DATA.length - 1;
+  const safeOwnedRodLevel = Number.isInteger(ownedRodLevel)
+    ? Math.max(0, Math.min(maxLevel, ownedRodLevel as number))
+    : 0;
+  const levels = new Set<number>();
+
+  for (let level = 0; level <= safeOwnedRodLevel; level += 1) {
+    if (ROD_DATA[level]) levels.add(level);
+  }
+
+  for (const value of nftRods) {
+    if (typeof value !== 'number' || !Number.isInteger(value)) continue;
+    const level = Math.max(0, Math.min(maxLevel, value));
+    if (ROD_DATA[level]) levels.add(level);
+  }
+
+  if (levels.size === 0) levels.add(0);
+  return Array.from(levels).sort((a, b) => a - b);
+};
+
+export const ownsRodLevel = (
+  level: number | null | undefined,
+  ownedRodLevel: number | null | undefined,
+  nftRods: readonly unknown[] = [],
+) => (
+  Number.isInteger(level)
+  && getOwnedRodLevels(ownedRodLevel, nftRods).includes(level as number)
+);
+
+export const getHighestOwnedRodLevel = (
+  ownedRodLevel: number | null | undefined,
+  nftRods: readonly unknown[] = [],
+) => {
+  const ownedLevels = getOwnedRodLevels(ownedRodLevel, nftRods);
+  return ownedLevels[ownedLevels.length - 1] ?? 0;
+};
+
 export const getSafeEquippedRodLevel = (
   equippedRod: number | null | undefined,
   ownedRodLevel: number | null | undefined,
+  nftRods: readonly unknown[] = [],
 ) => {
-  const ownedLevel = Number.isInteger(ownedRodLevel) ? Math.max(0, ownedRodLevel as number) : 0;
+  const ownedLevels = getOwnedRodLevels(ownedRodLevel, nftRods);
   const equippedLevel = Number.isInteger(equippedRod) ? equippedRod as number : 0;
   const rod = getSafeRodDefinition(equippedLevel);
 
-  if (equippedLevel < 0 || equippedLevel > ownedLevel || rod.level !== equippedLevel) {
-    return 0;
+  if (ownedLevels.includes(equippedLevel) && rod.level === equippedLevel) {
+    return equippedLevel;
   }
 
-  return equippedLevel;
+  return getHighestOwnedRodLevel(ownedRodLevel, nftRods);
 };
 
 export const rollRodMonadReward = (
