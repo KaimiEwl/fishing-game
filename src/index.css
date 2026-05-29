@@ -223,6 +223,23 @@
     letter-spacing: 0 !important;
   }
 
+  .admin-shell :where(button, [role='tab']) {
+    min-width: 0;
+    white-space: normal;
+  }
+
+  .admin-shell :where(button, [role='tab'], .inline-flex) svg {
+    flex-shrink: 0;
+  }
+
+  .admin-shell :where(p, span, h1, h2, h3, td, th, label) {
+    min-width: 0;
+  }
+
+  .admin-shell :where(.font-mono, pre, td, th) {
+    overflow-wrap: anywhere;
+  }
+
   .admin-shell :where(.bg-background) {
     background-color: transparent !important;
   }
@@ -298,6 +315,7 @@
   .admin-shell table {
     border-collapse: separate;
     border-spacing: 0;
+    min-width: 100%;
   }
 
   .admin-shell thead tr {

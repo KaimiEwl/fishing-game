@@ -194,24 +194,34 @@ const ADMIN_GUIDE_CARDS: Array<{
   },
 ];
 
-const AdminMiniVisual = ({ icon: Icon, tone }: { icon: LucideIcon; tone: AdminTone }) => {
+const AdminMiniVisual = ({
+  icon: Icon,
+  tone,
+  className,
+}: {
+  icon: LucideIcon;
+  tone: AdminTone;
+  className?: string;
+}) => {
   const toneClasses = ADMIN_TONE_CLASSES[tone];
 
   return (
-    <div className={cn('relative h-20 overflow-hidden rounded-lg border', toneClasses.visual)}>
-      <div className={cn('absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-lg border bg-white/80', toneClasses.icon)}>
-        <Icon className="h-4 w-4" />
+    <div className={cn('h-20 min-w-0 overflow-hidden rounded-lg border p-3', toneClasses.visual, className)} aria-hidden="true">
+      <div className="flex items-center justify-between gap-2">
+        <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border bg-white/80', toneClasses.icon)}>
+          <Icon className="h-4 w-4" />
+        </div>
+        <div className="grid shrink-0 grid-cols-2 gap-1">
+          {[0, 1, 2, 3].map((item) => (
+            <span key={item} className="h-2.5 w-2.5 rounded-sm bg-white/85" />
+          ))}
+        </div>
       </div>
-      <div className="absolute bottom-3 left-3 right-3 space-y-1.5">
+      <div className="mt-3 space-y-1.5">
         {[72, 48, 86].map((width, index) => (
           <div key={`${tone}-${width}-${index}`} className="h-1.5 rounded-full bg-white">
             <div className={cn('h-full rounded-full opacity-70', toneClasses.bar)} style={{ width: `${width}%` }} />
           </div>
-        ))}
-      </div>
-      <div className="absolute right-3 top-3 grid grid-cols-2 gap-1">
-        {[0, 1, 2, 3].map((item) => (
-          <span key={item} className="h-2.5 w-2.5 rounded-sm bg-white/80" />
         ))}
       </div>
     </div>
@@ -230,15 +240,11 @@ const AdminGuideCard = ({
   tone: AdminTone;
 }) => {
   const Icon = icon;
-  const toneClasses = ADMIN_TONE_CLASSES[tone];
 
   return (
-    <div className="grid gap-3 rounded-lg border border-black/10 bg-white/90 p-3 shadow-sm shadow-black/5 sm:grid-cols-[5.5rem,1fr]">
-      <AdminMiniVisual icon={Icon} tone={tone} />
-      <div className="min-w-0 self-center">
-        <div className={cn('mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg border', toneClasses.icon)}>
-          <Icon className="h-4 w-4" />
-        </div>
+    <div className="flex min-w-0 flex-col gap-3 rounded-lg border border-black/10 bg-white/90 p-3 shadow-sm shadow-black/5 sm:flex-row sm:items-center">
+      <AdminMiniVisual icon={Icon} tone={tone} className="h-16 sm:h-20 sm:w-24 sm:shrink-0" />
+      <div className="min-w-0">
         <h2 className="text-sm font-semibold text-slate-950">{title}</h2>
         <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>
       </div>
@@ -264,7 +270,7 @@ const AdminSectionIntro = ({
           <AdminMiniVisual icon={Icon} tone={details.tone} />
         </div>
         <div className="min-w-0 self-center">
-          <div className={cn('mb-2 inline-flex h-9 w-9 items-center justify-center rounded-lg border', toneClasses.icon)}>
+          <div className={cn('mb-2 inline-flex h-9 w-9 items-center justify-center rounded-lg border sm:hidden', toneClasses.icon)}>
             <Icon className="h-4 w-4" />
           </div>
           <h2 className="text-xl font-semibold text-slate-950">{details.label}</h2>
@@ -883,14 +889,11 @@ export default function Admin() {
                   <TabsTrigger
                     key={tab}
                     value={tab}
-                    className="min-h-[4.6rem] flex-col items-start justify-start gap-1 rounded-lg border border-black/10 bg-white px-3 py-2 text-left text-slate-500 shadow-sm shadow-black/5 data-[state=active]:border-blue-200 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:shadow-md"
+                    className="h-12 min-w-0 whitespace-normal rounded-lg border border-black/10 bg-white px-3 py-2 text-slate-500 shadow-sm shadow-black/5 data-[state=active]:border-blue-200 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:shadow-md"
                   >
-                    <span className="flex w-full items-center gap-2 text-sm font-semibold">
+                    <span className="flex min-w-0 items-center justify-center gap-2 text-xs font-semibold sm:text-sm">
                       <Icon className="h-4 w-4 shrink-0" />
                       <span className="truncate">{details.label}</span>
-                    </span>
-                    <span className="hidden text-[11px] font-normal leading-4 text-slate-500 sm:block">
-                      {details.description}
                     </span>
                   </TabsTrigger>
                 );
