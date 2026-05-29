@@ -1,5 +1,9 @@
 # STATUS
 
+## 2026-05-29 admin panel visual refresh
+- Reworked `/admin` into a light, minimal operations shell with a cleaner header, explanatory visual guide cards, tab descriptions, clearer section intros, and a more scannable players table.
+- Added a scoped admin CSS layer so older dark admin subcomponents render in the same light readable style without changing admin actions or server permissions.
+
 ## 2026-05-29 admin session error handling
 - Tightened the Settings admin button so it only appears after the server confirms the current wallet session is an admin; stale or missing wallet sessions no longer open `/admin` into a generic API failure.
 - Admin API failures now surface backend error text like `Invalid session` instead of the generic `Hook & Loot API returned a non-2xx status code` toast.

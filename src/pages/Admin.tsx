@@ -1,20 +1,26 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { useAccount } from 'wagmi';
 import { useNavigate } from 'react-router-dom';
 import {
   Activity,
   AlertTriangle,
   ArrowLeft,
-  ArrowUpRight,
+  Bell,
+  CalendarRange,
   Eye,
+  LayoutDashboard,
+  LifeBuoy,
   MessageSquare,
   Pencil,
+  RefreshCcw,
   Search,
   Shield,
   Trash2,
   TrendingUp,
   Users,
   Coins,
+  WalletCards,
+  type LucideIcon,
 } from 'lucide-react';
 import {
   useAdmin,
@@ -61,6 +67,8 @@ const ROD_NAMES = ROD_DATA.map((rod) => rod.name);
 
 type AdminTab = 'overview' | 'players' | 'messages' | 'withdrawals' | 'weekly' | 'social';
 
+type AdminTone = 'blue' | 'green' | 'amber' | 'rose' | 'slate' | 'violet';
+
 type EditablePlayerForm = Pick<
   AdminPlayer,
   'coins' | 'bait' | 'daily_free_bait' | 'level' | 'xp' | 'rod_level' | 'equipped_rod' | 'login_streak'
@@ -76,6 +84,197 @@ const formatWallet = (value: string) => `${value.slice(0, 6)}...${value.slice(-4
 const getDisplayCatchCount = (player: AdminPlayer) => player.display_total_catches ?? player.total_catches;
 
 const formatEditableJson = (value: unknown) => JSON.stringify(value ?? null, null, 2);
+
+const ADMIN_TONE_CLASSES: Record<AdminTone, { icon: string; visual: string; bar: string }> = {
+  blue: {
+    icon: 'border-blue-100 bg-blue-50 text-blue-600',
+    visual: 'border-blue-100 bg-blue-50/70',
+    bar: 'bg-blue-500',
+  },
+  green: {
+    icon: 'border-emerald-100 bg-emerald-50 text-emerald-600',
+    visual: 'border-emerald-100 bg-emerald-50/70',
+    bar: 'bg-emerald-500',
+  },
+  amber: {
+    icon: 'border-amber-100 bg-amber-50 text-amber-600',
+    visual: 'border-amber-100 bg-amber-50/70',
+    bar: 'bg-amber-500',
+  },
+  rose: {
+    icon: 'border-rose-100 bg-rose-50 text-rose-600',
+    visual: 'border-rose-100 bg-rose-50/70',
+    bar: 'bg-rose-500',
+  },
+  slate: {
+    icon: 'border-slate-200 bg-slate-100 text-slate-700',
+    visual: 'border-slate-200 bg-slate-100/80',
+    bar: 'bg-slate-500',
+  },
+  violet: {
+    icon: 'border-violet-100 bg-violet-50 text-violet-600',
+    visual: 'border-violet-100 bg-violet-50/70',
+    bar: 'bg-violet-500',
+  },
+};
+
+const ADMIN_TAB_DETAILS: Record<AdminTab, {
+  label: string;
+  description: string;
+  icon: LucideIcon;
+  tone: AdminTone;
+}> = {
+  overview: {
+    label: 'Overview',
+    description: 'Live health, player totals, top lists, and security signals.',
+    icon: LayoutDashboard,
+    tone: 'blue',
+  },
+  players: {
+    label: 'Players',
+    description: 'Find an account, inspect progress, or apply small test grants.',
+    icon: Users,
+    tone: 'green',
+  },
+  messages: {
+    label: 'Messages',
+    description: 'Send personal inbox notes or a careful broadcast to everyone.',
+    icon: Bell,
+    tone: 'violet',
+  },
+  withdrawals: {
+    label: 'Withdrawals',
+    description: 'Approve, reject, and mark MON payout requests as paid.',
+    icon: WalletCards,
+    tone: 'amber',
+  },
+  weekly: {
+    label: 'Weekly',
+    description: 'Preview grill winners and apply one weekly reward batch.',
+    icon: CalendarRange,
+    tone: 'rose',
+  },
+  social: {
+    label: 'Social',
+    description: 'Review manual social-task states before a player can claim.',
+    icon: MessageSquare,
+    tone: 'slate',
+  },
+};
+
+const ADMIN_GUIDE_CARDS: Array<{
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  tone: AdminTone;
+}> = [
+  {
+    title: 'Health first',
+    description: 'Start with totals, active players, suspicious signals, and top account movement.',
+    icon: Activity,
+    tone: 'blue',
+  },
+  {
+    title: 'Account work',
+    description: 'Use Players for lookup, details, safe edits, test coins, bait, and MON grants.',
+    icon: LifeBuoy,
+    tone: 'green',
+  },
+  {
+    title: 'Money flow',
+    description: 'Withdrawals and Weekly are the only places that change payout state.',
+    icon: WalletCards,
+    tone: 'amber',
+  },
+  {
+    title: 'Player contact',
+    description: 'Messages reach the in-game Inbox; Social is for manual quest verification.',
+    icon: Bell,
+    tone: 'violet',
+  },
+];
+
+const AdminMiniVisual = ({ icon: Icon, tone }: { icon: LucideIcon; tone: AdminTone }) => {
+  const toneClasses = ADMIN_TONE_CLASSES[tone];
+
+  return (
+    <div className={cn('relative h-20 overflow-hidden rounded-lg border', toneClasses.visual)}>
+      <div className={cn('absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-lg border bg-white/80', toneClasses.icon)}>
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="absolute bottom-3 left-3 right-3 space-y-1.5">
+        {[72, 48, 86].map((width, index) => (
+          <div key={`${tone}-${width}-${index}`} className="h-1.5 rounded-full bg-white">
+            <div className={cn('h-full rounded-full opacity-70', toneClasses.bar)} style={{ width: `${width}%` }} />
+          </div>
+        ))}
+      </div>
+      <div className="absolute right-3 top-3 grid grid-cols-2 gap-1">
+        {[0, 1, 2, 3].map((item) => (
+          <span key={item} className="h-2.5 w-2.5 rounded-sm bg-white/80" />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const AdminGuideCard = ({
+  title,
+  description,
+  icon,
+  tone,
+}: {
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  tone: AdminTone;
+}) => {
+  const Icon = icon;
+  const toneClasses = ADMIN_TONE_CLASSES[tone];
+
+  return (
+    <div className="grid gap-3 rounded-lg border border-black/10 bg-white/90 p-3 shadow-sm shadow-black/5 sm:grid-cols-[5.5rem,1fr]">
+      <AdminMiniVisual icon={Icon} tone={tone} />
+      <div className="min-w-0 self-center">
+        <div className={cn('mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg border', toneClasses.icon)}>
+          <Icon className="h-4 w-4" />
+        </div>
+        <h2 className="text-sm font-semibold text-slate-950">{title}</h2>
+        <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>
+      </div>
+    </div>
+  );
+};
+
+const AdminSectionIntro = ({
+  tab,
+  action,
+}: {
+  tab: AdminTab;
+  action?: ReactNode;
+}) => {
+  const details = ADMIN_TAB_DETAILS[tab];
+  const Icon = details.icon;
+  const toneClasses = ADMIN_TONE_CLASSES[details.tone];
+
+  return (
+    <div className="flex flex-col gap-3 rounded-lg border border-black/10 bg-white/90 p-4 shadow-sm shadow-black/5 md:flex-row md:items-center md:justify-between">
+      <div className="flex min-w-0 gap-4">
+        <div className="hidden w-28 shrink-0 sm:block">
+          <AdminMiniVisual icon={Icon} tone={details.tone} />
+        </div>
+        <div className="min-w-0 self-center">
+          <div className={cn('mb-2 inline-flex h-9 w-9 items-center justify-center rounded-lg border', toneClasses.icon)}>
+            <Icon className="h-4 w-4" />
+          </div>
+          <h2 className="text-xl font-semibold text-slate-950">{details.label}</h2>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">{details.description}</p>
+        </div>
+      </div>
+      {action ? <div className="shrink-0">{action}</div> : null}
+    </div>
+  );
+};
 
 const parseEditableJson = (label: string, value: string) => {
   try {
@@ -602,58 +801,116 @@ export default function Admin() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <p className="animate-pulse text-lg text-muted-foreground">Checking admin access...</p>
+      <div className="admin-shell flex min-h-screen items-center justify-center bg-[#f5f5f7] px-4">
+        <div className="w-full max-w-md rounded-lg border border-black/10 bg-white p-6 text-center shadow-sm shadow-black/5">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-blue-100 bg-blue-50 text-blue-600">
+            <Shield className="h-5 w-5" />
+          </div>
+          <p className="text-lg font-semibold text-slate-950">Checking admin access</p>
+          <p className="mt-2 text-sm text-slate-500">Verifying the current wallet session before loading operational tools.</p>
+          <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-slate-100">
+            <div className="h-full w-1/2 animate-pulse rounded-full bg-blue-500" />
+          </div>
+        </div>
       </div>
     );
   }
 
   if (!isAdmin) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background">
-        <Shield className="h-16 w-16 text-destructive" />
-        <h1 className="text-2xl font-bold text-foreground">Access denied</h1>
-        <p className="text-muted-foreground">This wallet does not have admin permissions.</p>
-        <Button variant="outline" onClick={() => navigate('/')}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to game
-        </Button>
+      <div className="admin-shell flex min-h-screen items-center justify-center bg-[#f5f5f7] px-4">
+        <div className="w-full max-w-lg rounded-lg border border-black/10 bg-white p-6 text-center shadow-sm shadow-black/5">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-lg border border-rose-100 bg-rose-50 text-rose-600">
+            <Shield className="h-6 w-6" />
+          </div>
+          <h1 className="text-2xl font-semibold text-slate-950">Access denied</h1>
+          <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500">
+            This wallet session is not confirmed as an admin. Reconnect one of the approved test wallets from the game settings, then open the red Admin Panel entry again.
+          </p>
+          <Button variant="outline" className="mt-5" onClick={() => navigate('/')}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to game
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Shield className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold text-foreground">Admin Panel</h1>
-          </div>
-          <Button variant="outline" onClick={() => navigate('/')}>
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back
-          </Button>
-        </div>
+    <div className="admin-shell h-screen overflow-y-auto bg-[#f5f5f7] text-slate-950">
+      <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-5 px-4 py-4 sm:px-6 lg:px-8">
+        <header className="rounded-lg border border-black/10 bg-white/95 p-4 shadow-sm shadow-black/5 md:p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
+              <div className="mb-3 flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-blue-100 bg-blue-50 text-blue-600">
+                  <Shield className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase text-slate-500">Hook & Loot operations</p>
+                  <h1 className="truncate text-3xl font-semibold text-slate-950 md:text-4xl">Admin Panel</h1>
+                </div>
+              </div>
+              <p className="max-w-3xl text-sm leading-6 text-slate-500">
+                A compact control room for account support, MON payout checks, weekly rewards, social verification, and player messaging.
+              </p>
+            </div>
 
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as AdminTab)}>
-          <TabsList className="grid w-full max-w-4xl grid-cols-6">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="players">Players</TabsTrigger>
-            <TabsTrigger value="messages">Messages</TabsTrigger>
-            <TabsTrigger value="withdrawals" className="gap-2">
-              <ArrowUpRight className="h-4 w-4" />
-              Withdrawals
-            </TabsTrigger>
-            <TabsTrigger value="weekly" className="gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Weekly
-            </TabsTrigger>
-            <TabsTrigger value="social" className="gap-2">
-              <MessageSquare className="h-4 w-4" />
-              Social
-            </TabsTrigger>
-          </TabsList>
+            <div className="flex flex-col gap-2 sm:flex-row lg:items-center">
+              <div className="rounded-lg border border-black/10 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                <span className="block font-semibold text-slate-950">Session wallet</span>
+                <span className="font-mono">{address ? formatWallet(address) : 'stored session'}</span>
+              </div>
+              <Button variant="outline" onClick={() => navigate('/')} className="h-11">
+                <ArrowLeft className="mr-2 h-4 w-4" /> Back to game
+              </Button>
+            </div>
+          </div>
+        </header>
+
+        <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {ADMIN_GUIDE_CARDS.map((card) => (
+            <AdminGuideCard key={card.title} {...card} />
+          ))}
+        </section>
+
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as AdminTab)} className="space-y-5">
+          <div className="sticky top-0 z-20 -mx-4 border-b border-black/10 bg-[#f5f5f7]/90 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+            <TabsList className="grid h-auto w-full grid-cols-2 gap-2 bg-transparent p-0 md:grid-cols-3 xl:grid-cols-6">
+              {(Object.keys(ADMIN_TAB_DETAILS) as AdminTab[]).map((tab) => {
+                const details = ADMIN_TAB_DETAILS[tab];
+                const Icon = details.icon;
+                return (
+                  <TabsTrigger
+                    key={tab}
+                    value={tab}
+                    className="min-h-[4.6rem] flex-col items-start justify-start gap-1 rounded-lg border border-black/10 bg-white px-3 py-2 text-left text-slate-500 shadow-sm shadow-black/5 data-[state=active]:border-blue-200 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:shadow-md"
+                  >
+                    <span className="flex w-full items-center gap-2 text-sm font-semibold">
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span className="truncate">{details.label}</span>
+                    </span>
+                    <span className="hidden text-[11px] font-normal leading-4 text-slate-500 sm:block">
+                      {details.description}
+                    </span>
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </div>
 
           <TabsContent value="overview" className="space-y-6">
+            <AdminSectionIntro
+              tab="overview"
+              action={(
+                <Button type="button" variant="outline" onClick={() => {
+                  void fetchStats();
+                  void fetchSuspiciousData();
+                }}>
+                  <RefreshCcw className="mr-2 h-4 w-4" />
+                  Refresh overview
+                </Button>
+              )}
+            />
             {stats && (
               <>
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
@@ -737,7 +994,9 @@ export default function Admin() {
           </TabsContent>
 
           <TabsContent value="players" className="space-y-4">
-            <div className="flex gap-2">
+            <AdminSectionIntro tab="players" />
+
+            <div className="flex flex-col gap-2 rounded-lg border border-black/10 bg-white/90 p-3 shadow-sm shadow-black/5 sm:flex-row">
               <div className="relative max-w-sm flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -751,98 +1010,102 @@ export default function Admin() {
                 />
               </div>
               <Button variant="outline" onClick={() => void fetchPlayers()}>
-                Refresh
+                <RefreshCcw className="mr-2 h-4 w-4" />
+                Refresh players
               </Button>
             </div>
 
-            <Card>
+            <Card className="overflow-hidden border-black/10 bg-white/95 shadow-sm shadow-black/5">
               <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-36">Nickname</TableHead>
-                      <TableHead className="w-52">Wallet</TableHead>
-                      <AdminSortableHead label="Level" column="level" current={sortBy} direction={sortDir} onSort={handleSort} />
-                      <AdminSortableHead label="Coins" column="coins" current={sortBy} direction={sortDir} onSort={handleSort} />
-                      <AdminSortableHead label="Bait" column="bait" current={sortBy} direction={sortDir} onSort={handleSort} />
-                      <AdminSortableHead label="Catches" column="total_catches" current={sortBy} direction={sortDir} onSort={handleSort} />
-                      <TableHead>Rod</TableHead>
-                      <AdminSortableHead label="Created" column="created_at" current={sortBy} direction={sortDir} onSort={handleSort} />
-                      <TableHead className="w-40">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {players.map((player) => (
-                      <TableRow key={player.id} className={cn(selectedPlayer?.id === player.id && 'bg-primary/5')}>
-                        <TableCell className="text-sm font-medium">
-                          <div className="flex items-center gap-2">
-                            {player.nickname || <span className="italic text-muted-foreground">-</span>}
-                            {player.is_admin && (
-                              <Badge
-                                variant="secondary"
-                                className="border border-amber-500/40 bg-amber-500/15 text-[10px] uppercase tracking-[0.18em] text-amber-700"
-                              >
-                                {player.admin_role === 'superadmin' ? 'Superadmin' : 'Admin'}
-                              </Badge>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">
-                          {player.wallet_address.slice(0, 6)}...{player.wallet_address.slice(-4)}
-                        </TableCell>
-                        <TableCell>{player.level}</TableCell>
-                        <TableCell>{player.coins.toLocaleString()}</TableCell>
-                        <TableCell>{(player.bait + player.daily_free_bait).toLocaleString()}</TableCell>
-                        <TableCell>
-                          <span
-                            className={cn(
-                              player.catches_source === 'audit_fallback' && 'font-medium text-amber-700',
-                            )}
-                            title={player.catches_source === 'audit_fallback'
-                              ? 'Displayed from audit logs because saved catches have not synced yet.'
-                              : undefined}
-                          >
-                            {getDisplayCatchCount(player).toLocaleString()}
-                          </span>
-                        </TableCell>
-                        <TableCell>{ROD_NAMES[player.rod_level] || player.rod_level}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {new Date(player.created_at).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button size="icon" variant="ghost" onClick={() => void loadSelectedPlayerContext(player, true)}>
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => {
-                                setActiveTab('messages');
-                                void loadSelectedPlayerContext(player, false);
-                              }}
-                            >
-                              <MessageSquare className="h-4 w-4" />
-                            </Button>
-                            <Button size="icon" variant="ghost" onClick={() => openEdit(player)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button size="icon" variant="ghost" onClick={() => void handleDelete(player)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {players.length === 0 && (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
                       <TableRow>
-                        <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
-                          No players found
-                        </TableCell>
+                        <TableHead className="w-36">Nickname</TableHead>
+                        <TableHead className="w-52">Wallet</TableHead>
+                        <AdminSortableHead label="Level" column="level" current={sortBy} direction={sortDir} onSort={handleSort} />
+                        <AdminSortableHead label="Coins" column="coins" current={sortBy} direction={sortDir} onSort={handleSort} />
+                        <AdminSortableHead label="Bait" column="bait" current={sortBy} direction={sortDir} onSort={handleSort} />
+                        <AdminSortableHead label="Catches" column="total_catches" current={sortBy} direction={sortDir} onSort={handleSort} />
+                        <TableHead>Rod</TableHead>
+                        <AdminSortableHead label="Created" column="created_at" current={sortBy} direction={sortDir} onSort={handleSort} />
+                        <TableHead className="w-40">Actions</TableHead>
                       </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {players.map((player) => (
+                        <TableRow key={player.id} className={cn(selectedPlayer?.id === player.id && 'bg-primary/5')}>
+                          <TableCell className="text-sm font-medium">
+                            <div className="flex items-center gap-2">
+                              {player.nickname || <span className="italic text-muted-foreground">-</span>}
+                              {player.is_admin && (
+                                <Badge
+                                  variant="secondary"
+                                  className="border border-amber-500/40 bg-amber-500/15 text-[10px] uppercase text-amber-700"
+                                >
+                                  {player.admin_role === 'superadmin' ? 'Superadmin' : 'Admin'}
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">
+                            {player.wallet_address.slice(0, 6)}...{player.wallet_address.slice(-4)}
+                          </TableCell>
+                          <TableCell>{player.level}</TableCell>
+                          <TableCell>{player.coins.toLocaleString()}</TableCell>
+                          <TableCell>{(player.bait + player.daily_free_bait).toLocaleString()}</TableCell>
+                          <TableCell>
+                            <span
+                              className={cn(
+                                player.catches_source === 'audit_fallback' && 'font-medium text-amber-700',
+                              )}
+                              title={player.catches_source === 'audit_fallback'
+                                ? 'Displayed from audit logs because saved catches have not synced yet.'
+                                : undefined}
+                            >
+                              {getDisplayCatchCount(player).toLocaleString()}
+                            </span>
+                          </TableCell>
+                          <TableCell>{ROD_NAMES[player.rod_level] || player.rod_level}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {new Date(player.created_at).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button size="icon" variant="ghost" onClick={() => void loadSelectedPlayerContext(player, true)} aria-label="Inspect player">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                aria-label="Message player"
+                                onClick={() => {
+                                  setActiveTab('messages');
+                                  void loadSelectedPlayerContext(player, false);
+                                }}
+                              >
+                                <MessageSquare className="h-4 w-4" />
+                              </Button>
+                              <Button size="icon" variant="ghost" onClick={() => openEdit(player)} aria-label="Edit player">
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button size="icon" variant="ghost" onClick={() => void handleDelete(player)} aria-label="Delete player">
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {players.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
+                            No players found
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
 
@@ -872,6 +1135,8 @@ export default function Admin() {
           </TabsContent>
 
           <TabsContent value="messages" className="space-y-4">
+            <AdminSectionIntro tab="messages" />
+
             <div className="grid gap-4 lg:grid-cols-[18rem,1fr]">
               <Card className="border-zinc-800 bg-zinc-950">
                 <CardHeader>
@@ -936,6 +1201,8 @@ export default function Admin() {
           </TabsContent>
 
           <TabsContent value="withdrawals" className="space-y-4">
+            <AdminSectionIntro tab="withdrawals" />
+
             <AdminWithdrawRequestCenter
               requests={withdrawRequests}
               summary={withdrawSummary}
@@ -954,6 +1221,8 @@ export default function Admin() {
           </TabsContent>
 
           <TabsContent value="weekly" className="space-y-4">
+            <AdminSectionIntro tab="weekly" />
+
             <AdminWeeklyPayoutCenter
               weekKey={weeklyPreviewWeekKey}
               preview={weeklyPreview}
@@ -971,6 +1240,8 @@ export default function Admin() {
           </TabsContent>
 
           <TabsContent value="social" className="space-y-4">
+            <AdminSectionIntro tab="social" />
+
             <AdminSocialTaskCenter
               verifications={socialVerifications}
               filter={socialFilter}
@@ -998,7 +1269,7 @@ export default function Admin() {
         />
 
         <Dialog open={!!editPlayer} onOpenChange={resetEditState}>
-          <DialogContent className="max-w-3xl">
+          <DialogContent className="admin-dialog max-w-3xl border-black/10 bg-white text-slate-950">
             <DialogHeader>
               <DialogTitle>Edit player</DialogTitle>
             </DialogHeader>

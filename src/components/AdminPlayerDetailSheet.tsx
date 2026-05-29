@@ -59,7 +59,7 @@ const AdminPlayerDetailSheet: React.FC<AdminPlayerDetailSheetProps> = ({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full overflow-hidden border-zinc-800 bg-black/95 p-0 text-zinc-100 sm:max-w-2xl">
+      <SheetContent side="right" className="admin-panel-sheet admin-shell w-full overflow-hidden border-zinc-800 bg-black/95 p-0 text-zinc-100 sm:max-w-2xl">
         <div className="flex h-full flex-col">
           <SheetHeader className="border-b border-zinc-800 px-6 py-5">
             <SheetTitle className="flex items-center gap-2 text-zinc-100">
