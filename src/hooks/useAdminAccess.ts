@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { invokeHooklootEdge } from '@/lib/serverApi';
 import { getStoredWalletSession } from '@/lib/walletSession';
+import { isSeededAdminWallet } from '@/lib/adminWallets';
 
 const ADMIN_ACCESS_REFRESH_INTERVAL_MS = 300_000;
 
@@ -28,12 +29,13 @@ export function useAdminAccess(walletAddress: string | undefined, enabled: boole
     }
 
     let cancelled = false;
+    const seedAllowsAdminEntry = isSeededAdminWallet(walletAddress);
 
     const checkAdminAccess = async () => {
       try {
         const session = getStoredWalletSession();
         if (!session || session.address.toLowerCase() !== walletAddress.toLowerCase()) {
-          if (!cancelled) setIsAdmin(false);
+          if (!cancelled) setIsAdmin(seedAllowsAdminEntry);
           return;
         }
 
@@ -51,7 +53,7 @@ export function useAdminAccess(walletAddress: string | undefined, enabled: boole
 
         if (!adminCheck?.is_admin) {
           if (!cancelled) {
-            setIsAdmin(false);
+            setIsAdmin(seedAllowsAdminEntry);
             setPendingWithdrawCount(0);
           }
           return;
@@ -75,7 +77,7 @@ export function useAdminAccess(walletAddress: string | undefined, enabled: boole
         }
       } catch {
         if (!cancelled) {
-          setIsAdmin(false);
+          setIsAdmin(seedAllowsAdminEntry);
           setPendingWithdrawCount(0);
         }
       }
