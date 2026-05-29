@@ -1,5 +1,8 @@
 # STATUS
 
+## 2026-05-29 admin average level display
+- Formatted the `/admin` Avg level stat to show at most one decimal place, so the metric no longer spills a long floating-point tail into the card.
+
 ## 2026-05-29 admin glass exposure pass
 - Reduced `/admin` overbright white glass fills, reflections, borders, and active tab surfaces so panels feel less washed out.
 - Slightly strengthened the background grid and lowered panel opacity/blur intensity so the grid shows through the glass without hurting text contrast.

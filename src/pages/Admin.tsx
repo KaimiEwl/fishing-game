@@ -83,6 +83,10 @@ type EditablePlayerForm = Pick<
 
 const formatWallet = (value: string) => `${value.slice(0, 6)}...${value.slice(-4)}`;
 
+const formatAverageLevel = (value: number) => Number.isFinite(value)
+  ? value.toLocaleString(undefined, { maximumFractionDigits: 1 })
+  : '0';
+
 const getDisplayCatchCount = (player: AdminPlayer) => player.display_total_catches ?? player.total_catches;
 
 const formatEditableJson = (value: unknown) => JSON.stringify(value ?? null, null, 2);
@@ -880,7 +884,7 @@ export default function Admin() {
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
                   <AdminStatCard toneClass={getAdminToneClass('blue')} icon={<Users className="h-5 w-5" />} label="Players" value={stats.totalPlayers} />
                   <AdminStatCard toneClass={getAdminToneClass('green')} icon={<Activity className="h-5 w-5" />} label="Active 24h" value={stats.activeToday} />
-                  <AdminStatCard toneClass={getAdminToneClass('violet')} icon={<TrendingUp className="h-5 w-5" />} label="Avg level" value={stats.avgLevel} />
+                  <AdminStatCard toneClass={getAdminToneClass('violet')} icon={<TrendingUp className="h-5 w-5" />} label="Avg level" value={formatAverageLevel(stats.avgLevel)} />
                   <AdminStatCard toneClass={getAdminToneClass('rose')} icon={<TrendingUp className="h-5 w-5" />} label="Max level" value={stats.maxLevel} />
                   <AdminStatCard toneClass={getAdminToneClass('amber')} icon={<Coins className="h-5 w-5" />} label="Total coins" value={stats.totalCoins.toLocaleString()} />
                   <AdminStatCard toneClass={getAdminToneClass('green')} icon={<FishIcon fishId="carp" size="xs" />} label="Total catches" value={stats.totalCatches.toLocaleString()} />
