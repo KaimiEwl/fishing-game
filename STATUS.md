@@ -1,5 +1,9 @@
 # STATUS
 
+## 2026-05-29 admin icon simplification pass
+- Reduced `/admin` visual icon noise by making each picture-guide strip use one minimal icon and removing duplicated help/header icons where a guide already explains the block.
+- Tightened table action and sort controls so clickable icon buttons have visible button affordance, hover feedback, titles, and consistent Liquid Glass styling.
+
 ## 2026-05-29 admin block picture guides
 - Added reusable picture-guide strips to `/admin` blocks so stats, distributions, top lists, player lookup, account tools, messages, withdrawals, weekly payouts, social verification, and security watch explain their purpose visually in context.
 - Kept the guides inside the existing Liquid Glass tone system so each block gets a compact image, two action cues, and subtle color without adding noisy instructional panels.

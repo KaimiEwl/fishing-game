@@ -19,7 +19,7 @@ const AdminSortableHead = ({
   <TableHead>
     <button
       type="button"
-      className="flex items-center gap-1 hover:text-foreground"
+      className="admin-sort-button flex items-center gap-1 hover:text-foreground"
       onClick={() => onSort(column)}
       aria-label={`Sort by ${label} (${current === column ? direction : 'desc'})`}
     >

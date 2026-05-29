@@ -1,11 +1,10 @@
 import React from 'react';
-import { CalendarRange, RefreshCcw, Trophy } from 'lucide-react';
+import { RefreshCcw, Trophy } from 'lucide-react';
 import type { AdminWeeklyPayoutBatch, AdminWeeklyPayoutPreviewEntry } from '@/hooks/useAdmin';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatMonAmount } from '@/lib/monRewards';
-import AdminInfoPopover from '@/components/AdminInfoPopover';
 import AdminBlockGuide from '@/components/AdminBlockGuide';
 
 interface AdminWeeklyPayoutCenterProps {
@@ -40,9 +39,6 @@ const AdminWeeklyPayoutCenter: React.FC<AdminWeeklyPayoutCenterProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <CardTitle className="text-base text-zinc-100">Weekly payout preview</CardTitle>
-              <AdminInfoPopover title="Weekly payout preview">
-                <p>Preview shows the current grill leaderboard payout candidates. Apply only once per week after checking the candidate list.</p>
-              </AdminInfoPopover>
             </div>
             <p className="mt-1 text-xs text-zinc-500">
               Week key: {weekKey ?? '--'}
@@ -90,13 +86,7 @@ const AdminWeeklyPayoutCenter: React.FC<AdminWeeklyPayoutCenterProps> = ({
       <Card className="admin-tone-violet border-zinc-800 bg-zinc-950">
         <CardHeader>
           <div className="flex items-center justify-between gap-3">
-            <CardTitle className="flex items-center gap-2 text-base text-zinc-100">
-              <CalendarRange className="h-4 w-4 text-cyan-100" />
-              Applied history
-            </CardTitle>
-            <AdminInfoPopover title="Applied history">
-              <p>Read-only log of weekly payout batches that were already applied by an admin wallet.</p>
-            </AdminInfoPopover>
+            <CardTitle className="text-base text-zinc-100">Applied history</CardTitle>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">

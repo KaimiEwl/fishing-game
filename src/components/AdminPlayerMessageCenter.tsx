@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Mail, Send, Users } from 'lucide-react';
+import { Send, Users } from 'lucide-react';
 import type { AdminPlayer, AdminPlayerMessage } from '@/hooks/useAdmin';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
-import AdminInfoPopover from '@/components/AdminInfoPopover';
 import AdminBlockGuide from '@/components/AdminBlockGuide';
 
 interface AdminPlayerMessageCenterProps {
@@ -98,14 +97,9 @@ const AdminPlayerMessageCenter: React.FC<AdminPlayerMessageCenterProps> = ({
         <CardHeader>
           <CardTitle className="flex items-center justify-between gap-3 text-base text-zinc-100">
             <span>Message history</span>
-            <div className="flex items-center gap-2">
-              <Badge className="border-cyan-300/20 bg-cyan-300/10 text-cyan-100 hover:bg-cyan-300/10">
-                {unreadCount} unread
-              </Badge>
-              <AdminInfoPopover title="Message history">
-                <p>This is read-only inbox history for the selected user. Use the composer block for actions.</p>
-              </AdminInfoPopover>
-            </div>
+            <Badge className="border-cyan-300/20 bg-cyan-300/10 text-cyan-100 hover:bg-cyan-300/10">
+              {unreadCount} unread
+            </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -123,12 +117,10 @@ const AdminPlayerMessageCenter: React.FC<AdminPlayerMessageCenterProps> = ({
                         </div>
                         {message.read_at ? (
                           <Badge variant="outline" className="border-zinc-700 text-zinc-300">
-                            <CheckCircle2 className="mr-1 h-3 w-3" />
                             Read
                           </Badge>
                         ) : (
                           <Badge className="border-cyan-300/20 bg-cyan-300/10 text-cyan-100 hover:bg-cyan-300/10">
-                            <Mail className="mr-1 h-3 w-3" />
                             Unread
                           </Badge>
                         )}
@@ -157,9 +149,6 @@ const AdminPlayerMessageCenter: React.FC<AdminPlayerMessageCenterProps> = ({
         <CardHeader>
           <CardTitle className="flex items-center justify-between gap-3 text-base text-zinc-100">
             <span>Send inbox message</span>
-            <AdminInfoPopover title="Inbox composer">
-              <p>Personal messages go only to the selected user. Broadcast sends the same inbox message to all stored game players, so use it for careful service notices.</p>
-            </AdminInfoPopover>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">

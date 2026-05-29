@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatMonAmount } from '@/lib/monRewards';
 import { cn } from '@/lib/utils';
-import AdminInfoPopover from '@/components/AdminInfoPopover';
 import AdminBlockGuide from '@/components/AdminBlockGuide';
 
 interface AdminWithdrawRequestCenterProps {
@@ -129,9 +128,6 @@ const AdminWithdrawRequestCenter: React.FC<AdminWithdrawRequestCenterProps> = ({
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-2">
             <CardTitle className="text-base text-zinc-100">Withdraw queue</CardTitle>
-            <AdminInfoPopover title="Withdraw queue">
-              <p>Use this block for payout state changes only: approve pending requests, reject invalid ones, or paste a payout tx hash and mark approved requests as paid.</p>
-            </AdminInfoPopover>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {FILTERS.map((item) => (

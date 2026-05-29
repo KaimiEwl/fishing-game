@@ -2,14 +2,9 @@ import {
   Activity,
   Bell,
   CalendarRange,
-  CheckCircle2,
-  Coins,
-  Database,
-  Eye,
   Mail,
   MessageSquare,
   Search,
-  Send,
   Shield,
   SlidersHorizontal,
   Trophy,
@@ -49,7 +44,6 @@ interface AdminBlockGuideContent {
   steps: [string, string];
   tone: AdminGuideTone;
   primaryIcon: LucideIcon;
-  secondaryIcon: LucideIcon;
 }
 
 const GUIDE_CONTENT: Record<AdminBlockGuideVariant, AdminBlockGuideContent> = {
@@ -59,7 +53,6 @@ const GUIDE_CONTENT: Record<AdminBlockGuideVariant, AdminBlockGuideContent> = {
     steps: ['Read totals', 'Open details'],
     tone: 'blue',
     primaryIcon: Activity,
-    secondaryIcon: Eye,
   },
   stats: {
     title: 'Live numbers',
@@ -67,7 +60,6 @@ const GUIDE_CONTENT: Record<AdminBlockGuideVariant, AdminBlockGuideContent> = {
     steps: ['Scan', 'Refresh'],
     tone: 'blue',
     primaryIcon: Activity,
-    secondaryIcon: Coins,
   },
   distributions: {
     title: 'Progress shape',
@@ -75,7 +67,6 @@ const GUIDE_CONTENT: Record<AdminBlockGuideVariant, AdminBlockGuideContent> = {
     steps: ['Compare', 'Watch drift'],
     tone: 'violet',
     primaryIcon: SlidersHorizontal,
-    secondaryIcon: Database,
   },
   topLists: {
     title: 'Leaderboard clues',
@@ -83,7 +74,6 @@ const GUIDE_CONTENT: Record<AdminBlockGuideVariant, AdminBlockGuideContent> = {
     steps: ['Rank', 'Inspect'],
     tone: 'amber',
     primaryIcon: Trophy,
-    secondaryIcon: Eye,
   },
   security: {
     title: 'Risk radar',
@@ -91,7 +81,6 @@ const GUIDE_CONTENT: Record<AdminBlockGuideVariant, AdminBlockGuideContent> = {
     steps: ['Review flags', 'Inspect user'],
     tone: 'rose',
     primaryIcon: Shield,
-    secondaryIcon: Eye,
   },
   lookup: {
     title: 'Find the player',
@@ -99,7 +88,6 @@ const GUIDE_CONTENT: Record<AdminBlockGuideVariant, AdminBlockGuideContent> = {
     steps: ['Search', 'Select'],
     tone: 'green',
     primaryIcon: Search,
-    secondaryIcon: Users,
   },
   accounts: {
     title: 'Account tools',
@@ -107,7 +95,6 @@ const GUIDE_CONTENT: Record<AdminBlockGuideVariant, AdminBlockGuideContent> = {
     steps: ['Inspect', 'Edit'],
     tone: 'green',
     primaryIcon: Users,
-    secondaryIcon: SlidersHorizontal,
   },
   messageHistory: {
     title: 'Inbox timeline',
@@ -115,7 +102,6 @@ const GUIDE_CONTENT: Record<AdminBlockGuideVariant, AdminBlockGuideContent> = {
     steps: ['Read', 'Confirm'],
     tone: 'violet',
     primaryIcon: Mail,
-    secondaryIcon: CheckCircle2,
   },
   composer: {
     title: 'Write and send',
@@ -123,7 +109,6 @@ const GUIDE_CONTENT: Record<AdminBlockGuideVariant, AdminBlockGuideContent> = {
     steps: ['Draft', 'Send'],
     tone: 'blue',
     primaryIcon: MessageSquare,
-    secondaryIcon: Send,
   },
   withdrawSummary: {
     title: 'Payout totals',
@@ -131,7 +116,6 @@ const GUIDE_CONTENT: Record<AdminBlockGuideVariant, AdminBlockGuideContent> = {
     steps: ['Count', 'Prioritize'],
     tone: 'amber',
     primaryIcon: WalletCards,
-    secondaryIcon: Coins,
   },
   payoutQueue: {
     title: 'Payout actions',
@@ -139,7 +123,6 @@ const GUIDE_CONTENT: Record<AdminBlockGuideVariant, AdminBlockGuideContent> = {
     steps: ['Review', 'Save tx'],
     tone: 'amber',
     primaryIcon: WalletCards,
-    secondaryIcon: CheckCircle2,
   },
   weeklyPreview: {
     title: 'Weekly reward batch',
@@ -147,7 +130,6 @@ const GUIDE_CONTENT: Record<AdminBlockGuideVariant, AdminBlockGuideContent> = {
     steps: ['Preview', 'Apply'],
     tone: 'rose',
     primaryIcon: CalendarRange,
-    secondaryIcon: Trophy,
   },
   weeklyHistory: {
     title: 'Applied batches',
@@ -155,7 +137,6 @@ const GUIDE_CONTENT: Record<AdminBlockGuideVariant, AdminBlockGuideContent> = {
     steps: ['Audit', 'Verify'],
     tone: 'violet',
     primaryIcon: CalendarRange,
-    secondaryIcon: Database,
   },
   social: {
     title: 'Social task states',
@@ -163,7 +144,6 @@ const GUIDE_CONTENT: Record<AdminBlockGuideVariant, AdminBlockGuideContent> = {
     steps: ['Filter', 'Update'],
     tone: 'slate',
     primaryIcon: Bell,
-    secondaryIcon: CheckCircle2,
   },
 };
 
@@ -172,7 +152,6 @@ const getToneClass = (tone: AdminGuideTone) => `admin-tone-${tone}`;
 const AdminBlockGuide = ({ variant, className, compact = false }: AdminBlockGuideProps) => {
   const guide = GUIDE_CONTENT[variant];
   const PrimaryIcon = guide.primaryIcon;
-  const SecondaryIcon = guide.secondaryIcon;
 
   return (
     <div className={cn(
@@ -182,13 +161,8 @@ const AdminBlockGuide = ({ variant, className, compact = false }: AdminBlockGuid
       className,
     )}>
       <div className="admin-block-guide-picture" aria-hidden="true">
-        <div className="admin-block-guide-card admin-block-guide-card-main">
+        <div className="admin-block-guide-icon">
           <PrimaryIcon className="h-5 w-5" />
-          <span />
-          <span />
-        </div>
-        <div className="admin-block-guide-card admin-block-guide-card-secondary">
-          <SecondaryIcon className="h-4 w-4" />
         </div>
         <div className="admin-block-guide-line admin-block-guide-line-one" />
         <div className="admin-block-guide-line admin-block-guide-line-two" />

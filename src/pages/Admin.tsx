@@ -229,23 +229,11 @@ const AdminSectionIntro = ({
   action?: ReactNode;
 }) => {
   const details = ADMIN_TAB_DETAILS[tab];
-  const Icon = details.icon;
-  const toneClasses = ADMIN_TONE_CLASSES[details.tone];
 
   return (
     <div className={cn('flex flex-col gap-3 rounded-lg border border-black/10 bg-white/90 p-3 shadow-sm shadow-black/5 md:flex-row md:items-center md:justify-between', getAdminToneClass(details.tone))}>
-      <div className="flex min-w-0 items-center gap-3">
-        <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border', toneClasses.icon)}>
-          <Icon className="h-4 w-4" />
-        </div>
-        <div className="min-w-0">
-          <div className="flex min-w-0 items-center gap-2">
-            <h2 className="truncate text-xl font-semibold text-slate-950">{details.label}</h2>
-            <AdminInfoPopover title={`${details.label} help`} align="start">
-              <p>{details.description}</p>
-            </AdminInfoPopover>
-          </div>
-        </div>
+      <div className="min-w-0 border-l-2 border-current/20 pl-3 text-primary">
+        <h2 className="truncate text-xl font-semibold text-slate-950">{details.label}</h2>
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
     </div>
@@ -971,9 +959,6 @@ export default function Admin() {
               <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-center gap-2">
                   <h3 className="text-sm font-semibold text-slate-950">Find user</h3>
-                  <AdminInfoPopover title="Find user">
-                    <p>Search by wallet or nickname, then use the row actions for inspect, inbox message, direct edit, or test cleanup.</p>
-                  </AdminInfoPopover>
                 </div>
                 <Button variant="outline" onClick={() => void fetchPlayers()}>
                   <RefreshCcw className="mr-2 h-4 w-4" />
@@ -1000,9 +985,6 @@ export default function Admin() {
                   <CardTitle className="text-base text-slate-950">User accounts</CardTitle>
                   <p className="mt-1 text-xs text-slate-500">{total.toLocaleString()} total players</p>
                 </div>
-                <AdminInfoPopover title="User account actions">
-                  <p>Eye opens the user detail panel with quick grants. Message switches to the inbox composer. Pencil opens direct editable account fields. Trash is for test cleanup only.</p>
-                </AdminInfoPopover>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="border-b border-black/10 p-3">
@@ -1063,12 +1045,21 @@ export default function Admin() {
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-1">
-                              <Button size="icon" variant="ghost" onClick={() => void loadSelectedPlayerContext(player, true)} aria-label="Inspect player">
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                className="admin-row-action"
+                                title="Inspect player"
+                                onClick={() => void loadSelectedPlayerContext(player, true)}
+                                aria-label="Inspect player"
+                              >
                                 <Eye className="h-4 w-4" />
                               </Button>
                               <Button
                                 size="icon"
-                                variant="ghost"
+                                variant="outline"
+                                className="admin-row-action"
+                                title="Message player"
                                 aria-label="Message player"
                                 onClick={() => {
                                   setActiveTab('messages');
@@ -1077,11 +1068,25 @@ export default function Admin() {
                               >
                                 <MessageSquare className="h-4 w-4" />
                               </Button>
-                              <Button size="icon" variant="ghost" onClick={() => openEdit(player)} aria-label="Edit player">
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                className="admin-row-action"
+                                title="Edit player"
+                                onClick={() => openEdit(player)}
+                                aria-label="Edit player"
+                              >
                                 <Pencil className="h-4 w-4" />
                               </Button>
-                              <Button size="icon" variant="ghost" onClick={() => void handleDelete(player)} aria-label="Delete player">
-                                <Trash2 className="h-4 w-4 text-destructive" />
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                className="admin-row-action admin-row-action-danger"
+                                title="Delete player"
+                                onClick={() => void handleDelete(player)}
+                                aria-label="Delete player"
+                              >
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
                           </TableCell>

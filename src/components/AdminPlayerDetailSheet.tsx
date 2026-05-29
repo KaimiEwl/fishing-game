@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, Coins, Database, Fish, MessageSquare, ShieldCheck, UserRound, Worm } from 'lucide-react';
+import { Coins, Fish, ShieldCheck, UserRound, Worm } from 'lucide-react';
 import type {
   AdminPlayer,
   AdminPlayerActivityEntry,
@@ -265,10 +265,7 @@ const AdminPlayerDetailSheet: React.FC<AdminPlayerDetailSheetProps> = ({
                     <Card className="admin-tone-violet border-zinc-800 bg-zinc-950">
                       <CardHeader>
                         <CardTitle className="flex items-center justify-between gap-3 text-base text-zinc-100">
-                          <span className="flex items-center gap-2">
-                            <Database className="h-4 w-4 text-cyan-100" />
-                            Player progress profile
-                          </span>
+                          <span>Player progress profile</span>
                           <AdminInfoPopover title="Progress profile">
                             <p>Support snapshot of normalized progress tables. The raw JSON is collapsed by default because it is only needed for deeper debugging.</p>
                           </AdminInfoPopover>
@@ -354,10 +351,7 @@ const AdminPlayerDetailSheet: React.FC<AdminPlayerDetailSheetProps> = ({
                   <Card className="admin-tone-rose border-zinc-800 bg-zinc-950">
                     <CardHeader>
                       <CardTitle className="flex items-center justify-between gap-3 text-base text-zinc-100">
-                        <span className="flex items-center gap-2">
-                          <AlertTriangle className="h-4 w-4 text-yellow-300" />
-                          Suspicious activity flags
-                        </span>
+                        <span>Suspicious activity flags</span>
                         <AdminInfoPopover title="Suspicious flags">
                           <p>Read-only recent risk signals for this user. Apply any account action from the user-specific blocks above.</p>
                         </AdminInfoPopover>
@@ -403,10 +397,7 @@ const AdminPlayerDetailSheet: React.FC<AdminPlayerDetailSheetProps> = ({
                     <Card className="admin-tone-blue border-zinc-800 bg-zinc-950">
                       <CardHeader>
                         <CardTitle className="flex items-center justify-between gap-3 text-base text-zinc-100">
-                          <span className="flex items-center gap-2">
-                            <MessageSquare className="h-4 w-4 text-cyan-100" />
-                            Recent activity
-                          </span>
+                          <span>Recent activity</span>
                           <AdminInfoPopover title="Recent activity">
                             <p>Read-only event trail for support/debugging. Use it to understand what happened before applying a user action.</p>
                           </AdminInfoPopover>
