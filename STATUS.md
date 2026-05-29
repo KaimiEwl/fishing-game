@@ -1,5 +1,10 @@
 # STATUS
 
+## 2026-05-29 admin panel workflow declutter
+- Added a reusable admin `i` info popover and moved guide/help copy out of the main `/admin` surface so the page reads as working blocks first.
+- Grouped player lookup, user account actions, message composer, payout queues, weekly payout actions, social verification, and user-detail support sections more explicitly.
+- Collapsed advanced JSON/raw progress data behind accordions so risky/debug-only information is available without dominating normal admin work.
+
 ## 2026-05-29 admin panel layout polish
 - Tightened `/admin` tab sizing, text wrapping, and mini visual cards so labels stay inside their controls and the guide illustrations do not visually collide on narrow layouts.
 - Added scoped admin overflow guards for buttons, tabs, tables, and mono wallet text to reduce accidental overlap in dense admin sections.

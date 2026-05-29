@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import AdminInfoPopover from '@/components/AdminInfoPopover';
 
 type SocialTaskStatusFilter = AdminSocialTaskVerification['status'] | 'all';
 
@@ -61,11 +62,11 @@ const AdminSocialTaskCenter: React.FC<AdminSocialTaskCenterProps> = ({
   <div className="space-y-4">
     <Card className="border-zinc-800 bg-zinc-950">
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <CardTitle className="text-base text-zinc-100">Social task verification scaffold</CardTitle>
-          <p className="mt-1 text-xs text-zinc-500">
-            Manual/admin override layer for future X, Discord, and Telegram task rollout.
-          </p>
+        <div className="flex min-w-0 items-center gap-2">
+          <CardTitle className="text-base text-zinc-100">Social task verification</CardTitle>
+          <AdminInfoPopover title="Social task verification">
+            <p>Manual override layer for social task states. Change only the selected user's task status, then let the player claim from the game UI.</p>
+          </AdminInfoPopover>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {FILTERS.map((item) => (

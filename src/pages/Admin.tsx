@@ -3,7 +3,6 @@ import { useAccount } from 'wagmi';
 import { useNavigate } from 'react-router-dom';
 import {
   Activity,
-  AlertTriangle,
   ArrowLeft,
   Bell,
   CalendarRange,
@@ -45,9 +44,11 @@ import AdminSuspiciousCenter from '@/components/AdminSuspiciousCenter';
 import AdminSocialTaskCenter from '@/components/AdminSocialTaskCenter';
 import AdminWithdrawRequestCenter from '@/components/AdminWithdrawRequestCenter';
 import AdminWeeklyPayoutCenter from '@/components/AdminWeeklyPayoutCenter';
+import AdminInfoPopover from '@/components/AdminInfoPopover';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -194,63 +195,28 @@ const ADMIN_GUIDE_CARDS: Array<{
   },
 ];
 
-const AdminMiniVisual = ({
-  icon: Icon,
-  tone,
-  className,
-}: {
-  icon: LucideIcon;
-  tone: AdminTone;
-  className?: string;
-}) => {
-  const toneClasses = ADMIN_TONE_CLASSES[tone];
+const AdminGuidePopover = () => (
+  <AdminInfoPopover title="Admin map">
+    <div className="space-y-3">
+      {ADMIN_GUIDE_CARDS.map((card) => {
+        const Icon = card.icon;
+        const toneClasses = ADMIN_TONE_CLASSES[card.tone];
 
-  return (
-    <div className={cn('h-20 min-w-0 overflow-hidden rounded-lg border p-3', toneClasses.visual, className)} aria-hidden="true">
-      <div className="flex items-center justify-between gap-2">
-        <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border bg-white/80', toneClasses.icon)}>
-          <Icon className="h-4 w-4" />
-        </div>
-        <div className="grid shrink-0 grid-cols-2 gap-1">
-          {[0, 1, 2, 3].map((item) => (
-            <span key={item} className="h-2.5 w-2.5 rounded-sm bg-white/85" />
-          ))}
-        </div>
-      </div>
-      <div className="mt-3 space-y-1.5">
-        {[72, 48, 86].map((width, index) => (
-          <div key={`${tone}-${width}-${index}`} className="h-1.5 rounded-full bg-white">
-            <div className={cn('h-full rounded-full opacity-70', toneClasses.bar)} style={{ width: `${width}%` }} />
+        return (
+          <div key={card.title} className="grid grid-cols-[3rem,1fr] gap-3 rounded-lg border border-black/10 bg-slate-50 p-2">
+            <div className={cn('flex h-10 w-10 items-center justify-center rounded-lg border bg-white', toneClasses.icon)}>
+              <Icon className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-slate-950">{card.title}</p>
+              <p className="mt-0.5 text-xs leading-5 text-slate-500">{card.description}</p>
+            </div>
           </div>
-        ))}
-      </div>
+        );
+      })}
     </div>
-  );
-};
-
-const AdminGuideCard = ({
-  title,
-  description,
-  icon,
-  tone,
-}: {
-  title: string;
-  description: string;
-  icon: LucideIcon;
-  tone: AdminTone;
-}) => {
-  const Icon = icon;
-
-  return (
-    <div className="flex min-w-0 flex-col gap-3 rounded-lg border border-black/10 bg-white/90 p-3 shadow-sm shadow-black/5 sm:flex-row sm:items-center">
-      <AdminMiniVisual icon={Icon} tone={tone} className="h-16 sm:h-20 sm:w-24 sm:shrink-0" />
-      <div className="min-w-0">
-        <h2 className="text-sm font-semibold text-slate-950">{title}</h2>
-        <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>
-      </div>
-    </div>
-  );
-};
+  </AdminInfoPopover>
+);
 
 const AdminSectionIntro = ({
   tab,
@@ -264,17 +230,18 @@ const AdminSectionIntro = ({
   const toneClasses = ADMIN_TONE_CLASSES[details.tone];
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-black/10 bg-white/90 p-4 shadow-sm shadow-black/5 md:flex-row md:items-center md:justify-between">
-      <div className="flex min-w-0 gap-4">
-        <div className="hidden w-28 shrink-0 sm:block">
-          <AdminMiniVisual icon={Icon} tone={details.tone} />
+    <div className="flex flex-col gap-3 rounded-lg border border-black/10 bg-white/90 p-3 shadow-sm shadow-black/5 md:flex-row md:items-center md:justify-between">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border', toneClasses.icon)}>
+          <Icon className="h-4 w-4" />
         </div>
-        <div className="min-w-0 self-center">
-          <div className={cn('mb-2 inline-flex h-9 w-9 items-center justify-center rounded-lg border sm:hidden', toneClasses.icon)}>
-            <Icon className="h-4 w-4" />
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-2">
+            <h2 className="truncate text-xl font-semibold text-slate-950">{details.label}</h2>
+            <AdminInfoPopover title={`${details.label} help`} align="start">
+              <p>{details.description}</p>
+            </AdminInfoPopover>
           </div>
-          <h2 className="text-xl font-semibold text-slate-950">{details.label}</h2>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">{details.description}</p>
         </div>
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
@@ -853,12 +820,12 @@ export default function Admin() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs font-semibold uppercase text-slate-500">Hook & Loot operations</p>
-                  <h1 className="truncate text-3xl font-semibold text-slate-950 md:text-4xl">Admin Panel</h1>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <h1 className="truncate text-3xl font-semibold text-slate-950 md:text-4xl">Admin Panel</h1>
+                    <AdminGuidePopover />
+                  </div>
                 </div>
               </div>
-              <p className="max-w-3xl text-sm leading-6 text-slate-500">
-                A compact control room for account support, MON payout checks, weekly rewards, social verification, and player messaging.
-              </p>
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row lg:items-center">
@@ -872,12 +839,6 @@ export default function Admin() {
             </div>
           </div>
         </header>
-
-        <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {ADMIN_GUIDE_CARDS.map((card) => (
-            <AdminGuideCard key={card.title} {...card} />
-          ))}
-        </section>
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as AdminTab)} className="space-y-5">
           <div className="sticky top-0 z-20 -mx-4 border-b border-black/10 bg-[#f5f5f7]/90 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
@@ -979,19 +940,13 @@ export default function Admin() {
                   <AdminTopList title="Top by catches" players={stats.topByCatches} field="total_catches" />
                 </div>
 
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-yellow-300" />
-                    <h2 className="text-base font-semibold text-foreground">Security watch</h2>
-                  </div>
-                  <AdminSuspiciousCenter
-                    summary={suspiciousSummary}
-                    players={suspiciousPlayers}
-                    loading={suspiciousLoading}
-                    onRefresh={() => void fetchSuspiciousData()}
-                    onInspectPlayer={handleInspectSuspiciousPlayer}
-                  />
-                </div>
+                <AdminSuspiciousCenter
+                  summary={suspiciousSummary}
+                  players={suspiciousPlayers}
+                  loading={suspiciousLoading}
+                  onRefresh={() => void fetchSuspiciousData()}
+                  onInspectPlayer={handleInspectSuspiciousPlayer}
+                />
               </>
             )}
           </TabsContent>
@@ -999,8 +954,20 @@ export default function Admin() {
           <TabsContent value="players" className="space-y-4">
             <AdminSectionIntro tab="players" />
 
-            <div className="flex flex-col gap-2 rounded-lg border border-black/10 bg-white/90 p-3 shadow-sm shadow-black/5 sm:flex-row">
-              <div className="relative max-w-sm flex-1">
+            <div className="rounded-lg border border-black/10 bg-white/90 p-3 shadow-sm shadow-black/5">
+              <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-center gap-2">
+                  <h3 className="text-sm font-semibold text-slate-950">Find user</h3>
+                  <AdminInfoPopover title="Find user">
+                    <p>Search by wallet or nickname, then use the row actions for inspect, inbox message, direct edit, or test cleanup.</p>
+                  </AdminInfoPopover>
+                </div>
+                <Button variant="outline" onClick={() => void fetchPlayers()}>
+                  <RefreshCcw className="mr-2 h-4 w-4" />
+                  Refresh players
+                </Button>
+              </div>
+              <div className="relative max-w-xl">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder="Search wallet or nickname..."
@@ -1012,13 +979,18 @@ export default function Admin() {
                   className="pl-9"
                 />
               </div>
-              <Button variant="outline" onClick={() => void fetchPlayers()}>
-                <RefreshCcw className="mr-2 h-4 w-4" />
-                Refresh players
-              </Button>
             </div>
 
             <Card className="overflow-hidden border-black/10 bg-white/95 shadow-sm shadow-black/5">
+              <CardHeader className="flex flex-row items-center justify-between gap-3 border-b border-black/10">
+                <div className="min-w-0">
+                  <CardTitle className="text-base text-slate-950">User accounts</CardTitle>
+                  <p className="mt-1 text-xs text-slate-500">{total.toLocaleString()} total players</p>
+                </div>
+                <AdminInfoPopover title="User account actions">
+                  <p>Eye opens the user detail panel with quick grants. Message switches to the inbox composer. Pencil opens direct editable account fields. Trash is for test cleanup only.</p>
+                </AdminInfoPopover>
+              </CardHeader>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
                   <Table>
@@ -1274,77 +1246,104 @@ export default function Admin() {
         <Dialog open={!!editPlayer} onOpenChange={resetEditState}>
           <DialogContent className="admin-dialog max-w-3xl border-black/10 bg-white text-slate-950">
             <DialogHeader>
-              <DialogTitle>Edit player</DialogTitle>
+              <div className="flex items-center justify-between gap-3">
+                <DialogTitle>Edit player</DialogTitle>
+                <AdminInfoPopover title="Edit player">
+                  <p>Use basic fields for normal support edits. Advanced JSON is collapsed because it is riskier and mainly for debugging migrated progress data.</p>
+                </AdminInfoPopover>
+              </div>
             </DialogHeader>
             {editPlayer && editForm && (
               <div className="space-y-4">
-                <p className="font-mono text-sm text-muted-foreground">{editPlayer.wallet_address}</p>
-                {Object.prototype.hasOwnProperty.call(editPlayer, 'nickname') && (
-                  <div>
-                    <label className="text-xs text-muted-foreground">Nickname</label>
-                    <Input
-                      value={editForm.nickname}
-                      onChange={(event) =>
-                        setEditForm((current) =>
-                          current ? { ...current, nickname: event.target.value } : current,
-                        )
-                      }
-                      maxLength={20}
-                      placeholder="No nickname"
-                    />
-                  </div>
-                )}
-                <div className="grid grid-cols-2 gap-3">
-                  <AdminEditField label="Level" value={editForm.level} onChange={(value) => setEditForm((current) => (current ? { ...current, level: Number(value) } : current))} />
-                  <AdminEditField label="XP" value={editForm.xp} onChange={(value) => setEditForm((current) => (current ? { ...current, xp: Number(value) } : current))} />
-                  <AdminEditField label="Coins" value={editForm.coins} onChange={(value) => setEditForm((current) => (current ? { ...current, coins: Number(value) } : current))} />
-                  <AdminEditField label="Reserve bait" value={editForm.bait} onChange={(value) => setEditForm((current) => (current ? { ...current, bait: Number(value) } : current))} />
-                  <AdminEditField label="Daily bait" value={editForm.daily_free_bait} onChange={(value) => setEditForm((current) => (current ? { ...current, daily_free_bait: Number(value) } : current))} />
-                  <AdminEditField label="Max rod" value={editForm.rod_level} onChange={(value) => setEditForm((current) => (current ? { ...current, rod_level: Number(value) } : current))} />
-                  <AdminEditField label="Equipped rod" value={editForm.equipped_rod} onChange={(value) => setEditForm((current) => (current ? { ...current, equipped_rod: Number(value) } : current))} />
-                  <AdminEditField label="Login streak" value={editForm.login_streak} onChange={(value) => setEditForm((current) => (current ? { ...current, login_streak: Number(value) } : current))} />
+                <div className="rounded-lg border border-black/10 bg-slate-50 px-3 py-2">
+                  <p className="text-xs font-semibold text-slate-500">Wallet</p>
+                  <p className="font-mono text-sm text-slate-700">{editPlayer.wallet_address}</p>
                 </div>
-                <div className="grid gap-3 lg:grid-cols-3">
-                  <div className="space-y-1">
-                    <label className="text-xs text-muted-foreground">Inventory JSON</label>
-                    <Textarea
-                      value={editForm.inventoryJson}
-                      onChange={(event) =>
-                        setEditForm((current) =>
-                          current ? { ...current, inventoryJson: event.target.value } : current,
-                        )
-                      }
-                      className="min-h-40 font-mono text-xs"
-                      spellCheck={false}
-                    />
+
+                <div className="rounded-lg border border-black/10 bg-white p-3">
+                  <div className="mb-3 flex items-center gap-2">
+                    <h3 className="text-sm font-semibold text-slate-950">User basics</h3>
+                    <AdminInfoPopover title="User basics">
+                      <p>Core editable fields for one selected user: nickname, level, XP, coins, bait, rod state, and login streak.</p>
+                    </AdminInfoPopover>
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-muted-foreground">Cooked dishes JSON</label>
-                    <Textarea
-                      value={editForm.cookedDishesJson}
-                      onChange={(event) =>
-                        setEditForm((current) =>
-                          current ? { ...current, cookedDishesJson: event.target.value } : current,
-                        )
-                      }
-                      className="min-h-40 font-mono text-xs"
-                      spellCheck={false}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-muted-foreground">Game progress JSON</label>
-                    <Textarea
-                      value={editForm.gameProgressJson}
-                      onChange={(event) =>
-                        setEditForm((current) =>
-                          current ? { ...current, gameProgressJson: event.target.value } : current,
-                        )
-                      }
-                      className="min-h-40 font-mono text-xs"
-                      spellCheck={false}
-                    />
+                  {Object.prototype.hasOwnProperty.call(editPlayer, 'nickname') && (
+                    <div className="mb-3">
+                      <label className="text-xs text-muted-foreground">Nickname</label>
+                      <Input
+                        value={editForm.nickname}
+                        onChange={(event) =>
+                          setEditForm((current) =>
+                            current ? { ...current, nickname: event.target.value } : current,
+                          )
+                        }
+                        maxLength={20}
+                        placeholder="No nickname"
+                      />
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-3">
+                    <AdminEditField label="Level" value={editForm.level} onChange={(value) => setEditForm((current) => (current ? { ...current, level: Number(value) } : current))} />
+                    <AdminEditField label="XP" value={editForm.xp} onChange={(value) => setEditForm((current) => (current ? { ...current, xp: Number(value) } : current))} />
+                    <AdminEditField label="Coins" value={editForm.coins} onChange={(value) => setEditForm((current) => (current ? { ...current, coins: Number(value) } : current))} />
+                    <AdminEditField label="Reserve bait" value={editForm.bait} onChange={(value) => setEditForm((current) => (current ? { ...current, bait: Number(value) } : current))} />
+                    <AdminEditField label="Daily bait" value={editForm.daily_free_bait} onChange={(value) => setEditForm((current) => (current ? { ...current, daily_free_bait: Number(value) } : current))} />
+                    <AdminEditField label="Max rod" value={editForm.rod_level} onChange={(value) => setEditForm((current) => (current ? { ...current, rod_level: Number(value) } : current))} />
+                    <AdminEditField label="Equipped rod" value={editForm.equipped_rod} onChange={(value) => setEditForm((current) => (current ? { ...current, equipped_rod: Number(value) } : current))} />
+                    <AdminEditField label="Login streak" value={editForm.login_streak} onChange={(value) => setEditForm((current) => (current ? { ...current, login_streak: Number(value) } : current))} />
                   </div>
                 </div>
+
+                <Accordion type="single" collapsible className="rounded-lg border border-black/10 bg-white">
+                  <AccordionItem value="advanced-json" className="border-0">
+                    <AccordionTrigger className="px-3 py-3 text-sm font-semibold text-slate-950 hover:no-underline">
+                      Advanced JSON fields
+                    </AccordionTrigger>
+                    <AccordionContent className="px-3 pb-3 pt-0">
+                      <div className="grid gap-3 lg:grid-cols-3">
+                        <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground">Inventory JSON</label>
+                          <Textarea
+                            value={editForm.inventoryJson}
+                            onChange={(event) =>
+                              setEditForm((current) =>
+                                current ? { ...current, inventoryJson: event.target.value } : current,
+                              )
+                            }
+                            className="min-h-40 font-mono text-xs"
+                            spellCheck={false}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground">Cooked dishes JSON</label>
+                          <Textarea
+                            value={editForm.cookedDishesJson}
+                            onChange={(event) =>
+                              setEditForm((current) =>
+                                current ? { ...current, cookedDishesJson: event.target.value } : current,
+                              )
+                            }
+                            className="min-h-40 font-mono text-xs"
+                            spellCheck={false}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground">Game progress JSON</label>
+                          <Textarea
+                            value={editForm.gameProgressJson}
+                            onChange={(event) =>
+                              setEditForm((current) =>
+                                current ? { ...current, gameProgressJson: event.target.value } : current,
+                              )
+                            }
+                            className="min-h-40 font-mono text-xs"
+                            spellCheck={false}
+                          />
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
               </div>
             )}
             <DialogFooter>

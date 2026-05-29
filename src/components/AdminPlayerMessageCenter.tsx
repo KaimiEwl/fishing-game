@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
+import AdminInfoPopover from '@/components/AdminInfoPopover';
 
 interface AdminPlayerMessageCenterProps {
   player: AdminPlayer | null;
@@ -96,9 +97,14 @@ const AdminPlayerMessageCenter: React.FC<AdminPlayerMessageCenterProps> = ({
         <CardHeader>
           <CardTitle className="flex items-center justify-between gap-3 text-base text-zinc-100">
             <span>Message history</span>
-            <Badge className="border-cyan-300/20 bg-cyan-300/10 text-cyan-100 hover:bg-cyan-300/10">
-              {unreadCount} unread
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge className="border-cyan-300/20 bg-cyan-300/10 text-cyan-100 hover:bg-cyan-300/10">
+                {unreadCount} unread
+              </Badge>
+              <AdminInfoPopover title="Message history">
+                <p>This is read-only inbox history for the selected user. Use the composer block for actions.</p>
+              </AdminInfoPopover>
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -147,7 +153,12 @@ const AdminPlayerMessageCenter: React.FC<AdminPlayerMessageCenterProps> = ({
 
       <Card className="border-zinc-800 bg-zinc-950">
         <CardHeader>
-          <CardTitle className="text-base text-zinc-100">Send inbox message</CardTitle>
+          <CardTitle className="flex items-center justify-between gap-3 text-base text-zinc-100">
+            <span>Send inbox message</span>
+            <AdminInfoPopover title="Inbox composer">
+              <p>Personal messages go only to the selected user. Broadcast sends the same inbox message to all stored game players, so use it for careful service notices.</p>
+            </AdminInfoPopover>
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="rounded-lg border border-zinc-800 bg-black/50 px-3 py-3 text-sm text-zinc-300">
@@ -164,10 +175,7 @@ const AdminPlayerMessageCenter: React.FC<AdminPlayerMessageCenterProps> = ({
           </div>
 
           <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-3 text-sm text-amber-50">
-            Broadcast sends the same inbox message to all players currently stored in the game database.
-            <div className="mt-1 text-xs text-amber-100/80">
-              Current audience: {totalPlayers.toLocaleString()} player{totalPlayers === 1 ? '' : 's'}
-            </div>
+            Broadcast audience: {totalPlayers.toLocaleString()} player{totalPlayers === 1 ? '' : 's'}
           </div>
 
           <div className="flex flex-wrap gap-2">

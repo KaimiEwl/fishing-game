@@ -8,8 +8,10 @@ import type {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import AdminInfoPopover from '@/components/AdminInfoPopover';
 import {
   Sheet,
   SheetContent,
@@ -90,7 +92,12 @@ const AdminPlayerDetailSheet: React.FC<AdminPlayerDetailSheetProps> = ({
                   <div className="grid gap-4 md:grid-cols-2">
                     <Card className="border-zinc-800 bg-zinc-950">
                       <CardHeader>
-                        <CardTitle className="text-base text-zinc-100">Profile</CardTitle>
+                        <CardTitle className="flex items-center justify-between gap-3 text-base text-zinc-100">
+                          <span>Profile</span>
+                          <AdminInfoPopover title="User profile">
+                            <p>Read-only identity and session timing for the selected user. Use account edits from the player table when you need to change stored fields.</p>
+                          </AdminInfoPopover>
+                        </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-2 text-sm text-zinc-300">
                         <div className="flex justify-between gap-3">
@@ -114,7 +121,12 @@ const AdminPlayerDetailSheet: React.FC<AdminPlayerDetailSheetProps> = ({
 
                     <Card className="border-zinc-800 bg-zinc-950">
                       <CardHeader>
-                        <CardTitle className="text-base text-zinc-100">Economy</CardTitle>
+                        <CardTitle className="flex items-center justify-between gap-3 text-base text-zinc-100">
+                          <span>Economy</span>
+                          <AdminInfoPopover title="User economy">
+                            <p>Current coins, bait, level, rod, and catch totals. Apply small test grants from the Quick grants block next to this summary.</p>
+                          </AdminInfoPopover>
+                        </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-2 text-sm text-zinc-300">
                         <div className="flex justify-between gap-3">
@@ -152,7 +164,12 @@ const AdminPlayerDetailSheet: React.FC<AdminPlayerDetailSheetProps> = ({
                   <div className="grid gap-4 md:grid-cols-2">
                     <Card className="border-zinc-800 bg-zinc-950">
                       <CardHeader>
-                        <CardTitle className="text-base text-zinc-100">Referral + grill</CardTitle>
+                        <CardTitle className="flex items-center justify-between gap-3 text-base text-zinc-100">
+                          <span>Referral + grill</span>
+                          <AdminInfoPopover title="Referral and grill">
+                            <p>Read-only support snapshot for referral status and current grill score. Weekly payout actions live in the Weekly tab.</p>
+                          </AdminInfoPopover>
+                        </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-2 text-sm text-zinc-300">
                         <div className="flex justify-between gap-3">
@@ -187,7 +204,12 @@ const AdminPlayerDetailSheet: React.FC<AdminPlayerDetailSheetProps> = ({
 
                     <Card className="border-zinc-800 bg-zinc-950">
                       <CardHeader>
-                        <CardTitle className="text-base text-zinc-100">Quick grants</CardTitle>
+                        <CardTitle className="flex items-center justify-between gap-3 text-base text-zinc-100">
+                          <span>Quick grants</span>
+                          <AdminInfoPopover title="Quick grants">
+                            <p>These buttons immediately apply test/support rewards to the selected user. Use them for small controlled adjustments only.</p>
+                          </AdminInfoPopover>
+                        </CardTitle>
                       </CardHeader>
                       <CardContent className="grid grid-cols-1 gap-2 sm:grid-cols-5">
                         <Button
@@ -242,9 +264,14 @@ const AdminPlayerDetailSheet: React.FC<AdminPlayerDetailSheetProps> = ({
                   {progressProfile && (
                     <Card className="border-zinc-800 bg-zinc-950">
                       <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-base text-zinc-100">
-                          <Database className="h-4 w-4 text-cyan-100" />
-                          Player progress profile
+                        <CardTitle className="flex items-center justify-between gap-3 text-base text-zinc-100">
+                          <span className="flex items-center gap-2">
+                            <Database className="h-4 w-4 text-cyan-100" />
+                            Player progress profile
+                          </span>
+                          <AdminInfoPopover title="Progress profile">
+                            <p>Support snapshot of normalized progress tables. The raw JSON is collapsed by default because it is only needed for deeper debugging.</p>
+                          </AdminInfoPopover>
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
@@ -303,26 +330,37 @@ const AdminPlayerDetailSheet: React.FC<AdminPlayerDetailSheetProps> = ({
                           </div>
                         </div>
 
-                        <div className="rounded-md border border-zinc-800 bg-black/70 p-3">
-                          <div className="mb-2 flex items-center justify-between gap-3">
-                            <p className="text-sm font-semibold text-zinc-100">Canonical raw progress</p>
-                            <Badge variant="outline" className="border-zinc-700 text-zinc-300">
-                              v{progressProfile.version}
-                            </Badge>
-                          </div>
-                          <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded bg-zinc-950 p-3 text-xs text-zinc-300">
-                            {formatProgressJson(progressProfile.raw)}
-                          </pre>
-                        </div>
+                        <Accordion type="single" collapsible className="rounded-md border border-zinc-800 bg-black/70">
+                          <AccordionItem value="raw-progress" className="border-0">
+                            <AccordionTrigger className="px-3 py-2 text-sm font-semibold text-zinc-100 hover:no-underline">
+                              <span className="flex items-center gap-2">
+                                Canonical raw progress
+                                <Badge variant="outline" className="border-zinc-700 text-zinc-300">
+                                  v{progressProfile.version}
+                                </Badge>
+                              </span>
+                            </AccordionTrigger>
+                            <AccordionContent className="px-3 pb-3 pt-0">
+                              <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded bg-zinc-950 p-3 text-xs text-zinc-300">
+                                {formatProgressJson(progressProfile.raw)}
+                              </pre>
+                            </AccordionContent>
+                          </AccordionItem>
+                        </Accordion>
                       </CardContent>
                     </Card>
                   )}
 
                   <Card className="border-zinc-800 bg-zinc-950">
                     <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-base text-zinc-100">
-                        <AlertTriangle className="h-4 w-4 text-yellow-300" />
-                        Suspicious activity flags
+                      <CardTitle className="flex items-center justify-between gap-3 text-base text-zinc-100">
+                        <span className="flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-yellow-300" />
+                          Suspicious activity flags
+                        </span>
+                        <AdminInfoPopover title="Suspicious flags">
+                          <p>Read-only recent risk signals for this user. Apply any account action from the user-specific blocks above.</p>
+                        </AdminInfoPopover>
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="flex flex-wrap gap-2">
@@ -341,7 +379,12 @@ const AdminPlayerDetailSheet: React.FC<AdminPlayerDetailSheetProps> = ({
                   <div className="grid gap-4 md:grid-cols-[0.95fr,1.05fr]">
                     <Card className="border-zinc-800 bg-zinc-950">
                       <CardHeader>
-                        <CardTitle className="text-base text-zinc-100">Inventory summary</CardTitle>
+                        <CardTitle className="flex items-center justify-between gap-3 text-base text-zinc-100">
+                          <span>Inventory summary</span>
+                          <AdminInfoPopover title="Inventory summary">
+                            <p>Read-only fish quantities for the selected user. Direct inventory JSON edits are available from the player edit dialog.</p>
+                          </AdminInfoPopover>
+                        </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-2">
                         {details.inventory_summary.length > 0 ? (
@@ -359,9 +402,14 @@ const AdminPlayerDetailSheet: React.FC<AdminPlayerDetailSheetProps> = ({
 
                     <Card className="border-zinc-800 bg-zinc-950">
                       <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-base text-zinc-100">
-                          <MessageSquare className="h-4 w-4 text-cyan-100" />
-                          Recent activity
+                        <CardTitle className="flex items-center justify-between gap-3 text-base text-zinc-100">
+                          <span className="flex items-center gap-2">
+                            <MessageSquare className="h-4 w-4 text-cyan-100" />
+                            Recent activity
+                          </span>
+                          <AdminInfoPopover title="Recent activity">
+                            <p>Read-only event trail for support/debugging. Use it to understand what happened before applying a user action.</p>
+                          </AdminInfoPopover>
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-3">

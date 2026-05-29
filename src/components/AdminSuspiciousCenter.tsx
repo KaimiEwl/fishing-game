@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import AdminInfoPopover from '@/components/AdminInfoPopover';
 
 interface AdminSuspiciousCenterProps {
   summary: AdminSuspiciousSummary | null;
@@ -78,10 +79,10 @@ const AdminSuspiciousCenter: React.FC<AdminSuspiciousCenterProps> = ({
           <CardTitle className="flex items-center gap-2 text-base text-zinc-100">
             <AlertTriangle className="h-4 w-4 text-yellow-300" />
             Security watch
+            <AdminInfoPopover title="Security watch">
+              <p>Read-only signals from audit logs, withdraw requests, and edge-function throttles. Inspect a player from here before applying account actions in the user detail panel.</p>
+            </AdminInfoPopover>
           </CardTitle>
-          <p className="mt-1 text-xs text-zinc-500">
-            Recent signals from audit logs, withdraw requests, and edge-function throttles.
-          </p>
           <p className="mt-1 text-xs text-zinc-600">
             Latest signal: {formatDateTime(summary?.latestSignalAt)}
           </p>
