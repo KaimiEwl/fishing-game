@@ -27,7 +27,7 @@ const GuideSectionCard = ({ id, title, icon: Icon, body, bullets, images }: Guid
     <CardContent className="text-sm leading-6 text-zinc-300">
       {body && <p>{body}</p>}
       {images && images.length > 0 && (
-        <div className="my-5 grid gap-4 md:grid-cols-2">
+        <div className={`my-5 grid gap-4 ${images.length > 1 ? 'md:grid-cols-2' : ''}`}>
           {images.map((image) => (
             <figure key={image.src} className="overflow-hidden rounded-2xl border border-cyan-300/15 bg-zinc-950/70">
               <img src={image.src} alt={image.alt} className="aspect-video w-full object-cover" loading="lazy" />

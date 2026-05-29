@@ -53,6 +53,26 @@ const cubeMonPrizeLabels = ['0.5 MON', '1 MON', '25 MON', '50 MON', '100 MON'];
 
 const guideScreenshot = (fileName: string) => publicAsset(`assets/guide/${fileName}`);
 const screenshots = {
+  gameOverview: {
+    src: guideScreenshot('07_game_overview.png'),
+    alt: 'Overview map of the main Hook and Loot gameplay areas',
+    caption: 'The whole game loop at a glance: lake fishing, shop purchases, tasks, cube rolls, grill cooking, and inventory management.',
+  },
+  howToPlay: {
+    src: guideScreenshot('08_how_to_play_flow.png'),
+    alt: 'Step by step flow from entering the game to casting and rolling the cube',
+    caption: 'A new player path from guest or wallet entry through casting, catching, inventory decisions, and cube progression.',
+  },
+  latestUpdates: {
+    src: guideScreenshot('09_latest_updates_overview.png'),
+    alt: 'Visual summary of the newest MON, cube, shop, and wallet updates',
+    caption: 'A compact visual recap of the latest changes: rod MON reward, cube jackpots, gold packs, check-in amount, cube audio, and receiver verification.',
+  },
+  coreLoop: {
+    src: guideScreenshot('10_core_loop_flow.png'),
+    alt: 'Core fishing loop showing cast, bite, hook, fish, gold, XP, and MON outcomes',
+    caption: 'The core fishing surface now explains the real outcomes: fish and XP, gold value, empty water, or the rare rod MON reward.',
+  },
   rodMonReward: {
     src: guideScreenshot('01_rod_mon_reward.png'),
     alt: 'Monad logo reward celebration after a MON rod pull',
@@ -78,10 +98,35 @@ const screenshots = {
     alt: 'Monad Shop gold packs sold directly for MON',
     caption: 'Gold packs are now visible as direct Monad Shop cards, so players can buy gold with MON without opening the old hidden dialog.',
   },
+  autoFishingNet: {
+    src: guideScreenshot('11_auto_fishing_net_flow.png'),
+    alt: 'Auto Fishing Net flow from Monad Shop purchase to inventory collection',
+    caption: 'Auto Fishing Net tiers are shown as a flow: buy in Monad Shop, open Inventory Gear, preview pending fish, collect, then wait for daily refill.',
+  },
+  grillLeaderboard: {
+    src: guideScreenshot('12_grill_leaderboard_flow.png'),
+    alt: 'Grill flow showing fish ingredients, cooking, score, and leaderboard',
+    caption: 'The grill visual shows why fish can be saved instead of sold: ingredients become cooked dishes and leaderboard score.',
+  },
   cubeMusicSalute: {
     src: guideScreenshot('06_cube_music_ducking_salute.png'),
     alt: 'Cube spin with quiet background music, fanfare, and MON fireworks',
     caption: 'During cube spins the main music is ducked very low, the fanfare leads the moment, and MON wins trigger fireworks.',
+  },
+  notifications: {
+    src: guideScreenshot('13_notifications_examples.png'),
+    alt: 'Examples of important in-game notification toasts',
+    caption: 'Notification examples show which moments are surfaced immediately: MON wins, cube results, full nets, and server action errors.',
+  },
+  walletAccount: {
+    src: guideScreenshot('14_wallet_account_flow.png'),
+    alt: 'Wallet account flow from guest play to verified MON transaction and sync',
+    caption: 'Wallet visuals explain the difference between guest play, wallet verification, paid MON actions, and cross-device synced progress.',
+  },
+  fairPlay: {
+    src: guideScreenshot('15_fair_play_rules.png'),
+    alt: 'Fair play guardrails for automation, impersonation, and fake payments',
+    caption: 'Fair-play rules are shown as practical guardrails: no automation abuse, no impersonation, and no fake live payments.',
   },
 };
 
@@ -91,11 +136,13 @@ const sections = [
     title: 'Game Overview',
     icon: Fish,
     body: 'Hook & Loot lets you cast from the main lake, catch fish by rarity, choose active rods, pull occasional MON bonuses, spin the cube, deploy passive fishing nets, and cook catches for the grill leaderboard.',
+    images: [screenshots.gameOverview],
   },
   {
     id: 'getting-started',
     title: 'How to Play',
     icon: Gamepad2,
+    images: [screenshots.howToPlay],
     bullets: [
       'Start as a guest or connect a wallet. Guest play is enough for normal fishing; wallet verification is needed for live MON purchases, MON rewards, and cross-device saves.',
       'Press Cast on the lake, wait for the bite window, then hook the fish before it gets away.',
@@ -109,6 +156,7 @@ const sections = [
     id: 'latest-updates',
     title: 'Latest Updates',
     icon: Sparkles,
+    images: [screenshots.latestUpdates],
     bullets: [
       'Rod MON pulls now have their own celebration: Monad logo, stronger fireworks, and a dedicated reward sound.',
       `The cube can now award ${cubeMonPrizeLabels.join(', ')} instead of only one MON amount; 25, 50, and 100 MON are intentionally rare.`,
@@ -122,6 +170,7 @@ const sections = [
     id: 'loop',
     title: 'Core Loop',
     icon: Sparkles,
+    images: [screenshots.coreLoop],
     bullets: [
       'Choose an active unlocked rod before fishing, either from the fishing HUD rod badge or the Rods tab in inventory.',
       'Cast the line and react during the bite window.',
@@ -185,6 +234,7 @@ const sections = [
     id: 'net',
     title: 'Auto Fishing Net',
     icon: Backpack,
+    images: [screenshots.autoFishingNet],
     bullets: [
       `Auto Fishing Net tiers are bought in Monad Shop; the starter ${baseFishingNet?.label ?? 'net'} is configured around ${baseFishingNet?.fishCount ?? FISHING_NET_DAILY_FISH_COUNT} fish per day.`,
       'After purchase, the net appears in Inventory -> Gear and stores its caught fish there instead of silently adding them to the fish list.',
@@ -197,6 +247,7 @@ const sections = [
     id: 'grill',
     title: 'Grill and Leaderboard',
     icon: Flame,
+    images: [screenshots.grillLeaderboard],
     bullets: [
       'Cook recipes from your caught fish to earn grill score.',
       'Each cooked dish is also stored in inventory and can be sold later for gold.',
@@ -226,6 +277,7 @@ const sections = [
     id: 'notifications',
     title: 'Notifications',
     icon: Bell,
+    images: [screenshots.notifications],
     bullets: [
       'Important purchases, cube rewards, MON pulls, special rod rewards, and fishing-net state changes are surfaced as toasts.',
       'MON reward moments are treated as wins: they show the Monad mark, play the reward cue when sound is enabled, and use fireworks when the reward comes from a rod or cube.',
@@ -237,6 +289,7 @@ const sections = [
     id: 'wallet',
     title: 'Wallet and Account',
     icon: Wallet,
+    images: [screenshots.walletAccount],
     bullets: [
       'Guest profiles are server-backed in the current build, so normal fishing and cube progress can restore from the same browser session.',
       'Wallet connection is optional for browsing, but required for live MON purchases, wallet rewards, and verified cross-device save sync.',
@@ -251,6 +304,7 @@ const sections = [
     id: 'fair-play',
     title: 'Fair Play Rules',
     icon: Shield,
+    images: [screenshots.fairPlay],
     bullets: [
       'Do not exploit bugs, automation, or scripting to gain an unfair advantage.',
       'Do not impersonate other players or misuse connected wallets.',

@@ -1,5 +1,9 @@
 # STATUS
 
+## 2026-05-29 guide visual coverage pass
+- Added visual guide cards for every `/guide` section so each block now has at least one embedded image.
+- New visuals cover the game overview, how-to-play flow, latest update summary, core fishing loop, Auto Fishing Net flow, grill leaderboard flow, notification examples, wallet/account flow, and fair-play rules.
+
 ## 2026-05-28 guide updated with latest MON and cube changes
 - Updated the `/guide` player information page with a new how-to-play section and a latest-updates summary covering rod MON rewards, cube MON jackpots, cube music ducking/fireworks, wallet check-in amount, payment receiver address, direct MON gold packs, and social/task changes.
 - Added the labeled feature screenshots as guide assets under `public/assets/guide/` and embedded them in the relevant guide sections.
