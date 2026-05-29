@@ -164,8 +164,6 @@ const AdminBlockGuide = ({ variant, className, compact = false }: AdminBlockGuid
         <div className="admin-block-guide-icon">
           <PrimaryIcon className="h-5 w-5" />
         </div>
-        <div className="admin-block-guide-line admin-block-guide-line-one" />
-        <div className="admin-block-guide-line admin-block-guide-line-two" />
       </div>
 
       <div className="min-w-0">

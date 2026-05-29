@@ -1,5 +1,8 @@
 # STATUS
 
+## 2026-05-29 admin guide icon frame pass
+- Removed the two decorative guide stripes from `/admin` block pictures and replaced them with a single centered icon in a light Liquid Glass frame.
+
 ## 2026-05-29 admin icon simplification pass
 - Reduced `/admin` visual icon noise by making each picture-guide strip use one minimal icon and removing duplicated help/header icons where a guide already explains the block.
 - Tightened table action and sort controls so clickable icon buttons have visible button affordance, hover feedback, titles, and consistent Liquid Glass styling.

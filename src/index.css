@@ -383,7 +383,7 @@
 
   .admin-shell .admin-block-guide-picture {
     position: relative;
-    min-height: 4.35rem;
+    min-height: 3.95rem;
     overflow: hidden;
     border-radius: 0.5rem;
     border: 1px solid rgba(var(--admin-accent-rgb), 0.22);
@@ -404,42 +404,32 @@
   .admin-shell .admin-block-guide-icon {
     position: absolute;
     left: 50%;
-    top: 0.78rem;
+    top: 50%;
     z-index: 1;
     display: flex;
-    width: 2.55rem;
-    height: 2.55rem;
+    width: 2.8rem;
+    height: 2.8rem;
     align-items: center;
     justify-content: center;
-    transform: translateX(-50%);
-    border: 1px solid rgba(255, 255, 255, 0.74);
-    border-radius: 0.5rem;
+    transform: translate(-50%, -50%);
+    border: 1px solid rgba(255, 255, 255, 0.82);
+    border-radius: 0.65rem;
     background:
-      linear-gradient(145deg, rgba(255, 255, 255, 0.82), rgba(var(--admin-accent-rgb), 0.1)),
-      rgba(255, 255, 255, 0.66);
+      linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(var(--admin-accent-rgb), 0.08)),
+      rgba(255, 255, 255, 0.58);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.74),
+      inset 0 1px 0 rgba(255, 255, 255, 0.82),
+      inset 0 0 0 1px rgba(var(--admin-accent-rgb), 0.08),
       0 8px 22px rgba(15, 23, 42, 0.08);
   }
 
-  .admin-shell .admin-block-guide-line {
+  .admin-shell .admin-block-guide-icon::before {
+    content: '';
     position: absolute;
-    z-index: 1;
-    left: 50%;
-    height: 0.18rem;
-    transform: translateX(-50%);
-    border-radius: 999px;
-    background: rgba(var(--admin-accent-rgb), 0.2);
-  }
-
-  .admin-shell .admin-block-guide-line-one {
-    bottom: 0.98rem;
-    width: 3.15rem;
-  }
-
-  .admin-shell .admin-block-guide-line-two {
-    bottom: 0.58rem;
-    width: 2.25rem;
+    inset: 0.33rem;
+    border: 1px solid rgba(var(--admin-accent-rgb), 0.18);
+    border-radius: 0.45rem;
+    pointer-events: none;
   }
 
   .admin-shell .admin-block-guide-chip {
