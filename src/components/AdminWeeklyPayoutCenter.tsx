@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatMonAmount } from '@/lib/monRewards';
 import AdminInfoPopover from '@/components/AdminInfoPopover';
+import AdminBlockGuide from '@/components/AdminBlockGuide';
 
 interface AdminWeeklyPayoutCenterProps {
   weekKey: string | null;
@@ -63,6 +64,7 @@ const AdminWeeklyPayoutCenter: React.FC<AdminWeeklyPayoutCenterProps> = ({
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
+          <AdminBlockGuide variant="weeklyPreview" compact />
           {preview.length > 0 ? preview.map((entry) => (
             <div key={`${entry.rank}-${entry.walletAddress}`} className="admin-tone-rose rounded-lg border border-zinc-800 bg-black/60 px-4 py-3">
               <div className="flex items-start justify-between gap-3">
@@ -97,7 +99,8 @@ const AdminWeeklyPayoutCenter: React.FC<AdminWeeklyPayoutCenterProps> = ({
             </AdminInfoPopover>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
+          <AdminBlockGuide variant="weeklyHistory" compact />
           <ScrollArea className="h-[25rem] pr-3">
             <div className="space-y-3">
               {batches.map((batch) => (

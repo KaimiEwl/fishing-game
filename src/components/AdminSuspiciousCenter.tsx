@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import AdminInfoPopover from '@/components/AdminInfoPopover';
+import AdminBlockGuide from '@/components/AdminBlockGuide';
 
 interface AdminSuspiciousCenterProps {
   summary: AdminSuspiciousSummary | null;
@@ -102,7 +103,8 @@ const AdminSuspiciousCenter: React.FC<AdminSuspiciousCenterProps> = ({
           Refresh
         </Button>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-3">
+        <AdminBlockGuide variant="security" compact />
         <ScrollArea className="h-[22rem] pr-3">
           <div className="space-y-3">
             {players.length > 0 ? players.map((player) => (

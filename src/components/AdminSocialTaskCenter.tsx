@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import AdminInfoPopover from '@/components/AdminInfoPopover';
+import AdminBlockGuide from '@/components/AdminBlockGuide';
 
 type SocialTaskStatusFilter = AdminSocialTaskVerification['status'] | 'all';
 
@@ -101,7 +102,8 @@ const AdminSocialTaskCenter: React.FC<AdminSocialTaskCenterProps> = ({
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-3">
+        <AdminBlockGuide variant="social" compact />
         <ScrollArea className="h-[32rem] pr-3">
           <div className="space-y-3">
             {verifications.map((verification) => {

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import AdminInfoPopover from '@/components/AdminInfoPopover';
+import AdminBlockGuide from '@/components/AdminBlockGuide';
 
 interface AdminPlayerMessageCenterProps {
   player: AdminPlayer | null;
@@ -107,7 +108,8 @@ const AdminPlayerMessageCenter: React.FC<AdminPlayerMessageCenterProps> = ({
             </div>
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
+          <AdminBlockGuide variant="messageHistory" compact />
           <ScrollArea className="h-[28rem] pr-3">
             <div className="space-y-3">
               {player ? (
@@ -161,6 +163,7 @@ const AdminPlayerMessageCenter: React.FC<AdminPlayerMessageCenterProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <AdminBlockGuide variant="composer" compact />
           <div className="admin-tone-green rounded-lg border border-zinc-800 bg-black/50 px-3 py-3 text-sm text-zinc-300">
             {player ? (
               <>

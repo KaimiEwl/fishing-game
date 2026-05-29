@@ -45,6 +45,7 @@ import AdminSocialTaskCenter from '@/components/AdminSocialTaskCenter';
 import AdminWithdrawRequestCenter from '@/components/AdminWithdrawRequestCenter';
 import AdminWeeklyPayoutCenter from '@/components/AdminWeeklyPayoutCenter';
 import AdminInfoPopover from '@/components/AdminInfoPopover';
+import AdminBlockGuide from '@/components/AdminBlockGuide';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -880,8 +881,14 @@ export default function Admin() {
                 </Button>
               )}
             />
+            <AdminBlockGuide variant="overview" />
             {stats && (
               <>
+                <div className="grid gap-4 lg:grid-cols-3">
+                  <AdminBlockGuide variant="stats" compact />
+                  <AdminBlockGuide variant="distributions" compact />
+                  <AdminBlockGuide variant="topLists" compact />
+                </div>
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
                   <AdminStatCard toneClass={getAdminToneClass('blue')} icon={<Users className="h-5 w-5" />} label="Players" value={stats.totalPlayers} />
                   <AdminStatCard toneClass={getAdminToneClass('green')} icon={<Activity className="h-5 w-5" />} label="Active 24h" value={stats.activeToday} />
@@ -960,6 +967,7 @@ export default function Admin() {
             <AdminSectionIntro tab="players" />
 
             <div className="admin-tone-green rounded-lg border border-black/10 bg-white/90 p-3 shadow-sm shadow-black/5">
+              <AdminBlockGuide variant="lookup" compact className="mb-3" />
               <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-center gap-2">
                   <h3 className="text-sm font-semibold text-slate-950">Find user</h3>
@@ -997,6 +1005,9 @@ export default function Admin() {
                 </AdminInfoPopover>
               </CardHeader>
               <CardContent className="p-0">
+                <div className="border-b border-black/10 p-3">
+                  <AdminBlockGuide variant="accounts" compact />
+                </div>
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>

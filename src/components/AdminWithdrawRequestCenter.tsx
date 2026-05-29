@@ -9,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatMonAmount } from '@/lib/monRewards';
 import { cn } from '@/lib/utils';
 import AdminInfoPopover from '@/components/AdminInfoPopover';
+import AdminBlockGuide from '@/components/AdminBlockGuide';
 
 interface AdminWithdrawRequestCenterProps {
   requests: AdminWithdrawRequest[];
@@ -85,6 +86,7 @@ const AdminWithdrawRequestCenter: React.FC<AdminWithdrawRequestCenterProps> = ({
 
   return (
     <div className="space-y-4">
+      <AdminBlockGuide variant="withdrawSummary" />
       <div className="grid gap-4 md:grid-cols-4">
         <Card className="admin-tone-amber border-zinc-800 bg-zinc-950">
           <CardHeader className="pb-2">
@@ -152,7 +154,8 @@ const AdminWithdrawRequestCenter: React.FC<AdminWithdrawRequestCenterProps> = ({
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
+          <AdminBlockGuide variant="payoutQueue" compact />
           <p className="mb-3 text-sm text-zinc-400">{filteredCountLabel}</p>
           <ScrollArea className="h-[28rem] pr-3">
             <div className="space-y-3">

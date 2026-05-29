@@ -1,0 +1,212 @@
+import {
+  Activity,
+  Bell,
+  CalendarRange,
+  CheckCircle2,
+  Coins,
+  Database,
+  Eye,
+  Mail,
+  MessageSquare,
+  Search,
+  Send,
+  Shield,
+  SlidersHorizontal,
+  Trophy,
+  Users,
+  WalletCards,
+  type LucideIcon,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+type AdminGuideTone = 'blue' | 'green' | 'amber' | 'rose' | 'slate' | 'violet';
+
+export type AdminBlockGuideVariant =
+  | 'overview'
+  | 'stats'
+  | 'distributions'
+  | 'topLists'
+  | 'security'
+  | 'lookup'
+  | 'accounts'
+  | 'messageHistory'
+  | 'composer'
+  | 'withdrawSummary'
+  | 'payoutQueue'
+  | 'weeklyPreview'
+  | 'weeklyHistory'
+  | 'social';
+
+interface AdminBlockGuideProps {
+  variant: AdminBlockGuideVariant;
+  className?: string;
+  compact?: boolean;
+}
+
+interface AdminBlockGuideContent {
+  title: string;
+  body: string;
+  steps: [string, string];
+  tone: AdminGuideTone;
+  primaryIcon: LucideIcon;
+  secondaryIcon: LucideIcon;
+}
+
+const GUIDE_CONTENT: Record<AdminBlockGuideVariant, AdminBlockGuideContent> = {
+  overview: {
+    title: 'Control room snapshot',
+    body: 'Start here to read player volume, economy pressure, top accounts, and risk signals before changing anything.',
+    steps: ['Read totals', 'Open details'],
+    tone: 'blue',
+    primaryIcon: Activity,
+    secondaryIcon: Eye,
+  },
+  stats: {
+    title: 'Live numbers',
+    body: 'These cards show player count, activity, level range, total coins, and catches at a glance.',
+    steps: ['Scan', 'Refresh'],
+    tone: 'blue',
+    primaryIcon: Activity,
+    secondaryIcon: Coins,
+  },
+  distributions: {
+    title: 'Progress shape',
+    body: 'The bars compare levels and rods so you can spot where players are clustering.',
+    steps: ['Compare', 'Watch drift'],
+    tone: 'violet',
+    primaryIcon: SlidersHorizontal,
+    secondaryIcon: Database,
+  },
+  topLists: {
+    title: 'Leaderboard clues',
+    body: 'Top lists surface unusually strong accounts and the players worth inspecting first.',
+    steps: ['Rank', 'Inspect'],
+    tone: 'amber',
+    primaryIcon: Trophy,
+    secondaryIcon: Eye,
+  },
+  security: {
+    title: 'Risk radar',
+    body: 'Security watch is read-only: review audit signals here, then inspect a user before taking action.',
+    steps: ['Review flags', 'Inspect user'],
+    tone: 'rose',
+    primaryIcon: Shield,
+    secondaryIcon: Eye,
+  },
+  lookup: {
+    title: 'Find the player',
+    body: 'Search by wallet or nickname, then use the table actions for support work.',
+    steps: ['Search', 'Select'],
+    tone: 'green',
+    primaryIcon: Search,
+    secondaryIcon: Users,
+  },
+  accounts: {
+    title: 'Account tools',
+    body: 'Rows open inspection, inbox messaging, direct edits, or test cleanup for the selected user.',
+    steps: ['Inspect', 'Edit'],
+    tone: 'green',
+    primaryIcon: Users,
+    secondaryIcon: SlidersHorizontal,
+  },
+  messageHistory: {
+    title: 'Inbox timeline',
+    body: 'Read past personal messages and unread state before sending another note.',
+    steps: ['Read', 'Confirm'],
+    tone: 'violet',
+    primaryIcon: Mail,
+    secondaryIcon: CheckCircle2,
+  },
+  composer: {
+    title: 'Write and send',
+    body: 'Draft one message, then choose personal delivery or a careful broadcast to everyone.',
+    steps: ['Draft', 'Send'],
+    tone: 'blue',
+    primaryIcon: MessageSquare,
+    secondaryIcon: Send,
+  },
+  withdrawSummary: {
+    title: 'Payout totals',
+    body: 'Summary cards separate pending, approved, rejected, and paid MON requests.',
+    steps: ['Count', 'Prioritize'],
+    tone: 'amber',
+    primaryIcon: WalletCards,
+    secondaryIcon: Coins,
+  },
+  payoutQueue: {
+    title: 'Payout actions',
+    body: 'Approve valid requests, reject invalid ones, or paste a tx hash when a payout is paid.',
+    steps: ['Review', 'Save tx'],
+    tone: 'amber',
+    primaryIcon: WalletCards,
+    secondaryIcon: CheckCircle2,
+  },
+  weeklyPreview: {
+    title: 'Weekly reward batch',
+    body: 'Preview grill winners first, then apply the MON payout batch once for the week.',
+    steps: ['Preview', 'Apply'],
+    tone: 'rose',
+    primaryIcon: CalendarRange,
+    secondaryIcon: Trophy,
+  },
+  weeklyHistory: {
+    title: 'Applied batches',
+    body: 'History is the audit trail for weekly rewards that were already applied.',
+    steps: ['Audit', 'Verify'],
+    tone: 'violet',
+    primaryIcon: CalendarRange,
+    secondaryIcon: Database,
+  },
+  social: {
+    title: 'Social task states',
+    body: 'Filter manual verification rows and move one user task to the correct state.',
+    steps: ['Filter', 'Update'],
+    tone: 'slate',
+    primaryIcon: Bell,
+    secondaryIcon: CheckCircle2,
+  },
+};
+
+const getToneClass = (tone: AdminGuideTone) => `admin-tone-${tone}`;
+
+const AdminBlockGuide = ({ variant, className, compact = false }: AdminBlockGuideProps) => {
+  const guide = GUIDE_CONTENT[variant];
+  const PrimaryIcon = guide.primaryIcon;
+  const SecondaryIcon = guide.secondaryIcon;
+
+  return (
+    <div className={cn(
+      'admin-block-guide',
+      compact && 'admin-block-guide-compact',
+      getToneClass(guide.tone),
+      className,
+    )}>
+      <div className="admin-block-guide-picture" aria-hidden="true">
+        <div className="admin-block-guide-card admin-block-guide-card-main">
+          <PrimaryIcon className="h-5 w-5" />
+          <span />
+          <span />
+        </div>
+        <div className="admin-block-guide-card admin-block-guide-card-secondary">
+          <SecondaryIcon className="h-4 w-4" />
+        </div>
+        <div className="admin-block-guide-line admin-block-guide-line-one" />
+        <div className="admin-block-guide-line admin-block-guide-line-two" />
+      </div>
+
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-slate-950">{guide.title}</p>
+        <p className="mt-1 text-xs leading-5 text-slate-500">{guide.body}</p>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {guide.steps.map((step) => (
+            <span key={step} className="admin-block-guide-chip">
+              {step}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AdminBlockGuide;

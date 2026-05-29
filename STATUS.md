@@ -1,5 +1,9 @@
 # STATUS
 
+## 2026-05-29 admin block picture guides
+- Added reusable picture-guide strips to `/admin` blocks so stats, distributions, top lists, player lookup, account tools, messages, withdrawals, weekly payouts, social verification, and security watch explain their purpose visually in context.
+- Kept the guides inside the existing Liquid Glass tone system so each block gets a compact image, two action cues, and subtle color without adding noisy instructional panels.
+
 ## 2026-05-29 admin Liquid Glass tuning pass
 - Rebalanced `/admin` Liquid Glass tones so each admin block keeps a subtle semantic color without painted gradients or loud color blobs.
 - Tightened glass texture, tab dock styling, numeric overflow guards, and API non-2xx errors so admin toasts include backend/status detail instead of the generic failure text.
