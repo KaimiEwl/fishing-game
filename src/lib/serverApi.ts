@@ -348,6 +348,13 @@ export const invokeEdgeFunctionHttp = async <T>(
   const responseData = parseResponsePayload(response, responseBody);
 
   if (!response.ok) {
+    const responseError = responseData && typeof responseData === 'object'
+      ? (responseData as { error?: unknown }).error
+      : null;
+    const message = typeof responseError === 'string' && responseError.trim()
+      ? responseError.trim()
+      : 'Hook & Loot API returned a non-2xx status code';
+
     finishEdgeCallTrace(trace, {
       ok: false,
       status: response.status,
@@ -360,7 +367,7 @@ export const invokeEdgeFunctionHttp = async <T>(
     });
 
     const error = Object.assign(
-      new Error('Hook & Loot API returned a non-2xx status code'),
+      new Error(message),
       {
         context: buildErrorContext(response, responseBody),
         status: response.status,

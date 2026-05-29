@@ -498,16 +498,18 @@ export function useAdmin(walletAddress: string | undefined) {
     const { data, error } = await Promise.race([invokePromise, timeoutPromise]);
     if (error) {
       const errorWithContext = error as { context?: { clone?: () => Response } };
+      let responseError: string | null = null;
       if (errorWithContext.context?.clone) {
         try {
           const payload = await errorWithContext.context.clone().json() as { error?: string };
           if (typeof payload.error === 'string' && payload.error.trim()) {
-            throw new Error(payload.error);
+            responseError = payload.error.trim();
           }
         } catch {
           // Keep the original error when the response body is not readable JSON.
         }
       }
+      if (responseError) throw new Error(responseError);
       throw error;
     }
     if (data?.error) throw new Error(data.error);

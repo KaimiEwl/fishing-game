@@ -1,5 +1,9 @@
 # STATUS
 
+## 2026-05-29 admin session error handling
+- Tightened the Settings admin button so it only appears after the server confirms the current wallet session is an admin; stale or missing wallet sessions no longer open `/admin` into a generic API failure.
+- Admin API failures now surface backend error text like `Invalid session` instead of the generic `Hook & Loot API returned a non-2xx status code` toast.
+
 ## 2026-05-29 admin wallet seed update
 - Added the receiver wallet plus the requested `piska` wallets and `0x83dc...df5d` to the server admin seed list, so API restarts/deploys insert those wallets into `admin_roles` automatically.
 - This keeps the existing env-based admin wallet support while ensuring the requested admin entries are applied on the VPS after deploy.
