@@ -154,22 +154,25 @@ const AdminBlockGuide = ({ variant, className, compact = false }: AdminBlockGuid
   const PrimaryIcon = guide.primaryIcon;
 
   return (
-    <div className={cn(
-      'admin-block-guide',
-      compact && 'admin-block-guide-compact',
-      getToneClass(guide.tone),
-      className,
-    )}>
+    <div
+      className={cn(
+        'admin-block-guide',
+        compact && 'admin-block-guide-compact',
+        getToneClass(guide.tone),
+        className,
+      )}
+      aria-label={`${guide.title}: ${guide.body}`}
+    >
       <div className="admin-block-guide-picture" aria-hidden="true">
         <div className="admin-block-guide-icon">
           <PrimaryIcon className="h-5 w-5" />
         </div>
       </div>
 
-      <div className="min-w-0">
-        <p className="text-sm font-semibold text-slate-950">{guide.title}</p>
-        <p className="mt-1 text-xs leading-5 text-slate-500">{guide.body}</p>
-        <div className="mt-2 flex flex-wrap gap-1.5">
+      <div className="admin-block-guide-copy min-w-0">
+        <p className="admin-block-guide-title">{guide.title}</p>
+        <p className="admin-block-guide-body">{guide.body}</p>
+        <div className="admin-block-guide-steps">
           {guide.steps.map((step) => (
             <span key={step} className="admin-block-guide-chip">
               {step}

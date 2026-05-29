@@ -1,5 +1,9 @@
 # STATUS
 
+## 2026-05-29 admin visual hierarchy pass
+- Applied modern dashboard hierarchy patterns to `/admin`: guide cards now recede as contextual help, metric cards emphasize values first, and top lists scan with rank/value structure instead of flat rows.
+- Kept Liquid Glass as a light control/background layer so primary work surfaces and actions remain more prominent than decorative explanation.
+
 ## 2026-05-29 admin guide icon frame pass
 - Removed the two decorative guide stripes from `/admin` block pictures and replaced them with a single centered icon in a light Liquid Glass frame.
 
