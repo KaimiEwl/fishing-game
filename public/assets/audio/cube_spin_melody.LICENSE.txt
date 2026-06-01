@@ -1,0 +1,7 @@
+Source: OpenGameArt - "Win Fanfare"
+Author: gchoc / Graciano Choc
+URL: https://opengameart.org/content/win-fanfare
+License: CC0 1.0 Universal
+
+Original file: winmelody.ogg
+Project derivative: cube_spin_melody.mp3

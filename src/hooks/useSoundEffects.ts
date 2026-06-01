@@ -20,8 +20,8 @@ const CAST_SAMPLE_URLS = [
   publicAsset('/assets/audio/cast_07.mp3'),
 ];
 const FISH_CATCH_SAMPLE_URL = publicAsset('/assets/audio/fish_catch_boat.mp3');
-// CC0 source: OpenGameArt "Victory Fanfare", trimmed/time-compressed for cube spins.
-const CUBE_SPIN_FANFARE_URL = publicAsset('/assets/audio/cube_spin_fanfare.mp3');
+// CC0 source: OpenGameArt "Win Fanfare" by gchoc, converted to mp3 for browser support.
+const CUBE_SPIN_MELODY_URL = publicAsset('/assets/audio/cube_spin_melody.mp3');
 const GRILL_COOK_SAMPLE_URL = publicAsset('/assets/audio/grill_cook.mp3');
 const COIN_GAIN_SAMPLE_URL = publicAsset('/assets/audio/coin_gain.mp3');
 const sampleBuffers = new Map<string, AudioBuffer>();
@@ -81,7 +81,7 @@ const warmSoundSamples = () =>
   Promise.all([
     ...CAST_SAMPLE_URLS,
     FISH_CATCH_SAMPLE_URL,
-    CUBE_SPIN_FANFARE_URL,
+    CUBE_SPIN_MELODY_URL,
     GRILL_COOK_SAMPLE_URL,
     COIN_GAIN_SAMPLE_URL,
   ].map((url) => ensureSampleLoaded(url)));
@@ -362,11 +362,11 @@ export function useSoundEffects() {
   }, []);
 
   const playCubeSpinSound = useCallback(() => {
-    if (playSampleBuffer(CUBE_SPIN_FANFARE_URL, 0.3)) {
+    if (playSampleBuffer(CUBE_SPIN_MELODY_URL, 0.34)) {
       return;
     }
 
-    void ensureSampleLoaded(CUBE_SPIN_FANFARE_URL);
+    void ensureSampleLoaded(CUBE_SPIN_MELODY_URL);
     playCeremonialCubeFallback();
   }, []);
 
