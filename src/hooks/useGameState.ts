@@ -547,7 +547,7 @@ export function useGameState(options?: UseGameStateOptions) {
     }
 
     const equippedRodLevel = getSafeEquippedRodLevel(player.equippedRod, player.rodLevel, player.nftRods);
-    const monReward = onFishingMonReward ? rollRodMonadReward(equippedRodLevel) : null;
+    const monReward = onFishingMonReward ? rollRodMonadReward(equippedRodLevel, player.nftRods) : null;
 
     if (monReward) {
       let credited = false;

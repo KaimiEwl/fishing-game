@@ -733,7 +733,7 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
             ? `Verify your wallet first, then send today's ${walletCheckInPriceLabel} transaction to start or continue your streak.`
             : `Connect your wallet first, then send today's ${walletCheckInPriceLabel} transaction to start or continue your streak.`
           : !walletCheckInReady
-            ? 'Preparing your verified wallet session so you can send the on-chain check-in.'
+            ? `Verify your wallet first, then send today's ${walletCheckInPriceLabel} transaction to start or continue your streak.`
           : walletCheckInLoading
             ? 'Refreshing streak status...'
           : pendingWalletCheckInTx
@@ -790,7 +790,6 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                         || walletCheckInLoading
                         || isWalletVerifying
                         || walletAlreadyCheckedInToday
-                        || (hasPaymentIdentity && !walletCheckInReady)
                       }
                       onClick={() => {
                         if (!hasPaymentIdentity) {
@@ -800,6 +799,15 @@ const TasksScreen: React.FC<TasksScreenProps> = ({
                           }
 
                           openConnectModal?.();
+                          return;
+                        }
+
+                        if (!walletCheckInReady) {
+                          if (onVerifyWallet) {
+                            void onVerifyWallet();
+                          } else {
+                            toast.info('Wallet verification is still starting. Try again in a moment.');
+                          }
                           return;
                         }
 

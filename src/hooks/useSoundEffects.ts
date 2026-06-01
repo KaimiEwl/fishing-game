@@ -255,6 +255,17 @@ function playNoise(dur: number, vol: number = 0.08, delay: number = 0) {
   }
 }
 
+function playCeremonialCubeFallback() {
+  playTone(196, 0.42, 'triangle', 0.08);
+  playTone(392, 0.22, 'triangle', 0.1, undefined, 0.06);
+  playTone(494, 0.22, 'triangle', 0.1, undefined, 0.18);
+  playTone(587, 0.26, 'triangle', 0.1, undefined, 0.3);
+  playTone(784, 0.46, 'sine', 0.12, undefined, 0.42);
+  playTone(988, 0.46, 'sine', 0.08, undefined, 0.42);
+  playNoise(0.12, 0.025, 0.04);
+  playNoise(0.16, 0.03, 0.34);
+}
+
 export function useSoundEffects() {
   useEffect(() => {
     const warmOnce = () => requestSampleWarmup();
@@ -351,14 +362,12 @@ export function useSoundEffects() {
   }, []);
 
   const playCubeSpinSound = useCallback(() => {
-    const spinStartedAt = Date.now();
-    if (!playSampleBuffer(CUBE_SPIN_FANFARE_URL, 0.3)) {
-      void ensureSampleLoaded(CUBE_SPIN_FANFARE_URL).then((buffer) => {
-        if (buffer && Date.now() - spinStartedAt < 900) {
-          playSampleBuffer(CUBE_SPIN_FANFARE_URL, 0.3);
-        }
-      });
+    if (playSampleBuffer(CUBE_SPIN_FANFARE_URL, 0.3)) {
+      return;
     }
+
+    void ensureSampleLoaded(CUBE_SPIN_FANFARE_URL);
+    playCeremonialCubeFallback();
   }, []);
 
   const playGrillCookSound = useCallback(() => {

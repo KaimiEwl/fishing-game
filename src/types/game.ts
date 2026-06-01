@@ -451,13 +451,13 @@ export const ROD_DATA: readonly RodDefinition[] = [
   },
   {
     ...ROD_ECONOMY.rare_rod,
-    description: 'A gold-upgrade rod with a modest rare-catch boost and a small no-fish MON range.',
+    description: 'A gold-upgrade rod with a modest rare-catch boost. Its paid NFT variant can roll a small no-fish MON range.',
     bobber: 'Blue bobber',
     bobberColor: '#60a5fa',
   },
   {
     ...ROD_ECONOMY.epic_rod,
-    description: 'A stronger gold-upgrade rod for deeper runs, with higher rare-catch pressure and no-fish MON upside.',
+    description: 'A stronger gold-upgrade rod for deeper runs. Its paid NFT variant adds no-fish MON upside.',
     bobber: 'Purple bobber',
     bobberColor: '#c084fc',
   },

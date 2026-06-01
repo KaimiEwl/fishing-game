@@ -1450,7 +1450,6 @@ const FishingGame: React.FC = () => {
     if (result.prize.type === 'mon' || result.prize.duplicateCompensationApplied) {
       window.dispatchEvent(new CustomEvent('hookloot:mon-reward'));
     }
-    sounds.playLevelUpSound();
     return result.prize;
   };
 
@@ -1768,6 +1767,7 @@ const FishingGame: React.FC = () => {
                     onSpinStartSound={sounds.playCubeSpinSound}
                     onRevealSound={sounds.playCubeRevealSound}
                     onRewardSound={sounds.playCubeRewardSound}
+                    onMonadRewardSound={sounds.playMonadRewardSound}
                   />
                 ) : activeTab === 'map' ? (
                   <MapScreen

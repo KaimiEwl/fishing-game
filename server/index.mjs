@@ -2356,6 +2356,25 @@ function getSafeRodLevel(player) {
   return ownsRodLevel(player, equipped) ? equipped : getHighestOwnedRodLevel(player);
 }
 
+function normalizeRodLevelValue(value) {
+  const numeric = typeof value === 'number'
+    ? value
+    : typeof value === 'string' && value.trim() !== ''
+      ? Number(value)
+      : NaN;
+
+  return Number.isInteger(numeric) ? numeric : null;
+}
+
+function hasPaidMonadRodAccess(player, rodLevel) {
+  const rod = ROD_DATA[rodLevel] || null;
+  if (!rod) return false;
+
+  const nftRods = Array.isArray(player?.nft_rods) ? player.nft_rods : [];
+  const hasPaidNftVariant = nftRods.some((value) => normalizeRodLevelValue(value) === rod.level);
+  return Boolean(rod.monUnlockCost) || hasPaidNftVariant;
+}
+
 function getNftBonus(player, rodLevel) {
   return Array.isArray(player.nft_rods) && player.nft_rods.includes(rodLevel)
     ? NFT_ROD_BONUSES[rodLevel] || { rarityBonus: 0, xpBonus: 0, sellBonus: 0 }
@@ -2522,6 +2541,7 @@ function rollRodMonRewardForServer(player, sourceRef) {
   const rodLevel = getSafeRodLevel(player);
   const rod = ROD_DATA[rodLevel] || ROD_DATA[0];
   const chance = Number(rod.monadDropChance || 0);
+  if (!hasPaidMonadRodAccess(player, rodLevel)) return null;
   if (chance <= 0 || (!MONAD_TEST_DROPS_ALWAYS && Math.random() * 100 > chance)) return null;
 
   const min = Number(rod.monadMinReward || 0);

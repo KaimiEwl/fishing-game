@@ -75,6 +75,7 @@ interface WheelScreenProps {
   onSpinStartSound?: () => void;
   onRevealSound?: () => void;
   onRewardSound?: () => void;
+  onMonadRewardSound?: () => void;
 }
 
 const CUBE_TILE_COLORS = [
@@ -468,6 +469,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
   onSpinStartSound,
   onRevealSound,
   onRewardSound,
+  onMonadRewardSound,
 }) => {
   const highestOwnedRodLevel = getHighestOwnedRodLevel(rodLevel, nftRods);
   const [phase, setPhase] = useState<SpinPhase>('idle');
@@ -680,7 +682,12 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
             const result = await onResolveReward(target.prize, target.rollId) ?? target.prize;
             setPhase('idle');
             setHighlightedFaceIndex(target.faceIndex);
-            onRewardSound?.();
+            const monRewardAmount = getMonadRewardAmount(result);
+            if (monRewardAmount > 0) {
+              onMonadRewardSound?.();
+            } else {
+              onRewardSound?.();
+            }
             keepMusicDuckedForCelebration = triggerMonadCelebration(result);
             toast.success(`You won: ${getRewardToastLabel(result)}`);
           } catch (error) {
@@ -819,7 +826,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     setHighlightedTileIndex(null);
     setPhase('spinning');
     setRotationTransitionEnabled(true);
-    duckBackgroundMusic(CUBE_MUSIC_DUCK_MS);
+    duckBackgroundMusic(CUBE_MUSIC_DUCK_MS, 0);
     onSpinStartSound?.();
     pendingTargetRef.current = { faceIndex, tileIndex, prize: targetPrize, rollId };
     settleStartedRef.current = false;

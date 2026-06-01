@@ -20,6 +20,26 @@ export const getSafeRodDefinition = (level: number | null | undefined): RodDefin
   return ROD_DATA.find((rod) => rod.level === level) ?? ROD_DATA[0];
 };
 
+const normalizeRodLevelValue = (value: unknown) => {
+  const numeric = typeof value === 'number'
+    ? value
+    : typeof value === 'string' && value.trim() !== ''
+      ? Number(value)
+      : NaN;
+
+  return Number.isInteger(numeric) ? numeric : null;
+};
+
+export const isPaidMonadRod = (
+  rodLevel: number | null | undefined,
+  nftRods: readonly unknown[] = [],
+) => {
+  const rod = getSafeRodDefinition(rodLevel);
+  const hasPaidNftVariant = nftRods.some((value) => normalizeRodLevelValue(value) === rod.level);
+
+  return Boolean(rod.monUnlockCost) || hasPaidNftVariant;
+};
+
 export const getOwnedRodLevels = (
   ownedRodLevel: number | null | undefined,
   nftRods: readonly unknown[] = [],
@@ -35,8 +55,9 @@ export const getOwnedRodLevels = (
   }
 
   for (const value of nftRods) {
-    if (typeof value !== 'number' || !Number.isInteger(value)) continue;
-    const level = Math.max(0, Math.min(maxLevel, value));
+    const normalizedLevel = normalizeRodLevelValue(value);
+    if (normalizedLevel == null) continue;
+    const level = Math.max(0, Math.min(maxLevel, normalizedLevel));
     if (ROD_DATA[level]) levels.add(level);
   }
 
@@ -79,13 +100,17 @@ export const getSafeEquippedRodLevel = (
 
 export const rollRodMonadReward = (
   rodLevel: number | null | undefined,
-  random: () => number = Math.random,
+  nftRodsOrRandom: readonly unknown[] | (() => number) = [],
+  randomArg?: () => number,
 ): FishingMonadReward | null => {
   const rod = getSafeRodDefinition(rodLevel);
+  const nftRods = typeof nftRodsOrRandom === 'function' ? [] : nftRodsOrRandom;
+  const random = typeof nftRodsOrRandom === 'function' ? nftRodsOrRandom : randomArg ?? Math.random;
   const dropChance = clamp(Number(rod.monadDropChance) || 0, 0, 100);
   const minReward = Math.max(0, Number(rod.monadMinReward) || 0);
   const maxReward = Math.max(minReward, Number(rod.monadMaxReward) || 0);
 
+  if (!isPaidMonadRod(rod.level, nftRods)) return null;
   if (dropChance <= 0 || maxReward <= 0) return null;
   if (random() * 100 >= dropChance) return null;
 
