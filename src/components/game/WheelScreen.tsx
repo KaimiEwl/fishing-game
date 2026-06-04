@@ -112,6 +112,7 @@ const FACE_ALIGNMENT_OFFSETS = [
 const FACE_TILE_COUNT = 25;
 const SPIN_DURATION_MS = 2400;
 const SPIN_SETTLE_BUFFER_MS = 90;
+const SELECTION_SETTLE_FALLBACK_MS = 28_000;
 const LIGHT_STEP_START_MS = 55;
 const LIGHT_STEP_INCREMENT_MS = 7;
 const FISH_TILE_RATIO = CUBE_REBALANCE_CONFIG.enabled ? CUBE_REBALANCE_CONFIG.fishTileRatio : 0.42;
@@ -584,12 +585,23 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
   const spinLockRef = useRef(false);
   const pendingTargetRef = useRef<PendingTarget | null>(null);
   const settleStartedRef = useRef(false);
+  const selectionSettledRef = useRef(false);
+  const phaseRef = useRef<SpinPhase>('idle');
   const { sendTransactionAsync } = useSendTransaction();
 
   const clearTimers = () => {
     timersRef.current.forEach((timer) => window.clearTimeout(timer));
     timersRef.current = [];
   };
+
+  const setSpinPhase = (nextPhase: SpinPhase) => {
+    phaseRef.current = nextPhase;
+    setPhase(nextPhase);
+  };
+
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
 
   useEffect(() => () => {
     clearTimers();
@@ -772,6 +784,40 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     });
   };
 
+  const finishFaceSelection = (target: PendingTarget) => {
+    if (selectionSettledRef.current) return;
+    selectionSettledRef.current = true;
+
+    void (async () => {
+      let keepMusicDuckedForCelebration = false;
+      try {
+        const result = await onResolveReward(target.prize, target.rollId) ?? target.prize;
+        setSpinPhase('idle');
+        setHighlightedFaceIndex(target.faceIndex);
+        setHighlightedTileIndex(target.tileIndex);
+        const monRewardAmount = getMonadRewardAmount(result);
+        if (monRewardAmount > 0) {
+          onMonadRewardSound?.();
+        } else {
+          onRewardSound?.();
+        }
+        keepMusicDuckedForCelebration = triggerMonadCelebration(result);
+        toast.success(`You won: ${getRewardToastLabel(result)}`);
+      } catch (error) {
+        console.error('Cube reward resolve failed:', error);
+        toast.error(error instanceof Error ? error.message : 'Could not apply cube reward.');
+        setSpinPhase('idle');
+        setHighlightedFaceIndex(target.faceIndex);
+        setHighlightedTileIndex(target.tileIndex);
+      } finally {
+        if (!keepMusicDuckedForCelebration) {
+          restoreBackgroundMusic();
+        }
+        spinLockRef.current = false;
+      }
+    })();
+  };
+
   const startFaceSelection = (target: PendingTarget) => {
     const startPathIndex = Math.floor(Math.random() * CUBE_TILE_PATH.length);
     const targetPathIndex = CUBE_TILE_PATH.indexOf(target.tileIndex);
@@ -780,40 +826,23 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     const totalSteps = loops * CUBE_TILE_PATH.length + offset;
     let step = 0;
 
-    setPhase('selecting');
+    selectionSettledRef.current = false;
+    setSpinPhase('selecting');
     setHighlightedFaceIndex(target.faceIndex);
 
+    const settleFallbackTimer = window.setTimeout(() => {
+      finishFaceSelection(target);
+    }, SELECTION_SETTLE_FALLBACK_MS);
+    timersRef.current.push(settleFallbackTimer);
+
     const tick = () => {
+      if (selectionSettledRef.current) return;
+
       const currentTileIndex = CUBE_TILE_PATH[(startPathIndex + step) % CUBE_TILE_PATH.length];
       setHighlightedTileIndex(currentTileIndex);
 
       if (step >= totalSteps) {
-        void (async () => {
-          let keepMusicDuckedForCelebration = false;
-          try {
-            const result = await onResolveReward(target.prize, target.rollId) ?? target.prize;
-            setPhase('idle');
-            setHighlightedFaceIndex(target.faceIndex);
-            const monRewardAmount = getMonadRewardAmount(result);
-            if (monRewardAmount > 0) {
-              onMonadRewardSound?.();
-            } else {
-              onRewardSound?.();
-            }
-            keepMusicDuckedForCelebration = triggerMonadCelebration(result);
-            toast.success(`You won: ${getRewardToastLabel(result)}`);
-          } catch (error) {
-            console.error('Cube reward resolve failed:', error);
-            toast.error(error instanceof Error ? error.message : 'Could not apply cube reward.');
-            setPhase('idle');
-            setHighlightedFaceIndex(target.faceIndex);
-          } finally {
-            if (!keepMusicDuckedForCelebration) {
-              restoreBackgroundMusic();
-            }
-            spinLockRef.current = false;
-          }
-        })();
+        finishFaceSelection(target);
         return;
       }
 
@@ -827,7 +856,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
   };
 
   const finishSpinAndReveal = () => {
-    if (settleStartedRef.current || phase !== 'spinning' || !pendingTargetRef.current) return;
+    if (settleStartedRef.current || phaseRef.current !== 'spinning' || !pendingTargetRef.current) return;
 
     settleStartedRef.current = true;
     const target = pendingTargetRef.current;
@@ -937,7 +966,8 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     setCubeFaces(nextFaces);
     setHighlightedFaceIndex(null);
     setHighlightedTileIndex(null);
-    setPhase('spinning');
+    setSpinPhase('spinning');
+    selectionSettledRef.current = false;
     setRotationTransitionEnabled(true);
     duckBackgroundMusic(CUBE_MUSIC_DUCK_MS, 0);
     onSpinStartSound?.();
