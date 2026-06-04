@@ -120,6 +120,15 @@ const BAIT_TILE_RATIO = CUBE_REBALANCE_CONFIG.enabled ? 0.28 : 0;
 const COIN_PRIZES = WHEEL_PRIZES.filter((item) => item.type === 'coins');
 const BAIT_PRIZES = WHEEL_PRIZES.filter((item) => item.type === 'bait');
 const MON_PRIZES = WHEEL_PRIZES.filter((item) => item.type === 'mon' && Number(item.mon ?? 0) > 0);
+const SHOWCASE_COIN_PRIZES = [...COIN_PRIZES]
+  .filter((item) => Number(item.coins ?? 0) > 0)
+  .sort((a, b) => Number(b.coins ?? 0) - Number(a.coins ?? 0));
+const SHOWCASE_BAIT_PRIZES = [...BAIT_PRIZES]
+  .filter((item) => Number(item.bait ?? 0) > 0)
+  .sort((a, b) => Number(b.bait ?? 0) - Number(a.bait ?? 0));
+const SHOWCASE_MON_PRIZES = [...MON_PRIZES]
+  .filter((item) => Number(item.mon ?? 0) > 0)
+  .sort((a, b) => Number(b.mon ?? 0) - Number(a.mon ?? 0));
 const FALLBACK_MON_PRIZE: WheelPrize = {
   id: 'secret_mon_0_5',
   type: 'mon' as const,
@@ -151,6 +160,7 @@ const ROLL_CUBE_ICON_SRC = publicAsset('assets/wheel_roll_cube_icon_v2.webp');
 const BUY_SPIN_TOAST_ID = 'wheel-buy-spin';
 const CUBE_MUSIC_DUCK_MS = 16_000;
 const CUBE_MON_CELEBRATION_MS = 2600;
+const CUBE_SHOWCASE_TILE_INDEXES = [2, 7, 12, 17, 22, 4, 20] as const;
 
 type RotationState = { x: number; y: number; z: number };
 type SpinPhase = 'idle' | 'spinning' | 'selecting';
@@ -306,17 +316,105 @@ const createRodPrize = (currentRodLevel: number): WheelPrize | null => {
   };
 };
 
+const createShowcaseRodPrize = (currentRodLevel: number): WheelPrize | null => {
+  const [rod] = getEligibleRodDrops(currentRodLevel)
+    .sort((a, b) => b.level - a.level || b.cubeDropWeight - a.cubeDropWeight);
+  if (!rod) return null;
+
+  return {
+    id: rod.id,
+    type: 'rod',
+    rodId: rod.id,
+    rodLevel: rod.level,
+    rarity: rod.rarity,
+    duplicateCompensationMonads: rod.duplicateCompensationMonads,
+    label: rod.name,
+  };
+};
+
+const cloneShowcasePrize = (prize: WheelPrize | undefined | null): WheelPrize | null => {
+  if (!prize) return null;
+  if (prize.type === 'mon') {
+    const amount = Number(prize.mon ?? CUBE_REBALANCE_CONFIG.monPrizeAmount);
+    return {
+      ...prize,
+      label: `${formatMonAmount(amount)} MON`,
+    };
+  }
+
+  return { ...prize };
+};
+
+const getShowcasePrizes = (currentRodLevel: number, includeMon: boolean): WheelPrize[] => {
+  const showcasePrizes = [
+    createShowcaseRodPrize(currentRodLevel),
+    includeMon ? cloneShowcasePrize(SHOWCASE_MON_PRIZES[0]) : null,
+    cloneShowcasePrize(SHOWCASE_COIN_PRIZES[0]),
+    cloneShowcasePrize(SHOWCASE_BAIT_PRIZES[0]),
+    includeMon ? cloneShowcasePrize(SHOWCASE_MON_PRIZES[1]) : null,
+    cloneShowcasePrize(SHOWCASE_COIN_PRIZES[1]),
+  ].filter((item): item is WheelPrize => Boolean(item));
+
+  const seen = new Set<string>();
+  return showcasePrizes.filter((item) => {
+    const key = `${item.type}:${item.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const getShowcaseTileIndexes = (protectedTileIndex?: number | null) => {
+  const orderedIndexes = [
+    ...CUBE_SHOWCASE_TILE_INDEXES,
+    ...Array.from({ length: FACE_TILE_COUNT }, (_, index) => index),
+  ];
+  const seen = new Set<number>();
+
+  return orderedIndexes.filter((index) => {
+    if (index === protectedTileIndex || seen.has(index)) return false;
+    seen.add(index);
+    return index >= 0 && index < FACE_TILE_COUNT;
+  });
+};
+
+const decorateCubeFaceWithShowcase = (
+  faces: CubeFaces,
+  faceIndex: number,
+  protectedTileIndex: number | null,
+  currentRodLevel: number,
+  includeMon: boolean,
+) => {
+  const face = faces[faceIndex];
+  if (!face) return faces;
+
+  const prizes = getShowcasePrizes(currentRodLevel, includeMon);
+  const tileIndexes = getShowcaseTileIndexes(protectedTileIndex);
+  prizes.forEach((prize, index) => {
+    const tileIndex = tileIndexes[index];
+    if (typeof tileIndex === 'number') {
+      face[tileIndex] = prize;
+    }
+  });
+
+  return faces;
+};
+
+const createPreviewCubeFaces = (currentRodLevel = 0, includeMon = true): CubeFaces => (
+  decorateCubeFaceWithShowcase(createCubeFaces(currentRodLevel, includeMon), 0, null, currentRodLevel, includeMon)
+);
+
 const shouldInjectRodTile = () => (
   ROD_CUBE_DROP_CONFIG.cubeRodDropEnabled
   && Math.random() < clampChance(ROD_CUBE_DROP_CONFIG.tileInjectionChance)
 );
 
-const createCubeFaces = (currentRodLevel = 0): CubeFaces => {
+const createCubeFaces = (currentRodLevel = 0, includeMon = true): CubeFaces => {
   const totalTiles = CUBE_SIDES.length * FACE_TILE_COUNT;
   const globalPrizes = Array.from({ length: totalTiles }, () => createCubeTilePrize());
   const reservedIndexes = new Set<number>();
 
-  const monIndexes = MON_TILE_COUNT > 0
+  const monIndexes = includeMon && MON_TILE_COUNT > 0
     ? randomUniqueIndexes(MON_TILE_COUNT, totalTiles, reservedIndexes)
     : [];
   for (const globalIndex of monIndexes) {
@@ -472,8 +570,9 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
   onMonadRewardSound,
 }) => {
   const highestOwnedRodLevel = getHighestOwnedRodLevel(rodLevel, nftRods);
+  const canUseMonadPayment = canUseMonadPaymentIdentity(walletAddress);
   const [phase, setPhase] = useState<SpinPhase>('idle');
-  const [cubeFaces, setCubeFaces] = useState<CubeFaces>(() => createCubeFaces(highestOwnedRodLevel));
+  const [cubeFaces, setCubeFaces] = useState<CubeFaces>(() => createPreviewCubeFaces(highestOwnedRodLevel, canUseMonadPayment));
   const [rotation, setRotation] = useState<RotationState>(() => getFaceViewRotation(0));
   const [rotationTransitionEnabled, setRotationTransitionEnabled] = useState(true);
   const [highlightedFaceIndex, setHighlightedFaceIndex] = useState<number | null>(null);
@@ -486,7 +585,6 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
   const pendingTargetRef = useRef<PendingTarget | null>(null);
   const settleStartedRef = useRef(false);
   const { sendTransactionAsync } = useSendTransaction();
-  const canUseMonadPayment = canUseMonadPaymentIdentity(walletAddress);
 
   const clearTimers = () => {
     timersRef.current.forEach((timer) => window.clearTimeout(timer));
@@ -536,6 +634,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     const isMonTile = item.type === 'mon';
     const isBaitTile = item.type === 'bait';
     const isRodTile = item.type === 'rod';
+    const isBigCoinTile = item.type === 'coins' && Number(item.coins ?? 0) >= 750;
     const monAmountLabel = isMonTile ? formatMonAmount(item.mon ?? CUBE_REBALANCE_CONFIG.monPrizeAmount) : '';
     const colorIndex = Math.max(WHEEL_PRIZES.findIndex((prizeItem) => prizeItem.id === item.id), 0);
     const accent = item.type === 'fish' && fish
@@ -562,6 +661,8 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
               ? 'border-lime-100/90 ring-1 ring-lime-100/80 shadow-[0_0_0_1px_rgba(101,163,13,0.2),0_0_14px_rgba(190,242,100,0.35)]'
             : isRodTile
               ? 'border-amber-100/90 ring-1 ring-amber-100/80 shadow-[0_0_0_1px_rgba(251,191,36,0.24),0_0_16px_rgba(250,204,21,0.38)]'
+            : isBigCoinTile
+              ? 'border-yellow-100/90 ring-1 ring-yellow-100/80 shadow-[0_0_0_1px_rgba(250,204,21,0.28),0_0_18px_rgba(251,191,36,0.42)]'
             : 'border-black/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.58),0_5px_10px_rgba(0,0,0,0.22)]'
         }`}
         style={{
@@ -573,6 +674,8 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
               ? 'radial-gradient(circle at top, rgba(247,254,231,0.98), rgba(190,242,100,0.94) 55%, rgba(101,163,13,0.98) 100%)'
             : isRodTile
               ? `linear-gradient(135deg, ${accent}f2, ${accent}8f 56%, rgba(17,24,39,0.96))`
+            : isBigCoinTile
+              ? 'radial-gradient(circle at 50% 18%, rgba(255,251,235,0.98), rgba(250,204,21,0.96) 46%, rgba(217,119,6,0.98) 100%)'
             : item.secret
               ? 'linear-gradient(135deg, #f8fafc, #fde68a 45%, #f472b6)'
             : `linear-gradient(135deg, ${accent}, ${accent}bb)`,
@@ -634,13 +737,22 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
             </span>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center gap-0.5">
+          <div className="relative flex h-full w-full flex-col items-center justify-center gap-0.5 overflow-hidden px-0.5">
+            {isBigCoinTile ? (
+              <>
+                <span className="pointer-events-none absolute inset-x-[12%] top-[16%] h-[1px] bg-white/80" />
+                <span className="pointer-events-none absolute -right-1 -top-1 h-5 w-5 rounded-full border border-white/45" />
+                <span className="text-[6px] font-black tracking-[0.12em] text-amber-950/80 sm:text-[7px]">
+                  GOLD
+                </span>
+              </>
+            ) : null}
             {item.secret ? (
               <Sparkles className="h-3 w-3 text-black/75 sm:h-3.5 sm:w-3.5" />
             ) : (
               <CoinIcon size="xs" />
             )}
-            <span className="text-[7px] font-black text-black/85 sm:text-[8px]">
+            <span className={`${isBigCoinTile ? 'text-[8px] text-amber-950 sm:text-[10px]' : 'text-[7px] text-black/85 sm:text-[8px]'} font-black`}>
               {item.secret ? '???' : shortCoinLabel(item.coins ?? 0)}
             </span>
           </div>
@@ -798,7 +910,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     setMonCelebration(null);
     spinLockRef.current = true;
 
-    let nextFaces = createCubeFaces(highestOwnedRodLevel);
+    let nextFaces = createCubeFaces(highestOwnedRodLevel, canUseMonadPayment);
     const localTarget = pickCubeTarget(nextFaces, highestOwnedRodLevel);
     let faceIndex = localTarget.faceIndex;
     let tileIndex = localTarget.tileIndex;
@@ -821,6 +933,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
       return;
     }
 
+    nextFaces = decorateCubeFaceWithShowcase(nextFaces, faceIndex, tileIndex, highestOwnedRodLevel, canUseMonadPayment);
     setCubeFaces(nextFaces);
     setHighlightedFaceIndex(null);
     setHighlightedTileIndex(null);

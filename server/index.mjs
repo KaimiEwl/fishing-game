@@ -2159,6 +2159,7 @@ function createCubeMonPrize(wheelPrizes) {
 
 const CUBE_FACE_COUNT = 6;
 const CUBE_FACE_TILE_COUNT = 25;
+const CUBE_SHOWCASE_TILE_INDEXES = [2, 7, 12, 17, 22, 4, 20];
 
 const clampChance = (chance) => Math.max(0, Math.min(1, Number(chance) || 0));
 
@@ -2241,6 +2242,90 @@ function createCubeRodPrize(player) {
   };
 }
 
+function createCubeShowcaseRodPrize(player) {
+  const [rod] = getEligibleCubeRodDrops(player)
+    .sort((a, b) => Number(b.level || 0) - Number(a.level || 0) || Number(b.cubeDropWeight || 0) - Number(a.cubeDropWeight || 0));
+  if (!rod) return null;
+
+  return {
+    id: rod.id,
+    type: 'rod',
+    rodId: rod.id,
+    rodLevel: rod.level,
+    rarity: rod.rarity,
+    duplicateCompensationMonads: rod.duplicateCompensationMonads,
+    label: rod.name,
+  };
+}
+
+function cloneCubeShowcasePrize(prize) {
+  if (!prize) return null;
+  if (prize.type === 'mon') {
+    const amount = Number(prize.mon || 0);
+    return { ...prize, label: `${amount} MON` };
+  }
+
+  return { ...prize };
+}
+
+function sortedWheelPrizesByAmount(wheelPrizes, type, amountKey) {
+  return wheelPrizes
+    .filter((prize) => prize.type === type && Number(prize[amountKey] || 0) > 0)
+    .sort((a, b) => Number(b[amountKey] || 0) - Number(a[amountKey] || 0));
+}
+
+function getCubeShowcasePrizes(player, wheelPrizes) {
+  const monPrizes = sortedWheelPrizesByAmount(wheelPrizes, 'mon', 'mon');
+  const coinPrizes = sortedWheelPrizesByAmount(wheelPrizes, 'coins', 'coins');
+  const baitPrizes = sortedWheelPrizesByAmount(wheelPrizes, 'bait', 'bait');
+  const showcasePrizes = [
+    createCubeShowcaseRodPrize(player),
+    cloneCubeShowcasePrize(monPrizes[0]),
+    cloneCubeShowcasePrize(coinPrizes[0]),
+    cloneCubeShowcasePrize(baitPrizes[0]),
+    cloneCubeShowcasePrize(monPrizes[1]),
+    cloneCubeShowcasePrize(coinPrizes[1]),
+  ].filter(Boolean);
+  const seen = new Set();
+
+  return showcasePrizes.filter((prize) => {
+    const key = `${prize.type}:${prize.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function getCubeShowcaseTileIndexes(protectedTileIndex) {
+  const orderedIndexes = [
+    ...CUBE_SHOWCASE_TILE_INDEXES,
+    ...Array.from({ length: CUBE_FACE_TILE_COUNT }, (_, index) => index),
+  ];
+  const seen = new Set();
+
+  return orderedIndexes.filter((index) => {
+    if (index === protectedTileIndex || seen.has(index)) return false;
+    seen.add(index);
+    return index >= 0 && index < CUBE_FACE_TILE_COUNT;
+  });
+}
+
+function decorateCubeFaceWithShowcase(faces, faceIndex, protectedTileIndex, player, wheelPrizes) {
+  const face = faces[faceIndex];
+  if (!face) return faces;
+
+  const prizes = getCubeShowcasePrizes(player, wheelPrizes);
+  const tileIndexes = getCubeShowcaseTileIndexes(protectedTileIndex);
+  prizes.forEach((prize, index) => {
+    const tileIndex = tileIndexes[index];
+    if (Number.isInteger(tileIndex)) {
+      face[tileIndex] = prize;
+    }
+  });
+
+  return faces;
+}
+
 function pickCubeTarget(faces, player) {
   const totalTiles = CUBE_FACE_COUNT * CUBE_FACE_TILE_COUNT;
   let rodIndexes = getRodTileGlobalIndexes(faces);
@@ -2317,6 +2402,7 @@ function generateCubeRoll(player) {
     faces[targetFace][targetTile] = { ...testMonPrize };
     prize = faces[targetFace][targetTile];
   }
+  decorateCubeFaceWithShowcase(faces, targetFace, targetTile, player, wheelPrizes);
   return { faces, targetFace, targetTile, prize };
 }
 
