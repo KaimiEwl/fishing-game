@@ -164,7 +164,7 @@ const BUY_SPIN_TOAST_ID = 'wheel-buy-spin';
 const CUBE_MUSIC_DUCK_MS = 16_000;
 const CUBE_MON_CELEBRATION_MS = 2600;
 const CUBE_SHOWCASE_INCLUDE_MON = true;
-const CUBE_SHOWCASE_TILE_INDEXES = [2, 7, 12, 17, 22, 4, 20, 0, 24, 10, 14, 6] as const;
+const CUBE_SHOWCASE_TILE_INDEXES = [2, 7, 12, 17, 22, 6, 8, 10, 14, 16, 18, 21] as const;
 
 type RotationState = { x: number; y: number; z: number };
 type SpinPhase = 'idle' | 'spinning' | 'selecting';
@@ -1139,10 +1139,11 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
               subtitle="Claim any 3 daily tasks to unlock 3 cube rolls. Buy extra rolls with MON any time."
               coins={coins}
               backgroundImage={publicAsset('assets/bg_wheel_v4.jpg')}
+              contentWrapperClassName="mx-auto mt-4 max-w-5xl sm:mt-6 min-h-0 w-full flex-1 overflow-visible"
             >
               <div className="flex h-full min-h-0 flex-col items-center justify-center gap-4 sm:gap-6">
                 <div
-                  className={`relative h-[18rem] w-full max-w-[24rem] sm:h-[24rem] sm:max-w-[32rem] ${
+                  className={`relative h-[18rem] w-full max-w-[24rem] overflow-visible sm:h-[24rem] sm:max-w-[32rem] ${
                     canRoll && !spinning && !selecting ? 'cursor-pointer' : 'cursor-default'
                   }`}
                   style={{
@@ -1162,14 +1163,14 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
                   aria-label="Cube preview"
                 >
                   <div
-                    className={`absolute left-1/2 top-1/2 h-[var(--cube-size)] w-[var(--cube-size)] -translate-x-1/2 -translate-y-1/2 transition-[filter,transform] duration-300 ${
+                    className={`absolute left-1/2 top-1/2 h-[var(--cube-size)] w-[var(--cube-size)] -translate-x-1/2 -translate-y-1/2 overflow-visible transition-[filter,transform] duration-300 ${
                       canRoll ? 'brightness-110 drop-shadow-[0_0_70px_rgba(34,211,238,0.38)]' : 'grayscale-[0.45] brightness-75'
                     } ${
                       canRoll && !spinning && !selecting ? 'hover:scale-[1.02]' : ''
                     }`}
                   >
                     <div
-                      className="relative h-full w-full"
+                      className="relative h-full w-full overflow-visible"
                       onTransitionEnd={(event) => {
                         if (event.propertyName !== 'transform') return;
                         finishSpinAndReveal();
@@ -1187,7 +1188,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
                       {CUBE_SIDES.map((side, sideIndex) => (
                         <div
                           key={side}
-                          className="absolute inset-0 grid grid-cols-5 gap-1.5 rounded-lg border border-cyan-100/40 bg-slate-950/90 p-2 shadow-[inset_0_0_28px_rgba(255,255,255,0.12),0_0_28px_rgba(34,211,238,0.18)]"
+                          className="absolute inset-0 grid grid-cols-5 gap-1.5 overflow-visible rounded-lg border border-cyan-100/40 bg-slate-950/90 p-2 shadow-[inset_0_0_28px_rgba(255,255,255,0.12),0_0_28px_rgba(34,211,238,0.18)]"
                           style={{
                             transform: FACE_TRANSFORMS[side],
                             transformStyle: 'preserve-3d',
