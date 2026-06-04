@@ -3812,7 +3812,7 @@ function leaderboardTimestampMs(...values) {
 
 function isSmokeTestLeaderboardEntry(entry, player = null) {
   const name = String(player?.nickname || entry?.name || '').trim().toLowerCase();
-  return name === 'smoke tester';
+  return name === 'smoke tester' || /(^|[^a-z0-9])smoke([^a-z0-9]|$)/.test(name);
 }
 
 function deriveLeaderboardName(player, entry = null) {
