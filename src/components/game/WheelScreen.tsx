@@ -113,6 +113,8 @@ const FACE_TILE_COUNT = 25;
 const SPIN_DURATION_MS = 2400;
 const SPIN_SETTLE_BUFFER_MS = 90;
 const SELECTION_SETTLE_FALLBACK_MS = 28_000;
+const ROLL_HARD_FALLBACK_MS = SPIN_DURATION_MS + SELECTION_SETTLE_FALLBACK_MS + 4_000;
+const REWARD_RESOLVE_TIMEOUT_MS = 12_000;
 const LIGHT_STEP_START_MS = 55;
 const LIGHT_STEP_INCREMENT_MS = 7;
 const FISH_TILE_RATIO = CUBE_REBALANCE_CONFIG.enabled ? CUBE_REBALANCE_CONFIG.fishTileRatio : 0.42;
@@ -161,7 +163,8 @@ const ROLL_CUBE_ICON_SRC = publicAsset('assets/wheel_roll_cube_icon_v2.webp');
 const BUY_SPIN_TOAST_ID = 'wheel-buy-spin';
 const CUBE_MUSIC_DUCK_MS = 16_000;
 const CUBE_MON_CELEBRATION_MS = 2600;
-const CUBE_SHOWCASE_TILE_INDEXES = [2, 7, 12, 17, 22, 4, 20] as const;
+const CUBE_SHOWCASE_INCLUDE_MON = true;
+const CUBE_SHOWCASE_TILE_INDEXES = [2, 7, 12, 17, 22, 4, 20, 0, 24, 10, 14, 6] as const;
 
 type RotationState = { x: number; y: number; z: number };
 type SpinPhase = 'idle' | 'spinning' | 'selecting';
@@ -219,6 +222,20 @@ const pickWeighted = <T,>(items: readonly T[], getWeight: (item: T) => number) =
 
   return items[items.length - 1];
 };
+
+const withTimeout = async <T,>(
+  promise: Promise<T> | T,
+  timeoutMs: number,
+  message: string,
+) => new Promise<T>((resolve, reject) => {
+  const timer = window.setTimeout(() => {
+    reject(new Error(message));
+  }, timeoutMs);
+
+  Promise.resolve(promise)
+    .then(resolve, reject)
+    .finally(() => window.clearTimeout(timer));
+});
 
 const shortCoinLabel = (amount: number) => {
   if (amount >= 1000) {
@@ -317,21 +334,29 @@ const createRodPrize = (currentRodLevel: number): WheelPrize | null => {
   };
 };
 
-const createShowcaseRodPrize = (currentRodLevel: number): WheelPrize | null => {
-  const [rod] = getEligibleRodDrops(currentRodLevel)
-    .sort((a, b) => b.level - a.level || b.cubeDropWeight - a.cubeDropWeight);
-  if (!rod) return null;
+const getShowcaseRodPrizes = (): WheelPrize[] => (
+  ROD_DATA.flatMap((rod) => {
+    const rewardConfig = getCubeRodRewardConfig(rod.id);
+    if (
+      !rewardConfig
+      || rod.level < ROD_CUBE_DROP_CONFIG.minLevel
+      || rod.level > ROD_CUBE_DROP_CONFIG.maxLevel
+      || rewardConfig.dropWeight <= 0
+    ) {
+      return [];
+    }
 
-  return {
-    id: rod.id,
-    type: 'rod',
-    rodId: rod.id,
-    rodLevel: rod.level,
-    rarity: rod.rarity,
-    duplicateCompensationMonads: rod.duplicateCompensationMonads,
-    label: rod.name,
-  };
-};
+    return [{
+      id: rod.id,
+      type: 'rod' as const,
+      rodId: rod.id,
+      rodLevel: rod.level,
+      rarity: rod.rarity,
+      duplicateCompensationMonads: rewardConfig.duplicateCompensationMonads,
+      label: rod.name,
+    }];
+  }).sort((a, b) => Number(b.rodLevel ?? 0) - Number(a.rodLevel ?? 0))
+);
 
 const cloneShowcasePrize = (prize: WheelPrize | undefined | null): WheelPrize | null => {
   if (!prize) return null;
@@ -346,14 +371,20 @@ const cloneShowcasePrize = (prize: WheelPrize | undefined | null): WheelPrize | 
   return { ...prize };
 };
 
-const getShowcasePrizes = (currentRodLevel: number, includeMon: boolean): WheelPrize[] => {
+const getShowcasePrizes = (includeMon: boolean): WheelPrize[] => {
+  const showcaseRodPrizes = getShowcaseRodPrizes();
   const showcasePrizes = [
-    createShowcaseRodPrize(currentRodLevel),
     includeMon ? cloneShowcasePrize(SHOWCASE_MON_PRIZES[0]) : null,
+    cloneShowcasePrize(showcaseRodPrizes[0]),
     cloneShowcasePrize(SHOWCASE_COIN_PRIZES[0]),
     cloneShowcasePrize(SHOWCASE_BAIT_PRIZES[0]),
     includeMon ? cloneShowcasePrize(SHOWCASE_MON_PRIZES[1]) : null,
+    cloneShowcasePrize(showcaseRodPrizes[1]),
     cloneShowcasePrize(SHOWCASE_COIN_PRIZES[1]),
+    includeMon ? cloneShowcasePrize(SHOWCASE_MON_PRIZES[2]) : null,
+    cloneShowcasePrize(showcaseRodPrizes[2]),
+    cloneShowcasePrize(SHOWCASE_BAIT_PRIZES[1]),
+    includeMon ? cloneShowcasePrize(SHOWCASE_MON_PRIZES[3]) : null,
   ].filter((item): item is WheelPrize => Boolean(item));
 
   const seen = new Set<string>();
@@ -383,13 +414,12 @@ const decorateCubeFaceWithShowcase = (
   faces: CubeFaces,
   faceIndex: number,
   protectedTileIndex: number | null,
-  currentRodLevel: number,
   includeMon: boolean,
 ) => {
   const face = faces[faceIndex];
   if (!face) return faces;
 
-  const prizes = getShowcasePrizes(currentRodLevel, includeMon);
+  const prizes = getShowcasePrizes(includeMon);
   const tileIndexes = getShowcaseTileIndexes(protectedTileIndex);
   prizes.forEach((prize, index) => {
     const tileIndex = tileIndexes[index];
@@ -401,8 +431,22 @@ const decorateCubeFaceWithShowcase = (
   return faces;
 };
 
+const decorateCubeFacesWithShowcase = (
+  faces: CubeFaces,
+  includeMon: boolean,
+) => {
+  faces.forEach((_, faceIndex) => {
+    decorateCubeFaceWithShowcase(faces, faceIndex, null, includeMon);
+  });
+
+  return faces;
+};
+
 const createPreviewCubeFaces = (currentRodLevel = 0, includeMon = true): CubeFaces => (
-  decorateCubeFaceWithShowcase(createCubeFaces(currentRodLevel, includeMon), 0, null, currentRodLevel, includeMon)
+  decorateCubeFacesWithShowcase(
+    createCubeFaces(currentRodLevel, includeMon),
+    CUBE_SHOWCASE_INCLUDE_MON,
+  )
 );
 
 const shouldInjectRodTile = () => (
@@ -478,6 +522,69 @@ const pickCubeTarget = (faces: CubeFaces, currentRodLevel: number): PendingTarge
     tileIndex,
     prize: faces[faceIndex][tileIndex],
   };
+};
+
+const getPrizeVisualMatchScore = (candidate: WheelPrize, target: WheelPrize) => {
+  if (candidate.id === target.id) return 1000;
+  if (candidate.type !== target.type) return 0;
+
+  if (target.type === 'coins') {
+    const candidateCoins = Number(candidate.coins ?? 0);
+    const targetCoins = Number(target.coins ?? 0);
+    if (candidateCoins <= 0 || targetCoins <= 0) return 20;
+    return 240 - Math.min(200, Math.abs(candidateCoins - targetCoins) / Math.max(targetCoins, 1));
+  }
+
+  if (target.type === 'bait') {
+    const candidateBait = Number(candidate.bait ?? 0);
+    const targetBait = Number(target.bait ?? 0);
+    if (candidateBait <= 0 || targetBait <= 0) return 20;
+    return 260 - Math.min(180, Math.abs(candidateBait - targetBait) * 16);
+  }
+
+  if (target.type === 'mon') {
+    const candidateMon = Number(candidate.mon ?? 0);
+    const targetMon = Number(target.mon ?? 0);
+    if (candidateMon <= 0 || targetMon <= 0) return 80;
+    return 320 - Math.min(220, Math.abs(candidateMon - targetMon) / Math.max(targetMon, 0.5));
+  }
+
+  if (target.type === 'rod') {
+    if (candidate.rodId === target.rodId || candidate.rodLevel === target.rodLevel) return 420;
+    return 180;
+  }
+
+  if (target.type === 'fish') {
+    return candidate.fishId === target.fishId ? 380 : 80;
+  }
+
+  return 60;
+};
+
+const findVisualTargetForPrize = (
+  faces: CubeFaces,
+  targetPrize: WheelPrize,
+  fallbackFaceIndex: number,
+  fallbackTileIndex: number,
+): Pick<PendingTarget, 'faceIndex' | 'tileIndex'> => {
+  const fallback = {
+    faceIndex: mod(fallbackFaceIndex, CUBE_SIDES.length),
+    tileIndex: mod(fallbackTileIndex, FACE_TILE_COUNT),
+  };
+  let bestTarget = fallback;
+  let bestScore = 0;
+
+  faces.forEach((face, faceIndex) => {
+    face.forEach((candidatePrize, tileIndex) => {
+      const score = getPrizeVisualMatchScore(candidatePrize, targetPrize);
+      if (score > bestScore) {
+        bestScore = score;
+        bestTarget = { faceIndex, tileIndex };
+      }
+    });
+  });
+
+  return bestScore > 0 ? bestTarget : fallback;
 };
 
 const getRewardToastLabel = (reward: WheelPrize) => {
@@ -573,7 +680,7 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
   const highestOwnedRodLevel = getHighestOwnedRodLevel(rodLevel, nftRods);
   const canUseMonadPayment = canUseMonadPaymentIdentity(walletAddress);
   const [phase, setPhase] = useState<SpinPhase>('idle');
-  const [cubeFaces, setCubeFaces] = useState<CubeFaces>(() => createPreviewCubeFaces(highestOwnedRodLevel, canUseMonadPayment));
+  const [cubeFaces] = useState<CubeFaces>(() => createPreviewCubeFaces(highestOwnedRodLevel, canUseMonadPayment));
   const [rotation, setRotation] = useState<RotationState>(() => getFaceViewRotation(0));
   const [rotationTransitionEnabled, setRotationTransitionEnabled] = useState(true);
   const [highlightedFaceIndex, setHighlightedFaceIndex] = useState<number | null>(null);
@@ -710,9 +817,12 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
             </span>
           </div>
         ) : item.type === 'mon' ? (
-          <div className="relative flex h-full w-full items-center justify-center overflow-hidden px-0.5 text-center">
+          <div className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden px-0.5 text-center">
             <span className="pointer-events-none absolute inset-x-[10%] top-[16%] h-[1px] bg-white/80" />
             <span className="pointer-events-none absolute inset-x-[12%] bottom-[18%] h-[1px] bg-emerald-950/20" />
+            <span className="relative z-10 text-[6px] font-black tracking-[0.14em] text-[#200052]/80 sm:text-[7px]">
+              MON
+            </span>
             <div className="relative z-10 flex items-center justify-center gap-0.5">
               <span className={`font-black text-[#200052] drop-shadow-[0_1px_0_rgba(255,255,255,0.68)] ${
                 monAmountLabel.length >= 3 ? 'text-[9px] sm:text-[11px]' : 'text-[12px] sm:text-[14px]'
@@ -791,7 +901,11 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     void (async () => {
       let keepMusicDuckedForCelebration = false;
       try {
-        const result = await onResolveReward(target.prize, target.rollId) ?? target.prize;
+        const result = await withTimeout(
+          onResolveReward(target.prize, target.rollId),
+          REWARD_RESOLVE_TIMEOUT_MS,
+          'Could not apply cube reward. Please try again.',
+        ) ?? target.prize;
         setSpinPhase('idle');
         setHighlightedFaceIndex(target.faceIndex);
         setHighlightedTileIndex(target.tileIndex);
@@ -939,21 +1053,32 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
     setMonCelebration(null);
     spinLockRef.current = true;
 
-    let nextFaces = createCubeFaces(highestOwnedRodLevel, canUseMonadPayment);
-    const localTarget = pickCubeTarget(nextFaces, highestOwnedRodLevel);
-    let faceIndex = localTarget.faceIndex;
-    let tileIndex = localTarget.tileIndex;
+    const fallbackFaces = createCubeFaces(highestOwnedRodLevel, canUseMonadPayment);
+    const localTarget = pickCubeTarget(fallbackFaces, highestOwnedRodLevel);
+    let visualTarget = findVisualTargetForPrize(
+      cubeFaces,
+      localTarget.prize,
+      localTarget.faceIndex,
+      localTarget.tileIndex,
+    );
+    let faceIndex = visualTarget.faceIndex;
+    let tileIndex = visualTarget.tileIndex;
     let targetPrize = localTarget.prize;
     let rollId: string | undefined;
 
     try {
       const serverRoll = await onRequestRoll?.();
       if (serverRoll) {
-        nextFaces = serverRoll.cube_faces;
-        faceIndex = serverRoll.target_face_index;
-        tileIndex = serverRoll.target_tile_index;
         targetPrize = serverRoll.prize;
         rollId = serverRoll.id;
+        visualTarget = findVisualTargetForPrize(
+          cubeFaces,
+          targetPrize,
+          serverRoll.target_face_index,
+          serverRoll.target_tile_index,
+        );
+        faceIndex = visualTarget.faceIndex;
+        tileIndex = visualTarget.tileIndex;
       }
     } catch (error) {
       console.error('Cube roll request failed:', error);
@@ -962,8 +1087,6 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
       return;
     }
 
-    nextFaces = decorateCubeFaceWithShowcase(nextFaces, faceIndex, tileIndex, highestOwnedRodLevel, canUseMonadPayment);
-    setCubeFaces(nextFaces);
     setHighlightedFaceIndex(null);
     setHighlightedTileIndex(null);
     setSpinPhase('spinning');
@@ -979,6 +1102,11 @@ const WheelScreen: React.FC<WheelScreenProps> = ({
       finishSpinAndReveal();
     }, SPIN_DURATION_MS + SPIN_SETTLE_BUFFER_MS);
     timersRef.current.push(spinTimer);
+
+    const hardFallbackTimer = window.setTimeout(() => {
+      finishFaceSelection({ faceIndex, tileIndex, prize: targetPrize, rollId });
+    }, ROLL_HARD_FALLBACK_MS);
+    timersRef.current.push(hardFallbackTimer);
   };
 
   return (
