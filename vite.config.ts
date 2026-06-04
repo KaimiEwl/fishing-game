@@ -18,6 +18,32 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     reportCompressedSize: false,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          const normalizedId = id.replaceAll("\\", "/");
+          if (!normalizedId.includes("/node_modules/")) return undefined;
+
+          if (/[\\/]node_modules[\\/](react|react-dom|react-router-dom|@tanstack[\\/]react-query)[\\/]/.test(normalizedId)) {
+            return "vendor-react";
+          }
+
+          if (/[\\/]node_modules[\\/](@rainbow-me|@reown|@walletconnect|@coinbase|@metamask|@safe-global|wagmi|viem|abitype|ox)[\\/]/.test(normalizedId)) {
+            return "vendor-wallet";
+          }
+
+          if (/[\\/]node_modules[\\/](@radix-ui|lucide-react|class-variance-authority|clsx|cmdk|tailwind-merge|vaul)[\\/]/.test(normalizedId)) {
+            return "vendor-ui";
+          }
+
+          if (/[\\/]node_modules[\\/](date-fns|embla-carousel-react|react-day-picker|recharts)[\\/]/.test(normalizedId)) {
+            return "vendor-tools";
+          }
+
+          return "vendor";
+        },
+      },
+    },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
