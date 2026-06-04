@@ -3476,11 +3476,16 @@ async function playerActions(body) {
     case 'update_grill_leaderboard': {
       const leaderboardId = `wallet:${player.wallet_address}`;
       const existing = db.prepare('SELECT * FROM grill_leaderboard WHERE id = ?').get(leaderboardId);
+      const progress = ensureGameProgress(player.game_progress || {});
       const leaderboard = upsertLeaderboard({
         id: leaderboardId,
         name: String(body.name || player.nickname || 'Guest griller'),
-        score: Number(existing?.score || 0),
-        dishes: Number(existing?.dishes || 0),
+        score: Math.max(Number(existing?.score || 0), Number(progress.grillScore || 0)),
+        dishes: Math.max(
+          Number(existing?.dishes || 0),
+          Number(progress.dishesToday || 0),
+          sumQuantityStack(player.cooked_dishes),
+        ),
         walletAddress: player.wallet_address,
       });
       return edgeResponse({ leaderboard_entry: leaderboard });
@@ -3792,6 +3797,77 @@ function summarizeWithdraws(rows) {
   return summary;
 }
 
+function sumQuantityStack(items) {
+  return (Array.isArray(items) ? items : []).reduce((sum, item) => (
+    sum + Math.max(0, Math.floor(Number(item?.quantity || 0)))
+  ), 0);
+}
+
+function leaderboardTimestampMs(...values) {
+  return values.reduce((max, value) => {
+    const time = value ? new Date(value).getTime() : 0;
+    return Number.isFinite(time) ? Math.max(max, time) : max;
+  }, 0);
+}
+
+function isSmokeTestLeaderboardEntry(entry, player = null) {
+  const name = String(player?.nickname || entry?.name || '').trim().toLowerCase();
+  return name === 'smoke tester';
+}
+
+function deriveLeaderboardName(player, entry = null) {
+  const name = String(player?.nickname || entry?.name || '').trim().slice(0, 24);
+  if (name) return name;
+  if (isGuestIdentity(player?.wallet_address)) return deriveGuestNickname(player.wallet_address);
+  const wallet = String(player?.wallet_address || entry?.wallet_address || '');
+  if (wallet.length > 12) return `${wallet.slice(0, 6)}...${wallet.slice(-4)}`;
+  return 'Guest griller';
+}
+
+function buildPlayerLeaderboardEntry(player, entry = null) {
+  const progress = ensureGameProgress(player?.game_progress || {});
+  const score = Math.max(
+    0,
+    Math.floor(Number(entry?.score || 0)),
+    Math.floor(Number(progress.grillScore || 0)),
+  );
+  const dishes = Math.max(
+    0,
+    Math.floor(Number(entry?.dishes || 0)),
+    Math.floor(Number(progress.dishesToday || 0)),
+    sumQuantityStack(player?.cooked_dishes),
+  );
+  const updatedMs = leaderboardTimestampMs(entry?.updated_at, player?.updated_at, player?.last_login);
+  const createdAt = entry?.created_at || player?.created_at || nowIso();
+
+  return {
+    id: `wallet:${player.wallet_address}`,
+    name: deriveLeaderboardName(player, entry),
+    score,
+    dishes,
+    wallet_address: player.wallet_address,
+    created_at: createdAt,
+    updated_at: updatedMs ? new Date(updatedMs).toISOString() : (entry?.updated_at || player?.updated_at || createdAt),
+  };
+}
+
+function hasDurableLeaderboardProgress(player, entry = null) {
+  const progress = ensureGameProgress(player?.game_progress || {});
+  const score = Math.max(Number(entry?.score || 0), Number(progress.grillScore || 0));
+  const dishes = Math.max(Number(entry?.dishes || 0), Number(progress.dishesToday || 0), sumQuantityStack(player?.cooked_dishes));
+
+  return (
+    score > 0
+    || dishes > 0
+    || Number(player?.total_catches || 0) > 0
+    || Number(player?.coins || 0) > STARTING_COINS
+    || Number(player?.level || 1) > 1
+    || Number(player?.xp || 0) > 0
+    || sumQuantityStack(player?.inventory) > 0
+    || Number(progress.paidWheelRolls || 0) > 0
+  );
+}
+
 function upsertLeaderboard({ id, name, score, dishes, dishesDelta = 0, walletAddress = null }) {
   const now = nowIso();
   const existing = db.prepare('SELECT * FROM grill_leaderboard WHERE id = ?').get(id);
@@ -3816,7 +3892,36 @@ function upsertLeaderboard({ id, name, score, dishes, dishesDelta = 0, walletAdd
 }
 
 function listLeaderboard() {
-  return db.prepare('SELECT * FROM grill_leaderboard ORDER BY score DESC, updated_at DESC LIMIT 100').all();
+  const entriesById = new Map();
+  const storedEntries = db.prepare('SELECT * FROM grill_leaderboard').all();
+  const storedEntriesById = new Map(storedEntries.map((entry) => [entry.id, entry]));
+
+  for (const entry of storedEntries) {
+    if (isSmokeTestLeaderboardEntry(entry)) continue;
+    entriesById.set(entry.id, entry);
+  }
+
+  const playerRows = db.prepare('SELECT * FROM players').all();
+  for (const row of playerRows) {
+    const player = playerFromRow(row);
+    if (!player) continue;
+    const id = `wallet:${player.wallet_address}`;
+    const storedEntry = storedEntriesById.get(id) || null;
+    if (isSmokeTestLeaderboardEntry(storedEntry, player)) {
+      entriesById.delete(id);
+      continue;
+    }
+    if (!storedEntry && !hasDurableLeaderboardProgress(player)) continue;
+
+    entriesById.set(id, buildPlayerLeaderboardEntry(player, storedEntry));
+  }
+
+  return Array.from(entriesById.values())
+    .sort((a, b) => {
+      if (Number(b.score || 0) !== Number(a.score || 0)) return Number(b.score || 0) - Number(a.score || 0);
+      return leaderboardTimestampMs(b.updated_at) - leaderboardTimestampMs(a.updated_at);
+    })
+    .slice(0, 100);
 }
 
 async function uploadAvatar(body) {

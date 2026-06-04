@@ -153,6 +153,8 @@ const RECOVERABLE_TAB_SCREEN_ERROR_PATTERNS = [
   'ChunkLoadError',
 ];
 
+const isGuestLeaderboardId = (id: string) => id.startsWith('guest:') || id.startsWith('wallet:guest:');
+
 const isRecoverableTabScreenError = (error: unknown) => {
   const message = error instanceof Error ? error.message : String(error ?? '');
   return RECOVERABLE_TAB_SCREEN_ERROR_PATTERNS.some((pattern) => message.includes(pattern));
@@ -985,10 +987,10 @@ const FishingGame: React.FC = () => {
   }, [assetsReady]);
 
   useEffect(() => {
-    const nextId = getLeaderboardPlayerId(address);
+    const nextId = getLeaderboardPlayerId(activeServerAddress);
     const previousId = prevLeaderboardPlayerId.current;
 
-    if (address && previousId !== nextId && previousId.startsWith('guest:')) {
+    if (address && previousId !== nextId && isGuestLeaderboardId(previousId)) {
       setLeaderboardEntries((entries) => {
         const nextEntries = mergeLeaderboardEntries({
           entries,
@@ -1010,7 +1012,7 @@ const FishingGame: React.FC = () => {
 
     prevLeaderboardPlayerId.current = nextId;
     setLeaderboardPlayerId(nextId);
-  }, [address, displayPlayer.nickname]);
+  }, [activeServerAddress, address, displayPlayer.nickname]);
 
   useEffect(() => {
     const prev = prevGameState.current;
