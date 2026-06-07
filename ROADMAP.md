@@ -4,11 +4,11 @@ MonadFish is maintained as an open-source browser game template and a production
 
 ## Near-Term
 
-- Improve README screenshots and short gameplay demo coverage
+- Expand README media coverage beyond the current screenshot and short mobile demo
 - Add focused tests or smoke scripts for leaderboard and player progress flows
 - Keep reward/wallet configuration docs up to date with safer placeholder-only examples
 - Polish mobile UX around long sessions and reconnect states
-- Add a first public release with clear install, run, and deploy notes
+- Maintain public releases with clear install, run, deploy, and verification notes
 
 ## Gameplay
 
@@ -27,5 +27,5 @@ MonadFish is maintained as an open-source browser game template and a production
 
 - Keep docs free of private hosts, keys, and production-only values
 - Add issue templates for bugs and feature requests
-- Publish release notes for meaningful milestones
+- Publish release notes for meaningful milestones and keep roadmap issues current
 - Encourage small, reviewable pull requests
