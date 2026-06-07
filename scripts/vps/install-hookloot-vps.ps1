@@ -1,19 +1,21 @@
 param(
-  [string]$SshHost = "vm3661",
+  [string]$SshHost = "hookloot-vps",
   [string]$ServerBootstrapDir = "/tmp/hookloot-bootstrap",
   [string]$RootDir = "/opt/hookloot",
-  [string]$KeyPath = "C:/Video Test/Antigravity Projects/nft-miner-game/TELEGRAM LIVE/id_ed25519"
+  [string]$KeyPath = $env:HOOKLOOT_SSH_KEY
 )
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 $sshOptions = @(
-  "-i", $KeyPath,
   "-o", "BatchMode=yes",
   "-o", "StrictHostKeyChecking=accept-new",
   "-o", "ConnectTimeout=8",
   "-o", "PreferredAuthentications=publickey",
   "-o", "RequestTTY=no"
 )
+if (-not [string]::IsNullOrWhiteSpace($KeyPath)) {
+  $sshOptions = @("-i", $KeyPath) + $sshOptions
+}
 
 $serverFiles = @(
   (Join-Path $repoRoot "deploy\vps\server\bootstrap-hookloot.sh"),

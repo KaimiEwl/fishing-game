@@ -1,22 +1,71 @@
-# MonadFish Release Notes
+# MonadFish
 
-## Project-specific release setup
+MonadFish is a mobile-friendly browser fishing game with a reward loop, map progression, upgrades, tasks, leaderboard persistence, and an optional wallet-enabled economy. The repository is an open-source React/Vite game app plus a small Node API for server-side player data.
 
-- Active app repo: `bright-greet-forge-main`
-- Runtime used in CI: Node `20` (`.github/workflows/deploy.yml`)
-- Package manager used in CI: `npm`
-- Production target: owned VPS stack under `deploy/vps/` with the Node API and SQLite data volume.
-- GitHub Pages workflow only builds a static artifact; the full game runtime expects same-origin `/api/*` from the owned server.
+Live links:
 
-## Local install
+- Production: https://www.hookloot.xyz
+- GitHub Pages build: https://kaimiewl.github.io/fishing-game/
+- Repository: https://github.com/KaimiEwl/fishing-game
+
+## Features
+
+- Arcade fishing loop with bait, rods, fish rarity, maps, and upgrades
+- Mobile-first React UI with game, shop, map, tasks, wheel, grill, and leaderboard screens
+- Server-backed player records and leaderboard persistence
+- Optional wallet/reward flow using Wagmi, Viem, RainbowKit, and Monad-compatible configuration
+- Vite production build with manual vendor chunks for large wallet and UI dependencies
+- GitHub Pages CI build plus an owned VPS deployment path for the full API-backed runtime
+- Local smoke and ops scripts for API, rewards, progress, and weekly checks
+
+## Tech Stack
+
+- React 18, TypeScript, Vite
+- Tailwind CSS and Radix UI primitives
+- Node.js API with SQLite-backed runtime data
+- Wagmi, Viem, RainbowKit for wallet integration
+- GitHub Actions for Pages deployment
+- Docker/nginx assets for the VPS deployment path
+
+## Repository Layout
+
+```text
+src/             React game client
+server/          Node API and runtime persistence
+shared/          Shared economy/config modules
+public/          Static assets and game media
+deploy/vps/      VPS compose, nginx, ingress, and server deploy scripts
+scripts/         Build, ops, VPS, QA, and automation helpers
+docs/            Deployment, release, and operating notes
+```
+
+## Local Development
+
+Install dependencies:
 
 ```sh
 npm ci
 ```
 
-## Required env vars
+Start the API:
 
-Copy `.env.example` and provide:
+```sh
+npm run server
+```
+
+Start the Vite dev server in another terminal:
+
+```sh
+npm run dev
+```
+
+During local development, Vite proxies `/api/*` to `http://127.0.0.1:8787` unless `VITE_API_PROXY_TARGET` is set.
+
+## Environment
+
+Copy `.env.example` to `.env` and fill only the values needed for your runtime.
+
+Required for the full API/runtime path:
 
 - `HOOKLOOT_SESSION_SECRET` or `SESSION_TOKEN_SECRET`
 - `HOOKLOOT_RECEIVER_ADDRESS`
@@ -25,148 +74,61 @@ Copy `.env.example` and provide:
 Optional:
 
 - `VITE_WALLETCONNECT_PROJECT_ID`
-- `VITE_API_PROXY_TARGET` for local Vite proxy override
+- `VITE_API_PROXY_TARGET`
 - `MONAD_RPC_URL`
 
-## Local app + API run
+Do not commit `.env`, `.env.local`, database files, logs, or production secrets.
 
-Start the owned API:
+## Verification
 
-```sh
-npm run server
-```
-
-Start the Vite app in another terminal:
-
-```sh
-npm run dev
-```
-
-During local development, Vite proxies `/api/*` to `http://127.0.0.1:8787` unless `VITE_API_PROXY_TARGET` is set.
-
-## Local release build for GitHub Pages
-
-This produces the same style of artifact as CI, including SPA fallback `dist/404.html`:
-
-```sh
-npm run build:pages
-```
-
-If the repository name changes, override the base path.
-
-PowerShell:
-
-```sh
-$env:PAGES_REPO_NAME="<new-repo-name>"; npm run build:pages
-```
-
-Bash:
-
-```sh
-PAGES_REPO_NAME=<new-repo-name> npm run build:pages
-```
-
-## Release preflight
+Run the main local pre-merge gate:
 
 ```sh
 npm run verify
 ```
 
-Notes:
-- `npm run verify` is the main local pre-merge / pre-deploy gate.
-- `npm run verify:ci` runs the same static checks but produces the GitHub Pages artifact build (`dist/404.html` included).
-- No dedicated unit or e2e runner is configured in `package.json` yet, so the verification gate is currently `lint + typecheck + build`.
+This currently runs:
+
+- `npm run lint`
+- `npm run typecheck`
+- `npm run build`
+
+For the GitHub Pages artifact path:
+
+```sh
+npm run verify:ci
+```
 
 ## Deployment
 
-- CI workflow: `.github/workflows/deploy.yml`
-- Trigger: push to `main`
-- CI runs `npm run verify:ci`, injects `VITE_BASE_PATH=/<repo-name>/`, and publishes `dist/` to GitHub Pages
+GitHub Pages uses `.github/workflows/deploy.yml`. On pushes to `main`, CI installs dependencies, runs `npm run verify:ci`, and publishes `dist/`.
 
-## VPS deployment
+The full server-backed runtime is documented in `docs/vps-deploy.md`. That path runs the web app and API together, keeps SQLite data on the server, and archives data before deploy switches.
 
-- New VPS deploy assets now live under `deploy/vps/`
-- The VPS compose stack runs both `hookloot-web` and `hookloot-api`.
-- Step-by-step guide:
-  - `docs/vps-deploy.md`
-- Local helpers:
-  - `npm run vps:install`
-  - `npm run vps:add-remote`
+## Open Source Status
 
-## Customer handoff note
+MonadFish is maintained as an open-source browser game template and production-style game app. The codebase is useful for small teams building mobile web games with:
 
-For customer delivery, include the deployed `https://www.hookloot.xyz` URL and the backup zip created before release work.
+- a React/Vite client
+- an API-backed leaderboard
+- server-side player persistence
+- deploy scripts for GitHub Pages and an owned VPS
+- wallet/reward integration patterns
 
-# Welcome to your Lovable project
+## Contributing
 
-## Project info
+Issues and pull requests are welcome. Start with `CONTRIBUTING.md` and `ROADMAP.md` for the current project direction.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
-
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+Before opening a pull request, run:
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+npm run verify
 ```
 
-**Edit a file directly in GitHub**
+## Security
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Please do not open public issues for secrets, production data exposure, or exploitable reward/leaderboard bugs. See `SECURITY.md` for the preferred reporting path.
 
-**Use GitHub Codespaces**
+## License
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+MIT. See `LICENSE`.

@@ -1,6 +1,6 @@
 param(
   [string]$RemoteName = "vps",
-  [string]$RemoteUrl = "vm3661:/opt/hookloot/repo.git"
+  [string]$RemoteUrl = "hookloot-vps:/opt/hookloot/repo.git"
 )
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")

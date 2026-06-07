@@ -1,7 +1,7 @@
 param(
-  [string]$SshHost = "vm3661",
+  [string]$SshHost = "hookloot-vps",
   [string]$RemoteEnvPath = "/opt/hookloot/.env.production",
-  [string]$KeyPath = "C:/Video Test/Antigravity Projects/nft-miner-game/TELEGRAM LIVE/id_ed25519"
+  [string]$KeyPath = $env:HOOKLOOT_SSH_KEY
 )
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
@@ -13,13 +13,15 @@ if (-not (Test-Path $envPath)) {
 }
 
 $sshOptions = @(
-  "-i", $KeyPath,
   "-o", "BatchMode=yes",
   "-o", "StrictHostKeyChecking=accept-new",
   "-o", "ConnectTimeout=8",
   "-o", "PreferredAuthentications=publickey",
   "-o", "RequestTTY=no"
 )
+if (-not [string]::IsNullOrWhiteSpace($KeyPath)) {
+  $sshOptions = @("-i", $KeyPath) + $sshOptions
+}
 
 $envMap = @{}
 foreach ($line in Get-Content $envPath) {

@@ -1,72 +1,76 @@
-# Hook & Loot VPS Deploy
+# VPS Deployment Guide
 
-## Goal
-- Move the site off GitHub Pages onto `vm3661`
-- Serve the game from `https://www.hookloot.xyz`
-- Run the game API and player data on our server
-- Use a fully isolated Docker contour so existing `n8n` and `tailscale` stay untouched
+This guide documents the optional full-runtime deployment path for MonadFish. GitHub Pages can host the static client, but the full game runtime expects the web app, API, and SQLite data directory to live on an owned server.
 
-## What this repo now contains
-- `deploy/vps/compose.yml`
-  - `hookloot-api` Node container with SQLite data under `/opt/hookloot/data`
-  - isolated `hookloot-web` nginx container
-  - binds only `127.0.0.1:18181`
-- `deploy/vps/nginx/default.conf`
-  - SPA routing for `/`, `/admin`, `/guide`, `/terms`, `/privacy`
-  - same-origin `/api/*` proxy to `hookloot-api`
-- `deploy/vps/server/*`
-  - bootstrap
-  - deploy hook
-  - healthcheck
-  - release pruning
-- `deploy/vps/ingress/*`
-  - ready nginx and Caddy templates for `hookloot.xyz` and `www.hookloot.xyz`
-- `scripts/vps/install-hookloot-vps.ps1`
-  - uploads bootstrap files to `vm3661`
-- `scripts/vps/add-vps-remote.ps1`
-  - adds or updates git remote `vps`
-- `scripts/vps/sync-hookloot-env.ps1`
-  - copies the current public frontend env to `/opt/hookloot/.env.production`
-- `scripts/vps/enable-origin-vps-push.ps1`
-  - makes `git push origin main` push to both GitHub and the VPS bare repo
+Use placeholders in public docs:
 
-## Production env on VPS
+- SSH host alias: `<vps-host>` or `hookloot-vps`
+- Root directory: `/opt/hookloot`
+- Git remote: `<vps-host>:/opt/hookloot/repo.git`
+- Production env: `/opt/hookloot/.env.production`
+
+## What The VPS Stack Runs
+
+- `hookloot-api`: Node API container with SQLite data mounted from `/opt/hookloot/data`
+- `hookloot-web`: nginx container serving the production `dist/` build
+- isolated compose project bound to `127.0.0.1:18181`
+- optional host-level ingress for `hookloot.xyz` / `www.hookloot.xyz`
+
+## Repository Assets
+
+- `deploy/vps/compose.yml`: API and web containers
+- `deploy/vps/nginx/default.conf`: SPA routing and same-origin `/api/*` proxy
+- `deploy/vps/server/*`: bootstrap, deploy hook, healthcheck, release pruning
+- `deploy/vps/ingress/*`: nginx and Caddy ingress templates
+- `scripts/vps/*`: local helpers for installing, syncing env, and adding remotes
+
+## Production Env
+
 Create or fill:
 
-`/opt/hookloot/.env.production`
+```text
+/opt/hookloot/.env.production
+```
 
 Required values:
 
 ```env
 VITE_BASE_PATH=/
-VITE_WALLETCONNECT_PROJECT_ID=<current project id or the fallback from src/lib/wagmi.ts>
-HOOKLOOT_SESSION_SECRET=<long random secret>
-HOOKLOOT_RECEIVER_ADDRESS=0x0266Bd01196B04a7A57372Fc9fB2F34374E6327D
-HOOKLOOT_ADMIN_WALLETS=0xAdminWallet1,0xAdminWallet2
-MONAD_RPC_URL=https://rpc.monad.xyz
+VITE_WALLETCONNECT_PROJECT_ID=<walletconnect-project-id>
+HOOKLOOT_SESSION_SECRET=<long-random-secret>
+HOOKLOOT_RECEIVER_ADDRESS=<receiver-wallet-address>
+HOOKLOOT_ADMIN_WALLETS=<admin-wallet-addresses>
+MONAD_RPC_URL=<rpc-url>
 ```
 
-To sync the current local public env to the VPS:
+Never commit production env files, wallet secrets, database files, uploads, or logs.
 
-```powershell
-npm run vps:sync-env
+## Local SSH Setup
+
+Create a local SSH alias such as:
+
+```sshconfig
+Host hookloot-vps
+  HostName <server-ip-or-hostname>
+  User <ssh-user>
+  IdentityFile <path-to-private-key>
+  IdentitiesOnly yes
 ```
 
-## One-time VPS bootstrap
+The helper scripts default to `hookloot-vps`. You can also pass `-SshHost` directly or set `HOOKLOOT_SSH_KEY` for scripts that need a private key path.
+
+## One-Time Bootstrap
+
 Run locally from the repo:
 
 ```powershell
 npm run vps:install
 ```
 
-This will:
-- create `/opt/hookloot`
-- initialize `/opt/hookloot/repo.git`
-- install the bare-repo `post-receive` hook
-- install deploy scripts into `/opt/hookloot/bin`
-- create `/opt/hookloot/.env.production` if missing
+This uploads the server bootstrap files, creates `/opt/hookloot`, initializes `/opt/hookloot/repo.git`, installs the deploy hook, and creates `/opt/hookloot/.env.production` if it is missing.
 
-## Add deploy remote
+## Add Deploy Remote
+
 Run locally:
 
 ```powershell
@@ -76,58 +80,38 @@ npm run vps:add-remote
 Expected remote:
 
 ```text
-vps  vm3661:/opt/hookloot/repo.git
+vps  hookloot-vps:/opt/hookloot/repo.git
 ```
 
-## Mirror normal pushes to the VPS
-If this machine should update the VPS every time you run `git push origin main`, enable a second push URL on `origin`:
+## Deploy
 
-```powershell
-npm run vps:mirror-origin
-```
-
-After that, `git push origin main` will push to:
-- the normal GitHub origin
-- `vm3661:/opt/hookloot/repo.git`
-
-## First deploy
 After filling `/opt/hookloot/.env.production`, deploy with:
 
 ```powershell
 git push vps main
 ```
 
-The VPS hook will:
-1. create a new release under `/opt/hookloot/releases`
-2. run `npm ci && npm run build` inside `node:20-bookworm`
-3. stop `hookloot-api` briefly and archive `/opt/hookloot/data` to `/opt/hookloot/backups/hookloot-data-<timestamp>.tar.gz`
-4. switch `/opt/hookloot/current`
-5. rebuild/restart `hookloot-api` and `hookloot-web`
-6. run smoke checks
-7. keep only the latest releases and the latest 20 data backups by default
+The VPS hook creates a timestamped release, builds with Node 20, archives data before switching releases, restarts only the game containers, runs smoke checks, and prunes old releases/backups.
 
-## DNS
-In Namecheap:
-- remove the existing redirect
-- add `A` record for `@` -> public IP of `vm3661`
-- add `A` record for `www` -> same IP
-- TTL `300`
+## Mirror Normal Pushes
 
-## Ingress
-Use the existing VPS ingress if present.
+If this machine should update GitHub and the VPS on the same `git push origin main`, run:
 
-Available templates:
-- nginx: `deploy/vps/ingress/hookloot.nginx.conf`
-- caddy: `deploy/vps/ingress/hookloot.caddy`
+```powershell
+npm run vps:mirror-origin
+```
 
-Canonical host:
-- `https://www.hookloot.xyz`
+This configures multiple `origin` push URLs. Use it only on machines that intentionally deploy to the production VPS.
 
-Redirects:
-- `hookloot.xyz` -> `https://www.hookloot.xyz`
-- `http://www.hookloot.xyz` -> `https://www.hookloot.xyz`
+## DNS And Ingress
 
-## Notes
-- GitHub Pages can stay temporarily as fallback for 1-2 days after cutover.
-- The full game runtime expects this VPS API; static-only hosting is no longer the production path.
-- If deploy scripts change later, rerun `npm run vps:install` to refresh `/opt/hookloot/bin` and the bare-repo hook.
+Configure DNS for your domain to point at the VPS. Then wire host-level nginx/Caddy ingress to `127.0.0.1:18181`.
+
+Templates:
+
+- `deploy/vps/ingress/hookloot.nginx.conf`
+- `deploy/vps/ingress/Caddyfile`
+
+## Restore Notes
+
+The deploy hook archives `/opt/hookloot/data` before release switches. For manual recovery, stop the containers, restore `/opt/hookloot/data`, restore `.env.production` if needed, and redeploy from the Git remote.

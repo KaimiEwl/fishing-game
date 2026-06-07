@@ -1,0 +1,31 @@
+# Roadmap
+
+MonadFish is maintained as an open-source browser game template and a production-style mobile web game.
+
+## Near-Term
+
+- Improve README screenshots and short gameplay demo coverage
+- Add focused tests or smoke scripts for leaderboard and player progress flows
+- Document reward/wallet configuration with safer placeholder-only examples
+- Polish mobile UX around long sessions and reconnect states
+- Add a first public release with clear install, run, and deploy notes
+
+## Gameplay
+
+- Tune fish rarity, map unlocks, and rod progression
+- Improve anti-bot and anti-abuse mechanics without making casual play frustrating
+- Add clearer player feedback for missed rewards, failed API calls, and reconnects
+
+## Server And Ops
+
+- Keep leaderboard writes server-authoritative
+- Add safer rollback notes for SQLite data restore
+- Keep deploy scripts generic enough for community reuse
+- Expand read-only smoke checks for production deploy confidence
+
+## Open Source
+
+- Keep docs free of private hosts, keys, and production-only values
+- Add issue templates for bugs and feature requests
+- Publish release notes for meaningful milestones
+- Encourage small, reviewable pull requests
