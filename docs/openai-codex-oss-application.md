@@ -56,6 +56,8 @@ Checked on 2026-06-07:
 - production is live at `https://www.hookloot.xyz`
 - release `v0.1.1` is public
 - four public roadmap issues are open
+- latest prepared `main` commit `fa4d0eb` passed GitHub Actions
+- the production root and `/index.html` are configured with no-store HTML caching to avoid stale SPA bootstrap assets
 - public adoption signals are still early: 0 stars, 0 forks
 
 ## Recommendation Before Submitting

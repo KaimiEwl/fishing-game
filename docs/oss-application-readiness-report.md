@@ -21,6 +21,10 @@ Current published GitHub main also includes:
 4f953dc Fix production bundle bootstrap
 038adc9 Bump OSS baseline release version
 6489777 Add gameplay screenshot to README
+5d25252 Record published OSS application assets
+cf93060 Add OpenAI OSS submission packet
+b02770f Fix economy config lint type
+fa4d0eb Prevent stale HTML caching on VPS
 ```
 
 ## Completed
@@ -40,6 +44,9 @@ Current published GitHub main also includes:
 - Added a public README gameplay screenshot under `docs/assets/`.
 - Published GitHub release `v0.1.1`.
 - Created four public roadmap issues.
+- Fixed the CI lint failure in `src/lib/economyConfig.ts`.
+- Added no-store caching for SPA HTML on the VPS nginx path so direct visitors do not get stuck on stale asset hashes.
+- Re-applied security headers in nginx locations that define custom cache headers.
 
 ## Verification
 
@@ -48,6 +55,12 @@ These checks passed after the OSS polish:
 ```sh
 npm run verify
 npm run verify:ci
+```
+
+Latest GitHub Actions check:
+
+```text
+https://github.com/KaimiEwl/fishing-game/actions/runs/27099662956
 ```
 
 Known remaining warnings:
@@ -65,6 +78,8 @@ Checked on 2026-06-07 after the static frontend recovery:
 - The live HTML references `assets/index-C2PDekYF.js` and no longer references the old `vendor-ui-Buf4l4Ka.js` entry from the broken split-chunk build.
 - `https://www.hookloot.xyz/api/healthz` returns `ok`.
 - A fresh browser load reached the game interface and reported 0 console errors.
+- `https://www.hookloot.xyz/` and `https://www.hookloot.xyz/index.html` return `Cache-Control: no-store, no-cache, must-revalidate, max-age=0`.
+- The root HTML keeps `X-Content-Type-Options`, `X-Frame-Options`, and `Referrer-Policy` after the cache fix.
 
 Emergency static backup made before recovery:
 
@@ -90,7 +105,6 @@ No matching staged public-risk strings were found after cleanup.
 These pre-existing working-tree changes remain outside the commit:
 
 - `public/assets/pepe_final.png`
-- `src/lib/economyConfig.ts`
 - `crop.py`
 - `docs/social-quest-roadmap.md`
 - `public/qa-runner.html`

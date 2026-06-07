@@ -59,6 +59,7 @@ Live production app: https://www.hookloot.xyz. Public release v0.1.1 and roadmap
 - Repository is public.
 - GitHub detects MIT license.
 - Release `v0.1.1` is public: `https://github.com/KaimiEwl/fishing-game/releases/tag/v0.1.1`
+- Latest prepared `main` commit is `fa4d0eb` and GitHub Actions passed: `https://github.com/KaimiEwl/fishing-game/actions/runs/27099662956`
 - Roadmap issues are public:
   - `https://github.com/KaimiEwl/fishing-game/issues/1`
   - `https://github.com/KaimiEwl/fishing-game/issues/2`
@@ -66,6 +67,7 @@ Live production app: https://www.hookloot.xyz. Public release v0.1.1 and roadmap
   - `https://github.com/KaimiEwl/fishing-game/issues/4`
 - README includes a mobile gameplay screenshot.
 - Production healthcheck returns `ok` at `https://www.hookloot.xyz/api/healthz`.
+- Production root and `/index.html` return `Cache-Control: no-store, no-cache, must-revalidate, max-age=0`, so direct visitors do not get stuck on stale HTML after asset hash changes.
 
 ## Owner-Only Fields
 
