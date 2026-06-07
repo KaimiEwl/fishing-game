@@ -12,6 +12,10 @@ Live links:
 
 ![MonadFish mobile gameplay](docs/assets/hookloot-gameplay-mobile.png)
 
+Short mobile loop captured from the production UI:
+
+![Hook & Loot mobile demo loop](docs/assets/hookloot-demo-loop.gif)
+
 ## Features
 
 - Arcade fishing loop with bait, rods, fish rarity, maps, and upgrades

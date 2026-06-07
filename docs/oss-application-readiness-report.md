@@ -42,6 +42,7 @@ fa4d0eb Prevent stale HTML caching on VPS
 - Fixed the production bundle bootstrap by removing fragile manual chunk splitting from Vite.
 - Verified the live production site after the bundle fix.
 - Added a public README gameplay screenshot under `docs/assets/`.
+- Added a short README demo capture under `docs/assets/`.
 - Published GitHub release `v0.1.1`.
 - Created four public roadmap issues.
 - Fixed the CI lint failure in `src/lib/economyConfig.ts`.
@@ -57,10 +58,10 @@ npm run verify
 npm run verify:ci
 ```
 
-Latest GitHub Actions check:
+GitHub Actions workflow:
 
 ```text
-https://github.com/KaimiEwl/fishing-game/actions/runs/27099662956
+https://github.com/KaimiEwl/fishing-game/actions/workflows/deploy.yml
 ```
 
 Known remaining warnings:
@@ -135,6 +136,7 @@ Current public GitHub signals checked on 2026-06-07:
 - GitHub detects MIT license
 - release `v0.1.1` is public
 - four public roadmap issues are open
+- README includes a mobile gameplay screenshot and short demo capture
 - current public adoption is still weak: 0 stars, 0 forks
 
 Application implication:

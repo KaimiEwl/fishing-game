@@ -51,7 +51,7 @@ API credits would support maintainer workflows for MonadFish: issue triage, Code
 Anything else we should know?
 
 ```text
-Live production app: https://www.hookloot.xyz. Public release v0.1.1 and roadmap issues #1-#4 are open. The project is early, so I am not claiming broad adoption; I am applying as the primary maintainer of an active MIT-licensed OSS game template/runtime.
+Live production app: https://www.hookloot.xyz. Public release v0.1.1, README demo media, and roadmap issues #1-#4 are public. The project is early, so I am not claiming broad adoption; I am applying as the primary maintainer of an active MIT-licensed OSS game template/runtime.
 ```
 
 ## Public Evidence
@@ -59,13 +59,13 @@ Live production app: https://www.hookloot.xyz. Public release v0.1.1 and roadmap
 - Repository is public.
 - GitHub detects MIT license.
 - Release `v0.1.1` is public: `https://github.com/KaimiEwl/fishing-game/releases/tag/v0.1.1`
-- Latest prepared `main` commit is `fa4d0eb` and GitHub Actions passed: `https://github.com/KaimiEwl/fishing-game/actions/runs/27099662956`
+- GitHub Actions workflow is passing on `main`: `https://github.com/KaimiEwl/fishing-game/actions/workflows/deploy.yml`
 - Roadmap issues are public:
   - `https://github.com/KaimiEwl/fishing-game/issues/1`
   - `https://github.com/KaimiEwl/fishing-game/issues/2`
   - `https://github.com/KaimiEwl/fishing-game/issues/3`
   - `https://github.com/KaimiEwl/fishing-game/issues/4`
-- README includes a mobile gameplay screenshot.
+- README includes a mobile gameplay screenshot and short demo capture.
 - Production healthcheck returns `ok` at `https://www.hookloot.xyz/api/healthz`.
 - Production root and `/index.html` return `Cache-Control: no-store, no-cache, must-revalidate, max-age=0`, so direct visitors do not get stuck on stale HTML after asset hash changes.
 

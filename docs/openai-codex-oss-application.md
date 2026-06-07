@@ -56,7 +56,8 @@ Checked on 2026-06-07:
 - production is live at `https://www.hookloot.xyz`
 - release `v0.1.1` is public
 - four public roadmap issues are open
-- latest prepared `main` commit `fa4d0eb` passed GitHub Actions
+- README includes mobile gameplay screenshot and short demo capture
+- GitHub Actions workflow is passing on `main`
 - the production root and `/index.html` are configured with no-store HTML caching to avoid stale SPA bootstrap assets
 - public adoption signals are still early: 0 stars, 0 forks
 
@@ -65,7 +66,7 @@ Checked on 2026-06-07:
 Submit with honest early-project framing:
 
 - do not claim broad adoption
-- point to the public release, open roadmap issues, README demo screenshot, live production app, and active maintenance
+- point to the public release, open roadmap issues, README demo media, live production app, and active maintenance
 - if there is time, add more public community/adoption proof before submitting
 
 ## Personal Fields Still Needed In The Form
