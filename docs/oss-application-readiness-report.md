@@ -19,6 +19,8 @@ Current published GitHub main also includes:
 ```text
 0b9292c Add OSS application readiness report
 4f953dc Fix production bundle bootstrap
+038adc9 Bump OSS baseline release version
+6489777 Add gameplay screenshot to README
 ```
 
 ## Completed
@@ -35,6 +37,9 @@ Current published GitHub main also includes:
 - Kept gameplay/runtime source changes out of the OSS-polish commit.
 - Fixed the production bundle bootstrap by removing fragile manual chunk splitting from Vite.
 - Verified the live production site after the bundle fix.
+- Added a public README gameplay screenshot under `docs/assets/`.
+- Published GitHub release `v0.1.1`.
+- Created four public roadmap issues.
 
 ## Verification
 
@@ -105,8 +110,8 @@ Ready local materials:
 
 Recommended public GitHub steps after pushing/merging:
 
-- create release `v0.1.0`
-- create 3-4 public roadmap issues from `docs/github-issue-drafts.md`
+- keep release `v0.1.1` visible
+- keep 3-4 public roadmap issues open and maintain them as work progresses
 - confirm GitHub detects the MIT license
 
 Current public GitHub signals checked on 2026-06-07:
@@ -114,13 +119,15 @@ Current public GitHub signals checked on 2026-06-07:
 - repository is public
 - default branch is `main`
 - GitHub detects MIT license
-- current public adoption is weak: 0 stars, 0 forks, 0 open issues
+- release `v0.1.1` is public
+- four public roadmap issues are open
+- current public adoption is still weak: 0 stars, 0 forks
 
 Application implication:
 
 - The project can be submitted honestly as an active open-source project maintained by the owner.
 - Acceptance risk is meaningful because the program explicitly looks for meaningful usage, broad adoption, or clear ecosystem importance.
-- The best low-risk improvement before submitting is to create a public release and several roadmap/issues from the prepared drafts.
+- The best remaining low-risk improvement before submitting is to add more public adoption/community signals, but the core OSS hygiene work is complete.
 
 ## OpenAI Application Preparation
 

@@ -54,15 +54,17 @@ Checked on 2026-06-07:
 - repository is public
 - GitHub detects MIT license
 - production is live at `https://www.hookloot.xyz`
-- public adoption signals are currently weak: 0 stars, 0 forks, 0 open issues
+- release `v0.1.1` is public
+- four public roadmap issues are open
+- public adoption signals are still early: 0 stars, 0 forks
 
 ## Recommendation Before Submitting
 
-Submit only with honest early-project framing, or first add a little public project activity:
+Submit with honest early-project framing:
 
-- create a GitHub release from `docs/github-release-draft.md`
-- create 3-4 public issues from `docs/github-issue-drafts.md`
-- add screenshots/demo media to README if possible
+- do not claim broad adoption
+- point to the public release, open roadmap issues, README demo screenshot, live production app, and active maintenance
+- if there is time, add more public community/adoption proof before submitting
 
 ## Personal Fields Still Needed In The Form
 
