@@ -10,6 +10,12 @@ Repository:
 https://github.com/KaimiEwl/fishing-game
 ```
 
+Production:
+
+```text
+https://www.hookloot.xyz
+```
+
 Maintainer role:
 
 ```text
@@ -39,6 +45,24 @@ API credits would support maintainer workflows for MonadFish: issue triage, Code
 - Do not claim broad adoption yet; the repository is early and currently has low public GitHub activity.
 - Emphasize active maintenance, public license, reusable game/deploy patterns, and verification workflow.
 - Mention that the project now has README, LICENSE, CONTRIBUTING, SECURITY, ROADMAP, issue templates, and release materials.
+- Mention the production runtime only as proof that the project is actively maintained and real, not as proof of broad ecosystem adoption.
+
+## Current Public Signals
+
+Checked on 2026-06-07:
+
+- repository is public
+- GitHub detects MIT license
+- production is live at `https://www.hookloot.xyz`
+- public adoption signals are currently weak: 0 stars, 0 forks, 0 open issues
+
+## Recommendation Before Submitting
+
+Submit only with honest early-project framing, or first add a little public project activity:
+
+- create a GitHub release from `docs/github-release-draft.md`
+- create 3-4 public issues from `docs/github-issue-drafts.md`
+- add screenshots/demo media to README if possible
 
 ## Personal Fields Still Needed In The Form
 

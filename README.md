@@ -14,7 +14,7 @@ Live links:
 - Mobile-first React UI with game, shop, map, tasks, wheel, grill, and leaderboard screens
 - Server-backed player records and leaderboard persistence
 - Optional wallet/reward flow using Wagmi, Viem, RainbowKit, and Monad-compatible configuration
-- Vite production build with manual vendor chunks for large wallet and UI dependencies
+- Vite production build configured to avoid fragile manual vendor chunk splitting
 - GitHub Pages CI build plus an owned VPS deployment path for the full API-backed runtime
 - Local smoke and ops scripts for API, rewards, progress, and weekly checks
 
