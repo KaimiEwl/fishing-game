@@ -125,6 +125,13 @@ MonadFish is maintained as an open-source browser game template and production-s
 - deploy scripts for GitHub Pages and an owned VPS
 - wallet/reward integration patterns
 
+Reviewer and maintainer references:
+
+- `MAINTAINERS.md` documents the primary maintainer role and review responsibilities.
+- `docs/open-source-reviewer-notes.md` summarizes public evidence for OSS program reviewers.
+- `docs/openai-codex-oss-submission-packet.md` contains the current OpenAI Codex for OSS application draft.
+- `.github/PULL_REQUEST_TEMPLATE.md` keeps future contributions aligned with game, reward, wallet, and persistence safety checks.
+
 ## Contributing
 
 Issues and pull requests are welcome. Start with `CONTRIBUTING.md` and `ROADMAP.md` for the current project direction.
