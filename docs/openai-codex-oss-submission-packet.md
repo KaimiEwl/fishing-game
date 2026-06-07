@@ -66,6 +66,7 @@ Live production app: https://www.hookloot.xyz. Public release v0.1.1, README dem
   - `https://github.com/KaimiEwl/fishing-game/issues/3`
   - `https://github.com/KaimiEwl/fishing-game/issues/4`
 - README includes a mobile gameplay screenshot and short demo capture.
+- Wallet/reward configuration is documented with placeholder-only examples: `docs/wallet-reward-configuration.md`.
 - Production healthcheck returns `ok` at `https://www.hookloot.xyz/api/healthz`.
 - Production root and `/index.html` return `Cache-Control: no-store, no-cache, must-revalidate, max-age=0`, so direct visitors do not get stuck on stale HTML after asset hash changes.
 

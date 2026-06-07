@@ -27,7 +27,7 @@ Convenience npm scripts:
 If you know the session secret:
 
 ```powershell
-$env:HOOKLOOT_SESSION_SECRET="your-secret"
+$env:HOOKLOOT_SESSION_SECRET = "<session-secret>"
 node .\scripts\ops\make-session-token.mjs --wallet 0xYourWallet
 ```
 

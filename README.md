@@ -87,6 +87,8 @@ Optional:
 
 Do not commit `.env`, `.env.local`, database files, logs, or production secrets.
 
+For placeholder-only wallet and reward setup notes, see `docs/wallet-reward-configuration.md`.
+
 ## Verification
 
 Run the main local pre-merge gate:

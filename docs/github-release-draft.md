@@ -1,9 +1,9 @@
-# Release Draft: v0.1.1
+# Release Draft: next OSS maintenance release
 
 Title:
 
 ```text
-MonadFish v0.1.1 - open-source baseline and production bundle fix
+MonadFish - OSS maintenance update
 ```
 
 Body:
@@ -16,10 +16,15 @@ Body:
 - Adds maintainer files: CONTRIBUTING, SECURITY, ROADMAP, and issue templates.
 - Keeps the existing React/Vite game client, Node API, leaderboard persistence, and VPS deployment path intact.
 - Fixes the production bundle bootstrap by removing fragile manual chunk splitting.
+- Adds README demo media captured from the production UI.
+- Documents wallet/reward configuration with placeholder-only examples.
+- Prevents stale HTML caching on the VPS path so direct visitors do not get stuck on old asset hashes.
 
 ## Verification
 
 - npm run verify
+- npm run verify:ci
+- GitHub Actions passing on main
 - Fresh production browser load reached the game interface with 0 console errors
 
 ## Notes

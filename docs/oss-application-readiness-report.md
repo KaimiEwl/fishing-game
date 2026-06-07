@@ -14,18 +14,16 @@ Prepared commit:
 b77f0f9 Prepare fishing game OSS application polish
 ```
 
-Current published GitHub main also includes:
+Current published GitHub main includes the OSS preparation sequence, including:
 
-```text
-0b9292c Add OSS application readiness report
-4f953dc Fix production bundle bootstrap
-038adc9 Bump OSS baseline release version
-6489777 Add gameplay screenshot to README
-5d25252 Record published OSS application assets
-cf93060 Add OpenAI OSS submission packet
-b02770f Fix economy config lint type
-fa4d0eb Prevent stale HTML caching on VPS
-```
+- public OSS maintainer docs and issue templates
+- production bundle bootstrap fix
+- OSS baseline release metadata
+- README gameplay screenshot and short demo capture
+- OpenAI Codex for OSS submission packet
+- CI lint fix
+- VPS stale-HTML cache prevention
+- placeholder-only wallet/reward configuration docs
 
 ## Completed
 
@@ -43,6 +41,7 @@ fa4d0eb Prevent stale HTML caching on VPS
 - Verified the live production site after the bundle fix.
 - Added a public README gameplay screenshot under `docs/assets/`.
 - Added a short README demo capture under `docs/assets/`.
+- Added placeholder-only wallet/reward configuration docs.
 - Published GitHub release `v0.1.1`.
 - Created four public roadmap issues.
 - Fixed the CI lint failure in `src/lib/economyConfig.ts`.
@@ -82,11 +81,7 @@ Checked on 2026-06-07 after the static frontend recovery:
 - `https://www.hookloot.xyz/` and `https://www.hookloot.xyz/index.html` return `Cache-Control: no-store, no-cache, must-revalidate, max-age=0`.
 - The root HTML keeps `X-Content-Type-Options`, `X-Frame-Options`, and `Referrer-Policy` after the cache fix.
 
-Emergency static backup made before recovery:
-
-```text
-C:\OPENAI_OSS_BACKUPS\hookloot-current-dist_20260607_085605
-```
+Emergency static backup was made before recovery. The local backup path is intentionally omitted from public docs.
 
 ## Public Risk Checks
 
@@ -120,6 +115,7 @@ Ready local materials:
 
 - `docs/github-release-draft.md`
 - `docs/github-issue-drafts.md`
+- `docs/wallet-reward-configuration.md`
 - `.github/ISSUE_TEMPLATE/bug_report.md`
 - `.github/ISSUE_TEMPLATE/feature_request.md`
 
@@ -137,6 +133,7 @@ Current public GitHub signals checked on 2026-06-07:
 - release `v0.1.1` is public
 - four public roadmap issues are open
 - README includes a mobile gameplay screenshot and short demo capture
+- wallet/reward configuration docs use placeholder-only examples
 - current public adoption is still weak: 0 stars, 0 forks
 
 Application implication:

@@ -57,6 +57,7 @@ Checked on 2026-06-07:
 - release `v0.1.1` is public
 - four public roadmap issues are open
 - README includes mobile gameplay screenshot and short demo capture
+- wallet/reward configuration is documented with placeholder-only examples
 - GitHub Actions workflow is passing on `main`
 - the production root and `/index.html` are configured with no-store HTML caching to avoid stale SPA bootstrap assets
 - public adoption signals are still early: 0 stars, 0 forks

@@ -6,7 +6,7 @@ MonadFish is maintained as an open-source browser game template and a production
 
 - Improve README screenshots and short gameplay demo coverage
 - Add focused tests or smoke scripts for leaderboard and player progress flows
-- Document reward/wallet configuration with safer placeholder-only examples
+- Keep reward/wallet configuration docs up to date with safer placeholder-only examples
 - Polish mobile UX around long sessions and reconnect states
 - Add a first public release with clear install, run, and deploy notes
 
