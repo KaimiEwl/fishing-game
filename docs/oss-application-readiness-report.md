@@ -30,7 +30,7 @@ Current published GitHub main also includes:
 - Added release, issue, and OpenAI Codex for OSS application drafts under `docs/`.
 - Removed tracked generator artifacts: `.lovable/plan.md` and `bun.lockb`.
 - Removed `lovable-tagger` from Vite config and package metadata.
-- Updated package metadata to `monadfish@0.1.0` with repository, homepage, description, and MIT license.
+- Updated package metadata to `monadfish@0.1.1` with repository, homepage, description, and MIT license.
 - Sanitized public env/deploy docs with placeholders instead of private host/key defaults.
 - Kept gameplay/runtime source changes out of the OSS-polish commit.
 - Fixed the production bundle bootstrap by removing fragile manual chunk splitting from Vite.
