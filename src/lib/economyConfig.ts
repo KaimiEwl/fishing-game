@@ -1,6 +1,6 @@
 import * as economyConfig from '../../shared/economy-config.mjs';
 
-const config = economyConfig as Record<string, any>;
+const config = economyConfig;
 
 export const GAME_ECONOMY_VERSION = config.GAME_ECONOMY_VERSION;
 
