@@ -76,3 +76,5 @@ These should be filled by the account owner only:
 - last name
 - ChatGPT account email
 - OpenAI Organization ID
+
+Use the owner's real ChatGPT/OpenAI account. The public form does not request passport/KYC documents, but the Program Terms allow OpenAI to request follow-up verification of identity, maintainer status, repository affiliation, or repository control.

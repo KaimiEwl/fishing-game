@@ -82,7 +82,10 @@ These must be filled by the account owner:
 
 - The public form does not request a passport, selfie, or KYC document at submission time.
 - The public form does not include a country field at submission time.
+- Program terms say OpenAI may request additional information to verify identity, repository affiliation, maintainer status, or repository control.
 - The applicant should use an OpenAI account from a supported country/region and must not use unsupported-region workarounds.
+- Program benefits are personal, limited, non-transferable, and have no cash value.
+- Do not submit confidential information in the form; application materials should be safe to review externally.
 - OpenAI reviews applications on a rolling basis and notifies selected applicants by email.
 
 ## Honest Risk Note
