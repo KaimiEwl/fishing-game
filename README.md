@@ -8,6 +8,10 @@ Live links:
 - GitHub Pages build: https://kaimiewl.github.io/fishing-game/
 - Repository: https://github.com/KaimiEwl/fishing-game
 
+## Demo
+
+![MonadFish mobile gameplay](docs/assets/hookloot-gameplay-mobile.png)
+
 ## Features
 
 - Arcade fishing loop with bait, rods, fish rarity, maps, and upgrades
